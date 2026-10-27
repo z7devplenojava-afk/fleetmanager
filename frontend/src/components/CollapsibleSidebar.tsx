@@ -1106,12 +1106,6 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'operacional-rateio-servicos',
     'operacional-gestao',
     'operacional-medicao',
-    'estoque-simplificado',
-    'almoxarifado-requisicoes',
-    'almoxarifado-despesas',
-    'estoque-relatorios',
-    'estoque-alertas',
-    'estoque-fornecedores',
     'chat-interno',
     'mensagens',
   ]),
@@ -1168,12 +1162,6 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'operacional-rateio-servicos',
     'operacional-gestao',
     'operacional-medicao',
-    'estoque-simplificado',
-    'almoxarifado-requisicoes',
-    'almoxarifado-despesas',
-    'estoque-relatorios',
-    'estoque-alertas',
-    'estoque-fornecedores',
     'chat-interno',
     'mensagens',
   ]),
@@ -1230,12 +1218,6 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'operacional-rateio-servicos',
     'operacional-gestao',
     'operacional-medicao',
-    'estoque-simplificado',
-    'almoxarifado-requisicoes',
-    'almoxarifado-despesas',
-    'estoque-relatorios',
-    'estoque-alertas',
-    'estoque-fornecedores',
     'chat-interno',
     'mensagens',
   ]),
@@ -1292,12 +1274,6 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'operacional-rateio-servicos',
     'operacional-gestao',
     'operacional-medicao',
-    'estoque-simplificado',
-    'almoxarifado-requisicoes',
-    'almoxarifado-despesas',
-    'estoque-relatorios',
-    'estoque-alertas',
-    'estoque-fornecedores',
     'chat-interno',
     'mensagens',
   ]),
@@ -2247,19 +2223,7 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
           {/* Módulo Sistema - SUPER_ADMIN */}
           {user?.role === 'SUPER_ADMIN' && renderModuleSection('sistema', 'Sistema', filteredSistemaItems)}
 
-          {/* Opção adicional de Sair no rodapé do menu de rolagem para mobile */}
-          {isMobile && (
-            <div className="px-4 pt-3 pb-6 border-t border-white/5 mt-4">
-              <button
-                type="button"
-                onClick={() => setIsLogoutModalOpen(true)}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold text-red-400 hover:text-white bg-red-500/10 hover:bg-red-600 border border-red-500/20 transition-all active:scale-98"
-              >
-                <LogOut size={16} />
-                <span>Sair do Sistema</span>
-              </button>
-            </div>
-          )}
+
         </div>
 
         {/* Footer */}

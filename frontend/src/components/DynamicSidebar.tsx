@@ -935,12 +935,6 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'operacional-rateio-servicos',
     'operacional-gestao',
     'operacional-medicao',
-    'estoque-simplificado',
-    'almoxarifado-requisicoes',
-    'almoxarifado-despesas',
-    'estoque-relatorios',
-    'estoque-alertas',
-    'estoque-fornecedores',
     'chat-interno',
     'mensagens',
   ]),
@@ -986,12 +980,6 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'operacional-rateio-servicos',
     'operacional-gestao',
     'operacional-medicao',
-    'estoque-simplificado',
-    'almoxarifado-requisicoes',
-    'almoxarifado-despesas',
-    'estoque-relatorios',
-    'estoque-alertas',
-    'estoque-fornecedores',
     'chat-interno',
     'mensagens',
   ]),
@@ -1037,12 +1025,6 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'operacional-rateio-servicos',
     'operacional-gestao',
     'operacional-medicao',
-    'estoque-simplificado',
-    'almoxarifado-requisicoes',
-    'almoxarifado-despesas',
-    'estoque-relatorios',
-    'estoque-alertas',
-    'estoque-fornecedores',
     'chat-interno',
     'mensagens',
   ]),
@@ -1088,12 +1070,6 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'operacional-rateio-servicos',
     'operacional-gestao',
     'operacional-medicao',
-    'estoque-simplificado',
-    'almoxarifado-requisicoes',
-    'almoxarifado-despesas',
-    'estoque-relatorios',
-    'estoque-alertas',
-    'estoque-fornecedores',
     'chat-interno',
     'mensagens',
   ]),
@@ -2173,15 +2149,15 @@ export function DynamicSidebar() {
   return (
     <Sidebar className="bg-seguranca-graphite border-r border-gray-700">
       <SidebarHeader className="p-4 border-b border-gray-700">
-        {(!sidebarLogoError && empresa?.logoUrl) ? (
+        {(!sidebarLogoError && resolveCompanyLogoUrl(empresa?.logoUrl)) ? (
           <div className="flex items-center gap-3">
             <img
-              src={resolveCompanyLogoUrl(empresa.logoUrl) || undefined}
-              alt={empresa.nome}
+              src={resolveCompanyLogoUrl(empresa?.logoUrl)!}
+              alt={empresa?.nome || 'Empresa'}
               onError={() => setSidebarLogoError(true)}
               className="h-10 w-10 object-contain rounded"
             />
-            <span className="font-bold text-white truncate">{empresa.nome}</span>
+            <span className="font-bold text-white truncate">{empresa?.nome}</span>
           </div>
         ) : empresa?.nome ? (
           <div className="flex items-center gap-2">

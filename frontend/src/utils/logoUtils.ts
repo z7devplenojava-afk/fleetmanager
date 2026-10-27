@@ -11,6 +11,11 @@ export function resolveCompanyLogoUrl(logoUrl?: string | null): string | null {
   if (!logoUrl || !logoUrl.trim()) return null;
   const trimmed = logoUrl.trim();
 
+  // Ignorar logos órfãs conhecidas que não existem no disco do servidor
+  if (trimmed.includes('e9654118-53a8-4dd8-b57c-bc50997f081b')) {
+    return null;
+  }
+
   // URLs absolutas ou data URIs retornam imediatamente
   if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:')) {
     return trimmed;

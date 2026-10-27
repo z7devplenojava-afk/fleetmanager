@@ -253,12 +253,12 @@ const DriverChecklist: React.FC = () => {
     useEffect(() => {
         if (matchedDriver && driverId !== matchedDriver.id) {
             setDriverId(matchedDriver.id);
-        } else if (isDriver && !driverId && user?.employeeId) {
+        } else if (isDriver && !driverId && drivers.length > 0 && user?.employeeId) {
             setDriverId(user.employeeId);
         }
-    }, [matchedDriver, isDriver, user?.employeeId, driverId]);
+    }, [matchedDriver, isDriver, user?.employeeId, driverId, drivers.length]);
 
-    const effectiveDriverId = driverId || matchedDriver?.id || (isDriver ? user?.employeeId : undefined);
+    const effectiveDriverId = driverId || matchedDriver?.id || (isDriver && drivers.length > 0 ? (matchedDriver?.id || user?.employeeId) : undefined);
 
     // Cálculos em tempo real de distâncias
     const tripDistance = useMemo(() => {
@@ -610,6 +610,7 @@ const DriverChecklist: React.FC = () => {
             });
             return all.slice(0, 15);
         },
+        enabled: !isDriver || !!effectiveDriverId || drivers.length > 0,
     });
 
     const mediaBase = getApiUrl().replace(/\/api\/?$/, '');

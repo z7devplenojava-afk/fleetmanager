@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { User, Mail, Shield, Users, Save, X } from 'lucide-react';
+import { User, Mail, Shield, Users, Save, X, Search, Check, ChevronsUpDown, AlertCircle, FileText, Sparkles } from 'lucide-react';
 import { User as UserType, UserRole, UserGroupData } from '@/types/user';
 import { getRoleDisplayName, getRoleColor, USER_ROLE_LIST } from '@/utils/permissions';
 import { RoleMultiSelect } from './RoleMultiSelect';
@@ -40,15 +40,17 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
   onClose,
   onSave,
 }) => {
-  const { user: currentUser, hasRole, refreshUser } = useAuth();
+  const { user: currentUser, hasRole, refreshUser, logout } = useAuth();
   const { toast } = useToast();
   const isSuperAdmin = hasRole('SUPER_ADMIN');
   const canManageCompanies = isSuperAdmin || hasRole('FLEX_ADMIN');
   const [isLoading, setIsLoading] = useState(false);
+  const [showReloginAlert, setShowReloginAlert] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     username: '',
+    cpf: '',
     roles: [] as UserRole[],
     active: true,
     whatsapp: '',
@@ -73,6 +75,101 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
   const [selectedGroupId, setSelectedGroupId] = useState<string>('');
   const [isGroupLoading, setIsGroupLoading] = useState(false);
 
+  // Estados para o campo pesquisável de funcionário vinculado
+  const [employeeSearchTerm, setEmployeeSearchTerm] = useState('');
+  const [isEmployeeComboboxOpen, setIsEmployeeComboboxOpen] = useState(false);
+  const [searchingServerEmployees, setSearchingServerEmployees] = useState(false);
+  const [checkingCpfEdit, setCheckingCpfEdit] = useState(false);
+  const employeeComboboxRef = React.useRef<HTMLDivElement>(null);
+
+  // Fechar combobox de funcionário ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (employeeComboboxRef.current && !employeeComboboxRef.current.contains(event.target as Node)) {
+        setIsEmployeeComboboxOpen(false);
+      }
+    };
+    if (isEmployeeComboboxOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isEmployeeComboboxOpen]);
+
+  // Resetar busca ao abrir/fechar modal
+  useEffect(() => {
+    if (!isOpen) {
+      setIsEmployeeComboboxOpen(false);
+      setEmployeeSearchTerm('');
+    }
+  }, [isOpen]);
+
+  // Busca debounced no servidor se o termo tiver 3 ou mais caracteres
+  useEffect(() => {
+    const term = employeeSearchTerm.trim();
+    if (term.length >= 3) {
+      setSearchingServerEmployees(true);
+      const timer = setTimeout(() => {
+        employeeService.getAllEmployees(term)
+          .then(results => {
+            if (results && results.length > 0) {
+              setEmployees(prev => {
+                const map = new Map<string, Employee>();
+                prev.forEach(e => map.set(String(e.id), e));
+                results.forEach(e => map.set(String(e.id), e));
+                return Array.from(map.values());
+              });
+            }
+          })
+          .catch(err => console.error('Erro na busca de funcionários:', err))
+          .finally(() => setSearchingServerEmployees(false));
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [employeeSearchTerm]);
+
+  // Filtro local reativo e insensível a acentos — restrito à empresa selecionada
+  const filteredEmployees = React.useMemo(() => {
+    const selectedCompanyId = formData.companyId && formData.companyId !== 'none' ? formData.companyId : null;
+    const term = employeeSearchTerm.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const digits = employeeSearchTerm.replace(/\D/g, '');
+
+    // Primeiro filtrar pela empresa (obrigatório)
+    const byCompany = selectedCompanyId
+      ? employees.filter(emp => {
+          const empComp = (emp as any).companyId || (emp as any).company?.id || null;
+          return String(empComp) === String(selectedCompanyId);
+        })
+      : []; // Sem empresa: não mostra funcionários
+
+    if (!term) return byCompany;
+
+    return byCompany.filter(emp => {
+      const name = (emp.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const pos = ((emp.positionDescription || (emp as any).position?.name) || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const reg = (emp.registrationNumber || '').toLowerCase();
+      const doc = (emp.document || emp.cpf || '').replace(/\D/g, '');
+
+      return name.includes(term) ||
+             pos.includes(term) ||
+             reg.includes(term) ||
+             (digits ? doc.includes(digits) : false);
+    });
+  }, [employees, employeeSearchTerm, formData.companyId]);
+
+  // Regra 1-para-1: verificar se o funcionário já está vinculado a outro usuário
+  const isEmployeeLinkedToOtherUser = (emp: Employee) => {
+    const linkedUserId = (emp as any).userId || (emp as any).user?.id;
+    if (!linkedUserId) return false;
+    return Boolean(user?.id && String(linkedUserId) !== String(user.id));
+  };
+
+  const selectedEmployee = employees.find(e => String(e.id) === String(selectedEmployeeId));
+  const displayEmployeeName = selectedEmployee?.name || user?.employeeName || '';
+  const displayPosition = selectedEmployee?.positionDescription || (selectedEmployee as any)?.position?.name || '';
+  const displayDoc = selectedEmployee?.document || selectedEmployee?.cpf || '';
+
   useEffect(() => {
     if (user) {
       const extractedRoles: UserRole[] = [];
@@ -92,6 +189,7 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
         name: user.name || '',
         email: user.email || '',
         username: user.username || '',
+        cpf: (user as any).cpf || '',
         roles: extractedRoles,
         active: user.active !== false,
         whatsapp: user.whatsapp || '',
@@ -145,16 +243,51 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
           email: prev.email.trim() === '' && emp.email ? emp.email : prev.email,
           whatsapp: prev.whatsapp.trim() === '' && emp.phone ? emp.phone.replace(/\D/g, '') : prev.whatsapp,
           phone: prev.phone.trim() === '' && emp.phone ? emp.phone.replace(/\D/g, '') : prev.phone,
+          cpf: prev.cpf.trim() === '' && (emp.document || emp.cpf) ? (emp.document || emp.cpf) : prev.cpf,
         }));
       }
     }
   };
 
+  const handleCpfChange = async (val: string) => {
+    const digits = val.replace(/\D/g, '').slice(0, 11);
+    let formatted = digits;
+    if (digits.length > 9) formatted = `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
+    else if (digits.length > 6) formatted = `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
+    else if (digits.length > 3) formatted = `${digits.slice(0, 3)}.${digits.slice(3)}`;
+
+    setFormData(prev => ({ ...prev, cpf: formatted }));
+
+    if (digits.length === 11) {
+      setCheckingCpfEdit(true);
+      try {
+        const found = await employeeService.searchEmployeeByCpf(digits);
+        if (found) {
+          if (selectedEmployeeId === 'none' || !selectedEmployeeId) {
+            handleEmployeeChange(String(found.id));
+            toast({
+              title: 'Funcionário Localizado!',
+              description: `${found.name} associado automaticamente pelo CPF.`,
+            });
+          }
+        }
+      } catch (e) {
+        console.error('Erro ao verificar funcionário por CPF na edição:', e);
+      } finally {
+        setCheckingCpfEdit(false);
+      }
+    }
+  };
+
   const handleInputChange = (field: string, value: string | boolean) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value,
-    }));
+    setFormData(prev => {
+      const updated = { ...prev, [field]: value };
+      // Se trocar empresa, limpar funcionário vinculado
+      if (field === 'companyId' && value !== prev.companyId) {
+        setSelectedEmployeeId('none');
+      }
+      return updated;
+    });
   };
 
   const handleSave = async () => {
@@ -238,6 +371,7 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
         name: formData.name.trim(),
         email: formData.email.trim(),
         username: formData.username.trim(),
+        cpf: formData.cpf ? formData.cpf.trim() : undefined,
         roles: formData.roles,
         active: formData.active,
         whatsapp: cleanWhatsapp || undefined,
@@ -258,16 +392,32 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
         updateData.password = formData.password;
       }
 
+      const wasCompanyRemoved = updateData.removeCompany === true;
       await userService.updateUser(user.id, updateData);
-      if (currentUser?.id === user.id || currentUser?.username === user.username) {
+      const isCurrentUser = currentUser?.id === user.id || currentUser?.username === user.username;
+      if (isCurrentUser) {
         void refreshUser();
       }
-      toast({
-        title: 'Sucesso!',
-        description: 'Usuário atualizado com sucesso.',
-      });
+      if (wasCompanyRemoved) {
+        if (isCurrentUser) {
+          // O próprio usuário desvinculou sua empresa — mostrar alerta de relogin
+          setShowReloginAlert(true);
+        } else {
+          toast({
+            title: 'Empresa Desvinculada',
+            description: `A empresa foi desvinculada de ${user.name}. O usuário precisará sair e entrar novamente para que as novas configurações sejam aplicadas.`,
+          });
+        }
+      } else {
+        toast({
+          title: 'Sucesso!',
+          description: 'Usuário atualizado com sucesso.',
+        });
+      }
       onSave();
-      onClose();
+      if (!wasCompanyRemoved || !isCurrentUser) {
+        onClose();
+      }
     } catch (error: any) {
       toast({
         title: 'Erro!',
@@ -428,6 +578,29 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
                   />
                 </div>
 
+                {/* Campo CPF */}
+                <div className="space-y-2 md:col-span-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="user-cpf" className="text-seguranca-lightgray flex items-center gap-1.5 font-medium">
+                      <FileText className="h-4 w-4 text-seguranca-red" />
+                      CPF do Usuário (Localiza Funcionário)
+                    </Label>
+                    {checkingCpfEdit && (
+                      <span className="text-xs text-amber-400 flex items-center gap-1">
+                        <Sparkles className="h-3 w-3 animate-spin" /> Verificando CPF na tabela de funcionários...
+                      </span>
+                    )}
+                  </div>
+                  <Input
+                    id="user-cpf"
+                    value={formData.cpf}
+                    onChange={(e) => handleCpfChange(e.target.value)}
+                    className="bg-seguranca-black border-gray-600 text-seguranca-lightgray placeholder:text-gray-500"
+                    placeholder="000.000.000-00 (digite para localizar e vincular colaborador)"
+                    maxLength={14}
+                  />
+                </div>
+
                 {/* Seleção de Funcionário Vinculado */}
                 <div className="space-y-2 md:col-span-2 pt-2 border-t border-gray-700/60">
                   <div className="flex items-center justify-between">
@@ -441,41 +614,198 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
                       </Badge>
                     )}
                   </div>
-                  <Select
-                    value={selectedEmployeeId}
-                    onValueChange={handleEmployeeChange}
-                    disabled={isEmployeeLoading}
-                  >
-                    <SelectTrigger id="employee-link" className="bg-seguranca-black border-gray-600 text-seguranca-lightgray">
-                      <SelectValue placeholder={isEmployeeLoading ? "Carregando funcionários..." : "Selecione um funcionário..."} />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-60 bg-seguranca-graphite border-gray-600 text-seguranca-lightgray">
-                      <SelectItem value="none" className="text-gray-400 focus:bg-seguranca-black focus:text-white">
-                        Nenhum / Desvincular funcionário
-                      </SelectItem>
-                      {employees.map((emp) => (
-                        <SelectItem
-                          key={emp.id}
-                          value={String(emp.id)}
-                          className="focus:bg-seguranca-black focus:text-white"
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-white">{emp.name}</span>
-                            {(emp.document || emp.cpf) && (
-                              <span className="text-xs text-gray-400">
-                                • CPF/Doc: {emp.document || emp.cpf}
+                  {/* Combobox Pesquisável de Funcionário */}
+                  <div className="relative" ref={employeeComboboxRef}>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        id="employee-link"
+                        onClick={() => setIsEmployeeComboboxOpen(prev => !prev)}
+                        disabled={isEmployeeLoading}
+                        className="flex-1 flex items-center justify-between px-3 py-2 text-sm rounded-md bg-seguranca-black border border-gray-600 text-seguranca-lightgray hover:border-gray-500 focus:outline-none focus:ring-1 focus:ring-seguranca-red transition-colors text-left"
+                      >
+                        {selectedEmployeeId !== 'none' ? (
+                          <div className="flex items-center gap-2 truncate">
+                            <Users className="h-4 w-4 text-seguranca-red shrink-0" />
+                            <span className="font-semibold text-white truncate">
+                              {displayEmployeeName}
+                            </span>
+                            {displayPosition && (
+                              <span className="text-xs text-gray-300 truncate">
+                                • {displayPosition}
                               </span>
                             )}
-                            {emp.positionDescription && (
-                              <span className="text-xs text-gray-400">
-                                • {emp.positionDescription}
+                            {displayDoc && (
+                              <span className="text-xs text-gray-400 truncate">
+                                • CPF: {displayDoc}
                               </span>
                             )}
                           </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                        ) : (
+                          <div className="flex items-center gap-2 text-gray-400">
+                            <Search className="h-4 w-4 shrink-0 text-seguranca-red" />
+                            <span>{isEmployeeLoading ? "Carregando funcionários..." : "Pesquisar por nome, CPF ou cargo..."}</span>
+                          </div>
+                        )}
+                        <ChevronsUpDown className="h-4 w-4 opacity-50 shrink-0 ml-2 text-gray-400" />
+                      </button>
+
+                      {selectedEmployeeId !== 'none' && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEmployeeChange('none')}
+                          className="border-gray-600 hover:bg-seguranca-black text-gray-400 hover:text-red-400 px-3"
+                          title="Desvincular funcionário"
+                        >
+                          <X className="h-4 w-4 mr-1 text-red-400" />
+                          Desvincular
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* Dropdown com campo de pesquisa */}
+                    {isEmployeeComboboxOpen && formData.companyId && formData.companyId !== 'none' ? (
+                      <div className="absolute z-50 left-0 right-0 mt-1 bg-seguranca-graphite border border-gray-600 rounded-lg shadow-2xl p-2 space-y-2">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          <Input
+                            autoFocus
+                            value={employeeSearchTerm}
+                            onChange={(e) => setEmployeeSearchTerm(e.target.value)}
+                            placeholder="Digite o nome, CPF ou cargo (mín. 3 letras)..."
+                            className="pl-9 bg-seguranca-black border-gray-600 text-white placeholder:text-gray-500 h-9 text-sm"
+                          />
+                          {employeeSearchTerm && (
+                            <button
+                              type="button"
+                              onClick={() => setEmployeeSearchTerm('')}
+                              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="flex items-center justify-between px-1 text-xs text-gray-400">
+                          <span>
+                            {searchingServerEmployees ? (
+                              'Buscando no servidor...'
+                            ) : (
+                              `${filteredEmployees.length} funcionário(s) encontrado(s)`
+                            )}
+                          </span>
+                          {selectedEmployeeId !== 'none' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleEmployeeChange('none');
+                                setIsEmployeeComboboxOpen(false);
+                              }}
+                              className="text-red-400 hover:underline"
+                            >
+                              Desvincular funcionário
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="max-h-60 overflow-y-auto space-y-1 pr-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleEmployeeChange('none');
+                              setIsEmployeeComboboxOpen(false);
+                            }}
+                            className={`w-full text-left p-2 rounded-md text-xs transition-colors ${
+                              selectedEmployeeId === 'none'
+                                ? 'bg-seguranca-black text-white font-semibold'
+                                : 'text-gray-400 hover:bg-seguranca-black hover:text-white'
+                            }`}
+                          >
+                            Nenhum / Desvincular funcionário
+                          </button>
+
+                          {filteredEmployees.length === 0 ? (
+                            <div className="p-4 text-center text-sm text-gray-400">
+                              Nenhum funcionário encontrado para &quot;{employeeSearchTerm}&quot;.
+                            </div>
+                          ) : (
+                            filteredEmployees.map((emp) => {
+                              const isLinkedToOther = isEmployeeLinkedToOtherUser(emp);
+                              const isCurrentLink = selectedEmployeeId !== 'none' && String(emp.id) === String(selectedEmployeeId);
+
+                              if (isLinkedToOther) {
+                                return (
+                                  <div
+                                    key={emp.id}
+                                    className="flex items-center justify-between p-2.5 rounded-md bg-gray-800/40 border border-gray-700/40 opacity-60 cursor-not-allowed"
+                                    title="Somente um funcionário pode ter um usuário. Este colaborador já possui outro usuário vinculado."
+                                  >
+                                    <div className="flex flex-col">
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium text-gray-300">{emp.name}</span>
+                                        <Badge variant="outline" className="text-[10px] border-amber-500/50 text-amber-400 bg-amber-500/10">
+                                          Já vinculado a outro usuário
+                                        </Badge>
+                                      </div>
+                                      <span className="text-xs text-gray-400">
+                                        {emp.positionDescription || (emp as any).position?.name || 'Sem cargo'}
+                                        {(emp.document || emp.cpf) ? ` • CPF: ${emp.document || emp.cpf}` : ''}
+                                      </span>
+                                    </div>
+                                    <AlertCircle className="h-4 w-4 text-amber-400/80 shrink-0 ml-2" />
+                                  </div>
+                                );
+                              }
+
+                              return (
+                                <button
+                                  type="button"
+                                  key={emp.id}
+                                  onClick={() => {
+                                    handleEmployeeChange(String(emp.id));
+                                    setIsEmployeeComboboxOpen(false);
+                                  }}
+                                  className={`w-full text-left flex items-center justify-between p-2.5 rounded-md transition-colors ${
+                                    isCurrentLink
+                                      ? 'bg-seguranca-red/20 border border-seguranca-red/50 text-white'
+                                      : 'hover:bg-seguranca-black hover:text-white border border-transparent text-seguranca-lightgray'
+                                  }`}
+                                >
+                                  <div className="flex flex-col">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium text-white">{emp.name}</span>
+                                      {isCurrentLink && (
+                                        <Badge className="text-[10px] bg-seguranca-red text-white">
+                                          Vinculado
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <span className="text-xs text-gray-400">
+                                      {emp.positionDescription || (emp as any).position?.name || 'Sem cargo'}
+                                      {(emp.document || emp.cpf) ? ` • CPF: ${emp.document || emp.cpf}` : ''}
+                                      {emp.registrationNumber ? ` • Matrícula: ${emp.registrationNumber}` : ''}
+                                    </span>
+                                  </div>
+                                  {isCurrentLink && (
+                                    <Check className="h-4 w-4 text-seguranca-red shrink-0 ml-2" />
+                                  )}
+                                </button>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+                    ) : isEmployeeComboboxOpen ? (
+                      <div className="absolute z-50 left-0 right-0 mt-1 bg-seguranca-graphite border border-amber-500/50 rounded-lg shadow-2xl p-4">
+                        <div className="flex items-center gap-2 text-amber-400 text-sm">
+                          <AlertCircle className="h-4 w-4 shrink-0" />
+                          <span>Selecione uma <strong>empresa</strong> primeiro para poder vincular um funcionário.</span>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
                   <p className="text-xs text-gray-400">
                     Ao vincular um funcionário, o sistema sincroniza os dados deste usuário com a ficha do colaborador.
                   </p>
@@ -826,6 +1156,40 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
             </Card>
           )}
         </div>
+
+        {/* Alerta de relogin ao desvincular empresa do próprio usuário */}
+        {showReloginAlert && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+            <div className="bg-seguranca-graphite border border-amber-500 rounded-xl p-8 max-w-md w-full mx-4 shadow-2xl animate-in fade-in-0 zoom-in-95">
+              <div className="flex flex-col items-center text-center gap-4">
+                <div className="w-16 h-16 rounded-full bg-amber-500/20 border-2 border-amber-500 flex items-center justify-center">
+                  <AlertCircle className="h-8 w-8 text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white mb-2">Configurações Alteradas</h3>
+                  <p className="text-gray-300 text-sm leading-relaxed">
+                    A empresa foi desvinculada da sua conta com sucesso. Para que as novas configurações e permissões sejam aplicadas corretamente, você precisa <strong className="text-amber-400">sair do sistema e entrar novamente</strong>.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2 w-full">
+                  <Button
+                    onClick={() => { logout(); }}
+                    className="w-full bg-amber-500 hover:bg-amber-400 text-black font-semibold"
+                  >
+                    Sair agora e reconectar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => { setShowReloginAlert(false); onClose(); }}
+                    className="w-full border-gray-600 text-gray-400 hover:bg-seguranca-black"
+                  >
+                    Entendido, sair mais tarde
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <DialogFooter className="flex gap-2">
           <Button

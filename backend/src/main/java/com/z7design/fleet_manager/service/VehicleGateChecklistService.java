@@ -55,7 +55,22 @@ public class VehicleGateChecklistService {
                                                        LocalDate dateFrom, LocalDate dateTo) {
         LocalDateTime dateFromDt = dateFrom != null ? dateFrom.atStartOfDay() : null;
         LocalDateTime dateToDt = dateTo != null ? dateTo.atTime(LocalTime.MAX) : null;
-        return repository.findByFilters(vehicleId, driverId, type, dateFromDt, dateToDt).stream()
+        
+        List<VehicleGateChecklist> results;
+        try {
+            results = repository.findByFilters(vehicleId, driverId, type, dateFromDt, dateToDt);
+        } catch (Exception e) {
+            log.warn("Falha na consulta filtrada de checklists no banco ({}), aplicando fallback com filtragem em memória.", e.getMessage());
+            results = repository.findAllWithAssociations().stream()
+                    .filter(vgc -> vehicleId == null || (vgc.getVehicle() != null && vehicleId.equals(vgc.getVehicle().getId())))
+                    .filter(vgc -> driverId == null || (vgc.getDriver() != null && driverId.equals(vgc.getDriver().getId())))
+                    .filter(vgc -> type == null || type.equals(vgc.getType()))
+                    .filter(vgc -> dateFromDt == null || (vgc.getOccurredAt() != null && !vgc.getOccurredAt().isBefore(dateFromDt)))
+                    .filter(vgc -> dateToDt == null || (vgc.getOccurredAt() != null && !vgc.getOccurredAt().isAfter(dateToDt)))
+                    .toList();
+        }
+
+        return results.stream()
                 .sorted((a, b) -> {
                     if (a.getOccurredAt() == null && b.getOccurredAt() == null) return 0;
                     if (a.getOccurredAt() == null) return 1;

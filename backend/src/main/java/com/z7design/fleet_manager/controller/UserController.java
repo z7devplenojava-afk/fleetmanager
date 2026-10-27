@@ -443,7 +443,9 @@ public class UserController {
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<UserListResponseDTO> getUserByCpf(@PathVariable("cpf") String cpf) {
-        User user = userService.findByEmployeeCpf(cpf)
+        String cleanCpf = cpf.replaceAll("\\D", "");
+        User user = userRepository.findByCpfNative(cleanCpf)
+                .or(() -> userService.findByEmployeeCpf(cleanCpf))
                 .orElseThrow(() -> new RuntimeException("Usuário não encontrado para o CPF informado"));
 
         return ResponseEntity.ok(convertToDTO(user));
@@ -648,11 +650,16 @@ public class UserController {
             dto.setIsOnline(false);
         }
 
+        dto.setCpf(user.getCpf());
+
         // Vínculo com Funcionário
         try {
             employeeRepository.findByUserIdGlobal(user.getId()).ifPresent(emp -> {
                 dto.setEmployeeId(emp.getId().toString());
                 dto.setEmployeeName(emp.getName());
+                if (dto.getCpf() == null && emp.getDocument() != null) {
+                    dto.setCpf(emp.getDocument());
+                }
             });
         } catch (Exception e) {
             log.warn("Erro ao buscar funcionário vinculado ao usuário {}: {}", user.getId(), e.getMessage());

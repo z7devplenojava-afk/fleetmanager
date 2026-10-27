@@ -84,6 +84,9 @@ public class User implements UserDetails, TenantAware {
     @Column(nullable = false)
     private String name;
 
+    @Column(name = "cpf", length = 14)
+    private String cpf;
+
     @Pattern(regexp = "^(?:\\d{9,20})?$", message = "O número do WhatsApp deve conter apenas dígitos e ter entre 9 e 20 caracteres")
     @Column(nullable = true, length = 20)
     private String whatsapp;

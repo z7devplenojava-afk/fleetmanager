@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -118,6 +119,22 @@ export const TransportOperationalDashboardPage: React.FC = () => {
   const [selectedStopFilter, setSelectedStopFilter] = useState<string>('ALL');
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(50);
+
+  // Usuário e Permissões
+  const { user } = useAuth();
+  const isEncarregado = useMemo(() => {
+    const role = (user?.role || '').replace(/^ROLE_/, '').toUpperCase();
+    const roles = (user?.roles || []).map((r: any) => (typeof r === 'string' ? r : r?.name || '').replace(/^ROLE_/, '').toUpperCase());
+    return role.startsWith('ENCARREGADO_') || roles.some((r: string) => r.startsWith('ENCARREGADO_'));
+  }, [user]);
+
+  const canAccessAlmoxarifado = !isEncarregado && user?.permissions?.STOCK_READ !== false;
+
+  useEffect(() => {
+    if (!canAccessAlmoxarifado && activeTab === 'requisicao') {
+      setActiveTab('dashboard');
+    }
+  }, [canAccessAlmoxarifado, activeTab]);
 
   // Formulário da Requisição ao Almoxarifado
   const [reqTitle, setReqTitle] = useState<string>('');
@@ -990,15 +1007,17 @@ export const TransportOperationalDashboardPage: React.FC = () => {
         {/* Abas Principais e Barra de Ações Operacionais */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <TabsList className="grid grid-cols-3 max-w-xl bg-muted/60 p-1">
+            <TabsList className={`grid ${canAccessAlmoxarifado ? 'grid-cols-3 max-w-xl' : 'grid-cols-2 max-w-md'} bg-muted/60 p-1`}>
               <TabsTrigger value="dashboard" className="flex items-center gap-2 text-xs font-medium">
                 <Bus className="w-4 h-4" />
                 Visão Operacional
               </TabsTrigger>
-              <TabsTrigger value="requisicao" className="flex items-center gap-2 text-xs font-medium">
-                <Package className="w-4 h-4" />
-                Requisição Almoxarifado
-              </TabsTrigger>
+              {canAccessAlmoxarifado && (
+                <TabsTrigger value="requisicao" className="flex items-center gap-2 text-xs font-medium">
+                  <Package className="w-4 h-4" />
+                  Requisição Almoxarifado
+                </TabsTrigger>
+              )}
               <TabsTrigger value="relatorio" className="flex items-center gap-2 text-xs font-medium">
                 <FileSpreadsheet className="w-4 h-4" />
                 Relatório Consolidado
@@ -1016,14 +1035,16 @@ export const TransportOperationalDashboardPage: React.FC = () => {
                 <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
                 Sincronizar ({lastUpdated})
               </Button>
-              <Button
-                size="sm"
-                onClick={() => setIsPurchaseModalOpen(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-600 dark:hover:bg-blue-500 dark:text-white flex items-center gap-1.5 text-xs h-9 shadow-md font-bold px-3.5 rounded-lg transition-all"
-              >
-                <Plus className="w-4 h-4 text-white stroke-[2.5]" />
-                Nova Requisição Almoxarifado
-              </Button>
+              {canAccessAlmoxarifado && (
+                <Button
+                  size="sm"
+                  onClick={() => setIsPurchaseModalOpen(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-600 dark:hover:bg-blue-500 dark:text-white flex items-center gap-1.5 text-xs h-9 shadow-md font-bold px-3.5 rounded-lg transition-all"
+                >
+                  <Plus className="w-4 h-4 text-white stroke-[2.5]" />
+                  Nova Requisição Almoxarifado
+                </Button>
+              )}
             </div>
           </div>
 
@@ -1232,7 +1253,8 @@ export const TransportOperationalDashboardPage: React.FC = () => {
           {/* ========================================================================= */}
           {/* ABA 2: REQUISIÇÃO AO ALMOXARIFADO                                        */}
           {/* ========================================================================= */}
-          <TabsContent value="requisicao" className="space-y-6">
+          {canAccessAlmoxarifado && (
+            <TabsContent value="requisicao" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Formulário de Nova Requisição */}
               <Card className="lg:col-span-2 border-border/60 shadow-sm">
@@ -1470,6 +1492,7 @@ export const TransportOperationalDashboardPage: React.FC = () => {
               </Card>
             </div>
           </TabsContent>
+          )}
 
           {/* ========================================================================= */}
           {/* ABA 3: RELATÓRIO CONSOLIDADO INTEGRADO                                    */}

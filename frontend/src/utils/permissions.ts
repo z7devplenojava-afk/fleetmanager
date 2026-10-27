@@ -35,7 +35,7 @@ export const ROLE_CATEGORIES: RoleCategory[] = [
   {
     id: 'almoxarifado',
     name: 'Almoxarifado & Estoque',
-    roles: ['ALMOXARIFADO', 'GESTOR_TRAFEGO', 'GESTOR_DE_TRAFEGO', 'ENCARREGADO_DE_TRANSPORTES', 'ENCARREGADO_TRANSPORTES', 'ENCARREGADO_DE_TRAFEGO', 'ENCARREGADO_TRAFEGO'],
+    roles: ['ALMOXARIFADO', 'GESTOR_TRAFEGO', 'GESTOR_DE_TRAFEGO'],
   },
   {
     id: 'manutencao',
@@ -961,10 +961,6 @@ export const generatePermissions = (role: UserRole): UserPermissions => {
     case 'GESTOR_OPERACIONAL':
     case 'GESTOR_TRAFEGO':
     case 'GESTOR_DE_TRAFEGO':
-    case 'ENCARREGADO_DE_TRANSPORTES':
-    case 'ENCARREGADO_TRANSPORTES':
-    case 'ENCARREGADO_DE_TRAFEGO':
-    case 'ENCARREGADO_TRAFEGO':
     case 'ASSISTENTE_OPERACIONAL':
       return {
         ...basePermissions,
@@ -987,7 +983,7 @@ export const generatePermissions = (role: UserRole): UserPermissions => {
         TRAFFIC_MANAGEMENT_READ: true,
         TRAFFIC_MANAGEMENT_WRITE: true,
         TRAFFIC_MANAGEMENT_CREATE: true,
-        TRAFFIC_MANAGEMENT_DELETE: role === 'GESTOR_OPERACIONAL' || role === 'GESTOR_TRAFEGO' || role === 'ENCARREGADO_DE_TRANSPORTES' || role === 'ENCARREGADO_TRANSPORTES' || role === 'ENCARREGADO_DE_TRAFEGO' || role === 'ENCARREGADO_TRAFEGO',
+        TRAFFIC_MANAGEMENT_DELETE: role === 'GESTOR_OPERACIONAL' || role === 'GESTOR_TRAFEGO',
         TRIPS_READ: true,
         TRIPS_WRITE: true,
         TRIPS_EXECUTE: true,
@@ -996,7 +992,47 @@ export const generatePermissions = (role: UserRole): UserPermissions => {
         ROUTES_READ: true,
         ROUTES_WRITE: true,
         ROUTES_CREATE: true,
-        ROUTES_DELETE: role === 'GESTOR_OPERACIONAL' || role === 'GESTOR_TRAFEGO' || role === 'ENCARREGADO_DE_TRANSPORTES' || role === 'ENCARREGADO_TRANSPORTES' || role === 'ENCARREGADO_DE_TRAFEGO' || role === 'ENCARREGADO_TRAFEGO',
+        ROUTES_DELETE: role === 'GESTOR_OPERACIONAL' || role === 'GESTOR_TRAFEGO',
+        REPORTS_READ: true,
+        REPORTS_GENERATE: true,
+      };
+
+    case 'ENCARREGADO_DE_TRANSPORTES':
+    case 'ENCARREGADO_TRANSPORTES':
+    case 'ENCARREGADO_DE_TRAFEGO':
+    case 'ENCARREGADO_TRAFEGO':
+      return {
+        ...basePermissions,
+        DASHBOARD_READ: true,
+        PROFILE_READ: true,
+        PROFILE_WRITE: true,
+        MESSAGES_READ: true,
+        MESSAGES_WRITE: true,
+        MESSAGES_CREATE: true,
+        EQUIPMENTS_READ: true,
+        EQUIPMENTS_WRITE: true,
+        EQUIPMENTS_CREATE: true,
+        EQUIPMENTS_ASSIGN: true,
+        // Encarregado de Transporte: sem acesso ao módulo de estoque e almoxarifado
+        STOCK_READ: false,
+        STOCK_WRITE: false,
+        STOCK_CREATE: false,
+        STOCK_MANAGE: false,
+        EMPLOYEES_READ: true,
+        CONTRACTS_READ: true,
+        TRAFFIC_MANAGEMENT_READ: true,
+        TRAFFIC_MANAGEMENT_WRITE: true,
+        TRAFFIC_MANAGEMENT_CREATE: true,
+        TRAFFIC_MANAGEMENT_DELETE: true,
+        TRIPS_READ: true,
+        TRIPS_WRITE: true,
+        TRIPS_EXECUTE: true,
+        BOARDING_READ: true,
+        BOARDING_EXECUTE: true,
+        ROUTES_READ: true,
+        ROUTES_WRITE: true,
+        ROUTES_CREATE: true,
+        ROUTES_DELETE: true,
         REPORTS_READ: true,
         REPORTS_GENERATE: true,
       };

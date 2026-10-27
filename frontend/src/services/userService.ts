@@ -13,6 +13,9 @@ export interface User {
   blockedReason?: string | null;
   blockedBy?: string | null;
   isOnline?: boolean;
+  employeeId?: string;
+  employeeName?: string;
+  cpf?: string;
 }
 
 export interface CreateUserRequest {
@@ -21,6 +24,8 @@ export interface CreateUserRequest {
   email: string;
   password: string;
   whatsapp?: string;
+  cpf?: string;
+  employeeId?: string;
   roles?: string[]; // Backend DTO espera List<String>
   active?: boolean;
   companyId?: string;
@@ -31,6 +36,7 @@ export interface UpdateUserRequest {
   username?: string;
   email?: string;
   whatsapp?: string;
+  cpf?: string;
   password?: string;
   active?: boolean;
   roles?: string[]; // Backend DTO espera List<String>

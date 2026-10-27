@@ -359,6 +359,53 @@ public class FileUploadController {
         }
     }
 
+    @GetMapping({"/companies/logos/{filename:.+}", "/companies/logos/{filename}"})
+    @Operation(summary = "Obter logo da empresa", description = "Retorna o arquivo de logo da empresa")
+    public ResponseEntity<Resource> getCompanyLogo(
+            @Parameter(description = "Nome do arquivo")
+            @PathVariable("filename") String filename) {
+        try {
+            if (filename == null || filename.isBlank() || filename.contains("e9654118-53a8-4dd8-b57c-bc50997f081b")) {
+                return ResponseEntity.noContent().build();
+            }
+
+            Path uploadPath = Paths.get(uploadDir, "companies", "logos").resolve(filename);
+            Resource resource = new UrlResource(uploadPath.toUri());
+
+            if (resource.exists() && resource.isReadable()) {
+                String contentType = Files.probeContentType(uploadPath);
+                return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(contentType != null ? contentType : "image/jpeg"))
+                    .header(HttpHeaders.CACHE_CONTROL, "public, max-age=86400")
+                    .body(resource);
+            }
+
+            // Fallback nos diretórios alternativos
+            Path[] fallbacks = new Path[] {
+                Paths.get("uploads", "companies", "logos").resolve(filename),
+                Paths.get("..", "uploads", "companies", "logos").resolve(filename),
+                Paths.get("/app/uploads/companies/logos").resolve(filename),
+                Paths.get("/var/www/fluxbus/uploads/companies/logos").resolve(filename)
+            };
+
+            for (Path fb : fallbacks) {
+                if (Files.exists(fb) && Files.isReadable(fb)) {
+                    Resource fbResource = new UrlResource(fb.toUri());
+                    String contentType = Files.probeContentType(fb);
+                    return ResponseEntity.ok()
+                        .contentType(MediaType.parseMediaType(contentType != null ? contentType : "image/jpeg"))
+                        .header(HttpHeaders.CACHE_CONTROL, "public, max-age=86400")
+                        .body(fbResource);
+                }
+            }
+
+            // Retornar 204 No Content se o arquivo não existe em disco para evitar 404 no console
+            return ResponseEntity.noContent().build();
+        } catch (Exception e) {
+            return ResponseEntity.noContent().build();
+        }
+    }
+
     @PostMapping({"/companies/banner-upload", "/companies/banners", "/companies/banner"})
     @Operation(summary = "Upload de banner da empresa", description = "Faz upload de banner motivacional da empresa (PNG, JPG, JPEG, SVG, WEBP)")
     @PreAuthorize("hasAnyAuthority('ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_RH', 'SUPER_ADMIN', 'ADMIN', 'HR', 'HR_WRITE', 'COMPANY_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_GESTOR', 'GESTOR')")

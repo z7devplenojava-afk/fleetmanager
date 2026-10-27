@@ -25,8 +25,12 @@ public class CreateUserRequest {
     private String email;
 
     @NotBlank(message = "Senha Ã© obrigatÃ³ria")
-    @Pattern(regexp = "^(?:(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[^a-zA-Z0-9\\s]).*|\\d{11}@202[0-9]|FluxBus@2026)$", message = "Senha deve ser forte (maiúscula, minúscula, número, especial), CPF@2025/2026 ou FluxBus@2026")
+    @Pattern(regexp = "^(?:(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[^a-zA-Z0-9\\s]).*|\\d{11}@202[0-9]|Flux[bB]us@2026)$", message = "Senha deve ser forte (maiúscula, minúscula, número, especial), CPF@2025/2026 ou Fluxbus@2026")
     private String password;
+
+    private String cpf;
+
+    private java.util.UUID employeeId;
 
     @Pattern(regexp = "^(?:\\d{9,20})?$", message = "WhatsApp deve conter apenas dígitos e ter entre 9 e 20 caracteres")
     private String whatsapp;
@@ -38,6 +42,22 @@ public class CreateUserRequest {
     private String status = UserStatus.ACTIVE.name();
 
     private java.util.UUID companyId;
+
+    public String getCpf() {
+        return cpf;
+    }
+
+    public void setCpf(String cpf) {
+        this.cpf = cpf;
+    }
+
+    public java.util.UUID getEmployeeId() {
+        return employeeId;
+    }
+
+    public void setEmployeeId(java.util.UUID employeeId) {
+        this.employeeId = employeeId;
+    }
 
     // Getters and Setters explicitos para resolver problemas de compilaÃ§Ã£o com
     // Lombok

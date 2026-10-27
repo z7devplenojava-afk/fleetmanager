@@ -260,17 +260,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
               <NotificationBell />
 
               <ThemeToggle />
-
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsLogoutModalOpen(true)}
-                className="text-red-400 hover:text-white hover:bg-red-600/90 h-8 px-2 sm:px-3 rounded-lg text-xs border border-red-500/30 transition-all flex items-center shrink-0"
-                title="Encerrar Sessão"
-              >
-                <LogOut className="h-3.5 w-3.5 sm:mr-1.5" />
-                <span className="hidden sm:inline">Sair</span>
-              </Button>
             </div>
           </div>
         </header>

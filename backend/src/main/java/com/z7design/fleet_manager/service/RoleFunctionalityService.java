@@ -158,7 +158,7 @@ public class RoleFunctionalityService {
                 new Functionality("messages", "Mensagens", "Central de mensagens", "MessageSquare", "/mensagens", "communication", 6)
             );
             
-            case "GESTOR_TRAFEGO", "GESTOR_DE_TRAFEGO", "ENCARREGADO_DE_TRANSPORTES", "ENCARREGADO_TRANSPORTES", "ENCARREGADO_DE_TRAFEGO", "ENCARREGADO_TRAFEGO" -> Arrays.asList(
+            case "GESTOR_TRAFEGO", "GESTOR_DE_TRAFEGO" -> Arrays.asList(
                 new Functionality("dashboard-transporte", "Painel Transporte & Tráfego", "Dashboard gerencial e operacional de frota e tráfego", "LayoutDashboard", "/gestao-trafego/painel-operacional", "primary", 1),
                 new Functionality("fretamento", "Gestão de Tráfego", "Linhas, escalas, viagens e horários", "Truck", "/fretamento", "traffic", 2),
                 new Functionality("rotas", "Linhas e Rotas", "Controle de rotas e itinerários", "Route", "/fretamento/rotas", "traffic", 3),
@@ -171,6 +171,20 @@ public class RoleFunctionalityService {
                 new Functionality("operacional", "Módulo Operacional", "Parte diária, medições e atividades", "Activity", "/operacional", "operational", 10),
                 new Functionality("compras", "Requisições ao Almoxarifado", "Solicitação de compras e peças", "ShoppingCart", "/gestao-trafego/painel-operacional?tab=requisicao", "inventory", 11),
                 new Functionality("relatorios", "Relatório Consolidado", "Relatórios consolidados de operação, manutenção e custos", "BarChart", "/gestao-trafego/painel-operacional?tab=relatorio", "reports", 12)
+            );
+
+            case "ENCARREGADO_DE_TRANSPORTES", "ENCARREGADO_TRANSPORTES", "ENCARREGADO_DE_TRAFEGO", "ENCARREGADO_TRAFEGO" -> Arrays.asList(
+                new Functionality("dashboard-transporte", "Painel Transporte & Tráfego", "Dashboard gerencial e operacional de frota e tráfego", "LayoutDashboard", "/gestao-trafego/painel-operacional", "primary", 1),
+                new Functionality("fretamento", "Gestão de Tráfego", "Linhas, escalas, viagens e horários", "Truck", "/fretamento", "traffic", 2),
+                new Functionality("rotas", "Linhas e Rotas", "Controle de rotas e itinerários", "Route", "/fretamento/rotas", "traffic", 3),
+                new Functionality("escalas", "Escalas e Viagens", "Escala de motoristas e plantões", "Calendar", "/saosilvestre/escalas", "traffic", 4),
+                new Functionality("motoristas", "Motoristas", "Cadastro e escalas de motoristas", "UserCheck", "/motoristas", "traffic", 5),
+                new Functionality("fleet", "Frota de Veículos", "Gestão de veículos e ativos", "Car", "/frota", "fleet", 6),
+                new Functionality("manutencao", "Manutenção e O.S.", "Ordens de serviço e preventiva", "Wrench", "/frota/ordens-servico", "maintenance", 7),
+                new Functionality("limpeza", "Gestão de Limpeza & Lavajato", "Higienização de veículos e tempo de lavagem", "Sparkles", "/manutencao/limpeza", "maintenance", 8),
+                new Functionality("mobilizacao", "Mobilização de Transportes", "Vistorias, checklist e status de mobilização", "Truck", "/frota/mobilizacao", "operational", 9),
+                new Functionality("operacional", "Módulo Operacional", "Parte diária, medições e atividades", "Activity", "/operacional", "operational", 10),
+                new Functionality("relatorios", "Relatório Consolidado", "Relatórios consolidados de operação, manutenção e custos", "BarChart", "/gestao-trafego/painel-operacional?tab=relatorio", "reports", 11)
             );
 
             case "MANUTENCAO", "GESTOR_DE_MANUTENCAO", "ENCARREGADO_DE_MANUTENCAO" -> Arrays.asList(

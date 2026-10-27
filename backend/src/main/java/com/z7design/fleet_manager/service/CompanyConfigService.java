@@ -139,6 +139,9 @@ public class CompanyConfigService {
     private CompanyConfigDTO convertToDTO(CompanyConfig config) {
         CompanyConfigDTO dto = new CompanyConfigDTO();
         BeanUtils.copyProperties(config, dto);
+        if (dto.getLogoUrl() != null && dto.getLogoUrl().contains("e9654118-53a8-4dd8-b57c-bc50997f081b")) {
+            dto.setLogoUrl(null);
+        }
         return dto;
     }
 }

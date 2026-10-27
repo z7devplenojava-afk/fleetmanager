@@ -117,6 +117,11 @@ public class CompanyDTO {
             }
         }
 
+        String safeLogoUrl = company.getLogoUrl();
+        if (safeLogoUrl != null && safeLogoUrl.contains("e9654118-53a8-4dd8-b57c-bc50997f081b")) {
+            safeLogoUrl = null;
+        }
+
         return CompanyDTO.builder()
                 .id(company.getId())
                 .name(company.getName())
@@ -134,7 +139,7 @@ public class CompanyDTO {
                 .phone(company.getPhone())
                 .email(company.getEmail())
                 .website(company.getWebsite())
-                .logoUrl(company.getLogoUrl())
+                .logoUrl(safeLogoUrl)
                 .bannerUrls(banners)
                 .status(company.getStatus())
                 .defaultEpis(mapDefaultEpisSafely(company))

@@ -101,6 +101,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
                      "   OR LOWER(u.email) = LOWER(:identifier) " +
                      "   OR (LENGTH(:cleanDigits) >= 11 AND (" +
                      "         REGEXP_REPLACE(COALESCE(u.username, ''), '[^0-9]', '', 'g') = :cleanDigits " +
+                     "      OR REGEXP_REPLACE(COALESCE(u.cpf, ''), '[^0-9]', '', 'g') = :cleanDigits " +
                      "      OR REGEXP_REPLACE(COALESCE(e.document, ''), '[^0-9]', '', 'g') = :cleanDigits" +
                      "   )) " +
                      "   OR (LENGTH(TRIM(:identifier)) >= 2 AND (" +
@@ -110,6 +111,9 @@ public interface UserRepository extends JpaRepository<User, UUID> {
                      "   )) " +
                      "LIMIT 1", nativeQuery = true)
        Optional<User> findByIdentifierNative(@Param("identifier") String identifier, @Param("cleanDigits") String cleanDigits);
+
+       @Query(value = "SELECT * FROM users WHERE REGEXP_REPLACE(COALESCE(cpf, ''), '[^0-9]', '', 'g') = :cleanCpf LIMIT 1", nativeQuery = true)
+       Optional<User> findByCpfNative(@Param("cleanCpf") String cleanCpf);
 
        /**
         * Busca usuário por ID ignorando filtros de tenant do Hibernate (garante busca consistente de entidade)

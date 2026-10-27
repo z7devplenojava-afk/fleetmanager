@@ -26,27 +26,22 @@ const UserMenu = () => {
 
   return (
     <div className="relative flex items-center gap-2 sm:gap-3">
-      {/* Nome do usuário - CLICÁVEL */}
+      {/* Nome do usuário e avatar - CLICÁVEL */}
       <div
-        className="text-right hidden md:block cursor-pointer hover:text-primary transition-colors p-2 rounded-xl hover:bg-accent active:scale-95"
+        className="flex items-center gap-2 cursor-pointer hover:text-primary transition-colors p-1.5 rounded-xl hover:bg-accent active:scale-95"
         onClick={handleProfileClick}
+        title="Ver meu perfil"
       >
-        <div className="text-sm font-medium text-foreground truncate max-w-[150px]">{displayName}</div>
-        <div className="text-xs text-primary font-bold">
-          {user?.role && getRoleDisplayName(user.role as any)}
+        <div className="text-right hidden md:block">
+          <div className="text-sm font-medium text-foreground truncate max-w-[150px]">{displayName}</div>
+          <div className="text-xs text-primary font-bold">
+            {user?.role && getRoleDisplayName(user.role as any)}
+          </div>
+        </div>
+        <div className="w-8 h-8 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center font-bold text-xs shadow-xs">
+          {initials}
         </div>
       </div>
-
-      {/* Botão Sair - Sempre visível com ícone */}
-      <button
-        onClick={() => signOut()}
-        title="Sair do sistema"
-        aria-label="Sair do sistema"
-        className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl active:scale-95 transition-all shadow-sm shadow-red-600/30 whitespace-nowrap"
-      >
-        <LogOut size={15} />
-        <span>Sair</span>
-      </button>
 
       {/* Modal de Perfil */}
       <UserProfileModal
