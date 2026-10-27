@@ -348,6 +348,7 @@ public class StockNfeService {
                     throw new BusinessException("O PDF da NF-e está protegido por senha. Gere o DANFE sem senha e tente novamente.");
                 }
                 PDFTextStripper stripper = new PDFTextStripper();
+                stripper.setSortByPosition(true);
                 String text = stripper.getText(document);
 
                 // Se o PDF não contém texto nativo ou é uma digitalização / imagem
@@ -409,27 +410,29 @@ public class StockNfeService {
             // Auto-recuperação inteligente a partir da Chave de Acesso de 44 dígitos
             if (accessKey != null && accessKey.length() == 44) {
                 // Dígitos 25-33: Número da NF (9 dígitos)
-                if (nNf == null || nNf.isBlank()) {
-                    try {
-                        String rawNum = accessKey.substring(25, 34).replaceFirst("^0+(?!$)", "");
-                        if (!rawNum.isEmpty()) {
-                            nNf = rawNum;
-                            log.info("Número da NF-e recuperado com precisão da chave de acesso: {}", nNf);
-                        }
-                    } catch (Exception ignored) {}
-                }
+                try {
+                    String rawNum = accessKey.substring(25, 34).replaceFirst("^0+(?!$)", "");
+                    if (!rawNum.isEmpty()) {
+                        nNf = rawNum;
+                        log.info("Número da NF-e definido autoritativamente a partir da chave de acesso: {}", nNf);
+                    }
+                } catch (Exception ignored) {}
+
                 // Dígitos 22-24: Série da NF (3 dígitos)
-                if (serie == null || serie.isBlank()) {
-                    try {
-                        serie = accessKey.substring(22, 25).replaceFirst("^0+(?!$)", "");
-                    } catch (Exception ignored) {}
-                }
+                try {
+                    String rawSerie = accessKey.substring(22, 25).replaceFirst("^0+(?!$)", "");
+                    if (!rawSerie.isEmpty()) {
+                        serie = rawSerie;
+                    }
+                } catch (Exception ignored) {}
+
                 // Dígitos 6-19: CNPJ do emitente (14 dígitos)
-                if (supplierInfo.cnpj == null || supplierInfo.cnpj.isBlank()) {
-                    try {
-                        supplierInfo.cnpj = formatCnpj(accessKey.substring(6, 20));
-                    } catch (Exception ignored) {}
-                }
+                try {
+                    String rawCnpj = accessKey.substring(6, 20);
+                    if (supplierInfo.cnpj == null || supplierInfo.cnpj.isBlank()) {
+                        supplierInfo.cnpj = formatCnpj(rawCnpj);
+                    }
+                } catch (Exception ignored) {}
             }
 
             // Data de emissão
@@ -537,32 +540,70 @@ public class StockNfeService {
         }
     }
 
+    private static final Set<Integer> VALID_UF_CODES = Set.of(
+            11, 12, 13, 14, 15, 16, 17,
+            21, 22, 23, 24, 25, 26, 27, 28, 29,
+            31, 32, 33, 35,
+            41, 42, 43,
+            50, 51, 52, 53
+    );
+
     private String extractAccessKey(String flat) {
-        // 1. Procura chave rotulada explicitamente
-        Matcher labeled = Pattern.compile("(?i)CHAVE\\s+DE\\s+ACESSO[^0-9]{0,35}((?:\\d[\\s.]*){44})").matcher(flat);
+        if (flat == null || flat.isBlank()) {
+            return "";
+        }
+
+        // 1. Procura chave rotulada explicitamente (com suporte a dígito extra de formatação, ex: ACESSO03126...)
+        Matcher labeled = Pattern.compile("(?i)CHAVE\\s+DE\\s+ACESSO[^0-9]{0,35}([0-9\\s.]{44,70})").matcher(flat);
         if (labeled.find()) {
             String digits = labeled.group(1).replaceAll("\\D", "");
-            if (digits.length() == 44) {
-                return digits;
+            String key = findValid44DigitKey(digits);
+            if (key != null) {
+                return key;
             }
         }
 
-        // 2. Procura sequências de 44 dígitos no texto todo
-        Matcher matcher = Pattern.compile("(?<!\\d)(\\d(?:[\\s.]*\\d){43})(?!\\d)").matcher(flat);
-        String candidateKey = "";
+        // 2. Procura sequências de 44+ dígitos em todo o texto
+        Matcher matcher = Pattern.compile("(?<!\\d)(\\d(?:[\\s.]*\\d){43,70})(?!\\d)").matcher(flat);
         while (matcher.find()) {
             String digits = matcher.group(1).replaceAll("\\D", "");
-            if (digits.length() == 44) {
-                String model = digits.substring(20, 22);
-                if ("55".equals(model) || "65".equals(model)) {
-                    return digits;
-                }
-                if (candidateKey.isEmpty()) {
-                    candidateKey = digits;
-                }
+            String key = findValid44DigitKey(digits);
+            if (key != null) {
+                return key;
             }
         }
-        return candidateKey;
+
+        // 3. Fallback genérico para 44 dígitos sem formatação
+        Matcher fallback = Pattern.compile("(?<!\\d)(\\d{44})(?!\\d)").matcher(flat.replaceAll("[^0-9]", ""));
+        if (fallback.find()) {
+            return fallback.group(1);
+        }
+
+        return "";
+    }
+
+    private String findValid44DigitKey(String digits) {
+        if (digits == null || digits.length() < 44) {
+            return null;
+        }
+        for (int i = 0; i <= digits.length() - 44; i++) {
+            String sub = digits.substring(i, i + 44);
+            try {
+                int uf = Integer.parseInt(sub.substring(0, 2));
+                if (!VALID_UF_CODES.contains(uf)) {
+                    continue;
+                }
+                int month = Integer.parseInt(sub.substring(4, 6));
+                if (month < 1 || month > 12) {
+                    continue;
+                }
+                String model = sub.substring(20, 22);
+                if ("55".equals(model) || "65".equals(model)) {
+                    return sub;
+                }
+            } catch (Exception ignored) {}
+        }
+        return null;
     }
 
     private String formatCnpj(String digits) {
@@ -719,15 +760,32 @@ public class StockNfeService {
         }
 
         // Nome/razão social: linha imediatamente acima do CNPJ (padrão DANFE)
-        for (int i = cnpjIdx - 1; i >= 0 && i >= cnpjIdx - 4; i--) {
+        for (int i = cnpjIdx - 1; i >= 0 && i >= cnpjIdx - 5; i--) {
             String candidate = lines.get(i);
             if (isDanfeLabel(candidate)) {
                 continue;
             }
-            if (containsLetters(candidate)) {
-                info.name = candidate;
-                info.tradeName = candidate;
+            String cleaned = cleanSupplierCandidate(candidate);
+            if (!cleaned.isEmpty() && containsLetters(cleaned) && cleaned.length() >= 3) {
+                info.name = cleaned;
+                info.tradeName = cleaned;
                 break;
+            }
+        }
+
+        // Se o nome não foi encontrado ou ficou curto/ruim, busca nas primeiras 15 linhas do DANFE (bloco do emitente)
+        if (info.name == null || info.name.isBlank() || info.name.length() < 3) {
+            for (int i = 0; i < Math.min(lines.size(), 15); i++) {
+                String candidate = lines.get(i);
+                if (isDanfeLabel(candidate) || isDocumentTitle(candidate)) {
+                    continue;
+                }
+                String cleaned = cleanSupplierCandidate(candidate);
+                if (!cleaned.isEmpty() && containsLetters(cleaned) && cleaned.length() >= 3) {
+                    info.name = cleaned;
+                    info.tradeName = cleaned;
+                    break;
+                }
             }
         }
 
@@ -768,6 +826,27 @@ public class StockNfeService {
             }
         }
         return info;
+    }
+
+    private String cleanSupplierCandidate(String candidate) {
+        if (candidate == null) return "";
+        return candidate
+                .replaceAll("(?i)^.*?NATUREZA\\s+DE\\s+OPERA[ÇC][ÃA]O", "")
+                .replaceAll("(?i)INSCRI[ÇC][ÃA]O\\s+ESTADUAL.*$", "")
+                .replaceAll("(?i)INSC\\.?\\s*EST\\.?.*$", "")
+                .replaceAll("(?i)CHAVE\\s+DE\\s+ACESSO.*$", "")
+                .replaceAll("(?i)SUBST\\.?\\s*TRIBUT[ÁA]RI[AO].*$", "")
+                .replaceAll("(?i)PROTOCOLO.*$", "")
+                .replaceAll("(?i)DANFE.*$", "")
+                .replaceAll("(?i)DOCUMENTO\\s+AUXILIAR.*$", "")
+                .trim();
+    }
+
+    private boolean isDocumentTitle(String line) {
+        String upper = removeAccents(line.toUpperCase()).trim();
+        return upper.contains("DOCUMENTO AUXILIAR") || upper.contains("NOTA FISCAL ELETRONICA")
+                || upper.contains("ENTRADA") || upper.contains("SAIDA")
+                || upper.matches("^[0-9\\s.-]+$");
     }
 
     private boolean isDanfeLabel(String line) {
@@ -846,13 +925,14 @@ public class StockNfeService {
         }
 
         // Padrões de linha de item: código + descrição | NCM/CFOP (com CST/CSOSN opcional e pontos) | UN | qtd | vlr1 | vlr2
-        Pattern fullSlash = Pattern.compile("^(.*?)\\s+([\\d.]{4,10})\\s*/\\s*(\\d{4})\\s+([A-Za-z/]{1,5})\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)");
-        Pattern fullSplit = Pattern.compile("^(.*?)\\s+([\\d.]{4,10})(?:\\s+\\d{3,4})?\\s+(\\d{4})\\s+([A-Za-z/]{1,5})\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)");
-        Pattern fullNoNcm = Pattern.compile("^(.*?)\\s+([A-Za-z/]{1,5})\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)");
+        Pattern fullWithCode = Pattern.compile("^(\\S+)\\s+(.*?)\\s+([\\d.]{6,10})(?:\\s+(\\d{2,4}))?\\s+(\\d{4})\\s+([A-Za-z/]{1,6})\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)");
+        Pattern fullSlash = Pattern.compile("^(.*?)\\s+([\\d.]{4,10})\\s*/\\s*(\\d{4})\\s+([A-Za-z/]{1,6})\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)");
+        Pattern fullSplit = Pattern.compile("^(.*?)\\s+([\\d.]{4,10})(?:\\s+(\\d{2,4}))?\\s+(\\d{4})\\s+([A-Za-z/]{1,6})\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)");
+        Pattern fullNoNcm = Pattern.compile("^(.*?)\\s+([A-Za-z/]{1,6})\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)");
         // Linhas somente com as colunas numéricas (descrição na linha anterior)
-        Pattern colsSlash = Pattern.compile("^([\\d.]{4,10})\\s*/\\s*(\\d{4})\\s+([A-Za-z/]{1,5})\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)");
-        Pattern colsSplit = Pattern.compile("^([\\d.]{4,10})(?:\\s+\\d{3,4})?\\s+(\\d{4})\\s+([A-Za-z/]{1,5})\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)");
-        Pattern colsBare = Pattern.compile("^([A-Za-z/]{1,5})\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)");
+        Pattern colsSlash = Pattern.compile("^([\\d.]{4,10})\\s*/\\s*(\\d{4})\\s+([A-Za-z/]{1,6})\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)");
+        Pattern colsSplit = Pattern.compile("^([\\d.]{4,10})(?:\\s+(\\d{2,4}))?\\s+(\\d{4})\\s+([A-Za-z/]{1,6})\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)");
+        Pattern colsBare = Pattern.compile("^([A-Za-z/]{1,6})\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)");
         // Código + descrição sem colunas numéricas
         Pattern codeDesc = Pattern.compile("^(\\S+)\\s+(.*\\p{L}.*)$");
 
@@ -870,8 +950,19 @@ public class StockNfeService {
             ParsedItemRow rowCandidate = new ParsedItemRow();
             boolean matched = false;
 
-            Matcher matcher = fullSlash.matcher(line);
+            Matcher matcher = fullWithCode.matcher(line);
             if (matcher.find()) {
+                rowCandidate.code = matcher.group(1).trim();
+                rowCandidate.description = matcher.group(2).trim();
+                rowCandidate.ncm = matcher.group(3).replaceAll("\\.", "");
+                rowCandidate.cfop = matcher.group(5);
+                rowCandidate.unit = matcher.group(6);
+                assignItemValues(rowCandidate, 
+                        parsePtBrNumber(matcher.group(7)), 
+                        parsePtBrNumber(matcher.group(8)), 
+                        parsePtBrNumber(matcher.group(9)));
+                matched = true;
+            } else if ((matcher = fullSlash.matcher(line)).find()) {
                 rowCandidate.description = matcher.group(1).trim();
                 rowCandidate.ncm = matcher.group(2).replaceAll("\\.", "");
                 rowCandidate.cfop = matcher.group(3);
@@ -884,12 +975,12 @@ public class StockNfeService {
             } else if ((matcher = fullSplit.matcher(line)).find()) {
                 rowCandidate.description = matcher.group(1).trim();
                 rowCandidate.ncm = matcher.group(2).replaceAll("\\.", "");
-                rowCandidate.cfop = matcher.group(3);
-                rowCandidate.unit = matcher.group(4);
+                rowCandidate.cfop = matcher.group(4);
+                rowCandidate.unit = matcher.group(5);
                 assignItemValues(rowCandidate, 
-                        parsePtBrNumber(matcher.group(5)), 
                         parsePtBrNumber(matcher.group(6)), 
-                        parsePtBrNumber(matcher.group(7)));
+                        parsePtBrNumber(matcher.group(7)), 
+                        parsePtBrNumber(matcher.group(8)));
                 matched = true;
             } else if ((matcher = fullNoNcm.matcher(line)).find()) {
                 rowCandidate.description = matcher.group(1).trim();
@@ -900,7 +991,8 @@ public class StockNfeService {
                         parsePtBrNumber(matcher.group(5)));
                 matched = true;
             } else if ((matcher = colsSlash.matcher(line)).find() && pendingCode != null) {
-                rowCandidate.description = (pendingCode + " " + (pendingDesc != null ? pendingDesc : "")).trim();
+                rowCandidate.code = pendingCode;
+                rowCandidate.description = (pendingDesc != null && !pendingDesc.isBlank()) ? pendingDesc : pendingCode;
                 rowCandidate.ncm = matcher.group(1).replaceAll("\\.", "");
                 rowCandidate.cfop = matcher.group(2);
                 rowCandidate.unit = matcher.group(3);
@@ -912,19 +1004,21 @@ public class StockNfeService {
                 pendingCode = null;
                 pendingDesc = null;
             } else if ((matcher = colsSplit.matcher(line)).find() && pendingCode != null) {
-                rowCandidate.description = (pendingCode + " " + (pendingDesc != null ? pendingDesc : "")).trim();
+                rowCandidate.code = pendingCode;
+                rowCandidate.description = (pendingDesc != null && !pendingDesc.isBlank()) ? pendingDesc : pendingCode;
                 rowCandidate.ncm = matcher.group(1).replaceAll("\\.", "");
-                rowCandidate.cfop = matcher.group(2);
-                rowCandidate.unit = matcher.group(3);
+                rowCandidate.cfop = matcher.group(3);
+                rowCandidate.unit = matcher.group(4);
                 assignItemValues(rowCandidate, 
-                        parsePtBrNumber(matcher.group(4)), 
                         parsePtBrNumber(matcher.group(5)), 
-                        parsePtBrNumber(matcher.group(6)));
+                        parsePtBrNumber(matcher.group(6)), 
+                        parsePtBrNumber(matcher.group(7)));
                 matched = true;
                 pendingCode = null;
                 pendingDesc = null;
             } else if ((matcher = colsBare.matcher(line)).find() && pendingCode != null) {
-                rowCandidate.description = (pendingCode + " " + (pendingDesc != null ? pendingDesc : "")).trim();
+                rowCandidate.code = pendingCode;
+                rowCandidate.description = (pendingDesc != null && !pendingDesc.isBlank()) ? pendingDesc : pendingCode;
                 rowCandidate.unit = matcher.group(1);
                 assignItemValues(rowCandidate, 
                         parsePtBrNumber(matcher.group(2)), 
@@ -936,12 +1030,20 @@ public class StockNfeService {
             }
 
             if (matched) {
-                String fullDesc = rowCandidate.description != null ? rowCandidate.description.trim() : "";
-                String[] parts = fullDesc.split("\\s+", 2);
-                rowCandidate.code = parts[0];
-                rowCandidate.description = parts.length > 1 ? parts[1] : parts[0];
-                if (rowCandidate.description.isBlank()) {
+                if (rowCandidate.code == null || rowCandidate.code.isBlank()) {
+                    String fullDesc = rowCandidate.description != null ? rowCandidate.description.trim() : "";
+                    String[] parts = fullDesc.split("\\s+", 2);
+                    rowCandidate.code = parts[0];
+                    rowCandidate.description = parts.length > 1 ? parts[1] : parts[0];
+                }
+                if (rowCandidate.description == null || rowCandidate.description.isBlank()) {
                     rowCandidate.description = rowCandidate.code;
+                }
+                if (rowCandidate.ncm != null) {
+                    rowCandidate.ncm = rowCandidate.ncm.replaceAll("\\D", "");
+                }
+                if (rowCandidate.cfop != null) {
+                    rowCandidate.cfop = rowCandidate.cfop.replaceAll("\\D", "");
                 }
                 rows.add(rowCandidate);
             } else {

@@ -224,6 +224,24 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
     });
   };
 
+  const handleQuantityChange = (index: number, val: number) => {
+    const q = isNaN(val) || val < 0 ? 0 : val;
+    const cost = itemsRows[index]?.unitCost || 0;
+    updateItemRow(index, {
+      quantity: q,
+      totalPrice: Math.round(q * cost * 100) / 100
+    });
+  };
+
+  const handleUnitCostChange = (index: number, val: number) => {
+    const c = isNaN(val) || val < 0 ? 0 : val;
+    const q = itemsRows[index]?.quantity || 0;
+    updateItemRow(index, {
+      unitCost: c,
+      totalPrice: Math.round(q * c * 100) / 100
+    });
+  };
+
   const selectedCount = useMemo(() => {
     return itemsRows.filter((r) => r.selected).length;
   }, [itemsRows]);
@@ -237,10 +255,10 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
   const handleSubmit = async () => {
     if (!parsedData) return;
 
-    if (parsedData.alreadyImported && !itemsOnly) {
+    if (parsedData.alreadyImported && !itemsOnly && !forceImport) {
       toast({
         title: 'Operação bloqueada',
-        description: 'Não é possível importar uma nota fiscal que já foi processada anteriormente.',
+        description: 'Não é possível importar uma nota fiscal que já foi processada anteriormente. Para prosseguir mesmo assim, marque "Forçar reimportação mesmo assim".',
         variant: 'destructive'
       });
       return;
@@ -251,14 +269,17 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
       .map((r) => ({
         action: r.action,
         stockItemId: r.action === 'LINK_EXISTING' ? r.matchedStockItemId : undefined,
-        code: r.productCode,
-        name: r.name,
+        code: r.productCode?.trim() || '',
+        name: r.name?.trim() || '',
         category: r.category,
         quantity: r.quantity,
         unitCost: r.unitCost,
-        unitName: r.unitOfMeasure,
-        barcode: r.barcode,
-        description: `NCM: ${r.ncm} | CFOP: ${r.cfop}`
+        unitName: r.unitOfMeasure?.trim() || 'UN',
+        barcode: r.barcode || '',
+        description: [
+          r.ncm ? `NCM: ${r.ncm}` : '',
+          r.cfop ? `CFOP: ${r.cfop}` : ''
+        ].filter(Boolean).join(' | ')
       }));
 
     if (itemsToProcess.length === 0) {
@@ -577,12 +598,16 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
                   <thead className="bg-gray-800/80 text-gray-300 text-xs uppercase font-medium border-b border-gray-700">
                     <tr>
                       <th className="p-3 w-10 text-center">Sel.</th>
-                      <th className="p-3">Item / Descrição</th>
-                      <th className="p-3">Ação no Estoque</th>
-                      <th className="p-3">Categoria</th>
-                      <th className="p-3 text-center">Qtd</th>
-                      <th className="p-3 text-right">Vlr. Unitário</th>
-                      <th className="p-3 text-right">Total</th>
+                      <th className="p-3 w-28 min-w-[110px]">Cód. Item</th>
+                      <th className="p-3 min-w-[220px]">Descrição do Produto</th>
+                      <th className="p-3 w-24 min-w-[95px] text-center">NCM</th>
+                      <th className="p-3 w-20 min-w-[75px] text-center">CFOP</th>
+                      <th className="p-3 min-w-[190px]">Ação no Estoque</th>
+                      <th className="p-3 min-w-[160px]">Categoria</th>
+                      <th className="p-3 w-20 min-w-[75px] text-center">Qtd</th>
+                      <th className="p-3 w-16 min-w-[55px] text-center">Un.</th>
+                      <th className="p-3 w-28 min-w-[105px] text-right">Vlr. Unitário</th>
+                      <th className="p-3 w-28 min-w-[105px] text-right">Total</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-700/60">
@@ -598,34 +623,66 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
                           />
                         </td>
 
-                        {/* Nome / Descrição */}
-                        <td className="p-3 max-w-[260px]">
+                        {/* Código do Item */}
+                        <td className="p-2.5">
+                          <Input
+                            value={row.productCode}
+                            onChange={(e) => updateItemRow(index, { productCode: e.target.value })}
+                            placeholder="Cód."
+                            className="h-8 text-xs font-mono bg-gray-900/80 border-gray-700 text-gray-200"
+                          />
+                        </td>
+
+                        {/* Descrição do Produto */}
+                        <td className="p-2.5">
                           <div className="flex flex-col gap-1">
                             <Input
                               value={row.name}
                               onChange={(e) => updateItemRow(index, { name: e.target.value })}
-                              className="h-8 text-xs bg-gray-900/60 border-gray-700 text-white font-medium"
+                              placeholder="Descrição do item"
+                              className="h-8 text-xs bg-gray-900/80 border-gray-700 text-white font-medium"
                             />
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="text-[11px] text-gray-400 font-mono">
-                                Cód: {row.productCode}
-                              </span>
-                              {row.isBattery && (
-                                <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40 text-[10px] py-0 px-1.5 flex items-center gap-1">
-                                  <Zap className="h-2.5 w-2.5" /> Bateria Frota
-                                </Badge>
-                              )}
-                              {row.isTire && (
-                                <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/40 text-[10px] py-0 px-1.5 flex items-center gap-1">
-                                  <CircleDot className="h-2.5 w-2.5" /> Pneu Frota
-                                </Badge>
-                              )}
-                            </div>
+                            {(row.isBattery || row.isTire) && (
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {row.isBattery && (
+                                  <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40 text-[10px] py-0 px-1.5 flex items-center gap-1">
+                                    <Zap className="h-2.5 w-2.5" /> Bateria Frota
+                                  </Badge>
+                                )}
+                                {row.isTire && (
+                                  <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/40 text-[10px] py-0 px-1.5 flex items-center gap-1">
+                                    <CircleDot className="h-2.5 w-2.5" /> Pneu Frota
+                                  </Badge>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </td>
 
+                        {/* NCM */}
+                        <td className="p-2.5">
+                          <Input
+                            value={row.ncm || ''}
+                            onChange={(e) => updateItemRow(index, { ncm: e.target.value.replace(/\D/g, '') })}
+                            maxLength={10}
+                            placeholder="NCM"
+                            className="h-8 text-xs font-mono text-center bg-gray-900/80 border-gray-700 text-amber-300 font-semibold"
+                          />
+                        </td>
+
+                        {/* CFOP */}
+                        <td className="p-2.5">
+                          <Input
+                            value={row.cfop || ''}
+                            onChange={(e) => updateItemRow(index, { cfop: e.target.value.replace(/\D/g, '') })}
+                            maxLength={5}
+                            placeholder="CFOP"
+                            className="h-8 text-xs font-mono text-center bg-gray-900/80 border-gray-700 text-blue-300 font-semibold"
+                          />
+                        </td>
+
                         {/* Ação: Criar Novo ou Vincular */}
-                        <td className="p-3 min-w-[210px]">
+                        <td className="p-2.5 min-w-[190px]">
                           <div className="space-y-1.5">
                             <Select
                               value={row.action}
@@ -669,7 +726,7 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
                         </td>
 
                         {/* Categoria */}
-                        <td className="p-3 min-w-[170px]">
+                        <td className="p-2.5 min-w-[160px]">
                           <Select
                             value={row.category}
                             onValueChange={(val: any) => updateItemRow(index, { category: val })}
@@ -693,18 +750,43 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
                         </td>
 
                         {/* Qtd */}
-                        <td className="p-3 text-center font-bold text-white">
-                          {row.quantity} <span className="text-[11px] text-gray-400 font-normal">{row.unitOfMeasure}</span>
+                        <td className="p-2.5">
+                          <Input
+                            type="number"
+                            min="1"
+                            step="1"
+                            value={row.quantity}
+                            onChange={(e) => handleQuantityChange(index, parseFloat(e.target.value))}
+                            className="h-8 text-xs text-center font-bold bg-gray-900/80 border-gray-700 text-white"
+                          />
+                        </td>
+
+                        {/* Unidade */}
+                        <td className="p-2.5">
+                          <Input
+                            value={row.unitOfMeasure || 'UN'}
+                            onChange={(e) => updateItemRow(index, { unitOfMeasure: e.target.value.toUpperCase() })}
+                            maxLength={6}
+                            placeholder="UN"
+                            className="h-8 text-xs text-center font-mono uppercase bg-gray-900/80 border-gray-700 text-gray-300"
+                          />
                         </td>
 
                         {/* Custo Unit */}
-                        <td className="p-3 text-right text-gray-300 font-mono">
-                          R$ {row.unitCost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        <td className="p-2.5">
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={row.unitCost}
+                            onChange={(e) => handleUnitCostChange(index, parseFloat(e.target.value))}
+                            className="h-8 text-xs text-right font-mono bg-gray-900/80 border-gray-700 text-gray-200"
+                          />
                         </td>
 
                         {/* Total */}
-                        <td className="p-3 text-right font-semibold text-green-400 font-mono">
-                          R$ {row.totalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        <td className="p-3 text-right font-semibold text-green-400 font-mono whitespace-nowrap">
+                          R$ {row.totalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                       </tr>
                     ))}
