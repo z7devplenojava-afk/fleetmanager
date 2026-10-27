@@ -22,7 +22,7 @@ import com.z7design.fleet_manager.tenant.TenantAware;
 @Entity
 @Table(name = "routes")
 @JsonIgnoreProperties(ignoreUnknown = true)
-@Filter(name = "tenantFilter", condition = "company_id = :companyId")
+@Filter(name = "tenantFilter", condition = "(company_id = :companyId OR company_id IS NULL)")
 public class Route implements TenantAware {
 
     @Id
@@ -61,12 +61,12 @@ public class Route implements TenantAware {
     @Column(name = "capacity")
     private Integer capacity;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "unit_id")
-    @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
+    @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler", "client" })
     private Unit unit;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "location_id")
     @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
     private Location location;
@@ -107,7 +107,7 @@ public class Route implements TenantAware {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "client_id")
-    @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
+    @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler", "units", "contracts", "workPosts", "measurementBulletins", "company" })
     private Client client;
 
     /** Horário programado de início da operação da rota */
