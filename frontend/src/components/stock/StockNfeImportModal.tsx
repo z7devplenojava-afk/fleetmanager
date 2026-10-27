@@ -46,7 +46,8 @@ import {
   PlusCircle,
   Link2,
   Loader2,
-  Hash
+  Hash,
+  UserCheck
 } from 'lucide-react';
 
 interface StockNfeImportModalProps {
@@ -92,6 +93,7 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
   const [file, setFile] = useState<File | null>(null);
   const [parsing, setParsing] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [forceImport, setForceImport] = useState(false);
   const [parsedData, setParsedData] = useState<StockNfeParsedDTO | null>(null);
   const [existingItems, setExistingItems] = useState<StockItem[]>([]);
   const [loadingItems, setLoadingItems] = useState(false);
@@ -105,6 +107,7 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
     if (open) {
       loadStockItems();
       setCreateFinancialAccounts(!itemsOnly);
+      setForceImport(false);
       if (initialData) {
         applyParsedData(initialData);
       }
@@ -113,6 +116,7 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
       setFile(null);
       setParsedData(null);
       setItemsRows([]);
+      setForceImport(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialData ? JSON.stringify(initialData) : '', itemsOnly]);
@@ -294,6 +298,7 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
       supplierEmail: parsedData.supplierEmail,
       supplierId: parsedData.existingSupplierId,
       createFinancialAccounts,
+      forceImport,
       items: itemsToProcess,
       installments: installmentsPayload
     };
@@ -398,12 +403,32 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
           <div className="space-y-5 py-2">
             {/* Aviso de Duplicidade */}
             {parsedData.alreadyImported && (
-              <div className="p-4 bg-red-500/20 border border-red-500/50 rounded-lg flex items-start gap-3 text-red-200 text-sm">
-                <AlertTriangle className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
-                <div>
-                  <strong className="block font-semibold text-red-300">Nota Fiscal já importada!</strong>
-                  <span>{parsedData.duplicateWarning || 'Esta nota fiscal já possui lançamentos no sistema.'}</span>
+              <div className="p-4 bg-red-950/50 border border-red-500/60 rounded-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-red-200 text-sm shadow-lg">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-lg bg-red-500/20 text-red-400 flex-shrink-0 mt-0.5">
+                    <AlertTriangle className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <strong className="font-bold text-red-300">Nota Fiscal já importada anteriormente!</strong>
+                      <Badge className="bg-red-500/20 text-red-300 border border-red-500/40 text-[10px] font-semibold">
+                        Duplicidade Detectada
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-red-200/90 mt-1 leading-relaxed">
+                      {parsedData.duplicateWarning || 'Esta nota fiscal já possui lançamentos anteriores no sistema (Estoque ou Financeiro).'}
+                    </p>
+                  </div>
                 </div>
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-red-200 bg-red-900/40 px-3.5 py-2 rounded-lg border border-red-600/50 hover:bg-red-900/60 transition-colors self-end md:self-center flex-shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={forceImport}
+                    onChange={(e) => setForceImport(e.target.checked)}
+                    className="rounded border-red-500 text-red-600 focus:ring-red-500 h-4 w-4"
+                  />
+                  Forçar reimportação mesmo assim
+                </label>
               </div>
             )}
 
@@ -439,6 +464,7 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
                     onClick={() => {
                       setParsedData(null);
                       setFile(null);
+                      setForceImport(false);
                     }}
                   >
                     Trocar arquivo
@@ -446,11 +472,22 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
                 </div>
               </div>
 
-              {/* Dados do Fornecedor */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs sm:text-sm text-gray-300">
-                <div className="flex items-start gap-2">
+              {/* Chave de Acesso (44 dígitos) */}
+              {parsedData.accessKey && (
+                <div className="flex items-center gap-2 text-xs text-gray-400 bg-gray-900/60 px-3 py-1.5 rounded-lg border border-gray-800 font-mono break-all mb-3.5">
+                  <Hash className="h-3.5 w-3.5 text-seguranca-yellow flex-shrink-0" />
+                  <span className="text-gray-400 text-[11px] font-sans font-medium">Chave de Acesso:</span>
+                  <span className="text-gray-200 select-all font-semibold tracking-wider">{parsedData.accessKey}</span>
+                </div>
+              )}
+
+              {/* Dados do Fornecedor e do Cliente */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs sm:text-sm text-gray-300">
+                {/* Fornecedor / Emitente */}
+                <div className="flex items-start gap-2.5">
                   <Building2 className="h-4 w-4 text-seguranca-yellow flex-shrink-0 mt-0.5" />
                   <div>
+                    <span className="text-[10px] uppercase font-bold text-gray-400 block tracking-wider">Fornecedor / Emitente</span>
                     <span className="font-semibold text-white">{parsedData.supplierName}</span>
                     <span className="block text-gray-400 text-xs">
                       CNPJ: {parsedData.supplierCnpj}
@@ -461,26 +498,50 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
                     {parsedData.supplierEmail && (
                       <span className="block text-gray-400 text-xs">Email: {parsedData.supplierEmail}</span>
                     )}
-                    <span className="block mt-1">
+                    {parsedData.supplierAddress && (
+                      <span className="block text-gray-400 text-xs mt-0.5">
+                        {parsedData.supplierAddress}
+                        {parsedData.supplierCity && ` • ${parsedData.supplierCity}/${parsedData.supplierState || ''}`}
+                      </span>
+                    )}
+                    <span className="block mt-1.5">
                       {parsedData.existingSupplierId ? (
                         <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-semibold">
                           Fornecedor já cadastrado no sistema
                         </Badge>
                       ) : (
                         <Badge className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-semibold">
-                          Novo fornecedor — será cadastrado automaticamente com os dados da nota
+                          Novo fornecedor — será cadastrado automaticamente
                         </Badge>
                       )}
                     </span>
                   </div>
                 </div>
 
-                {parsedData.supplierAddress && (
-                  <div className="text-xs text-gray-400">
-                    <span>{parsedData.supplierAddress}</span>
-                    <span> • {parsedData.supplierCity}/{parsedData.supplierState}</span>
+                {/* Cliente / Destinatário */}
+                <div className="flex items-start gap-2.5 border-t md:border-t-0 md:border-l border-gray-700/60 pt-3 md:pt-0 md:pl-4">
+                  <UserCheck className="h-4 w-4 text-seguranca-yellow flex-shrink-0 mt-0.5" />
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-gray-400 block tracking-wider">Cliente / Destinatário</span>
+                    <span className="font-semibold text-white">
+                      {parsedData.customerName || 'Destinatário da Nota Fiscal'}
+                    </span>
+                    {parsedData.customerCnpj && (
+                      <span className="block text-gray-400 text-xs">
+                        CNPJ/CPF: {parsedData.customerCnpj}
+                      </span>
+                    )}
+                    {parsedData.customerPhone && (
+                      <span className="block text-gray-400 text-xs">Tel: {parsedData.customerPhone}</span>
+                    )}
+                    {parsedData.customerAddress && (
+                      <span className="block text-gray-400 text-xs mt-0.5">
+                        {parsedData.customerAddress}
+                        {parsedData.customerCity && ` • ${parsedData.customerCity}/${parsedData.customerState || ''}`}
+                      </span>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
             </Card>
 
@@ -731,7 +792,7 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
             {parsedData && (
               <Button
                 onClick={handleSubmit}
-                disabled={processing || selectedCount === 0 || (parsedData.alreadyImported && !itemsOnly)}
+                disabled={processing || selectedCount === 0 || (parsedData.alreadyImported && !itemsOnly && !forceImport)}
                 className="bg-seguranca-red hover:bg-seguranca-red/90 text-white font-semibold flex items-center gap-2"
               >
                 {processing ? (

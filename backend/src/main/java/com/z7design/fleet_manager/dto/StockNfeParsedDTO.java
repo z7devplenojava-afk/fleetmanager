@@ -39,6 +39,15 @@ public class StockNfeParsedDTO {
     private String supplierEmail;
     private UUID existingSupplierId;
 
+    // Destinatário / Cliente
+    private String customerCnpj;
+    private String customerName;
+    private String customerAddress;
+    private String customerCity;
+    private String customerState;
+    private String customerZipCode;
+    private String customerPhone;
+
     // Validação de Duplicidade
     private boolean alreadyImported;
     private String duplicateWarning;
