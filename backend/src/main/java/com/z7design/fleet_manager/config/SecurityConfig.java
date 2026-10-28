@@ -454,8 +454,10 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/measurements/bulk/excel").permitAll()
                                                 .requestMatchers("/api/measurements/**").authenticated()
                                                 .requestMatchers("/api/contract-retentions/**").authenticated()
-                                                // Endpoints de estoque - requerem permissÃƒÂµes especÃƒÂ­ficas ou
-                                                // autenticaÃƒÂ§ÃƒÂ£o
+                                                // Endpoints de importação de NF-e (XML/PDF) para Estoque e Financeiro - qualquer usuário autenticado
+                                                .requestMatchers("/api/stock/nfe/**").authenticated()
+                                                // Endpoints de estoque - requerem permissões específicas ou
+                                                // autenticação
                                                 // Endpoints de estoque - leitura permitida para autenticados (SST, RH, Manutenção, etc.)
                                                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/stock/**").authenticated()
                                                 .requestMatchers("/api/stock/**")
