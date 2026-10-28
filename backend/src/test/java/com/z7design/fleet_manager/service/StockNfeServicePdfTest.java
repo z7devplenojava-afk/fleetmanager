@@ -138,4 +138,66 @@ class StockNfeServicePdfTest {
         assertTrue(item.isBattery());
         assertEquals(new BigDecimal("222.10"), item.getTotalPrice());
     }
+
+    private org.springframework.web.multipart.MultipartFile createMockMultipart(String filename, byte[] content) {
+        return new org.springframework.web.multipart.MultipartFile() {
+            @Override public String getName() { return filename; }
+            @Override public String getOriginalFilename() { return filename; }
+            @Override public String getContentType() { return "application/pdf"; }
+            @Override public boolean isEmpty() { return content == null || content.length == 0; }
+            @Override public long getSize() { return content != null ? content.length : 0; }
+            @Override public byte[] getBytes() { return content; }
+            @Override public java.io.InputStream getInputStream() { return new java.io.ByteArrayInputStream(content); }
+            @Override public void transferTo(java.io.File dest) throws java.io.IOException { java.nio.file.Files.write(dest.toPath(), content); }
+        };
+    }
+
+    @Test
+    @DisplayName("Inspeciona extração dos PDFs reais de Almoxarifado")
+    void testInspectRealPdf() throws Exception {
+        String[] sampleFiles = {
+            "31260900754526000167550010009531261010154590-nfe.pdf",
+            "31260900452917000127550010002053501172831839-nfe.pdf",
+            "DANFE  6038  SO SILVESTRE.pdf",
+            "15595 SAO SILVESTRE.pdf"
+        };
+
+        for (String sampleName : sampleFiles) {
+            java.io.File file = new java.io.File("E:\\VSS Sistema\\Almoxarifado\\" + sampleName);
+            if (!file.exists()) {
+                System.out.println("Arquivo nao encontrado: " + sampleName);
+                continue;
+            }
+            System.out.println("==================================================");
+            System.out.println("TESTANDO ARQUIVO: " + sampleName);
+
+            byte[] fileBytes = java.nio.file.Files.readAllBytes(file.toPath());
+            org.springframework.web.multipart.MultipartFile mf = createMockMultipart(sampleName, fileBytes);
+            UUID companyId = UUID.randomUUID();
+
+            StockNfeParsedDTO dto = stockNfeService.parsePdf(mf, companyId);
+            assertNotNull(dto);
+            System.out.println("DTO PARSE_PDF: Fornecedor=" + dto.getSupplierName() + " (CNPJ=" + dto.getSupplierCnpj() + "), NF=" + dto.getInvoiceNumber() + ", Itens=" + dto.getItems().size() + ", Total=" + dto.getTotalInvoiceAmount());
+            for (var it : dto.getItems()) {
+                System.out.println("   ITEM: cod=" + it.getProductCode() + ", desc=" + it.getDescription() + ", ncm=" + it.getNcm() + ", cfop=" + it.getCfop() + ", un=" + it.getUnitOfMeasure() + ", qty=" + it.getQuantity() + ", unitPrice=" + it.getUnitPrice() + ", total=" + it.getTotalPrice());
+            }
+
+            if (sampleName.contains("953126")) {
+                assertEquals("953126", dto.getInvoiceNumber());
+                assertEquals(new BigDecimal("222.10"), dto.getTotalInvoiceAmount());
+                assertFalse(dto.getItems().isEmpty());
+                assertEquals("87083090", dto.getItems().get(0).getNcm());
+                assertEquals("5403", dto.getItems().get(0).getCfop());
+            } else if (sampleName.contains("205350")) {
+                assertEquals("205350", dto.getInvoiceNumber());
+                assertTrue(dto.getTotalInvoiceAmount().compareTo(BigDecimal.ZERO) > 0);
+                assertEquals(2, dto.getItems().size());
+            } else if (sampleName.contains("15595")) {
+                assertEquals("15595", dto.getInvoiceNumber());
+                assertEquals(new BigDecimal("1100.00"), dto.getTotalInvoiceAmount());
+                assertEquals(1, dto.getItems().size());
+            }
+        }
+    }
 }
+
