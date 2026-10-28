@@ -372,7 +372,7 @@ public class StockNfeService {
                     throw new BusinessException("Não foi possível extrair o texto deste PDF (o arquivo pode ser uma imagem digitalizada sem texto legível). Para maior precisão, importe o arquivo XML da NF-e.");
                 }
 
-                return parseDanfeText(text, companyId);
+                return parseDanfeText(text, companyId, file.getOriginalFilename());
             }
         } catch (BusinessException be) {
             throw be;
@@ -385,7 +385,11 @@ public class StockNfeService {
     /**
      * Extrai as informações do DANFE a partir do texto do PDF e monta o DTO de conferência prévia.
      */
-    private StockNfeParsedDTO parseDanfeText(String rawText, UUID companyId) {
+    public StockNfeParsedDTO parseDanfeText(String rawText, UUID companyId) {
+        return parseDanfeText(rawText, companyId, null);
+    }
+
+    public StockNfeParsedDTO parseDanfeText(String rawText, UUID companyId, String filename) {
         try {
             String normalized = rawText.replace("\r\n", "\n").replace('\r', '\n');
             List<String> lines = new ArrayList<>();
@@ -397,17 +401,15 @@ public class StockNfeService {
             }
             String flat = String.join(" | ", lines);
 
-            // Chave de acesso (44 dígitos, frequentemente agrupados de 4 em 4)
-            String accessKey = extractAccessKey(flat);
+            // Chave de acesso (44 dígitos) - extraída do nome do arquivo ou do texto do PDF
+            String accessKey = extractAccessKey(flat, filename);
 
             // Número e série da NF-e
             String nNf = extractInvoiceNumber(flat);
             String serie = extractMatch(flat, "(?i)S[ÉE]RIE\\s*\\.?\\s*(\\d{1,3})");
 
-            // Emitente (nome, CNPJ e endereço)
-            SupplierInfo supplierInfo = extractSupplier(lines);
-
-            // Auto-recuperação inteligente a partir da Chave de Acesso de 44 dígitos
+            // Auto-recuperação autoritativa a partir da Chave de Acesso de 44 dígitos
+            String keyCnpj = null;
             if (accessKey != null && accessKey.length() == 44) {
                 // Dígitos 25-33: Número da NF (9 dígitos)
                 try {
@@ -429,61 +431,40 @@ public class StockNfeService {
                 // Dígitos 6-19: CNPJ do emitente (14 dígitos)
                 try {
                     String rawCnpj = accessKey.substring(6, 20);
-                    if (supplierInfo.cnpj == null || supplierInfo.cnpj.isBlank()) {
-                        supplierInfo.cnpj = formatCnpj(rawCnpj);
-                    }
+                    keyCnpj = formatCnpj(rawCnpj);
                 } catch (Exception ignored) {}
+            }
+
+            // Emitente (nome, CNPJ e endereço) - consulta banco de dados se CNPJ for conhecido
+            SupplierInfo supplierInfo = extractSupplier(lines, accessKey, companyId);
+            if ((supplierInfo.cnpj == null || supplierInfo.cnpj.isBlank()) && keyCnpj != null) {
+                supplierInfo.cnpj = keyCnpj;
             }
 
             // Data de emissão
             LocalDate issueDate = extractIssueDate(lines, flat);
+            if (accessKey != null && accessKey.length() == 44) {
+                try {
+                    int keyYear = 2000 + Integer.parseInt(accessKey.substring(2, 4));
+                    int keyMonth = Integer.parseInt(accessKey.substring(4, 6));
+                    if (issueDate == null || issueDate.getYear() != keyYear || issueDate.getMonthValue() != keyMonth) {
+                        int day = (issueDate != null) ? Math.min(issueDate.getDayOfMonth(), 28) : 1;
+                        issueDate = LocalDate.of(keyYear, keyMonth, day);
+                    }
+                } catch (Exception ignored) {}
+            }
 
             // Destinatário / Cliente
             CustomerInfo customerInfo = extractCustomer(lines);
 
-            // Itens da NF
-            List<StockNfeParsedDTO.StockNfeItemDTO> items = extractItems(lines, companyId);
-
             // Totais
             BigDecimal vProd = extractMoney(flat, "(?i)VALOR TOTAL DOS PRODUTOS|VALOR DOS PRODUTOS");
-            BigDecimal vNF = extractMoney(flat, "(?i)VALOR TOTAL DA NOTA|VALOR TOTAL DA NF|TOTAL DA NOTA");
+            BigDecimal vNF = extractMoney(flat, "(?i)V(?:ALOR)?\\.?\\s*TOTAL\\s*DA\\s*NOTA|V(?:ALOR)?\\.?\\s*TOTAL\\s*DA\\s*NF|TOTAL\\s*DA\\s*NOTA|VALOR\\s+L[ÍI]QUIDO|VLR\\.?\\s*TOTAL");
             BigDecimal vFrete = extractMoney(flat, "(?i)VALOR DO FRETE|TOTAL DO FRETE");
             BigDecimal vDesc = extractMoney(flat, "(?i)VALOR DO DESCONTO|TOTAL DO DESCONTO");
 
-            // Se nenhum item foi extraído das tabelas do PDF, gerar 1 item padrão com os dados gerais da NF
-            if (items.isEmpty()) {
-                BigDecimal fallbackAmount = (vNF != null && vNF.compareTo(BigDecimal.ZERO) > 0)
-                        ? vNF
-                        : (vProd != null && vProd.compareTo(BigDecimal.ZERO) > 0 ? vProd : BigDecimal.ZERO);
-
-                String fallbackCode = (nNf != null && !nNf.isBlank()) ? "NF" + nNf + "-1" : "ITEM-1";
-                String fallbackDesc = "Item da NF-e " + (nNf != null && !nNf.isBlank() ? nNf : "") 
-                        + (supplierInfo.name != null && !supplierInfo.name.isBlank() ? " - " + supplierInfo.name : "");
-
-                StockCategory cat = detectCategory(fallbackDesc, false, false);
-                Optional<StockItem> matchedItem = matchExistingItem(fallbackCode, fallbackDesc, companyId);
-
-                items.add(StockNfeParsedDTO.StockNfeItemDTO.builder()
-                        .productCode(fallbackCode)
-                        .description(fallbackDesc)
-                        .ncm("")
-                        .cfop("")
-                        .unitOfMeasure("UN")
-                        .quantity(BigDecimal.ONE)
-                        .unitPrice(fallbackAmount)
-                        .totalPrice(fallbackAmount)
-                        .barcode("")
-                        .suggestedCategory(cat)
-                        .matchedStockItemId(matchedItem.map(StockItem::getId).orElse(null))
-                        .matchedStockItemName(matchedItem.map(StockItem::getName).orElse(null))
-                        .matchedStockItemCode(matchedItem.map(StockItem::getCode).orElse(null))
-                        .matchedStockItemQuantity(matchedItem.map(StockItem::getCurrentQuantity).orElse(null))
-                        .isBattery(false)
-                        .isTire(false)
-                        .build());
-
-                log.info("PDF da NF-e nº {}: nenhum item tabelado extraído por regex. Gerado item padrão com valor R$ {}", nNf, fallbackAmount);
-            }
+            // Itens da NF
+            List<StockNfeParsedDTO.StockNfeItemDTO> items = extractItems(lines, companyId, vNF, flat, nNf, supplierInfo);
 
             BigDecimal itemsSum = items.stream()
                     .map(i -> i.getTotalPrice() != null ? i.getTotalPrice() : BigDecimal.ZERO)
@@ -549,12 +530,26 @@ public class StockNfeService {
     );
 
     private String extractAccessKey(String flat) {
+        return extractAccessKey(flat, null);
+    }
+
+    private String extractAccessKey(String flat, String filename) {
+        // 1. Verificar primeiro o nome do arquivo (arquivos baixados de ERPs/SEFAZ costumam conter a chave)
+        if (filename != null && !filename.isBlank()) {
+            String digitsInName = filename.replaceAll("\\D", "");
+            String keyFromName = findValid44DigitKey(digitsInName);
+            if (keyFromName != null) {
+                log.info("Chave de acesso de 44 dígitos extraída com sucesso do nome do arquivo ({}): {}", filename, keyFromName);
+                return keyFromName;
+            }
+        }
+
         if (flat == null || flat.isBlank()) {
             return "";
         }
 
-        // 1. Procura chave rotulada explicitamente (com suporte a dígito extra de formatação, ex: ACESSO03126...)
-        Matcher labeled = Pattern.compile("(?i)CHAVE\\s+DE\\s+ACESSO[^0-9]{0,35}([0-9\\s.]{44,70})").matcher(flat);
+        // 2. Procura chave rotulada explicitamente (com suporte a espaçamentos ou rótulo variado)
+        Matcher labeled = Pattern.compile("(?i)CHAVE\\s+DE\\s+ACESSO[^0-9]{0,45}([0-9\\s.]{44,70})").matcher(flat);
         if (labeled.find()) {
             String digits = labeled.group(1).replaceAll("\\D", "");
             String key = findValid44DigitKey(digits);
@@ -563,7 +558,17 @@ public class StockNfeService {
             }
         }
 
-        // 2. Procura sequências de 44+ dígitos em todo o texto
+        // 3. Procura blocos de 4 dígitos agrupados (padrão clássico de DANFE: 4444 4444 4444 ...)
+        Matcher grouped = Pattern.compile("(?:\\b\\d{4}[\\s.-]+){10}\\d{4}\\b").matcher(flat);
+        if (grouped.find()) {
+            String digits = grouped.group().replaceAll("\\D", "");
+            String key = findValid44DigitKey(digits);
+            if (key != null) {
+                return key;
+            }
+        }
+
+        // 4. Procura sequências contínuas ou com separadores de 44+ dígitos
         Matcher matcher = Pattern.compile("(?<!\\d)(\\d(?:[\\s.]*\\d){43,70})(?!\\d)").matcher(flat);
         while (matcher.find()) {
             String digits = matcher.group(1).replaceAll("\\D", "");
@@ -573,10 +578,11 @@ public class StockNfeService {
             }
         }
 
-        // 3. Fallback genérico para 44 dígitos sem formatação
-        Matcher fallback = Pattern.compile("(?<!\\d)(\\d{44})(?!\\d)").matcher(flat.replaceAll("[^0-9]", ""));
-        if (fallback.find()) {
-            return fallback.group(1);
+        // 5. Varredura com janela deslizante de 44 dígitos sobre todos os números do texto
+        String allDigits = flat.replaceAll("[^0-9]", "");
+        String keyFromAll = findValid44DigitKey(allDigits);
+        if (keyFromAll != null) {
+            return keyFromAll;
         }
 
         return "";
@@ -745,39 +751,76 @@ public class StockNfeService {
     }
 
     private SupplierInfo extractSupplier(List<String> lines) {
+        return extractSupplier(lines, null, null);
+    }
+
+    private SupplierInfo extractSupplier(List<String> lines, String accessKey, UUID companyId) {
         SupplierInfo info = new SupplierInfo();
         int cnpjIdx = -1;
-        for (int i = 0; i < lines.size(); i++) {
-            Matcher matcher = Pattern.compile("(?i)CNPJ\\s*[:.]?\\s*([\\d./-]{11,20})").matcher(lines.get(i));
+
+        // 1. Procurar nas primeiras 35 linhas (bloco do emitente, antes do cabeçalho do destinatário)
+        for (int i = 0; i < Math.min(lines.size(), 35); i++) {
+            String line = lines.get(i);
+            String norm = removeAccents(line).toUpperCase();
+            if (norm.contains("DESTINATARIO") || norm.contains("REMETENTE")) {
+                break;
+            }
+
+            Matcher matcher = Pattern.compile("(?i)CNPJ(?:\\s*/\\s*CPF)?\\s*[:.]?\\s*([\\d./-]{14,20})").matcher(line);
             if (matcher.find()) {
                 info.cnpj = matcher.group(1).trim();
                 cnpjIdx = i;
                 break;
             }
-        }
-        if (cnpjIdx < 0) {
-            return info;
-        }
 
-        // Nome/razão social: linha imediatamente acima do CNPJ (padrão DANFE)
-        for (int i = cnpjIdx - 1; i >= 0 && i >= cnpjIdx - 5; i--) {
-            String candidate = lines.get(i);
-            if (isDanfeLabel(candidate)) {
-                continue;
-            }
-            String cleaned = cleanSupplierCandidate(candidate);
-            if (!cleaned.isEmpty() && containsLetters(cleaned) && cleaned.length() >= 3) {
-                info.name = cleaned;
-                info.tradeName = cleaned;
+            Matcher directCnpj = Pattern.compile("(?<!\\d)(\\d{2}\\.\\d{3}\\.\\d{3}/\\d{4}-\\d{2})(?!\\d)").matcher(line);
+            if (directCnpj.find()) {
+                info.cnpj = directCnpj.group(1).trim();
+                cnpjIdx = i;
                 break;
             }
         }
 
-        // Se o nome não foi encontrado ou ficou curto/ruim, busca nas primeiras 15 linhas do DANFE (bloco do emitente)
-        if (info.name == null || info.name.isBlank() || info.name.length() < 3) {
-            for (int i = 0; i < Math.min(lines.size(), 15); i++) {
+        // 2. Se não encontrou CNPJ nas linhas, mas temos a chave de acesso de 44 dígitos
+        if ((info.cnpj == null || info.cnpj.isBlank()) && accessKey != null && accessKey.length() == 44) {
+            try {
+                String rawCnpj = accessKey.substring(6, 20);
+                info.cnpj = formatCnpj(rawCnpj);
+                log.info("CNPJ do emitente recuperado a partir da chave de acesso: {}", info.cnpj);
+            } catch (Exception ignored) {}
+        }
+
+        // 3. Se temos o CNPJ, verificar se o fornecedor já existe no banco de dados para recuperar nome e dados oficiais
+        if (info.cnpj != null && !info.cnpj.isBlank()) {
+            try {
+                Optional<Supplier> existing = findExistingSupplier(info.cnpj, companyId);
+                if (existing.isPresent()) {
+                    Supplier s = existing.get();
+                    info.name = s.getName();
+                    info.tradeName = s.getTradeName() != null ? s.getTradeName() : s.getName();
+                    info.address = s.getAddress() != null ? s.getAddress() : "";
+                    info.city = s.getCity() != null ? s.getCity() : "";
+                    info.state = s.getState() != null ? s.getState() : "";
+                    info.zipCode = s.getZipCode() != null ? s.getZipCode() : "";
+                    info.phone = s.getPhone() != null ? s.getPhone() : "";
+                    info.email = s.getEmail() != null ? s.getEmail() : "";
+                    log.info("Fornecedor existente '{}' recuperado por CNPJ {}", info.name, info.cnpj);
+                    return info;
+                }
+            } catch (Exception ex) {
+                log.warn("Erro ao buscar fornecedor existente por CNPJ {}: {}", info.cnpj, ex.getMessage());
+            }
+        }
+
+        // 4. Razão social / Nome do emitente a partir do texto
+        if (cnpjIdx >= 0) {
+            // Linhas acima do CNPJ, ignorando títulos, labels e endereços
+            for (int i = cnpjIdx - 1; i >= 0 && i >= cnpjIdx - 5; i--) {
                 String candidate = lines.get(i);
-                if (isDanfeLabel(candidate) || isDocumentTitle(candidate)) {
+                if (isDanfeLabel(candidate) || isDocumentTitle(candidate) || isAddressLine(candidate)) {
+                    if (isAddressLine(candidate) && info.address.isEmpty()) {
+                        info.address = candidate;
+                    }
                     continue;
                 }
                 String cleaned = cleanSupplierCandidate(candidate);
@@ -789,18 +832,39 @@ public class StockNfeService {
             }
         }
 
-        // Endereço, cidade/UF e CEP: linhas imediatamente abaixo do CNPJ
-        for (int i = cnpjIdx + 1; i < Math.min(lines.size(), cnpjIdx + 6); i++) {
+        // Se ainda não encontrou o nome, busca nas primeiras 15 linhas (ignorando endereços)
+        if (info.name == null || info.name.isBlank() || info.name.length() < 3) {
+            for (int i = 0; i < Math.min(lines.size(), 15); i++) {
+                String candidate = lines.get(i);
+                if (isDanfeLabel(candidate) || isDocumentTitle(candidate) || isAddressLine(candidate)) {
+                    continue;
+                }
+                String cleaned = cleanSupplierCandidate(candidate);
+                if (!cleaned.isEmpty() && containsLetters(cleaned) && cleaned.length() >= 3) {
+                    info.name = cleaned;
+                    info.tradeName = cleaned;
+                    break;
+                }
+            }
+        }
+
+        // Endereço, cidade/UF e CEP
+        int addrStart = (cnpjIdx >= 0) ? cnpjIdx + 1 : 1;
+        for (int i = addrStart; i < Math.min(lines.size(), addrStart + 8); i++) {
             String candidate = lines.get(i);
             if (isDanfeLabel(candidate)) {
                 continue;
             }
+            String norm = removeAccents(candidate).toUpperCase();
+            if (norm.contains("DESTINATARIO") || norm.contains("REMETENTE")) {
+                break;
+            }
             Matcher cityMatcher = Pattern.compile("(?i)([\\p{L} .]{2,40})\\s*/\\s*([A-Za-z]{2})(?:\\s*CEP\\s*[:.]?\\s*([\\d-]{8,9}))?")
                     .matcher(candidate);
             if (cityMatcher.find()) {
-                info.city = cityMatcher.group(1).trim();
-                info.state = cityMatcher.group(2).toUpperCase();
-                if (cityMatcher.group(3) != null) {
+                if (info.city.isEmpty()) info.city = cityMatcher.group(1).trim();
+                if (info.state.isEmpty()) info.state = cityMatcher.group(2).toUpperCase();
+                if (cityMatcher.group(3) != null && info.zipCode.isEmpty()) {
                     info.zipCode = cityMatcher.group(3);
                 }
                 continue;
@@ -825,6 +889,7 @@ public class StockNfeService {
                 info.address = candidate;
             }
         }
+
         return info;
     }
 
@@ -866,6 +931,16 @@ public class StockNfeService {
         return upper.isEmpty() || labels.contains(upper);
     }
 
+    private boolean isAddressLine(String line) {
+        if (line == null) return false;
+        String upper = removeAccents(line.toUpperCase()).trim();
+        return upper.contains("RUA ") || upper.contains("AV ") || upper.contains("AVENIDA")
+                || upper.contains("RODOVIA") || upper.contains("ESTRADA") || upper.contains("TRAVESSA")
+                || upper.contains("ALAMEDA") || upper.contains("BAIRRO") || upper.contains("CENTRO")
+                || upper.matches(".*\\bCEP\\b.*") || upper.matches(".*\\b[A-Z]{2}\\s*-\\s*BRASIL.*")
+                || upper.matches(".*[A-Za-z]+/[A-Z]{2}\\b.*") || upper.matches(".*\\bKM\\s*\\d+.*");
+    }
+
     private boolean containsLetters(String value) {
         return value != null && value.matches(".*\\p{L}.*");
     }
@@ -900,8 +975,19 @@ public class StockNfeService {
     }
 
     private List<StockNfeParsedDTO.StockNfeItemDTO> extractItems(List<String> lines, UUID companyId) {
-        List<StockNfeParsedDTO.StockNfeItemDTO> items = new ArrayList<>();
+        return extractItems(lines, companyId, BigDecimal.ZERO, String.join(" | ", lines), "", new SupplierInfo());
+    }
 
+    private List<StockNfeParsedDTO.StockNfeItemDTO> extractItems(
+            List<String> lines,
+            UUID companyId,
+            BigDecimal totalInvoiceAmount,
+            String flat,
+            String nNf,
+            SupplierInfo supplierInfo) {
+        List<ParsedItemRow> rows = new ArrayList<>();
+
+        // 1. Delimitar o bloco de itens (entre cabeçalho de produtos e início de cálculo de imposto/dados adicionais)
         int start = -1;
         int end = lines.size();
         for (int i = 0; i < lines.size(); i++) {
@@ -924,24 +1010,21 @@ public class StockNfeService {
             start = 0;
         }
 
-        // Padrões de linha de item: código + descrição | NCM/CFOP (com CST/CSOSN opcional e pontos) | UN | qtd | vlr1 | vlr2
-        Pattern fullWithCode = Pattern.compile("^(\\S+)\\s+(.*?)\\s+([\\d.]{6,10})(?:\\s+(\\d{2,4}))?\\s+(\\d{4})\\s+([A-Za-z/]{1,6})\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)");
-        Pattern fullSlash = Pattern.compile("^(.*?)\\s+([\\d.]{4,10})\\s*/\\s*(\\d{4})\\s+([A-Za-z/]{1,6})\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)");
-        Pattern fullSplit = Pattern.compile("^(.*?)\\s+([\\d.]{4,10})(?:\\s+(\\d{2,4}))?\\s+(\\d{4})\\s+([A-Za-z/]{1,6})\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)");
-        Pattern fullNoNcm = Pattern.compile("^(.*?)\\s+([A-Za-z/]{1,6})\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)");
-        // Linhas somente com as colunas numéricas (descrição na linha anterior)
-        Pattern colsSlash = Pattern.compile("^([\\d.]{4,10})\\s*/\\s*(\\d{4})\\s+([A-Za-z/]{1,6})\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)");
-        Pattern colsSplit = Pattern.compile("^([\\d.]{4,10})(?:\\s+(\\d{2,4}))?\\s+(\\d{4})\\s+([A-Za-z/]{1,6})\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)");
-        Pattern colsBare = Pattern.compile("^([A-Za-z/]{1,6})\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)");
-        // Código + descrição sem colunas numéricas
-        Pattern codeDesc = Pattern.compile("^(\\S+)\\s+(.*\\p{L}.*)$");
+        Pattern ncmPattern = Pattern.compile("(?<!\\d)(\\d{4}\\.?\\d{2}\\.?\\d{2}|\\d{8})(?!\\d)");
+        Pattern cfopPattern = Pattern.compile("(?<!\\d)([123567]\\d{3})(?!\\d)");
+        Pattern unitPattern = Pattern.compile("(?i)\\b(UN|PC|P[ÇC]|CX|KG|LT|L|M|JG|PAR|CJ|TON|RL|MT|KIT|FD|MIL|RO|TB|PACOTE|PECA|PE[ÇC]A)\\b");
+        Pattern moneyPattern = Pattern.compile("(?<!\\d)(\\d{1,3}(?:\\.\\d{3})*,\\d{2}|\\d+[.,]\\d{2})(?!\\d)");
 
-        List<ParsedItemRow> rows = new ArrayList<>();
+        // Padrões de linha única completos
+        Pattern fullWithCode = Pattern.compile("^(\\S+)\\s+(\\S.*?)\\s+([\\d.]{6,10})(?:\\s+(\\d{2,4}))?\\s+([123567]\\d{3})\\s+([A-Za-z/]{1,6})\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)(?:\\s+(\\d[\\d.,]*))?");
+        Pattern fullSplit = Pattern.compile("^(?:\\d{1,3}\\s+)?(\\S.*?)\\s+([\\d.]{6,10})(?:\\s+(\\d{2,4}))?\\s+([123567]\\d{3})\\s+([A-Za-z/]{1,6})\\s+(\\d[\\d.,]*)\\s+(\\d[\\d.,]*)(?:\\s+(\\d[\\d.,]*))?");
+
         String pendingCode = null;
         String pendingDesc = null;
 
         for (int i = start; i < end; i++) {
-            String line = lines.get(i);
+            String line = lines.get(i).trim();
+            if (line.isEmpty()) continue;
             String norm = removeAccents(line).toUpperCase();
             if (norm.contains("CODIGO") && (norm.contains("DESCRICAO") || norm.contains("PRODUTO"))) {
                 continue;
@@ -950,91 +1033,115 @@ public class StockNfeService {
             ParsedItemRow rowCandidate = new ParsedItemRow();
             boolean matched = false;
 
-            Matcher matcher = fullWithCode.matcher(line);
-            if (matcher.find()) {
-                rowCandidate.code = matcher.group(1).trim();
-                rowCandidate.description = matcher.group(2).trim();
-                rowCandidate.ncm = matcher.group(3).replaceAll("\\.", "");
-                rowCandidate.cfop = matcher.group(5);
-                rowCandidate.unit = matcher.group(6);
-                assignItemValues(rowCandidate, 
-                        parsePtBrNumber(matcher.group(7)), 
-                        parsePtBrNumber(matcher.group(8)), 
-                        parsePtBrNumber(matcher.group(9)));
+            // Tentativa 1: Linha única completa com código
+            Matcher mFull = fullWithCode.matcher(line);
+            if (mFull.find()) {
+                rowCandidate.code = mFull.group(1).trim();
+                rowCandidate.description = mFull.group(2).trim();
+                rowCandidate.ncm = mFull.group(3).replaceAll("\\.", "");
+                rowCandidate.cfop = mFull.group(5);
+                rowCandidate.unit = mFull.group(6);
+                BigDecimal n1 = parsePtBrNumber(mFull.group(7));
+                BigDecimal n2 = parsePtBrNumber(mFull.group(8));
+                BigDecimal n3 = mFull.group(9) != null ? parsePtBrNumber(mFull.group(9)) : null;
+                assignItemValues(rowCandidate, n1, n2, n3);
                 matched = true;
-            } else if ((matcher = fullSlash.matcher(line)).find()) {
-                rowCandidate.description = matcher.group(1).trim();
-                rowCandidate.ncm = matcher.group(2).replaceAll("\\.", "");
-                rowCandidate.cfop = matcher.group(3);
-                rowCandidate.unit = matcher.group(4);
-                assignItemValues(rowCandidate, 
-                        parsePtBrNumber(matcher.group(5)), 
-                        parsePtBrNumber(matcher.group(6)), 
-                        parsePtBrNumber(matcher.group(7)));
-                matched = true;
-            } else if ((matcher = fullSplit.matcher(line)).find()) {
-                rowCandidate.description = matcher.group(1).trim();
-                rowCandidate.ncm = matcher.group(2).replaceAll("\\.", "");
-                rowCandidate.cfop = matcher.group(4);
-                rowCandidate.unit = matcher.group(5);
-                assignItemValues(rowCandidate, 
-                        parsePtBrNumber(matcher.group(6)), 
-                        parsePtBrNumber(matcher.group(7)), 
-                        parsePtBrNumber(matcher.group(8)));
-                matched = true;
-            } else if ((matcher = fullNoNcm.matcher(line)).find()) {
-                rowCandidate.description = matcher.group(1).trim();
-                rowCandidate.unit = matcher.group(2);
-                assignItemValues(rowCandidate, 
-                        parsePtBrNumber(matcher.group(3)), 
-                        parsePtBrNumber(matcher.group(4)), 
-                        parsePtBrNumber(matcher.group(5)));
-                matched = true;
-            } else if ((matcher = colsSlash.matcher(line)).find() && pendingCode != null) {
-                rowCandidate.code = pendingCode;
-                rowCandidate.description = (pendingDesc != null && !pendingDesc.isBlank()) ? pendingDesc : pendingCode;
-                rowCandidate.ncm = matcher.group(1).replaceAll("\\.", "");
-                rowCandidate.cfop = matcher.group(2);
-                rowCandidate.unit = matcher.group(3);
-                assignItemValues(rowCandidate, 
-                        parsePtBrNumber(matcher.group(4)), 
-                        parsePtBrNumber(matcher.group(5)), 
-                        parsePtBrNumber(matcher.group(6)));
-                matched = true;
-                pendingCode = null;
-                pendingDesc = null;
-            } else if ((matcher = colsSplit.matcher(line)).find() && pendingCode != null) {
-                rowCandidate.code = pendingCode;
-                rowCandidate.description = (pendingDesc != null && !pendingDesc.isBlank()) ? pendingDesc : pendingCode;
-                rowCandidate.ncm = matcher.group(1).replaceAll("\\.", "");
-                rowCandidate.cfop = matcher.group(3);
-                rowCandidate.unit = matcher.group(4);
-                assignItemValues(rowCandidate, 
-                        parsePtBrNumber(matcher.group(5)), 
-                        parsePtBrNumber(matcher.group(6)), 
-                        parsePtBrNumber(matcher.group(7)));
-                matched = true;
-                pendingCode = null;
-                pendingDesc = null;
-            } else if ((matcher = colsBare.matcher(line)).find() && pendingCode != null) {
-                rowCandidate.code = pendingCode;
-                rowCandidate.description = (pendingDesc != null && !pendingDesc.isBlank()) ? pendingDesc : pendingCode;
-                rowCandidate.unit = matcher.group(1);
-                assignItemValues(rowCandidate, 
-                        parsePtBrNumber(matcher.group(2)), 
-                        parsePtBrNumber(matcher.group(3)), 
-                        parsePtBrNumber(matcher.group(4)));
-                matched = true;
-                pendingCode = null;
-                pendingDesc = null;
+            } else {
+                // Tentativa 2: Linha única completa sem código explícito
+                Matcher mSplit = fullSplit.matcher(line);
+                if (mSplit.find()) {
+                    rowCandidate.description = mSplit.group(1).trim();
+                    rowCandidate.ncm = mSplit.group(2).replaceAll("\\.", "");
+                    rowCandidate.cfop = mSplit.group(4);
+                    rowCandidate.unit = mSplit.group(5);
+                    BigDecimal n1 = parsePtBrNumber(mSplit.group(6));
+                    BigDecimal n2 = parsePtBrNumber(mSplit.group(7));
+                    BigDecimal n3 = mSplit.group(8) != null ? parsePtBrNumber(mSplit.group(8)) : null;
+                    assignItemValues(rowCandidate, n1, n2, n3);
+                    matched = true;
+                }
+            }
+
+            // Tentativa 3: Anchor matching por NCM (8 dígitos) + CFOP (4 dígitos)
+            if (!matched) {
+                Matcher mNcm = ncmPattern.matcher(line);
+                Matcher mCfop = cfopPattern.matcher(line);
+                if (mNcm.find() && mCfop.find()) {
+                    String foundNcm = mNcm.group(1).replaceAll("\\.", "");
+                    String foundCfop = mCfop.group(1);
+
+                    // Evita falsos positivos com CNPJ ou chaves
+                    if (foundNcm.length() == 8 && !line.contains("/") && !line.contains("-")) {
+                        rowCandidate.ncm = foundNcm;
+                        rowCandidate.cfop = foundCfop;
+
+                        Matcher mUnit = unitPattern.matcher(line);
+                        rowCandidate.unit = mUnit.find() ? mUnit.group(1).toUpperCase() : "UN";
+
+                        List<BigDecimal> values = new ArrayList<>();
+                        Matcher mVal = moneyPattern.matcher(line);
+                        while (mVal.find()) {
+                            BigDecimal v = parsePtBrNumber(mVal.group(1));
+                            if (v.compareTo(BigDecimal.ZERO) > 0) {
+                                values.add(v);
+                            }
+                        }
+
+                        if (!values.isEmpty()) {
+                            if (values.size() == 1) {
+                                rowCandidate.qty = BigDecimal.ONE;
+                                rowCandidate.unitPrice = values.get(0);
+                                rowCandidate.total = values.get(0);
+                            } else if (values.size() == 2) {
+                                assignItemValues(rowCandidate, values.get(0), values.get(1), values.get(0).multiply(values.get(1)));
+                            } else {
+                                assignItemValues(rowCandidate, values.get(0), values.get(1), values.get(2));
+                            }
+                        }
+
+                        // Descrição na mesma linha (antes do NCM) ou de linhas anteriores
+                        int ncmPos = line.indexOf(mNcm.group(1));
+                        String beforeNcm = ncmPos > 0 ? line.substring(0, ncmPos).trim() : "";
+                        if (beforeNcm.matches(".*\\p{L}.*") && beforeNcm.length() > 3) {
+                            rowCandidate.description = beforeNcm;
+                        } else if (pendingDesc != null && !pendingDesc.isBlank()) {
+                            rowCandidate.code = pendingCode;
+                            rowCandidate.description = pendingDesc;
+                            pendingCode = null;
+                            pendingDesc = null;
+                        } else {
+                            // Buscar descrição na linha anterior
+                            for (int prev = i - 1; prev >= Math.max(start, i - 3); prev--) {
+                                String prevLine = lines.get(prev).trim();
+                                if (prevLine.matches(".*\\p{L}.*") && !isDanfeLabel(prevLine) && prevLine.length() > 3) {
+                                    rowCandidate.description = prevLine;
+                                    break;
+                                }
+                            }
+                        }
+                        matched = true;
+                    }
+                }
             }
 
             if (matched) {
                 if (rowCandidate.code == null || rowCandidate.code.isBlank()) {
                     String fullDesc = rowCandidate.description != null ? rowCandidate.description.trim() : "";
                     String[] parts = fullDesc.split("\\s+", 2);
-                    rowCandidate.code = parts[0];
-                    rowCandidate.description = parts.length > 1 ? parts[1] : parts[0];
+                    boolean looksLikeCode = parts.length > 1 && (parts[0].matches(".*\\d.*") || parts[0].contains("-") || parts[0].contains("_"));
+                    if (looksLikeCode) {
+                        rowCandidate.code = parts[0];
+                        rowCandidate.description = parts[1];
+                    } else {
+                        rowCandidate.code = (nNf != null && !nNf.isBlank()) ? "NF" + nNf + "-" + (rows.size() + 1) : "ITEM-" + (rows.size() + 1);
+                    }
+                } else if (rowCandidate.code.matches("^\\d{1,3}$") && rowCandidate.description != null) {
+                    String[] parts = rowCandidate.description.trim().split("\\s+", 2);
+                    boolean looksLikeCode = parts.length > 1 && (parts[0].matches(".*\\d.*") || parts[0].contains("-") || parts[0].contains("_")) && parts[0].length() >= 3;
+                    if (looksLikeCode) {
+                        rowCandidate.code = parts[0];
+                        rowCandidate.description = parts[1];
+                    }
                 }
                 if (rowCandidate.description == null || rowCandidate.description.isBlank()) {
                     rowCandidate.description = rowCandidate.code;
@@ -1045,27 +1152,106 @@ public class StockNfeService {
                 if (rowCandidate.cfop != null) {
                     rowCandidate.cfop = rowCandidate.cfop.replaceAll("\\D", "");
                 }
+                if (rowCandidate.qty == null || rowCandidate.qty.compareTo(BigDecimal.ZERO) <= 0) {
+                    rowCandidate.qty = BigDecimal.ONE;
+                }
+                if (rowCandidate.unitPrice == null || rowCandidate.unitPrice.compareTo(BigDecimal.ZERO) <= 0) {
+                    rowCandidate.unitPrice = rowCandidate.total != null ? rowCandidate.total : BigDecimal.ZERO;
+                }
+                if (rowCandidate.total == null || rowCandidate.total.compareTo(BigDecimal.ZERO) <= 0) {
+                    rowCandidate.total = rowCandidate.qty.multiply(rowCandidate.unitPrice);
+                }
                 rows.add(rowCandidate);
+                pendingCode = null;
+                pendingDesc = null;
             } else {
-                Matcher codeMatcher = codeDesc.matcher(line);
-                if (codeMatcher.find() && pendingCode == null && line.length() > 3 && !line.matches(".*\\d{2}/\\d{2}/\\d{4}.*")) {
-                    pendingCode = codeMatcher.group(1).trim();
-                    pendingDesc = codeMatcher.group(2).trim();
-                } else if (pendingDesc != null) {
-                    pendingDesc = (pendingDesc + " " + line).trim();
-                } else if (!rows.isEmpty() && containsLetters(line) && line.length() > 3
-                        && !line.matches(".*\\d{2}/\\d{2}/\\d{4}.*")) {
-                    ParsedItemRow previous = rows.get(rows.size() - 1);
-                    String merged = (previous.description + " " + line).trim();
-                    previous.description = merged.length() > 250 ? merged.substring(0, 250) : merged;
+                // Linha de texto candidata a código/descrição de item
+                if (containsLetters(line) && line.length() > 3 && !line.matches(".*\\d{2}/\\d{2}/\\d{4}.*") && !isDanfeLabel(line)) {
+                    if (pendingDesc == null) {
+                        String[] parts = line.split("\\s+", 2);
+                        boolean looksLikeCode = parts.length > 1 && (parts[0].matches(".*\\d.*") || parts[0].contains("-") || parts[0].contains("_"));
+                        if (looksLikeCode) {
+                            pendingCode = parts[0].trim();
+                            pendingDesc = parts[1].trim();
+                        } else {
+                            pendingDesc = line;
+                        }
+                    } else {
+                        pendingDesc = (pendingDesc + " " + line).trim();
+                    }
                 }
             }
         }
 
+        // Se nenhum item foi extraído pelas tabelas tabuladas, realizar varredura heurística profunda no documento
+        if (rows.isEmpty()) {
+            BigDecimal amount = (totalInvoiceAmount != null && totalInvoiceAmount.compareTo(BigDecimal.ZERO) > 0)
+                    ? totalInvoiceAmount
+                    : BigDecimal.ZERO;
+
+            String extractedNcm = "";
+            String extractedCfop = "";
+            String extractedUnit = "UN";
+            String extractedDesc = "";
+
+            // 1. Procurar NCM no documento (8 dígitos) - excluindo CNPJ do fornecedor ou cliente
+            String cleanSupplierCnpj = supplierInfo != null && supplierInfo.cnpj != null ? supplierInfo.cnpj.replaceAll("\\D", "") : "";
+            Matcher mDocNcm = Pattern.compile("(?<!\\d)(\\d{4}\\.?\\d{2}\\.?\\d{2}|\\d{8})(?!\\d)").matcher(flat);
+            while (mDocNcm.find()) {
+                String candidate = mDocNcm.group(1).replaceAll("\\.", "");
+                if (candidate.length() == 8 && (cleanSupplierCnpj.isEmpty() || !cleanSupplierCnpj.contains(candidate))) {
+                    extractedNcm = candidate;
+                    break;
+                }
+            }
+
+            // 2. Procurar CFOP no documento (4 dígitos iniciando em 1, 2, 3, 5, 6, 7)
+            Matcher mDocCfop = Pattern.compile("(?<!\\d)([123567]\\d{3})(?!\\d)").matcher(flat);
+            if (mDocCfop.find()) {
+                extractedCfop = mDocCfop.group(1);
+            }
+
+            // 3. Procurar Unidade de Medida
+            Matcher mDocUnit = unitPattern.matcher(flat);
+            if (mDocUnit.find()) {
+                extractedUnit = mDocUnit.group(1).toUpperCase();
+            }
+
+            // 4. Procurar descrição candidata entre start e end
+            for (int i = start; i < end; i++) {
+                String candidateLine = lines.get(i).trim();
+                if (containsLetters(candidateLine) && !isDanfeLabel(candidateLine) && !isDocumentTitle(candidateLine) && candidateLine.length() > 3) {
+                    extractedDesc = candidateLine;
+                    break;
+                }
+            }
+
+            if (extractedDesc.isBlank()) {
+                extractedDesc = "Item da NF-e " + (nNf != null && !nNf.isBlank() ? nNf : "")
+                        + (supplierInfo != null && supplierInfo.name != null && !supplierInfo.name.isBlank() ? " - " + supplierInfo.name : "");
+            }
+
+            String itemCode = (nNf != null && !nNf.isBlank()) ? "NF" + nNf + "-1" : "ITEM-1";
+
+            ParsedItemRow fallbackRow = new ParsedItemRow();
+            fallbackRow.code = itemCode;
+            fallbackRow.description = extractedDesc;
+            fallbackRow.ncm = extractedNcm;
+            fallbackRow.cfop = extractedCfop;
+            fallbackRow.unit = extractedUnit;
+            fallbackRow.qty = BigDecimal.ONE;
+            fallbackRow.unitPrice = amount;
+            fallbackRow.total = amount;
+            rows.add(fallbackRow);
+            log.info("PDF da NF-e nº {}: gerado item recuperado (cód: {}, desc: '{}', NCM: {}, CFOP: {}, valor: R$ {})",
+                    nNf, itemCode, extractedDesc, extractedNcm, extractedCfop, amount);
+        }
+
+        List<StockNfeParsedDTO.StockNfeItemDTO> items = new ArrayList<>();
         for (ParsedItemRow row : rows) {
             String desc = row.description;
-            boolean isBattery = detectBattery(desc);
-            boolean isTire = detectTire(desc);
+            boolean isBattery = detectBattery(desc, row.ncm);
+            boolean isTire = detectTire(desc, row.ncm);
             StockCategory suggestedCategory = detectCategory(desc, isBattery, isTire);
             Optional<StockItem> matchedItem = matchExistingItem(row.code, desc, companyId);
 
@@ -1283,9 +1469,9 @@ public class StockNfeService {
     /**
      * Localiza um fornecedor já cadastrado pelo CNPJ.
      */
-    private UUID findExistingSupplierId(String cnpj, UUID companyId) {
+    public Optional<Supplier> findExistingSupplier(String cnpj, UUID companyId) {
         if (cnpj == null || cnpj.isBlank()) {
-            return null;
+            return Optional.empty();
         }
         try {
             String cleanCnpj = cnpj.replaceAll("[^0-9]", "");
@@ -1308,11 +1494,15 @@ public class StockNfeService {
             if (optSupplier.isEmpty()) {
                 optSupplier = supplierRepository.findFirstByCnpj(cnpj);
             }
-            return optSupplier.map(Supplier::getId).orElse(null);
+            return optSupplier;
         } catch (Exception e) {
             log.warn("Falha ao buscar fornecedor existente por CNPJ {}: {}", cnpj, e.getMessage());
-            return null;
+            return Optional.empty();
         }
+    }
+
+    private UUID findExistingSupplierId(String cnpj, UUID companyId) {
+        return findExistingSupplier(cnpj, companyId).map(Supplier::getId).orElse(null);
     }
 
     /**
@@ -1833,12 +2023,26 @@ public class StockNfeService {
     }
 
     private boolean detectBattery(String description) {
+        return detectBattery(description, null);
+    }
+
+    private boolean detectBattery(String description, String ncm) {
+        if (ncm != null && ncm.replaceAll("\\D", "").startsWith("8507")) {
+            return true;
+        }
         if (description == null) return false;
         String lower = description.toLowerCase();
         return lower.contains("bateria") || lower.contains("battery") || lower.contains("acumulador");
     }
 
     private boolean detectTire(String description) {
+        return detectTire(description, null);
+    }
+
+    private boolean detectTire(String description, String ncm) {
+        if (ncm != null && ncm.replaceAll("\\D", "").startsWith("4011")) {
+            return true;
+        }
         if (description == null) return false;
         String lower = description.toLowerCase();
         if (lower.contains("camara") || lower.contains("câmara") || lower.contains("roda ") || lower.contains("valvula")) {
