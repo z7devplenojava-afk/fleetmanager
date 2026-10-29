@@ -68,7 +68,7 @@ interface EscalaFormData {
   shift: string;
   startTime: string;
   endTime: string;
-  status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
+  status: string; travelTripId?: string; travelTripName?: string; legs?: number; routeId?: string; routeName?: string; vehicleId?: string; vehiclePlate?: string; vehicleModel?: string;
   observations: string;
 }
 import { notificationService, NotificationData } from '@/services/notificationService';
@@ -715,14 +715,14 @@ const Operacional: React.FC = () => {
         scheduleDate: escalaData.scheduleDate.toISOString().split('T')[0], // Converter Date para string YYYY-MM-DD
         shift: escalaData.shift as 'DAY' | 'NIGHT' | 'MIXED', // Converter string para Shift
         status: (escalaData.status || 'PENDING') as ScheduleStatus, // Usar status do formulário ou padrão
-        observations: escalaData.observations
+        observations: escalaData.observations, travelTripId: escalaData.travelTripId || undefined, travelTripName: escalaData.travelTripName, legs: escalaData.legs || 1, startTime: escalaData.startTime, endTime: escalaData.endTime, routeId: escalaData.routeId || undefined, routeName: escalaData.routeName, vehicleId: escalaData.vehicleId || undefined, vehiclePlate: escalaData.vehiclePlate, vehicleModel: escalaData.vehicleModel
       };
 
       if (selectedEscala) {
         // Atualizar escala existente
         const updateData: UpdateScheduleDTO = scheduleData;
-        await scheduleService.update(selectedEscala.id, updateData);
-        setEscalas(prev => prev.map(e => e.id === selectedEscala.id ? { ...e, ...scheduleData } : e));
+        const updatedEscala = await scheduleService.update(selectedEscala.id, updateData);
+        setEscalas(prev => prev.map(e => e.id === selectedEscala.id ? { ...e, ...updatedEscala } : e));
         toast({
           title: 'Sucesso!',
           description: 'Escala atualizada com sucesso.',

@@ -20,6 +20,8 @@ public class ChecklistItemDTO {
     private Integer ordem;
     private Boolean ativo;
     private String vehicleTypeApplicable;
+    private String vehicleModelApplicable;
+    private UUID companyId;
 
     public static ChecklistItemDTO fromEntity(ChecklistItem entity) {
         if (entity == null) return null;
@@ -29,6 +31,8 @@ public class ChecklistItemDTO {
                 .categoria(entity.getCategoria())
                 .tipoManutencao(entity.getTipoManutencao())
                 .vehicleTypeApplicable(entity.getVehicleTypeApplicable())
+                .vehicleModelApplicable(entity.getVehicleModelApplicable())
+                .companyId(entity.getCompanyId())
                 .ordem(entity.getOrdem())
                 .ativo(entity.getAtivo())
                 .build();

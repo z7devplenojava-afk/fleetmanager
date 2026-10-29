@@ -40,6 +40,8 @@ import api from '@/lib/axios';
 import { employeeService } from '@/services/employeeService';
 import { isDriverUser } from '@/utils/roleRouting';
 import { UniversalQrScannerModal } from '@/components/common/UniversalQrScannerModal';
+import { DriverPontoOperacionalSection } from '@/components/driver/DriverPontoOperacionalSection';
+import { scheduleService } from '@/services/scheduleService';
 
 const PontoEletronico: React.FC = () => {
   const { toast } = useToast();
@@ -65,6 +67,14 @@ const PontoEletronico: React.FC = () => {
     user?.role === 'DEPARTAMENTO_PESSOAL';
 
   const isMotorista = isDriverUser(user) || !isRHOrAdmin;
+  const isPortalMotorista =
+    isDriverUser(user) ||
+    user?.role === 'MOTORISTA' ||
+    user?.role === 'ROLE_MOTORISTA' ||
+    Boolean(user?.position?.toLowerCase().includes('motorista')) ||
+    Boolean((user as any)?.cargo?.toLowerCase().includes('motorista')) ||
+    Boolean((user as any)?.jobTitle?.toLowerCase().includes('motorista')) ||
+    isMotorista;
 
   // Modais de ações rápidas
   const [showHistoryDialog, setShowHistoryDialog] = useState(false);
@@ -184,10 +194,12 @@ const PontoEletronico: React.FC = () => {
         });
       },
       (error) => {
-        console.warn('Geolocalização não disponível:', error);
+        if (error?.code !== 3) {
+          console.debug('Geolocalização não disponível:', error?.message);
+        }
         setLoadingAddress(false);
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
     );
   }, []);
 
@@ -276,6 +288,22 @@ const PontoEletronico: React.FC = () => {
         ? response
         : (response?.data && Array.isArray(response.data) ? response.data : []);
       setRegistrosHoje(records);
+
+      if (records.length > 0) {
+        try {
+          localStorage.setItem(
+            'fluxbus:today-time-records',
+            JSON.stringify({
+              employeeId: targetId,
+              employeeName: user?.name,
+              records,
+              updatedAt: Date.now(),
+            })
+          );
+        } catch {
+          // ignore
+        }
+      }
     } catch (error: any) {
       console.error('Erro ao carregar registros:', error);
       setRegistrosHoje([]);
@@ -345,6 +373,23 @@ const PontoEletronico: React.FC = () => {
         
         // Limpar QR Code
         setQrCodeData('');
+
+        // Sincroniza em tempo real com o Gestor de Tráfego e a Lista de Escalas
+        try {
+          const mySchedules = await scheduleService.findMySchedules();
+          if (mySchedules && mySchedules.length > 0) {
+            const active = mySchedules[0];
+            scheduleService.saveExecutionOverlay(active.id, {
+              pointRegisteredAt: new Date().toISOString(),
+              pointStatus: 'APPROVED',
+              status: 'IN_PROGRESS',
+              startAddress: resolvedLocation !== 'Sem localização' ? resolvedLocation : undefined,
+            });
+          }
+        } catch {
+          // ignore
+        }
+        scheduleService.emitDriverRecordsUpdated();
       } else {
         throw new Error(response.error || 'Erro ao registrar ponto');
       }
@@ -874,12 +919,12 @@ const PontoEletronico: React.FC = () => {
 
   return (
     <StandardLayout>
-      <div className="container mx-auto px-3 sm:px-6 pt-3 sm:pt-6 space-y-4 sm:space-y-6 pb-32 sm:pb-12 max-w-7xl">
+      <div className="container mx-auto px-2.5 sm:px-6 pt-2.5 sm:pt-6 space-y-3.5 sm:space-y-6 pb-28 sm:pb-12 max-w-7xl">
         {/* Header Responsivo */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3">
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl sm:text-3xl font-black text-seguranca-lightgray tracking-tight">
+              <h1 className="text-xl sm:text-3xl font-black text-seguranca-lightgray tracking-tight">
                 Ponto Eletrônico
               </h1>
               {isRHOrAdmin && (
@@ -896,103 +941,52 @@ const PontoEletronico: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2 self-start sm:self-auto">
-            <Badge variant="outline" className="text-xs sm:text-sm px-3 py-1.5 border-seguranca-gray/30 bg-seguranca-darkgray/60 text-seguranca-lightgray font-medium">
-              <Calendar className="mr-1.5 h-4 w-4 text-seguranca-yellow shrink-0" />
+            <Badge variant="outline" className="text-xs sm:text-sm px-2.5 sm:px-3 py-1 sm:py-1.5 border-seguranca-gray/30 bg-seguranca-darkgray/60 text-seguranca-lightgray font-medium">
+              <Calendar className="mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4 text-seguranca-yellow shrink-0" />
               {format(currentTime, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
             </Badge>
           </div>
         </div>
 
-        {/* Grade de Destaques: Relógio, Resumo e Informações */}
-        <div className="grid gap-3 sm:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-          {/* Relógio Principal */}
-          <Card className="md:col-span-2 lg:col-span-1 bg-gradient-to-br from-seguranca-yellow/15 via-seguranca-darkgray/90 to-seguranca-black border-seguranca-yellow/30 shadow-md">
-            <CardHeader className="text-center pb-2 pt-4 sm:pt-6">
-              <CardTitle className="text-xs sm:text-sm uppercase tracking-wider text-seguranca-gray font-semibold flex items-center justify-center gap-1.5">
-                <Clock className="h-4 w-4 text-seguranca-yellow animate-pulse" />
-                Horário Oficial Atual
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-center pt-0 pb-5">
-              <div className="text-4xl sm:text-5xl md:text-6xl font-black text-seguranca-yellow tracking-tight drop-shadow-sm my-1">
-                {format(currentTime, 'HH:mm:ss')}
-              </div>
-              <div className="text-sm sm:text-base capitalize text-seguranca-lightgray/80 font-medium">
-                {format(currentTime, "EEEE", { locale: ptBR })}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Resumo do Dia */}
-          <Card className="bg-seguranca-darkgray/50 border-seguranca-gray/20 shadow-md">
-            <CardHeader className="pb-3 pt-4 sm:pt-6">
-              <CardTitle className="text-sm sm:text-base text-seguranca-lightgray flex items-center">
-                <TrendingUp className="mr-2 h-4 w-4 text-seguranca-yellow" />
-                Resumo do Dia
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 pt-0">
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-seguranca-gray">Registros Hoje:</span>
-                <Badge variant="secondary" className="font-bold">
-                  {registrosHoje.length}
-                </Badge>
-              </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-seguranca-gray">Horas Trabalhadas:</span>
-                <Badge className="bg-seguranca-yellow/20 text-seguranca-yellow border-seguranca-yellow/30 font-bold">
-                  {calcularHorasTrabalhadas()}
-                </Badge>
-              </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-seguranca-gray">Situação Atual:</span>
-                <Badge 
-                  variant={registrosHoje.length > 0 ? "default" : "outline"}
-                  className={registrosHoje.length > 0 ? "bg-emerald-600 text-white font-medium" : "text-seguranca-gray"}
-                >
-                  {registrosHoje.length > 0 ? 'Em Expediente' : 'Fora do Expediente'}
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Informações do Posto / Usuário */}
-          <Card className="bg-seguranca-darkgray/50 border-seguranca-gray/20 shadow-md">
-            <CardHeader className="pb-3 pt-4 sm:pt-6">
-              <CardTitle className="text-sm sm:text-base text-seguranca-lightgray flex items-center">
-                <User className="mr-2 h-4 w-4 text-seguranca-yellow" />
-                Colaborador & Local
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2.5 pt-0 text-xs sm:text-sm">
-              <div className="flex items-start">
-                <User className="mr-2 h-4 w-4 text-seguranca-gray mt-0.5 shrink-0" />
-                <div className="truncate">
-                  <div className="text-seguranca-gray text-xs">Nome / Perfil</div>
-                  <div className="text-seguranca-lightgray font-semibold truncate">
-                    {user?.name || 'Colaborador'} ({user?.role || 'Usuário'})
-                  </div>
+        {/* Relógio Oficial Compacto no Topo */}
+        <Card className="bg-gradient-to-r from-seguranca-yellow/15 via-seguranca-darkgray/90 to-seguranca-black border-seguranca-yellow/30 shadow-md">
+          <CardContent className="p-3.5 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-4 text-center sm:text-left">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-seguranca-yellow animate-pulse shrink-0" />
+              <div>
+                <div className="text-[11px] sm:text-xs uppercase tracking-wider text-seguranca-gray font-bold">
+                  Horário Oficial Atual
+                </div>
+                <div className="text-xs sm:text-sm capitalize text-seguranca-lightgray/80 font-medium">
+                  {format(currentTime, "EEEE, dd 'de' MMMM", { locale: ptBR })}
                 </div>
               </div>
-              <div className="flex items-start">
-                <MapPin className="mr-2 h-4 w-4 text-seguranca-gray mt-0.5 shrink-0" />
-                <div className="truncate">
-                  <div className="text-seguranca-gray text-xs">Posto de Trabalho</div>
-                  <div className="text-seguranca-lightgray truncate">
-                    {geolocation ? 'GPS Capturado • Operação em campo' : 'Terminal Corporativo'}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Card Principal de Bater Ponto */}
-        <Card className="bg-gradient-to-b from-seguranca-darkgray/90 to-seguranca-black/80 border-seguranca-yellow/25 shadow-xl">
-          <CardContent className="p-3.5 sm:p-6">
-            {getProximoRegistroButton()}
+            </div>
+            <div className="text-3xl sm:text-4xl md:text-5xl font-black text-seguranca-yellow tracking-tight font-mono drop-shadow-sm">
+              {format(currentTime, 'HH:mm:ss')}
+            </div>
           </CardContent>
         </Card>
+
+        {/* Card Principal de Bater Ponto (Exibido apenas quando NÃO for motorista; para motorista o botão oficial é o botão verde do Ponto Operacional abaixo) */}
+        {!isPortalMotorista && (
+          <Card className="bg-gradient-to-b from-seguranca-darkgray/90 to-seguranca-black/80 border-seguranca-yellow/25 shadow-xl">
+            <CardContent className="p-3.5 sm:p-6">
+              {getProximoRegistroButton()}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Exclusivo Portal do Motorista: Registro de Ponto da Viagem (Horário Inicial/Final, Cliente, Percurso, KM Inicial/Final, Passageiros, Fotos no Celular e Botão Checklist/Pneus) */}
+        {isPortalMotorista && (
+          <DriverPontoOperacionalSection
+            employeeId={activeEmployeeId || user?.id}
+            employeeName={user?.name || 'Motorista'}
+            onTriggerOfficialPoint={async (tipo) => {
+              await registrarPonto(tipo || proximoRegistro);
+            }}
+          />
+        )}
 
         {/* Histórico de Registros do Dia (Com permissões de Edição para RH/DPE e Solicitação de Ajuste para Motorista) */}
         <Card className="bg-seguranca-darkgray/50 border-seguranca-gray/20 shadow-md">
@@ -1264,6 +1258,80 @@ const PontoEletronico: React.FC = () => {
             </CardContent>
           </Card>
         )}
+
+        {/* Rodapé da Tela: Resumo do Dia & Colaborador e Local Organizados */}
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-2">
+          {/* Resumo do Dia */}
+          <Card className="bg-seguranca-darkgray/50 border-seguranca-gray/20 shadow-md">
+            <CardHeader className="pb-2 pt-3.5 px-4">
+              <CardTitle className="text-xs sm:text-sm font-bold uppercase tracking-wider text-seguranca-lightgray flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-seguranca-yellow shrink-0" />
+                Resumo do Dia
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 pt-1">
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="rounded-xl bg-black/30 border border-gray-800 p-2.5">
+                  <span className="text-[10px] sm:text-xs text-seguranca-gray block">Registros Hoje</span>
+                  <span className="text-base sm:text-lg font-black text-white mt-0.5 block">
+                    {registrosHoje.length}
+                  </span>
+                </div>
+                <div className="rounded-xl bg-black/30 border border-gray-800 p-2.5">
+                  <span className="text-[10px] sm:text-xs text-seguranca-gray block">Horas Trab.</span>
+                  <span className="text-sm sm:text-base font-black text-seguranca-yellow mt-1 block">
+                    {calcularHorasTrabalhadas()}
+                  </span>
+                </div>
+                <div className="rounded-xl bg-black/30 border border-gray-800 p-2.5 flex flex-col items-center justify-center">
+                  <span className="text-[10px] sm:text-xs text-seguranca-gray block mb-1">Situação</span>
+                  <Badge
+                    variant={registrosHoje.length > 0 ? 'default' : 'outline'}
+                    className={
+                      registrosHoje.length > 0
+                        ? 'bg-emerald-600 text-white font-bold text-[10px] px-2 py-0.5'
+                        : 'text-seguranca-gray text-[10px] px-2 py-0.5'
+                    }
+                  >
+                    {registrosHoje.length > 0 ? 'Em Expediente' : 'Fora'}
+                  </Badge>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Colaborador & Local */}
+          <Card className="bg-seguranca-darkgray/50 border-seguranca-gray/20 shadow-md">
+            <CardHeader className="pb-2 pt-3.5 px-4">
+              <CardTitle className="text-xs sm:text-sm font-bold uppercase tracking-wider text-seguranca-lightgray flex items-center gap-2">
+                <User className="h-4 w-4 text-seguranca-yellow shrink-0" />
+                Colaborador & Local
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 pt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="rounded-xl bg-black/30 border border-gray-800 p-2.5 flex items-start gap-2.5 min-w-0">
+                  <User className="h-4 w-4 text-seguranca-yellow mt-0.5 shrink-0" />
+                  <div className="min-w-0">
+                    <div className="text-seguranca-gray text-[10px] uppercase font-semibold">Nome / Perfil</div>
+                    <div className="text-seguranca-lightgray text-xs sm:text-sm font-bold truncate">
+                      {user?.name || 'Colaborador'} ({user?.role || 'Usuário'})
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-xl bg-black/30 border border-gray-800 p-2.5 flex items-start gap-2.5 min-w-0">
+                  <MapPin className="h-4 w-4 text-emerald-400 mt-0.5 shrink-0" />
+                  <div className="min-w-0">
+                    <div className="text-seguranca-gray text-[10px] uppercase font-semibold">Posto de Trabalho</div>
+                    <div className="text-seguranca-lightgray text-xs sm:text-sm font-bold truncate">
+                      {geolocation ? 'GPS Capturado • Operação' : 'Terminal Corporativo'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* ========================================================================= */}

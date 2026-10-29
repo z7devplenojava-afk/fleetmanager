@@ -15,27 +15,27 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Escalas operacionais: agenda diaria de partidas por linha (PRD Viasao Sao Silvestre - Fase 2).
+ * Escalas operacionais: agenda diaria de partidas por linha (PRD Viação São
+ * Silvestre - Fase 2).
  */
 @RestController
 @RequestMapping("/api/escalas")
 @RequiredArgsConstructor
 public class EscalaOperacionalController {
 
-    private static final String READ_AUTH =
-            "hasAnyAuthority('TRAFFIC_MANAGEMENT_READ', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', "
-                    + "'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR', "
-                    + "'ENCARREGADO_DE_TRANSPORTES', 'ROLE_ENCARREGADO_DE_TRANSPORTES', 'ENCARREGADO_TRANSPORTES', 'ROLE_ENCARREGADO_TRANSPORTES', "
-                    + "'ENCARREGADO_DE_TRAFEGO', 'ROLE_ENCARREGADO_DE_TRAFEGO', 'ENCARREGADO_TRAFEGO', 'ROLE_ENCARREGADO_TRAFEGO', "
-                    + "'GESTOR_TRAFEGO', 'ROLE_GESTOR_TRAFEGO', 'GESTOR_DE_TRAFEGO', 'ROLE_GESTOR_DE_TRAFEGO', "
-                    + "'COMPANY_ADMIN', 'ROLE_COMPANY_ADMIN')";
-    private static final String WRITE_AUTH =
-            "hasAnyAuthority('TRAFFIC_MANAGEMENT_WRITE', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', "
-                    + "'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR', "
-                    + "'ENCARREGADO_DE_TRANSPORTES', 'ROLE_ENCARREGADO_DE_TRANSPORTES', 'ENCARREGADO_TRANSPORTES', 'ROLE_ENCARREGADO_TRANSPORTES', "
-                    + "'ENCARREGADO_DE_TRAFEGO', 'ROLE_ENCARREGADO_DE_TRAFEGO', 'ENCARREGADO_TRAFEGO', 'ROLE_ENCARREGADO_TRAFEGO', "
-                    + "'GESTOR_TRAFEGO', 'ROLE_GESTOR_TRAFEGO', 'GESTOR_DE_TRAFEGO', 'ROLE_GESTOR_DE_TRAFEGO', "
-                    + "'COMPANY_ADMIN', 'ROLE_COMPANY_ADMIN')";
+    private static final String READ_AUTH = "hasAnyAuthority('TRAFFIC_MANAGEMENT_READ', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', "
+            + "'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR', "
+            + "'ENCARREGADO_DE_TRANSPORTES', 'ROLE_ENCARREGADO_DE_TRANSPORTES', 'ENCARREGADO_TRANSPORTES', 'ROLE_ENCARREGADO_TRANSPORTES', "
+            + "'ENCARREGADO_DE_TRAFEGO', 'ROLE_ENCARREGADO_DE_TRAFEGO', 'ENCARREGADO_TRAFEGO', 'ROLE_ENCARREGADO_TRAFEGO', "
+            + "'GESTOR_TRAFEGO', 'ROLE_GESTOR_TRAFEGO', 'GESTOR_DE_TRAFEGO', 'ROLE_GESTOR_DE_TRAFEGO', "
+            + "'COMPANY_ADMIN', 'ROLE_COMPANY_ADMIN', "
+            + "'MOTORISTA', 'ROLE_MOTORISTA', 'DRIVER', 'ROLE_DRIVER', 'COLABORADOR', 'ROLE_COLABORADOR')";
+    private static final String WRITE_AUTH = "hasAnyAuthority('TRAFFIC_MANAGEMENT_WRITE', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', "
+            + "'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR', "
+            + "'ENCARREGADO_DE_TRANSPORTES', 'ROLE_ENCARREGADO_DE_TRANSPORTES', 'ENCARREGADO_TRANSPORTES', 'ROLE_ENCARREGADO_TRANSPORTES', "
+            + "'ENCARREGADO_DE_TRAFEGO', 'ROLE_ENCARREGADO_DE_TRAFEGO', 'ENCARREGADO_TRAFEGO', 'ROLE_ENCARREGADO_TRAFEGO', "
+            + "'GESTOR_TRAFEGO', 'ROLE_GESTOR_TRAFEGO', 'GESTOR_DE_TRAFEGO', 'ROLE_GESTOR_DE_TRAFEGO', "
+            + "'COMPANY_ADMIN', 'ROLE_COMPANY_ADMIN')";
 
     private final EscalaOperacionalService escalaService;
 
@@ -61,7 +61,7 @@ public class EscalaOperacionalController {
     @PutMapping("/{id}")
     @PreAuthorize(WRITE_AUTH)
     public ResponseEntity<EscalaOperacionalDTO> update(@PathVariable("id") UUID id,
-                                                       @RequestBody EscalaOperacional escala) {
+            @RequestBody EscalaOperacional escala) {
         return ResponseEntity.ok(escalaService.update(id, escala));
     }
 

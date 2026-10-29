@@ -414,7 +414,7 @@ public class UserController {
     }
 
     @GetMapping("/search")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','FLEX_ADMIN','COMPANY_ADMIN','ADMIN') or hasAuthority('USERS_READ')")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Buscar usuários", description = "Busca usuários por nome, email ou username com filtro dinâmico")
     public ResponseEntity<List<UserListResponseDTO>> searchUsers(
             @RequestParam(name = "query", required = false) String query) {
@@ -435,7 +435,7 @@ public class UserController {
     }
 
     @GetMapping("/cpf/{cpf}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','FLEX_ADMIN','COMPANY_ADMIN','ADMIN') or hasAuthority('USERS_READ')")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Buscar usuário por CPF", description = "Busca usuário através do CPF do funcionário associado")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Usuário encontrado"),

@@ -125,3 +125,6 @@ inspect_*.py
 !backend/src/**/*.sql
 despesas-manutencao-modulos.md
 gestao-atestados.md
+
+backend/.gradle_cache/
+.gradle_cache/

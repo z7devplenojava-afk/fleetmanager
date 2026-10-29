@@ -2,6 +2,7 @@ package com.z7design.fleet_manager.controller;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.format.annotation.DateTimeFormat;
@@ -31,7 +32,6 @@ import com.z7design.fleet_manager.dto.CreateScheduleDTO;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -47,57 +47,99 @@ import jakarta.validation.Valid;
 @RequestMapping("/api/schedules")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Escalas de Trabalho", description = "Endpoints para gestÃ£o de escalas de trabalho dos funcionÃ¡rios.")
+@Tag(name = "Escalas de Trabalho", description = "Endpoints para gestão de escalas de trabalho dos funcionários.")
 @SecurityRequirement(name = "bearerAuth")
 public class ScheduleController {
 
         private final ScheduleService scheduleService;
         private final AuthenticationService authenticationService;
 
-        @Operation(summary = "Cria uma nova escala de trabalho", description = "Adiciona uma nova escala de trabalho ao sistema. Requer o papel de ADMIN ou GESTOR.")
-        @ApiResponses(value = {
-                        @ApiResponse(responseCode = "200", description = "Escala de trabalho criada com sucesso", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Schedule.class))),
-                        @ApiResponse(responseCode = "400", description = "RequisiÃ§Ã£o invÃ¡lida", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))),
-                        @ApiResponse(responseCode = "403", description = "Acesso negado (papel insuficiente)", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
-        })
-        @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Dados da escala de trabalho para criaÃ§Ã£o", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Schedule.class), examples = @ExampleObject(value = "{\"employeeId\":\"UUID_DO_FUNCIONARIO\", \"date\":\"2024-07-01\", \"startTime\":\"08:00:00\", \"endTime\":\"17:00:00\", \"shift\":\"DAY\", \"notes\":\"Escala normal de segunda a sexta.\"}")))
+        @Operation(summary = "Cria uma nova escala de trabalho", description = "Adiciona uma nova escala de trabalho ao sistema.")
         @PostMapping
         public ResponseEntity<Schedule> create(@RequestBody @Valid CreateScheduleDTO createScheduleDTO) {
                 try {
-                        log.info("📋 Criando schedule - employeeId={}, locationId={}, workPostId={}, travelTripId={}, legs={}, shift={}, date={}",
+                        log.info("📋 Criando schedule - employeeId={}, locationId={}, workPostId={}, travelTripId={}, routeId={}, vehicleId={}, legs={}, shift={}, date={}",
                                         createScheduleDTO.getEmployeeId(),
                                         createScheduleDTO.getLocationId(),
                                         createScheduleDTO.getWorkPostId(),
                                         createScheduleDTO.getTravelTripId(),
+                                        createScheduleDTO.getRouteId(),
+                                        createScheduleDTO.getVehicleId(),
                                         createScheduleDTO.getLegs(),
                                         createScheduleDTO.getShift(),
                                         createScheduleDTO.getScheduleDate());
                         return ResponseEntity.ok(scheduleService.createFromDTO(createScheduleDTO));
                 } catch (Exception e) {
-                        e.printStackTrace();
+                        log.error("Erro ao criar escala: {}", e.getMessage(), e);
                         throw e;
                 }
         }
 
-        @Operation(summary = "Atualiza uma escala de trabalho existente", description = "Atualiza as informaÃ§Ãµes de uma escala de trabalho pelo seu ID. Requer o papel de ADMIN ou GESTOR.")
-        @ApiResponses(value = {
-                        @ApiResponse(responseCode = "200", description = "Escala de trabalho atualizada com sucesso", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Schedule.class))),
-                        @ApiResponse(responseCode = "400", description = "RequisiÃ§Ã£o invÃ¡lida", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))),
-                        @ApiResponse(responseCode = "403", description = "Acesso negado (papel insuficiente)", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))),
-                        @ApiResponse(responseCode = "404", description = "Escala de trabalho nÃ£o encontrada", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
-        })
-        @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Dados da escala de trabalho para atualizaÃ§Ã£o", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Schedule.class), examples = @ExampleObject(value = "{\"id\":\"a1b2c3d4-e5f6-7890-1234-567890abcdef\", \"startTime\":\"09:00:00\", \"endTime\":\"18:00:00\", \"notes\":\"Ajuste de horÃ¡rio.\"}")))
+        @Operation(summary = "Atualiza uma escala de trabalho existente", description = "Atualiza as informações de uma escala de trabalho pelo seu ID.")
         @PutMapping("/{id}")
-        public ResponseEntity<Schedule> update(@PathVariable("id") UUID id, @RequestBody Schedule schedule) {
-                return ResponseEntity.ok(scheduleService.update(id, schedule));
+        public ResponseEntity<Schedule> update(@PathVariable("id") UUID id, @RequestBody CreateScheduleDTO dto) {
+                return ResponseEntity.ok(scheduleService.updateFromDTO(id, dto));
         }
 
-        @Operation(summary = "Exclui uma escala de trabalho", description = "Exclui uma escala de trabalho pelo seu ID. Requer o papel de ADMIN ou GESTOR.")
-        @ApiResponses(value = {
-                        @ApiResponse(responseCode = "204", description = "Escala de trabalho excluÃ­da com sucesso"),
-                        @ApiResponse(responseCode = "403", description = "Acesso negado (papel insuficiente)", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))),
-                        @ApiResponse(responseCode = "404", description = "Escala de trabalho nÃ£o encontrada", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
-        })
+        @Operation(summary = "Registra o ponto e KM inicial do motorista na escala (tolerância de ±10 min)")
+        @PostMapping("/{id}/register-point")
+        public ResponseEntity<Schedule> registerPoint(
+                        @PathVariable("id") UUID id,
+                        @RequestBody Map<String, Object> body) {
+                Double initialKm = body.get("initialKm") != null ? Double.valueOf(body.get("initialKm").toString()) : null;
+                Boolean forgotPoint = body.get("forgotPoint") != null ? Boolean.valueOf(body.get("forgotPoint").toString()) : false;
+                String justification = body.get("justification") != null ? body.get("justification").toString() : null;
+                String photosJson = body.get("photosJson") != null ? body.get("photosJson").toString() : null;
+                String startTime = body.get("startTime") != null ? body.get("startTime").toString() : null;
+                String endTime = body.get("endTime") != null ? body.get("endTime").toString() : null;
+                String clientName = body.get("clientName") != null ? body.get("clientName").toString() : null;
+                String routeCode = body.get("routeCode") != null ? body.get("routeCode").toString() : null;
+                Integer passengersCount = body.get("passengersCount") != null ? Integer.valueOf(body.get("passengersCount").toString()) : null;
+                UUID vehicleId = null;
+                if (body.get("vehicleId") != null && !body.get("vehicleId").toString().isBlank()) {
+                        try {
+                                vehicleId = UUID.fromString(body.get("vehicleId").toString());
+                        } catch (Exception ignored) {
+                        }
+                }
+                return ResponseEntity.ok(scheduleService.registerPoint(
+                                id, initialKm, forgotPoint, justification, photosJson,
+                                startTime, endTime, clientName, routeCode, passengersCount, vehicleId));
+        }
+
+        @Operation(summary = "Aprova ou rejeita o ponto fora do horário pelo Gestor / Encarregado de Tráfego")
+        @PostMapping("/{id}/approve-point")
+        public ResponseEntity<Schedule> approvePoint(
+                        @PathVariable("id") UUID id,
+                        Authentication authentication,
+                        @RequestBody Map<String, Object> body) {
+                boolean approved = body.get("approved") == null || Boolean.parseBoolean(body.get("approved").toString());
+                String approvedBy = body.get("approvedBy") != null ? body.get("approvedBy").toString() : null;
+                if (approvedBy == null || approvedBy.isBlank()) {
+                        try {
+                                User u = authenticationService.getCurrentUser(authentication);
+                                if (u != null) approvedBy = u.getName();
+                        } catch (Exception ignored) {
+                        }
+                }
+                String managerNotes = body.get("managerNotes") != null ? body.get("managerNotes").toString() : null;
+                return ResponseEntity.ok(scheduleService.approvePoint(id, approved, approvedBy, managerNotes));
+        }
+
+        @Operation(summary = "Finaliza a viagem da escala informando KM final e fotos")
+        @PostMapping("/{id}/finish-trip")
+        public ResponseEntity<Schedule> finishTrip(
+                        @PathVariable("id") UUID id,
+                        @RequestBody Map<String, Object> body) {
+                Double finalKm = body.get("finalKm") != null ? Double.valueOf(body.get("finalKm").toString()) : null;
+                String photosJson = body.get("photosJson") != null ? body.get("photosJson").toString() : null;
+                String observations = body.get("observations") != null ? body.get("observations").toString() : null;
+                String endTime = body.get("endTime") != null ? body.get("endTime").toString() : null;
+                Integer passengersCount = body.get("passengersCount") != null ? Integer.valueOf(body.get("passengersCount").toString()) : null;
+                return ResponseEntity.ok(scheduleService.finishTrip(id, finalKm, photosJson, observations, endTime, passengersCount));
+        }
+
+        @Operation(summary = "Exclui uma escala de trabalho", description = "Exclui uma escala de trabalho pelo seu ID.")
         @DeleteMapping("/{id}")
         public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
                 scheduleService.delete(id);
@@ -148,33 +190,19 @@ public class ScheduleController {
                 }
         }
 
-        @Operation(summary = "Busca uma escala de trabalho pelo ID", description = "Retorna as informaÃ§Ãµes de uma escala de trabalho especÃ­fica. Requer o papel de ADMIN, GESTOR, SUPERVISOR ou VIGILANTE (se for sua prÃ³pria escala).")
-        @ApiResponses(value = {
-                        @ApiResponse(responseCode = "200", description = "Escala de trabalho encontrada", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Schedule.class))),
-                        @ApiResponse(responseCode = "403", description = "Acesso negado (papel insuficiente)", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))),
-                        @ApiResponse(responseCode = "404", description = "Escala de trabalho nÃ£o encontrada", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
-        })
+        @Operation(summary = "Busca uma escala de trabalho pelo ID")
         @GetMapping("/{id}")
         public ResponseEntity<Schedule> findById(@PathVariable("id") UUID id) {
                 return ResponseEntity.ok(scheduleService.findById(id));
         }
 
-        @Operation(summary = "Busca escalas de trabalho por ID de funcionÃ¡rio", description = "Retorna uma lista de escalas de trabalho associadas a um funcionÃ¡rio especÃ­fico. Requer o papel de ADMIN, GESTOR, SUPERVISOR ou VIGILANTE (se for o prÃ³prio funcionÃ¡rio).")
-        @ApiResponses(value = {
-                        @ApiResponse(responseCode = "200", description = "Lista de escalas de trabalho do funcionÃ¡rio", content = @Content(mediaType = "application/json", schema = @Schema(type = "array", implementation = Schedule.class))),
-                        @ApiResponse(responseCode = "403", description = "Acesso negado (papel insuficiente)", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
-        })
+        @Operation(summary = "Busca escalas de trabalho por ID de funcionário")
         @GetMapping("/employee/{employeeId}")
         public ResponseEntity<List<Schedule>> findByEmployeeId(@PathVariable("employeeId") UUID employeeId) {
                 return ResponseEntity.ok(scheduleService.findByEmployeeId(employeeId));
         }
 
-        @Operation(summary = "Busca escalas de trabalho por data", description = "Retorna uma lista de escalas de trabalho para uma data especÃ­fica. Requer o papel de ADMIN ou GESTOR.")
-        @ApiResponses(value = {
-                        @ApiResponse(responseCode = "200", description = "Lista de escalas de trabalho por data", content = @Content(mediaType = "application/json", schema = @Schema(type = "array", implementation = Schedule.class))),
-                        @ApiResponse(responseCode = "400", description = "RequisiÃ§Ã£o invÃ¡lida (formato de data)", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))),
-                        @ApiResponse(responseCode = "403", description = "Acesso negado (papel insuficiente)", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
-        })
+        @Operation(summary = "Busca escalas de trabalho por data")
         @Parameter(description = "Data da escala de trabalho (formato YYYY-MM-DD)", example = "2024-07-01", required = true)
         @GetMapping("/date")
         public ResponseEntity<List<Schedule>> findByDate(
@@ -182,33 +210,24 @@ public class ScheduleController {
                 return ResponseEntity.ok(scheduleService.findByDate(date));
         }
 
-        @Operation(summary = "Retorna todas as escalas de trabalho", description = "Retorna uma lista de todas as escalas de trabalho cadastradas. Requer o papel de ADMIN ou GESTOR.")
-        @ApiResponses(value = {
-                        @ApiResponse(responseCode = "200", description = "Lista de todas as escalas de trabalho", content = @Content(mediaType = "application/json", schema = @Schema(type = "array", implementation = Schedule.class))),
-                        @ApiResponse(responseCode = "403", description = "Acesso negado (papel insuficiente)", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
-        })
+        @Operation(summary = "Retorna todas as escalas de trabalho")
         @GetMapping
         public ResponseEntity<List<Schedule>> findAll() {
                 try {
                         List<Schedule> schedules = scheduleService.findAll();
-                        log.info("ðŸ“¤ Retornando {} escalas para o frontend", schedules.size());
+                        log.info("📤 Retornando {} escalas para o frontend", schedules.size());
                         return ResponseEntity.ok(schedules);
                 } catch (org.hibernate.LazyInitializationException e) {
-                        log.error("âŒ LazyInitializationException ao buscar escalas no controller: {}",
+                        log.error("❌ LazyInitializationException ao buscar escalas no controller: {}",
                                         e.getMessage());
-                        // Retornar lista vazia ao invÃ©s de erro 500 para nÃ£o quebrar o frontend
-                        log.warn("âš ï¸ Retornando lista vazia devido a LazyInitializationException");
                         return ResponseEntity.ok(new java.util.ArrayList<>());
                 } catch (Exception e) {
-                        log.error("âŒ Erro ao buscar escalas no controller: {}", e.getMessage(), e);
-                        log.error("âŒ Tipo de exceÃ§Ã£o: {}", e.getClass().getName());
-                        // Retornar lista vazia ao invÃ©s de erro 500 para nÃ£o quebrar o frontend
-                        log.warn("âš ï¸ Retornando lista vazia devido a erro inesperado");
+                        log.error("❌ Erro ao buscar escalas no controller: {}", e.getMessage(), e);
                         return ResponseEntity.ok(new java.util.ArrayList<>());
                 }
         }
 
-        @Operation(summary = "Gerar relatÃ³rio PDF de escalas", description = "Gera relatÃ³rio PDF de escalas com filtros opcionais")
+        @Operation(summary = "Gerar relatório PDF de escalas", description = "Gera relatório PDF de escalas com filtros opcionais")
         @GetMapping(value = "/report/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
         public ResponseEntity<byte[]> generatePDFReport(
                         @RequestParam(name = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,

@@ -6,8 +6,11 @@ export interface ParteDiariaAtividade {
   endTime?: string;
   description?: string;
   activityType?: string;
+  routeCode?: string;
+  companyName?: string;
   startKm?: number;
   endKm?: number;
+  passengersCount?: number;
   notes?: string;
 }
 
