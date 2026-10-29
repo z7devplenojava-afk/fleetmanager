@@ -1,5 +1,4 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Search, Check, ChevronsUpDown, X, AlertCircle } from 'lucide-react';
@@ -57,22 +56,53 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
 }) => {
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Foco automático no input de busca ao abrir
+  // Foco automático no input de busca ao abrir e limpeza ao fechar
   useEffect(() => {
     if (open) {
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         inputRef.current?.focus();
-      }, 80);
+      }, 30);
+      return () => clearTimeout(timer);
     } else {
       setSearchQuery('');
     }
   }, [open]);
 
+  // Fecha o dropdown ao clicar fora ou pressionar Escape
+  useEffect(() => {
+    if (!open) return;
+
+    const handleOutsideClick = (event: MouseEvent | TouchEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.stopPropagation();
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleOutsideClick, true);
+    document.addEventListener('touchstart', handleOutsideClick, true);
+    document.addEventListener('keydown', handleKeyDown, true);
+
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick, true);
+      document.removeEventListener('touchstart', handleOutsideClick, true);
+      document.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, [open]);
+
   // Encontra a opção atualmente selecionada
   const selectedOption = useMemo(() => {
-    return options.find(opt => opt.value === value) || null;
+    if (!value) return null;
+    return options.find(opt => String(opt.value) === String(value)) || null;
   }, [options, value]);
 
   // Filtragem dos registros
@@ -107,7 +137,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
 
           // Se for dígitos de CNPJ/CPF/código
           if (digitsOnlyQuery.length >= 2) {
-            const kwDigits = kw.replace(/\D/g, '');
+            const kwDigits = String(kw).replace(/\D/g, '');
             if (kwDigits && kwDigits.includes(digitsOnlyQuery)) return true;
           }
         }
@@ -120,10 +150,8 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   const handleSelect = (option: SearchableOption) => {
     if (option.disabled) return;
     onChange(option.value, option);
-    setTimeout(() => {
-      setOpen(false);
-      setSearchQuery('');
-    }, 30);
+    setOpen(false);
+    setSearchQuery('');
   };
 
   const handleClear = (e: React.MouseEvent | React.PointerEvent) => {
@@ -133,207 +161,219 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
     setSearchQuery('');
   };
 
-  const isBelowMin = minSearchLength && searchQuery.trim().length > 0 && searchQuery.trim().length < minSearchLength;
+  const isBelowMin = Boolean(
+    minSearchLength && searchQuery.trim().length > 0 && searchQuery.trim().length < minSearchLength
+  );
 
   return (
-    <Popover open={open} onOpenChange={setOpen} modal={false}>
-      <PopoverTrigger asChild disabled={disabled}>
-        <button
-          type="button"
-          className={cn(
-            'w-full rounded-md border transition-all flex items-center justify-between gap-2 text-left',
-            size === 'lg'
-              ? 'min-h-[50px] sm:min-h-[48px] px-3.5 py-2.5 text-sm sm:text-base'
-              : 'min-h-[38px] px-3 py-1.5 text-xs sm:text-sm',
-            'border-gray-600 bg-seguranca-black text-white hover:border-gray-500 focus:outline-none focus:border-seguranca-yellow',
-            disabled && 'opacity-50 cursor-not-allowed',
-            className
-          )}
-        >
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            {selectedOption ? (
-              <div className="flex items-center gap-2 truncate">
-                <span className={cn('font-bold text-white truncate', size === 'lg' ? 'text-base sm:text-lg' : 'text-xs sm:text-sm')}>
-                  {selectedOption.label}
-                </span>
-                {selectedOption.badge && (
-                  <Badge className={cn('px-1.5 py-0 h-4 shrink-0 font-mono', size === 'lg' ? 'text-[11px] h-5' : 'text-[10px]', selectedOption.badgeColor || 'bg-seguranca-yellow/20 text-seguranca-yellow border border-seguranca-yellow/30')}>
-                    {selectedOption.badge}
-                  </Badge>
-                )}
-                {selectedOption.subtitle && (
-                  <span className={cn('text-gray-400 truncate max-w-[130px] sm:max-w-xs', size === 'lg' ? 'text-xs sm:text-sm' : 'text-xs')}>
-                    ({selectedOption.subtitle})
-                  </span>
-                )}
-              </div>
-            ) : fallbackLabel ? (
-              <div className="flex items-center gap-2 truncate">
-                <span className={cn('font-bold text-white truncate', size === 'lg' ? 'text-base sm:text-lg' : 'text-xs sm:text-sm')}>
-                  {fallbackLabel}
-                </span>
-                <Badge className="text-[10px] px-1.5 py-0 h-4 shrink-0 font-mono bg-emerald-950/70 text-emerald-300 border border-emerald-700/60">
-                  Salvo na OS
-                </Badge>
-              </div>
-            ) : (
-              <span className={cn('text-gray-400 truncate', size === 'lg' ? 'text-sm sm:text-base' : 'text-xs sm:text-sm')}>
-                {placeholder}
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-1 shrink-0">
-            {(Boolean(value) || Boolean(fallbackLabel)) && !disabled && (
-              <span
-                role="button"
-                onPointerDown={handleClear}
-                onClick={handleClear}
-                className="p-1 hover:bg-gray-800 rounded text-gray-400 hover:text-white transition-colors"
-                title="Limpar seleção"
-              >
-                <X className={size === 'lg' ? 'w-4 h-4' : 'w-3.5 h-3.5'} />
-              </span>
-            )}
-            <ChevronsUpDown className={cn('text-gray-400 opacity-60', size === 'lg' ? 'w-5 h-5' : 'w-4 h-4')} />
-          </div>
-        </button>
-      </PopoverTrigger>
-
-      <PopoverContent
-        align="start"
-        sideOffset={4}
-        onOpenAutoFocus={(e) => {
+    <div ref={containerRef} className={cn('relative w-full', className)}>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={(e) => {
           e.preventDefault();
-          setTimeout(() => inputRef.current?.focus(), 60);
+          e.stopPropagation();
+          if (!disabled) {
+            setOpen(prev => !prev);
+          }
         }}
-        onCloseAutoFocus={(e) => e.preventDefault()}
-        className="w-[var(--radix-popover-trigger-width)] max-w-[calc(100vw-2rem)] min-w-[260px] p-0 bg-seguranca-graphite border border-gray-700 rounded-lg shadow-2xl z-[10070] overflow-hidden flex flex-col"
-      >
-        {/* Barra de Pesquisa */}
-        <div className="p-2 border-b border-gray-700 bg-seguranca-black flex items-center gap-2">
-          <Search className="w-4 h-4 text-gray-400 shrink-0" />
-          <Input
-            ref={inputRef}
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            placeholder={searchPlaceholder}
-            className="h-8 bg-transparent border-none text-white text-xs placeholder:text-gray-500 focus-visible:ring-0 focus-visible:ring-offset-0 px-0"
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); setSearchQuery(''); }}
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSearchQuery(''); }}
-              className="text-gray-400 hover:text-white p-1"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
-
-        {/* Aviso de tamanho mínimo de busca se configurado */}
-        {isBelowMin && (
-          <div className="px-3 py-1.5 bg-seguranca-yellow/10 border-b border-seguranca-yellow/20 text-seguranca-yellow text-[11px] flex items-center gap-1.5">
-            <AlertCircle className="w-3 h-3 shrink-0" />
-            <span>{minSearchHint || `Digite pelo menos ${minSearchLength} caracteres para filtrar (${searchQuery.length}/${minSearchLength})`}</span>
-          </div>
+        className={cn(
+          'w-full rounded-md border transition-all flex items-center justify-between gap-2 text-left',
+          size === 'lg'
+            ? 'min-h-[50px] sm:min-h-[48px] px-3.5 py-2.5 text-sm sm:text-base'
+            : 'min-h-[38px] px-3 py-1.5 text-xs sm:text-sm',
+          'border-gray-600 bg-seguranca-black text-white hover:border-gray-500 focus:outline-none focus:border-seguranca-yellow',
+          open && 'border-seguranca-yellow ring-1 ring-seguranca-yellow/30',
+          disabled && 'opacity-50 cursor-not-allowed'
         )}
-
-        {/* Lista de Registros */}
-        <div className="overflow-y-auto max-h-60 divide-y divide-gray-800/60">
-          {filteredOptions.length > 0 ? (
-            filteredOptions.slice(0, maxVisibleOptions).map(opt => {
-              const isSelected = opt.value === value;
-
-              return (
-                <div
-                  key={opt.value}
-                  role="button"
-                  tabIndex={0}
-                  onPointerDown={(e) => {
-                    e.stopPropagation();
-                  }}
-                  onMouseDown={(e) => {
-                    e.stopPropagation();
-                  }}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleSelect(opt);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      handleSelect(opt);
-                    }
-                  }}
-                  className={cn(
-                    'px-3 py-2 flex items-center justify-between gap-2 cursor-pointer transition-colors text-xs select-none',
-                    isSelected
-                      ? 'bg-seguranca-yellow/20 text-white font-medium'
-                      : 'hover:bg-white/5 text-gray-200 active:bg-white/10',
-                    opt.disabled && 'opacity-50 cursor-not-allowed pointer-events-none'
-                  )}
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-white truncate">
-                        {opt.label}
-                      </span>
-                      {opt.badge && (
-                        <Badge className={cn('text-[10px] px-1.5 py-0 h-4 shrink-0 font-mono', opt.badgeColor || 'bg-seguranca-yellow/20 text-seguranca-yellow border border-seguranca-yellow/30')}>
-                          {opt.badge}
-                        </Badge>
-                      )}
-                    </div>
-
-                    {opt.subtitle && (
-                      <div className="text-[11px] text-gray-400 truncate mt-0.5">
-                        {opt.subtitle}
-                      </div>
-                    )}
-                  </div>
-
-                  {isSelected && (
-                    <Check className="w-4 h-4 text-seguranca-yellow shrink-0" />
-                  )}
-                </div>
-              );
-            })
-          ) : isBelowMin ? (
-            <div className="p-4 text-center text-xs text-gray-400 space-y-1">
-              <Search className="w-5 h-5 text-seguranca-yellow/70 mx-auto" />
-              <p className="text-gray-300 font-medium">Aguardando {minSearchLength} caracteres</p>
-              <p className="text-[11px] text-gray-400">
-                {minSearchHint || `Digite os ${minSearchLength} primeiros caracteres para exibir os registros.`}
-              </p>
+      >
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          {selectedOption ? (
+            <div className="flex items-center gap-2 truncate">
+              <span className={cn('font-bold text-white truncate', size === 'lg' ? 'text-base sm:text-lg' : 'text-xs sm:text-sm')}>
+                {selectedOption.label}
+              </span>
+              {selectedOption.badge && (
+                <Badge className={cn('px-1.5 py-0 h-4 shrink-0 font-mono', size === 'lg' ? 'text-[11px] h-5' : 'text-[10px]', selectedOption.badgeColor || 'bg-seguranca-yellow/20 text-seguranca-yellow border border-seguranca-yellow/30')}>
+                  {selectedOption.badge}
+                </Badge>
+              )}
+              {selectedOption.subtitle && (
+                <span className={cn('text-gray-400 truncate max-w-[130px] sm:max-w-xs', size === 'lg' ? 'text-xs sm:text-sm' : 'text-xs')}>
+                  ({selectedOption.subtitle})
+                </span>
+              )}
+            </div>
+          ) : fallbackLabel ? (
+            <div className="flex items-center gap-2 truncate">
+              <span className={cn('font-bold text-white truncate', size === 'lg' ? 'text-base sm:text-lg' : 'text-xs sm:text-sm')}>
+                {fallbackLabel}
+              </span>
+              <Badge className="text-[10px] px-1.5 py-0 h-4 shrink-0 font-mono bg-emerald-950/70 text-emerald-300 border border-emerald-700/60">
+                Salvo na OS
+              </Badge>
             </div>
           ) : (
-            <div className="p-4 text-center text-xs text-gray-400 space-y-1">
-              <AlertCircle className="w-5 h-5 text-gray-500 mx-auto" />
-              <p>{emptyText}</p>
-            </div>
-          )}
-        </div>
-
-        {/* Rodapé com contagem de opções */}
-        <div className="px-3 py-1.5 bg-gray-900 border-t border-gray-800 flex justify-between items-center text-[10px] text-gray-400">
-          <span>
-            {isBelowMin
-              ? `Digite ${minSearchLength} caracteres para filtrar (${options.length} no total)`
-              : filteredOptions.length > maxVisibleOptions
-                ? `Exibindo ${maxVisibleOptions} de ${filteredOptions.length} encontrados (${options.length} no total)`
-                : `${filteredOptions.length} de ${options.length} registros`}
-          </span>
-          {selectedOption && (
-            <span className="text-emerald-400 truncate max-w-[150px]">
-              Selecionado: {selectedOption.label}
+            <span className={cn('text-gray-400 truncate', size === 'lg' ? 'text-sm sm:text-base' : 'text-xs sm:text-sm')}>
+              {placeholder}
             </span>
           )}
         </div>
-      </PopoverContent>
-    </Popover>
+
+        <div className="flex items-center gap-1 shrink-0">
+          {(Boolean(value) || Boolean(fallbackLabel)) && !disabled && (
+            <span
+              role="button"
+              onPointerDown={handleClear}
+              onClick={handleClear}
+              className="p-1 hover:bg-gray-800 rounded text-gray-400 hover:text-white transition-colors"
+              title="Limpar seleção"
+            >
+              <X className={size === 'lg' ? 'w-4 h-4' : 'w-3.5 h-3.5'} />
+            </span>
+          )}
+          <ChevronsUpDown className={cn('text-gray-400 opacity-60 transition-transform', open && 'rotate-180 text-seguranca-yellow opacity-100', size === 'lg' ? 'w-5 h-5' : 'w-4 h-4')} />
+        </div>
+      </button>
+
+      {open && (
+        <div
+          className="absolute left-0 right-0 top-full mt-1 min-w-[260px] p-0 bg-seguranca-graphite border border-gray-700 rounded-lg shadow-2xl z-[10090] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-100"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Barra de Pesquisa */}
+          <div className="p-2 border-b border-gray-700 bg-seguranca-black flex items-center gap-2">
+            <Search className="w-4 h-4 text-gray-400 shrink-0" />
+            <Input
+              ref={inputRef}
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && filteredOptions.length > 0) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleSelect(filteredOptions[0]);
+                }
+              }}
+              placeholder={searchPlaceholder}
+              className="h-8 bg-transparent border-none text-white text-xs placeholder:text-gray-500 focus-visible:ring-0 focus-visible:ring-offset-0 px-0"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setSearchQuery(''); }}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSearchQuery(''); }}
+                className="text-gray-400 hover:text-white p-1"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Aviso de tamanho mínimo de busca se configurado */}
+          {isBelowMin && (
+            <div className="px-3 py-1.5 bg-seguranca-yellow/10 border-b border-seguranca-yellow/20 text-seguranca-yellow text-[11px] flex items-center gap-1.5">
+              <AlertCircle className="w-3 h-3 shrink-0" />
+              <span>{minSearchHint || `Digite pelo menos ${minSearchLength} caracteres para filtrar (${searchQuery.length}/${minSearchLength})`}</span>
+            </div>
+          )}
+
+          {/* Lista de Registros */}
+          <div className="overflow-y-auto max-h-60 divide-y divide-gray-800/60 overscroll-contain">
+            {filteredOptions.length > 0 ? (
+              filteredOptions.slice(0, maxVisibleOptions).map((opt, idx) => {
+                const isSelected = String(opt.value) === String(value);
+
+                return (
+                  <div
+                    key={`${opt.value}-${idx}`}
+                    role="option"
+                    aria-selected={isSelected}
+                    tabIndex={0}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleSelect(opt);
+                    }}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleSelect(opt);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleSelect(opt);
+                      }
+                    }}
+                    className={cn(
+                      'px-3 py-2 flex items-center justify-between gap-2 cursor-pointer transition-colors text-xs select-none',
+                      isSelected
+                        ? 'bg-seguranca-yellow/20 text-white font-medium'
+                        : 'hover:bg-white/10 text-gray-200 active:bg-white/15',
+                      opt.disabled && 'opacity-50 cursor-not-allowed pointer-events-none'
+                    )}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-white truncate">
+                          {opt.label}
+                        </span>
+                        {opt.badge && (
+                          <Badge className={cn('text-[10px] px-1.5 py-0 h-4 shrink-0 font-mono', opt.badgeColor || 'bg-seguranca-yellow/20 text-seguranca-yellow border border-seguranca-yellow/30')}>
+                            {opt.badge}
+                          </Badge>
+                        )}
+                      </div>
+
+                      {opt.subtitle && (
+                        <div className="text-[11px] text-gray-400 truncate mt-0.5">
+                          {opt.subtitle}
+                        </div>
+                      )}
+                    </div>
+
+                    {isSelected && (
+                      <Check className="w-4 h-4 text-seguranca-yellow shrink-0" />
+                    )}
+                  </div>
+                );
+              })
+            ) : isBelowMin ? (
+              <div className="p-4 text-center text-xs text-gray-400 space-y-1">
+                <Search className="w-5 h-5 text-seguranca-yellow/70 mx-auto" />
+                <p className="text-gray-300 font-medium">Aguardando {minSearchLength} caracteres</p>
+                <p className="text-[11px] text-gray-400">
+                  {minSearchHint || `Digite os ${minSearchLength} primeiros caracteres para exibir os registros.`}
+                </p>
+              </div>
+            ) : (
+              <div className="p-4 text-center text-xs text-gray-400 space-y-1">
+                <AlertCircle className="w-5 h-5 text-gray-500 mx-auto" />
+                <p>{emptyText}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Rodapé com contagem de opções */}
+          <div className="px-3 py-1.5 bg-gray-900 border-t border-gray-800 flex justify-between items-center text-[10px] text-gray-400">
+            <span>
+              {isBelowMin
+                ? `Digite ${minSearchLength} caracteres para filtrar (${options.length} no total)`
+                : filteredOptions.length > maxVisibleOptions
+                  ? `Exibindo ${maxVisibleOptions} de ${filteredOptions.length} encontrados (${options.length} no total)`
+                  : `${filteredOptions.length} de ${options.length} registros`}
+            </span>
+            {selectedOption && (
+              <span className="text-emerald-400 truncate max-w-[150px]">
+                Selecionado: {selectedOption.label}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 

@@ -1,8 +1,10 @@
 package com.z7design.fleet_manager.service;
 
+import com.z7design.fleet_manager.dto.FleetWorkOrderDTO;
 import com.z7design.fleet_manager.dto.VehicleGateChecklistDTO;
 import com.z7design.fleet_manager.exception.ResourceNotFoundException;
 import com.z7design.fleet_manager.model.Driver;
+import com.z7design.fleet_manager.model.FleetWorkOrder;
 import com.z7design.fleet_manager.model.Vehicle;
 import com.z7design.fleet_manager.model.VehicleGateChecklist;
 import com.z7design.fleet_manager.repository.DriverRepository;
@@ -33,6 +35,7 @@ public class VehicleGateChecklistService {
     private final VehicleGateChecklistRepository repository;
     private final VehicleRepository vehicleRepository;
     private final DriverRepository driverRepository;
+    private final FleetWorkOrderService fleetWorkOrderService;
 
     private static final String UPLOAD_DIR = "uploads/vehicle-gate-checklists/odometer-photos/";
     private static final String VEHICLE_PHOTOS_DIR = "uploads/vehicles/";
@@ -132,10 +135,37 @@ public class VehicleGateChecklistService {
 
         entity = repository.save(entity);
 
-        if (dto.getType() == VehicleGateChecklist.ChecklistType.ARRIVAL) {
+        if (dto.getKmReading() != null && (dto.getType() == VehicleGateChecklist.ChecklistType.ARRIVAL
+                || vehicle.getCurrentMileage() == null
+                || dto.getKmReading() >= vehicle.getCurrentMileage())) {
             vehicle.setCurrentMileage(dto.getKmReading());
             vehicleRepository.save(vehicle);
-            log.info("KM do veículo {} atualizado para {} na chegada", vehicle.getPlate(), dto.getKmReading());
+            log.info("KM do veículo {} atualizado para {}", vehicle.getPlate(), dto.getKmReading());
+        }
+
+        // Gerar automaticamente Ordem de Serviço Corretiva se o motorista reportou avaria, pneu cortado, nível baixo ou reparo
+        if (dto.getDriverProblemReport() != null && !dto.getDriverProblemReport().isBlank()) {
+            try {
+                FleetWorkOrderDTO woDto = new FleetWorkOrderDTO();
+                woDto.setVehicleId(vehicle.getId());
+                woDto.setType(FleetWorkOrder.WorkOrderType.CORRECTIVE);
+                boolean isUrgent = dto.getDriverProblemReport().toUpperCase().contains("URGÊNCIA")
+                        || dto.getDriverProblemReport().toUpperCase().contains("URGENCIA")
+                        || dto.getDriverProblemReport().toUpperCase().contains("PNEU")
+                        || dto.getDriverProblemReport().toUpperCase().contains("NÍVEL BAIXO");
+                woDto.setPriority(isUrgent ? FleetWorkOrder.WorkOrderPriority.HIGH : FleetWorkOrder.WorkOrderPriority.MEDIUM);
+                woDto.setStatus(FleetWorkOrder.WorkOrderStatus.PENDING_APPROVAL);
+                woDto.setOdometerIn(dto.getKmReading());
+                woDto.setStopDate(LocalDate.now());
+                woDto.setStopTime(LocalTime.now());
+                String driverLabel = driver != null ? driver.getName() : (dto.getDriverName() != null ? dto.getDriverName() : "Motorista");
+                woDto.setReportedDefects("[Checklist Diário - " + driverLabel + "] " + dto.getDriverProblemReport());
+                woDto.setObservations(dto.getObservations());
+                fleetWorkOrderService.create(woDto);
+                log.info("OS Corretiva automática criada a partir do Checklist Diário para o veículo {}", vehicle.getPlate());
+            } catch (Exception e) {
+                log.warn("Não foi possível gerar OS automática a partir do checklist: {}", e.getMessage());
+            }
         }
 
         return toDTO(entity);

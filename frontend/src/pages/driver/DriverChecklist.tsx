@@ -60,6 +60,16 @@ import api from '@/lib/axios';
 import type { ChecklistType, ChecklistItem, VehicleGateChecklist } from '@/types/portaria';
 import { DEFAULT_CHECKLIST_ITEMS, CATEGORY_LABELS, configToChecklistItem } from '@/utils/checklistConfig';
 import { ChecklistDetailsModal } from '@/components/frota/ChecklistDetailsModal';
+import {
+    scheduleService,
+    Schedule,
+    matchesScheduleModeFilter,
+    resolveScheduleRecurrence,
+    resolveScheduleStartTime,
+    resolveScheduleEndTime,
+} from '@/services/scheduleService';
+import { VehicleBodyAndTiresInspector, createInitialInspectionExtraData, VehicleInspectionExtraData, VehicleBlueprintType } from '@/components/driver/VehicleBodyAndTiresInspector';
+import fleetWorkOrderService, { WorkOrderType, WorkOrderPriority, WorkOrderStatus } from '@/services/fleetWorkOrderService';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { getApiUrl } from '@/config/environment';
@@ -102,6 +112,7 @@ const DriverChecklist: React.FC = () => {
     const [vehiclePhotos, setVehiclePhotos] = useState<File[]>([]);
     const [driverProblemReport, setDriverProblemReport] = useState('');
     const [observations, setObservations] = useState('');
+    const [inspectionExtra, setInspectionExtra] = useState<VehicleInspectionExtraData>(() => createInitialInspectionExtraData());
     const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>(() =>
         DEFAULT_CHECKLIST_ITEMS.map((i) => ({ ...i }))
     );
@@ -184,6 +195,83 @@ const DriverChecklist: React.FC = () => {
 
     const isDriver = isDriverUser(user);
 
+    // Escalas do motorista (para preenchimento automático de Motorista, Veículo, Rota e Cliente)
+    const [selectedScheduleMode, setSelectedScheduleMode] = useState<'WEEKLY_FIXED' | 'WEEKEND' | 'ALL'>(() => {
+        const day = new Date().getDay();
+        return day === 0 || day === 6 ? 'WEEKEND' : 'WEEKLY_FIXED';
+    });
+    const [selectedScheduleId, setSelectedScheduleId] = useState<string>('');
+
+    const { data: rawDriverSchedules = [] } = useQuery({
+        queryKey: ['driver-checklist-schedules', user?.id, user?.name],
+        queryFn: async () => {
+            const list = await scheduleService.findMySchedules();
+            const officialOnly = list.filter((s) => !s.id.startsWith('ponto-local-'));
+            return officialOnly.length > 0 ? officialOnly : list;
+        },
+    });
+
+    const filteredDriverSchedules = useMemo(() => {
+        const filtered = rawDriverSchedules.filter((s) => matchesScheduleModeFilter(s, selectedScheduleMode));
+        return filtered.length > 0 ? filtered : rawDriverSchedules;
+    }, [rawDriverSchedules, selectedScheduleMode]);
+
+    const selectedSchedule = useMemo<Schedule | null>(() => {
+        if (!selectedScheduleId) return filteredDriverSchedules[0] || rawDriverSchedules[0] || null;
+        return (
+            rawDriverSchedules.find((s) => s.id === selectedScheduleId) ||
+            filteredDriverSchedules[0] ||
+            rawDriverSchedules[0] ||
+            null
+        );
+    }, [rawDriverSchedules, filteredDriverSchedules, selectedScheduleId]);
+
+    // Quando a escala selecionada mudar, preenche automaticamente o veículo da escala
+    useEffect(() => {
+        if (!selectedSchedule) return;
+        if (!selectedScheduleId || !rawDriverSchedules.some((s) => s.id === selectedScheduleId)) {
+            setSelectedScheduleId(selectedSchedule.id);
+        }
+        const schVehicleId = selectedSchedule.vehicleId || selectedSchedule.vehicle?.id;
+        const schPlate = (selectedSchedule.vehicle?.plate || selectedSchedule.vehiclePlate || '')
+            .replace(/[^a-zA-Z0-9]/g, '')
+            .toUpperCase();
+        if (schVehicleId && schVehicleId !== vehicleId) {
+            setVehicleId(schVehicleId);
+        } else if (!schVehicleId && schPlate && vehicles.length > 0) {
+            const matchedV = vehicles.find(
+                (v) => v.plate.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() === schPlate
+            );
+            if (matchedV && matchedV.id !== vehicleId) {
+                setVehicleId(matchedV.id);
+            }
+        }
+    }, [selectedSchedule, selectedScheduleId, rawDriverSchedules, vehicles, vehicleId]);
+
+    // Sincronização em tempo real quando o motorista informa veículo/cliente ou bate ponto no Ponto Eletrônico
+    useEffect(() => {
+        const handleSync = () => {
+            queryClient.invalidateQueries({ queryKey: ['driver-checklist-schedules'] });
+            queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+        };
+        window.addEventListener('fluxbus:driver-records-updated', handleSync);
+        window.addEventListener('storage', handleSync);
+        let bc: BroadcastChannel | null = null;
+        try {
+            if (typeof BroadcastChannel !== 'undefined') {
+                bc = new BroadcastChannel('fluxbus-driver-records');
+                bc.onmessage = () => handleSync();
+            }
+        } catch {
+            // ignore
+        }
+        return () => {
+            window.removeEventListener('fluxbus:driver-records-updated', handleSync);
+            window.removeEventListener('storage', handleSync);
+            if (bc) bc.close();
+        };
+    }, [queryClient]);
+
     // Identifica o registro de motorista vinculado ao usuário logado (por employeeId, userId ou nome)
     const matchedDriver = useMemo(() => {
         if (!user || drivers.length === 0) return null;
@@ -259,6 +347,20 @@ const DriverChecklist: React.FC = () => {
     }, [matchedDriver, isDriver, user?.employeeId, driverId, drivers.length]);
 
     const effectiveDriverId = driverId || matchedDriver?.id || (isDriver && drivers.length > 0 ? (matchedDriver?.id || user?.employeeId) : undefined);
+
+    const detectedBlueprint = useMemo<VehicleBlueprintType>(() => {
+        const text = `${selectedVehicle?.model || ''} ${selectedVehicle?.brand || ''} ${selectedVehicle?.plate || ''} ${selectedSchedule?.vehicleModel || ''}`.toLowerCase();
+        if (text.includes('micro') || text.includes('thunder') || text.includes('volare') || text.includes('junior') || text.includes('senior')) {
+            return 'MICROBUS';
+        }
+        if (text.includes('van') || text.includes('sprinter') || text.includes('ducato') || text.includes('master') || text.includes('transit')) {
+            return 'VAN';
+        }
+        if (text.includes('dd') || text.includes('double') || text.includes('1800') || text.includes('dois andares') || text.includes('2 andares')) {
+            return 'DOUBLE_DECKER';
+        }
+        return 'CONVENTIONAL';
+    }, [selectedVehicle, selectedSchedule]);
 
     // Cálculos em tempo real de distâncias
     const tripDistance = useMemo(() => {
@@ -381,10 +483,53 @@ const DriverChecklist: React.FC = () => {
     const progressPercent = requiredCount > 0 ? Math.round((requiredChecked / requiredCount) * 100) : 0;
 
     const checklistDataJson = useMemo(() => {
-        return JSON.stringify(
-            checklistItems.map((i) => ({ id: i.id, title: i.title, category: i.category, checked: i.checked }))
-        );
-    }, [checklistItems]);
+        const baseItems = checklistItems.map((i) => ({ id: i.id, title: i.title, category: i.category, checked: i.checked }));
+        const extraItems = [
+            {
+                id: 'extra-carroceria',
+                title: inspectionExtra.hasBodyDamage
+                    ? 'Avarias na carroceria (' + inspectionExtra.damageMarks.length + ' marcação(ões))'
+                    : 'Carroceria sem avarias',
+                category: 'Carroceria & Avarias',
+                checked: !inspectionExtra.hasBodyDamage,
+                notes: inspectionExtra.damageMarks.map((m) => '#' + m.number + ' ' + m.regionLabel + ' (' + m.damageType + (m.notes ? ': ' + m.notes : '') + ')').join('; ') || inspectionExtra.bodyNotes,
+            },
+            {
+                id: 'extra-pneus',
+                title: inspectionExtra.hasTireDamage
+                    ? 'Pneus com avaria/corte (' + inspectionExtra.tires.filter((t) => t.hasIssue).map((t) => t.position + ':' + t.issueType).join(', ') + ')'
+                    : 'Pneus conferidos (sem cortes/marcações)',
+                category: 'Pneus',
+                checked: !inspectionExtra.hasTireDamage,
+                notes: inspectionExtra.tireGeneralNotes,
+            },
+            {
+                id: 'extra-nivel-agua',
+                title: 'Nível de Água: ' + inspectionExtra.fluidLevels.agua + (inspectionExtra.fluidLevels.aguaCompleted ? ' (Completado)' : ''),
+                category: 'Níveis (Água / Óleo)',
+                checked: inspectionExtra.fluidLevels.agua !== 'MINIMO_URGENTE',
+            },
+            {
+                id: 'extra-nivel-oleo-motor',
+                title: 'Nível de Óleo do Motor: ' + inspectionExtra.fluidLevels.oleoMotor + (inspectionExtra.fluidLevels.oleoMotorCompleted ? ' (Completado)' : ''),
+                category: 'Níveis (Água / Óleo)',
+                checked: inspectionExtra.fluidLevels.oleoMotor !== 'MINIMO_URGENTE',
+            },
+            {
+                id: 'extra-nivel-diesel',
+                title: 'Nível de Óleo Diesel: ' + inspectionExtra.fluidLevels.oleoDiesel + (inspectionExtra.fluidLevels.oleoDieselCompleted ? ' (Completado)' : ''),
+                category: 'Níveis (Água / Óleo)',
+                checked: inspectionExtra.fluidLevels.oleoDiesel !== 'MINIMO_URGENTE',
+            },
+            {
+                id: 'extra-nivel-hidraulico',
+                title: 'Nível de Óleo Hidráulico: ' + inspectionExtra.fluidLevels.oleoHidraulico + (inspectionExtra.fluidLevels.oleoHidraulicoCompleted ? ' (Completado)' : ''),
+                category: 'Níveis (Água / Óleo)',
+                checked: inspectionExtra.fluidLevels.oleoHidraulico !== 'MINIMO_URGENTE',
+            },
+        ];
+        return JSON.stringify([...baseItems, ...extraItems]);
+    }, [checklistItems, inspectionExtra]);
 
     const createMutation = useMutation({
         mutationFn: async (payload: {
@@ -403,6 +548,24 @@ const DriverChecklist: React.FC = () => {
             }
             if (payload.vehiclePhotos && payload.vehiclePhotos.length > 0) {
                 await vehicleGateChecklistService.uploadVehiclePhotos(created.id, payload.vehiclePhotos);
+            }
+            if (payload.data.driverProblemReport && payload.data.vehicleId) {
+                try {
+                    const isUrgent = payload.data.driverProblemReport.toUpperCase().includes('URGÊNCIA') ||
+                        payload.data.driverProblemReport.toUpperCase().includes('PNEU');
+                    await fleetWorkOrderService.create({
+                        vehicleId: payload.data.vehicleId,
+                        type: WorkOrderType.CORRECTIVE,
+                        priority: isUrgent ? WorkOrderPriority.HIGH : WorkOrderPriority.MEDIUM,
+                        status: WorkOrderStatus.PENDING_APPROVAL,
+                        odometerIn: payload.data.kmReading,
+                        stopDate: new Date().toISOString().slice(0, 10),
+                        reportedDefects: payload.data.driverProblemReport,
+                        observations: payload.data.observations,
+                    });
+                } catch {
+                    // O backend também possui criação automática; ignora caso já tenha sido criada
+                }
             }
             return created;
         },
@@ -453,6 +616,7 @@ const DriverChecklist: React.FC = () => {
         setVehiclePhotos([]);
         setDriverProblemReport('');
         setObservations('');
+        setInspectionExtra(createInitialInspectionExtraData());
         // Reset síncrono + reload: a configuração personalizada do veículo é recarregada
         // pelo efeito [vehicleId, reloadKey]
         setChecklistItems(DEFAULT_CHECKLIST_ITEMS.map((i) => ({ ...i, checked: false })));
@@ -479,66 +643,16 @@ const DriverChecklist: React.FC = () => {
             return;
         }
 
-        let finalOdometer = 0;
-        let kmInitNum: number | undefined;
-        let kmFinalNum: number | undefined;
-        let displacementFinalNum: number | undefined;
-
-        if (activeTab === 'EXIT') {
-            kmInitNum = Number.parseInt(kmInitial || kmReading, 10);
-            if (Number.isNaN(kmInitNum) || kmInitNum < 0) {
-                toast({
-                    title: 'Informe o KM Inicial',
-                    description: 'A quilometragem inicial da viagem é obrigatória na saída.',
-                    variant: 'destructive',
-                });
-                return;
-            }
-            finalOdometer = kmInitNum;
-        } else {
-            kmFinalNum = Number.parseInt(kmFinal || kmReading, 10);
-            if (Number.isNaN(kmFinalNum) || kmFinalNum < 0) {
-                toast({
-                    title: 'Informe o KM Final',
-                    description: 'A quilometragem final no destino do cliente é obrigatória na chegada.',
-                    variant: 'destructive',
-                });
-                return;
-            }
-
-            kmInitNum = Number.parseInt(kmInitial, 10);
-            if (!Number.isNaN(kmInitNum) && kmFinalNum < kmInitNum) {
-                toast({
-                    title: 'KM Final inválido',
-                    description: 'O KM final não pode ser menor que o KM inicial da viagem.',
-                    variant: 'destructive',
-                });
-                return;
-            }
-
-            if (hasDisplacement) {
-                displacementFinalNum = Number.parseInt(displacementFinalKm, 10);
-                if (Number.isNaN(displacementFinalNum) || displacementFinalNum < 0) {
-                    toast({
-                        title: 'Informe o KM Final da Garagem',
-                        description: 'O KM final ao entregar o veículo na garagem é obrigatório.',
-                        variant: 'destructive',
-                    });
-                    return;
-                }
-                if (displacementFinalNum < kmFinalNum) {
-                    toast({
-                        title: 'KM da Garagem inválido',
-                        description: 'O KM final na garagem não pode ser menor que o KM final do cliente.',
-                        variant: 'destructive',
-                    });
-                    return;
-                }
-                finalOdometer = displacementFinalNum;
-            } else {
-                finalOdometer = kmFinalNum;
-            }
-        }
+        const autoOdometer =
+            selectedSchedule?.finalKm ??
+            selectedSchedule?.initialKm ??
+            selectedVehicle?.currentMileage ??
+            Number.parseInt(kmReading || kmInitial || '0', 10) ??
+            0;
+        const finalOdometer = Number.isNaN(autoOdometer) ? 0 : autoOdometer;
+        const kmInitNum: number | undefined = selectedSchedule?.initialKm ?? finalOdometer;
+        const kmFinalNum: number | undefined = selectedSchedule?.finalKm;
+        const displacementFinalNum: number | undefined = undefined;
 
         if (requiredChecked < requiredCount) {
             toast({
@@ -548,6 +662,52 @@ const DriverChecklist: React.FC = () => {
             });
             return;
         }
+
+        const problemParts: string[] = [];
+        if (driverProblemReport.trim()) problemParts.push(driverProblemReport.trim());
+        if (inspectionExtra.repairRequestNotes.trim()) {
+            problemParts.push('[Solicitação de Reparo] ' + inspectionExtra.repairRequestNotes.trim());
+        }
+        if (inspectionExtra.hasBodyDamage || inspectionExtra.damageMarks.length > 0) {
+            const marksDesc = inspectionExtra.damageMarks
+                .map((m) => '#' + m.number + ' ' + m.regionLabel + ' (' + m.damageType + (m.notes ? ': ' + m.notes : '') + ')')
+                .join(', ');
+            problemParts.push('[Avarias na Carroceria] ' + (marksDesc || inspectionExtra.bodyNotes || 'Avaria marcada no diagrama'));
+        }
+        if (inspectionExtra.hasTireDamage) {
+            const tireDesc = inspectionExtra.tires
+                .filter((t) => t.hasIssue)
+                .map((t) => t.label + ': ' + t.issueType + (t.notes ? ' (' + t.notes + ')' : ''))
+                .join(', ');
+            problemParts.push('[Pneus Marcado/Cortado] ' + (tireDesc || inspectionExtra.tireGeneralNotes || 'Irregularidade nos pneus'));
+        }
+        const lowFluids: string[] = [];
+        if (inspectionExtra.fluidLevels.agua === 'MINIMO_URGENTE') lowFluids.push('Água no Mínimo');
+        if (inspectionExtra.fluidLevels.oleoMotor === 'MINIMO_URGENTE') lowFluids.push('Óleo do Motor no Mínimo');
+        if (inspectionExtra.fluidLevels.oleoDiesel === 'MINIMO_URGENTE') lowFluids.push('Óleo Diesel no Mínimo');
+        if (inspectionExtra.fluidLevels.oleoHidraulico === 'MINIMO_URGENTE') lowFluids.push('Óleo Hidráulico no Mínimo');
+        if (lowFluids.length > 0) {
+            problemParts.push('[URGÊNCIA - NÍVEL BAIXO] ' + lowFluids.join(', '));
+        }
+
+        const obsParts: string[] = [];
+        if (observations.trim()) obsParts.push(observations.trim());
+        if (inspectionExtra.bodyNotes.trim()) obsParts.push('Obs. Carroceria: ' + inspectionExtra.bodyNotes.trim());
+        if (inspectionExtra.tireGeneralNotes.trim()) obsParts.push('Obs. Pneus: ' + inspectionExtra.tireGeneralNotes.trim());
+        if (inspectionExtra.delayReport.hasDelay) {
+            const d = inspectionExtra.delayReport;
+            obsParts.push(
+                '[Ocorrência de Atraso] Rota: ' + (d.route || '-') +
+                ' | Tempo: ' + (d.delayDuration || '-') +
+                ' | Motivo: ' + (d.delayReason || '-') +
+                (d.witness1Name ? ' | Testemunha 1: ' + d.witness1Name + ' (' + d.witness1Phone + ')' : '') +
+                (d.witness2Name ? ' | Testemunha 2: ' + d.witness2Name + ' (' + d.witness2Phone + ')' : '') +
+                (d.witness3Name ? ' | Testemunha 3: ' + d.witness3Name + ' (' + d.witness3Phone + ')' : '')
+            );
+        }
+
+        const finalProblemReport = problemParts.join(' | ');
+        const finalObservations = obsParts.join(' | ');
 
         const checklistPayloadData = {
             vehicleId,
@@ -564,8 +724,8 @@ const DriverChecklist: React.FC = () => {
             displacementDistance: hasDisplacement && displacementDistance > 0 ? displacementDistance : undefined,
             totalKmTravelled: totalDistance > 0 ? totalDistance : (tripDistance > 0 ? tripDistance : undefined),
             checklistData: checklistDataJson,
-            driverProblemReport: driverProblemReport.trim() || undefined,
-            observations: observations.trim() || undefined,
+            driverProblemReport: finalProblemReport || undefined,
+            observations: finalObservations || undefined,
         };
 
         if (!offlineSyncService.isOnline()) {
@@ -616,7 +776,7 @@ const DriverChecklist: React.FC = () => {
     const mediaBase = getApiUrl().replace(/\/api\/?$/, '');
 
     return (
-        <StandardLayout title="Check-in / Check-out do Veículo">
+        <StandardLayout>
             <div className="space-y-6">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div>
@@ -772,304 +932,210 @@ const DriverChecklist: React.FC = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Coluna principal: formulário */}
                     <div className="lg:col-span-2 space-y-6">
-                        {/* Identificação */}
-                        <Card>
+                        {/* Identificação Automática pela Escala do Motorista */}
+                        <Card className="border-primary/30 shadow-sm">
                             <CardHeader className="pb-3">
                                 <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                                    <Car className="h-5 w-5 text-primary" /> Identificação
+                                    <Car className="h-5 w-5 text-primary" /> Dados da Escala (Motorista, Veículo, Rota e Cliente)
                                 </CardTitle>
                                 <CardDescription className="text-xs sm:text-sm">
-                                    {activeTab === 'EXIT'
-                                        ? 'Registre a saída do veículo antes de iniciar a viagem.'
-                                        : 'Registre a chegada do veículo ao final da viagem.'}
+                                    {rawDriverSchedules.length > 1
+                                        ? 'Selecione abaixo qual das suas escalas (Semanal ou Final de Semana - FDS) você está executando.'
+                                        : 'Informações carregadas automaticamente da sua escala cadastrada pelo Gestor de Tráfego.'}
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label className="text-sm sm:text-base font-bold text-foreground">Veículo *</Label>
-                                        <SearchableSelect
-                                            value={vehicleId}
-                                            onChange={(val) => setVehicleId(val)}
-                                            options={vehicleOptions}
-                                            size="lg"
-                                            placeholder="Selecione o veículo..."
-                                            searchPlaceholder="Buscar por placa, modelo ou frota..."
-                                            emptyText="Nenhum veículo encontrado."
-                                            className="w-full bg-muted/40 border-input text-foreground h-14 sm:h-12 rounded-xl"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label className="text-sm sm:text-base font-bold text-foreground">Motorista {isDriver ? 'Responsável' : ''}</Label>
-                                        {isDriver ? (
-                                            <div className="space-y-1.5">
-                                                <div className="flex items-center gap-2.5 h-14 sm:h-12 px-3.5 rounded-xl border border-input bg-muted/40 text-sm sm:text-base">
-                                                    <UserCheck className="h-5 w-5 text-emerald-500 shrink-0" />
-                                                    <span className="font-bold text-foreground truncate">
-                                                        {user?.name || 'Motorista Logado'}
-                                                    </span>
-                                                    <Badge variant="outline" className="ml-auto text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
-                                                        Você (Motorista)
-                                                    </Badge>
-                                                </div>
-                                                <p className="text-xs text-muted-foreground">
-                                                    Identificação automática pelo seu login de motorista.
-                                                </p>
-                                            </div>
-                                        ) : (
-                                            <>
-                                                <Select value={driverId || 'none'} onValueChange={(v) => setDriverId(v === 'none' ? '' : v)}>
-                                                    <SelectTrigger className="h-14 sm:h-12 text-sm sm:text-base font-semibold rounded-xl">
-                                                        <SelectValue placeholder="Selecione o motorista" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="none">Nenhum</SelectItem>
-                                                        {drivers.map((d) => (
-                                                            <SelectItem key={d.id} value={d.id}>
-                                                                {d.name}
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                                {user?.name && (
-                                                    <p className="text-xs text-muted-foreground">
-                                                        Logado como: <span className="font-medium text-foreground">{user.name}</span>
-                                                    </p>
-                                                )}
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
+                                {/* Só exibe seletor de escala se o motorista tiver mais de uma escala cadastrada (ex: Semanal e FDS) */}
+                                {rawDriverSchedules.length > 1 && (
+                                    <div className="p-3.5 rounded-xl bg-muted/40 border border-border space-y-3">
+                                        <Label className="text-xs sm:text-sm font-bold text-primary flex items-center gap-1.5">
+                                            <CalendarClock className="h-4 w-4 shrink-0" />
+                                            Selecione a Escala que você está executando:
+                                        </Label>
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelectedScheduleMode('WEEKLY_FIXED');
+                                                    const first = rawDriverSchedules.find((s) => matchesScheduleModeFilter(s, 'WEEKLY_FIXED'));
+                                                    if (first) setSelectedScheduleId(first.id);
+                                                }}
+                                                className={`p-2.5 rounded-xl border text-left transition-all ${
+                                                    selectedScheduleMode === 'WEEKLY_FIXED'
+                                                        ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400 font-bold'
+                                                        : 'bg-background border-border text-muted-foreground hover:text-foreground'
+                                                }`}
+                                            >
+                                                <div className="text-xs font-extrabold">📅 Escala Semanal</div>
+                                                <div className="text-[10px] opacity-80">Segunda a Sexta</div>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelectedScheduleMode('WEEKEND');
+                                                    const first = rawDriverSchedules.find((s) => matchesScheduleModeFilter(s, 'WEEKEND'));
+                                                    if (first) setSelectedScheduleId(first.id);
+                                                }}
+                                                className={`p-2.5 rounded-xl border text-left transition-all ${
+                                                    selectedScheduleMode === 'WEEKEND'
+                                                        ? 'bg-amber-500/20 border-amber-500 text-amber-400 font-bold'
+                                                        : 'bg-background border-border text-muted-foreground hover:text-foreground'
+                                                }`}
+                                            >
+                                                <div className="text-xs font-extrabold">🗓️ Escala FDS</div>
+                                                <div className="text-[10px] opacity-80">Sábado e Domingo</div>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setSelectedScheduleMode('ALL')}
+                                                className={`col-span-2 sm:col-span-1 p-2.5 rounded-xl border text-left transition-all ${
+                                                    selectedScheduleMode === 'ALL'
+                                                        ? 'bg-blue-500/20 border-blue-500 text-blue-400 font-bold'
+                                                        : 'bg-background border-border text-muted-foreground hover:text-foreground'
+                                                }`}
+                                            >
+                                                <div className="text-xs font-extrabold">📋 Todas ({rawDriverSchedules.length})</div>
+                                                <div className="text-[10px] opacity-80">Ver Semanal + FDS</div>
+                                            </button>
+                                        </div>
 
-                                {selectedVehicle && (
-                                    <div className="flex flex-wrap gap-3 pt-2">
-                                        <Badge variant="outline" className="text-xs py-1 px-2.5">
-                                            KM atual: <strong className="ml-1 font-mono text-emerald-400">{selectedVehicle.currentMileage?.toLocaleString('pt-BR')} km</strong>
-                                        </Badge>
-                                        {selectedVehicle.lastMaintenanceDate && (
-                                            <Badge variant="outline" className="text-xs py-1 px-2.5">
-                                                Última manutenção: {new Date(selectedVehicle.lastMaintenanceDate + 'T00:00:00').toLocaleDateString('pt-BR')}
-                                            </Badge>
-                                        )}
-                                        <Badge variant="outline" className="text-xs py-1 px-2.5">
-                                            Status: {selectedVehicle.status === 'ACTIVE' ? 'Ativo' : selectedVehicle.status}
-                                        </Badge>
+                                        <select
+                                            value={selectedSchedule?.id || ''}
+                                            onChange={(e) => setSelectedScheduleId(e.target.value)}
+                                            aria-label="Selecionar escala do motorista"
+                                            className="w-full h-11 rounded-xl border border-input bg-background px-3 text-xs sm:text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                        >
+                                            {filteredDriverSchedules.map((s) => {
+                                                const rec = resolveScheduleRecurrence(s) === 'WEEKEND' ? '[FDS]' : '[SEMANAL]';
+                                                const rName = s.route?.name || s.travelTrip?.name || s.routeCode || s.workPost?.name || 'Rota';
+                                                const vPlate = s.vehicle?.plate || s.vehiclePlate || 'Sem placa';
+                                                const cName = s.clientName || s.client?.name || s.workPost?.client?.name || s.location?.name || '';
+                                                return (
+                                                    <option key={s.id} value={s.id}>
+                                                        {`${rec} ${resolveScheduleStartTime(s)} às ${resolveScheduleEndTime(s)} • ${rName} • ${vPlate}${cName ? ` • ${cName}` : ''}`}
+                                                    </option>
+                                                );
+                                            })}
+                                        </select>
                                     </div>
                                 )}
-                            </CardContent>
-                        </Card>
 
-                        {/* Odômetro */}
-                        <Card className="border-seguranca-yellow/20">
-                            <CardHeader className="pb-3">
-                                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                                    <Gauge className="h-5 w-5 text-primary" />
-                                    {activeTab === 'EXIT'
-                                        ? 'Odômetro de Saída (Início da Viagem)'
-                                        : 'Odômetro de Chegada & Deslocamento'}
-                                </CardTitle>
-                                <CardDescription className="text-xs sm:text-sm">
-                                    {activeTab === 'EXIT'
-                                        ? 'Informe o KM no início da viagem do cliente (ao pegar o primeiro funcionário na origem).'
-                                        : 'Informe o KM na entrega no cliente e, se houver, o retorno/deslocamento para a garagem.'}
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                {activeTab === 'EXIT' ? (
-                                    <div className="space-y-2">
-                                        <Label className="text-sm sm:text-base font-bold flex items-center gap-2 text-foreground">
-                                            <MapPin className="h-4 w-4 text-emerald-500" />
-                                            KM Inicial da Viagem (Origem) *
-                                        </Label>
-                                        <Input
-                                            type="number"
-                                            min={0}
-                                            value={kmInitial}
-                                            onChange={(e) => {
-                                                setKmInitial(e.target.value);
-                                                setKmReading(e.target.value);
-                                            }}
-                                            placeholder="Ex: 45000"
-                                            className="font-mono text-xl sm:text-2xl font-bold h-14 sm:h-13 text-blue-400 tracking-wider rounded-xl border-blue-500/40 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                                        />
-                                        <p className="text-xs sm:text-sm text-muted-foreground">
-                                            Quilometragem no momento do embarque inicial dos passageiros.
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-4">
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                            <div className="space-y-2">
-                                                <Label className="text-sm sm:text-base font-bold text-muted-foreground flex items-center gap-1.5">
-                                                    <MapPin className="h-4 w-4 text-emerald-500" />
-                                                    KM Inicial da Viagem (Origem)
-                                                </Label>
-                                                <Input
-                                                    type="number"
-                                                    min={0}
-                                                    value={kmInitial}
-                                                    onChange={(e) => setKmInitial(e.target.value)}
-                                                    placeholder="Ex: 45000"
-                                                    className="font-mono text-lg sm:text-xl font-bold h-14 sm:h-13 rounded-xl"
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label className="text-sm sm:text-base font-bold text-foreground flex items-center gap-1.5">
-                                                    <MapPin className="h-4 w-4 text-blue-500" />
-                                                    KM Final da Viagem (Destino Cliente) *
-                                                </Label>
-                                                <Input
-                                                    type="number"
-                                                    min={0}
-                                                    value={kmFinal}
-                                                    onChange={(e) => {
-                                                        const val = e.target.value;
-                                                        setKmFinal(val);
-                                                        setDisplacementInitialKm(val);
-                                                        if (!hasDisplacement) setKmReading(val);
-                                                    }}
-                                                    placeholder="Ex: 45042"
-                                                    className="font-mono text-xl sm:text-2xl font-bold h-14 sm:h-13 text-emerald-400 tracking-wider rounded-xl border-emerald-500/40 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
-                                                />
+                                {/* Resumo Automático da Escala: Motorista, Veículo, Rota e Cliente */}
+                                {selectedSchedule ? (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-xl bg-muted/30 border border-border">
+                                        <div className="flex items-start gap-2.5 p-2.5 rounded-lg bg-background/70 border border-border/60">
+                                            <UserCheck className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
+                                            <div className="min-w-0">
+                                                <span className="text-[10px] uppercase font-bold text-muted-foreground block">Motorista Escalado</span>
+                                                <span className="text-sm font-black text-foreground truncate block">
+                                                    {selectedSchedule.employee?.name || user?.name || 'Motorista'}
+                                                </span>
                                             </div>
                                         </div>
 
-                                        {tripDistance > 0 && (
-                                            <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-between text-sm sm:text-base">
-                                                <span className="text-blue-400 font-bold flex items-center gap-2">
-                                                    <Route className="h-5 w-5" /> Percurso da Viagem com Passageiros:
-                                                </span>
-                                                <Badge className="bg-blue-600 text-white font-bold font-mono text-sm sm:text-base px-3 py-1">
-                                                    {tripDistance} km
-                                                </Badge>
-                                            </div>
-                                        )}
-
-                                        {/* Bloco de Deslocamento para a Garagem */}
-                                        <div className="p-4 rounded-xl border border-zinc-800 bg-zinc-950/40 space-y-4">
-                                            <div className="flex items-center justify-between gap-3">
-                                                <div className="space-y-0.5">
-                                                    <Label className="text-sm sm:text-base font-bold flex items-center gap-2 cursor-pointer">
-                                                        <Building2 className="h-5 w-5 text-amber-500" />
-                                                        Deslocamento para a Garagem
-                                                    </Label>
-                                                    <p className="text-xs sm:text-sm text-muted-foreground">
-                                                        Ative caso tenha retornado com o veículo para a garagem após entregar os passageiros.
-                                                    </p>
-                                                </div>
-                                                <Switch
-                                                    checked={hasDisplacement}
-                                                    className="scale-110"
-                                                    onCheckedChange={(checked) => {
-                                                        setHasDisplacement(checked);
-                                                        if (checked) {
-                                                            setDisplacementInitialKm(kmFinal);
-                                                        } else {
-                                                            setKmReading(kmFinal);
-                                                        }
-                                                    }}
-                                                />
-                                            </div>
-
-                                            {hasDisplacement && (
-                                                <div className="pt-3 border-t border-zinc-800/80 space-y-4 animate-in fade-in-50">
-                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                                        <div className="space-y-2">
-                                                            <Label className="text-xs sm:text-sm font-semibold text-muted-foreground">
-                                                                KM Inicial do Deslocamento
-                                                            </Label>
-                                                            <div className="h-14 sm:h-13 px-4 rounded-xl border border-input bg-muted/50 flex items-center font-mono text-lg sm:text-xl font-bold text-foreground">
-                                                                {displacementInitialKm || kmFinal || '—'}
-                                                            </div>
-                                                            <p className="text-[11px] text-muted-foreground">
-                                                                Puxado automaticamente do KM final do cliente.
-                                                            </p>
-                                                        </div>
-                                                        <div className="space-y-2">
-                                                            <Label className="text-xs sm:text-sm font-bold text-amber-400">
-                                                                KM Final na Garagem *
-                                                            </Label>
-                                                            <Input
-                                                                type="number"
-                                                                min={0}
-                                                                value={displacementFinalKm}
-                                                                onChange={(e) => {
-                                                                    setDisplacementFinalKm(e.target.value);
-                                                                    setKmReading(e.target.value);
-                                                                }}
-                                                                placeholder="Ex: 45055"
-                                                                className="font-mono text-xl sm:text-2xl font-bold h-14 sm:h-13 text-amber-400 tracking-wider rounded-xl border-amber-500/50 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
-                                                            />
-                                                            <p className="text-[11px] text-muted-foreground">
-                                                                Leitura do odômetro ao estacionar na garagem.
-                                                            </p>
-                                                        </div>
-                                                    </div>
-
-                                                    {displacementDistance > 0 && (
-                                                        <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-between text-xs">
-                                                            <span className="text-amber-400 font-medium flex items-center gap-1.5">
-                                                                <Building2 className="h-3.5 w-3.5" /> Trajeto Vazio até a Garagem:
+                                        <div className="flex flex-col gap-1.5 p-2.5 rounded-lg bg-background/70 border border-border/60">
+                                            <div className="flex items-start gap-2.5">
+                                                <Car className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
+                                                <div className="min-w-0 flex-1">
+                                                    <span className="text-[10px] uppercase font-bold text-muted-foreground block">Veículo da Escala</span>
+                                                    <span className="text-sm font-black text-foreground truncate block">
+                                                        {selectedVehicle?.plate || selectedSchedule.vehicle?.plate || selectedSchedule.vehiclePlate || 'Não informado'}
+                                                        {(selectedVehicle?.model || selectedSchedule.vehicle?.model) && (
+                                                            <span className="text-xs font-medium text-muted-foreground ml-1.5">
+                                                                ({cleanVehicleDesc(selectedVehicle?.brand, selectedVehicle?.model) || selectedSchedule.vehicle?.model})
                                                             </span>
-                                                            <Badge className="bg-amber-600 text-white font-bold font-mono">
-                                                                {displacementDistance} km
-                                                            </Badge>
-                                                        </div>
-                                                    )}
+                                                        )}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            {(!selectedVehicle?.plate && !selectedSchedule.vehicle?.plate && !selectedSchedule.vehiclePlate) && (
+                                                <div className="pt-1">
+                                                    <select
+                                                        value={vehicleId}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value;
+                                                            setVehicleId(val);
+                                                            const foundV = vehicles.find((v) => v.id === val);
+                                                            if (selectedSchedule) {
+                                                                scheduleService.saveExecutionOverlay(selectedSchedule.id, {
+                                                                    vehicleId: val,
+                                                                    vehiclePlate: foundV?.plate,
+                                                                    vehicleModel: foundV?.model,
+                                                                });
+                                                                scheduleService.emitDriverRecordsUpdated();
+                                                            }
+                                                        }}
+                                                        style={{ backgroundColor: '#090d16', color: '#ffffff', colorScheme: 'dark' }}
+                                                        aria-label="Selecione o Veículo da Escala"
+                                                        className="w-full h-8 rounded-lg bg-[#090d16] border border-blue-500/40 px-2 text-xs font-bold text-white focus:border-blue-400 focus:outline-none"
+                                                    >
+                                                        <option value="">Selecione o Veículo para o Checklist...</option>
+                                                        {vehicles.map((v) => (
+                                                            <option key={v.id} value={v.id} style={{ backgroundColor: '#090d16', color: '#ffffff' }}>
+                                                                {v.plate} — {cleanVehicleDesc(v.brand, v.model) || 'Veículo Operacional'}
+                                                            </option>
+                                                        ))}
+                                                    </select>
                                                 </div>
                                             )}
                                         </div>
 
-                                        {/* Card Resumo de KM Percorrido */}
-                                        {(tripDistance > 0 || displacementDistance > 0) && (
-                                            <div className="p-3.5 rounded-xl bg-gradient-to-r from-zinc-900 to-zinc-950 border border-emerald-500/30 space-y-2">
-                                                <div className="text-xs font-semibold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
-                                                    <TrendingUp className="h-4 w-4" />
-                                                    Resumo da Rodagem do Percurso
-                                                </div>
-                                                <div className="grid grid-cols-3 gap-2 text-center pt-1">
-                                                    <div className="p-2 rounded-lg bg-zinc-800/50">
-                                                        <div className="text-[10px] text-zinc-400">Viagem Cliente</div>
-                                                        <div className="text-sm sm:text-base font-black text-blue-400 font-mono">
-                                                            {tripDistance} km
-                                                        </div>
-                                                    </div>
-                                                    <div className="p-2 rounded-lg bg-zinc-800/50">
-                                                        <div className="text-[10px] text-zinc-400">Desloc. Garagem</div>
-                                                        <div className="text-sm sm:text-base font-black text-amber-400 font-mono">
-                                                            {hasDisplacement ? displacementDistance : 0} km
-                                                        </div>
-                                                    </div>
-                                                    <div className="p-2 rounded-lg bg-emerald-950/40 border border-emerald-500/30">
-                                                        <div className="text-[10px] text-emerald-300 font-bold">Total Geral</div>
-                                                        <div className="text-sm sm:text-base font-black text-emerald-400 font-mono">
-                                                            {totalDistance} km
-                                                        </div>
-                                                    </div>
-                                                </div>
+                                        <div className="flex items-start gap-2.5 p-2.5 rounded-lg bg-background/70 border border-border/60">
+                                            <Route className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+                                            <div className="min-w-0">
+                                                <span className="text-[10px] uppercase font-bold text-muted-foreground block">Rota / Percurso</span>
+                                                <span className="text-sm font-black text-foreground truncate block">
+                                                    {selectedSchedule.route?.name ||
+                                                        selectedSchedule.travelTrip?.name ||
+                                                        selectedSchedule.routeCode ||
+                                                        selectedSchedule.workPost?.name ||
+                                                        'Rota da Escala'}
+                                                </span>
                                             </div>
-                                        )}
+                                        </div>
+
+                                        <div className="flex items-start gap-2.5 p-2.5 rounded-lg bg-background/70 border border-border/60">
+                                            <Building2 className="h-5 w-5 text-purple-500 shrink-0 mt-0.5" />
+                                            <div className="min-w-0">
+                                                <span className="text-[10px] uppercase font-bold text-muted-foreground block">Cliente / Empresa</span>
+                                                <span className="text-sm font-black text-foreground truncate block">
+                                                    {selectedSchedule.clientName ||
+                                                        selectedSchedule.client?.name ||
+                                                        selectedSchedule.workPost?.client?.name ||
+                                                        selectedSchedule.travelTrip?.client?.name ||
+                                                        selectedSchedule.location?.name ||
+                                                        'Operação Contratada'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    /* Fallback apenas se não houver escala cadastrada para o motorista ou quando acessado por gestor/portaria */
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label className="text-sm sm:text-base font-bold text-foreground">Veículo *</Label>
+                                            <SearchableSelect
+                                                value={vehicleId}
+                                                onChange={(val) => setVehicleId(val)}
+                                                options={vehicleOptions}
+                                                size="lg"
+                                                placeholder="Selecione o veículo..."
+                                                searchPlaceholder="Buscar por placa, modelo ou frota..."
+                                                emptyText="Nenhum veículo encontrado."
+                                                className="w-full bg-muted/40 border-input text-foreground h-14 sm:h-12 rounded-xl"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label className="text-sm sm:text-base font-bold text-foreground">Motorista {isDriver ? 'Responsável' : ''}</Label>
+                                            <div className="flex items-center gap-2.5 h-14 sm:h-12 px-3.5 rounded-xl border border-input bg-muted/40 text-sm sm:text-base">
+                                                <UserCheck className="h-5 w-5 text-emerald-500 shrink-0" />
+                                                <span className="font-bold text-foreground truncate">
+                                                    {user?.name || 'Motorista Logado'}
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                                    <div className="space-y-2">
-                                        <CameraCapture
-                                            label="Foto do odômetro (opcional)"
-                                            onPhotosChange={(photos) => setOdometerPhotoFile(photos[0] ?? null)}
-                                            maxPhotos={1}
-                                            disabled={createMutation.isPending}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>Descrição da foto (opcional)</Label>
-                                        <Input
-                                            value={odometerPhotoDescription}
-                                            onChange={(e) => setOdometerPhotoDescription(e.target.value)}
-                                            placeholder="Ex: leitura confirmada no painel"
-                                        />
-                                    </div>
-                                </div>
                             </CardContent>
                         </Card>
 
@@ -1282,6 +1348,13 @@ const DriverChecklist: React.FC = () => {
                                 </div>
                             </CardContent>
                         </Card>
+
+                        {/* Mapa Visual Interativo de Avarias na Carroceria, Pneus, Níveis de Água/Óleo e Relatório de Atraso */}
+                        <VehicleBodyAndTiresInspector
+                            value={inspectionExtra}
+                            onChange={setInspectionExtra}
+                            initialBlueprint={detectedBlueprint}
+                        />
 
                         {/* Problemas relatados */}
                         <Card className="border-l-4 border-l-amber-500">

@@ -292,13 +292,46 @@ public class EmployeeController {
             
             // Se houver searchTerm, usar busca por nome ou documento
             List<Object[]> data;
-            if (searchTerm != null && !searchTerm.trim().isEmpty()) {
-                System.out.println("ðŸ” EmployeeController.getAll - Buscando por termo: " + searchTerm);
-                data = employeeService.findBasicDataBySearchTerm(searchTerm.trim());
-            } else {
-                data = employeeService.findBasicData();
+            try {
+                if (searchTerm != null && !searchTerm.trim().isEmpty()) {
+                    System.out.println(" EmployeeController.getAll - Buscando por termo: " + searchTerm);
+                    data = employeeService.findBasicDataBySearchTerm(searchTerm.trim());
+                } else {
+                    data = employeeService.findBasicData();
+                }
+                System.out.println(" Encontrados " + data.size() + " funcionarios no banco");
+            } catch (Exception queryEx) {
+                System.err.println(" WARN Falha na query nativa findBasicData: " + queryEx.getMessage() + ". Executando fallback via findAll.");
+                queryEx.printStackTrace();
+                List<Employee> fallbackList = employeeService.findAll();
+                List<java.util.Map<String, Object>> fallbackResult = new java.util.ArrayList<>();
+                for (Employee emp : fallbackList) {
+                    java.util.Map<String, Object> simple = new java.util.HashMap<>();
+                    simple.put("id", emp.getId());
+                    simple.put("name", emp.getName());
+                    simple.put("document", emp.getDocument());
+                    simple.put("email", emp.getEmail());
+                    simple.put("phone", emp.getPhone());
+                    simple.put("status", emp.getStatus() != null ? emp.getStatus().name() : null);
+                    simple.put("registrationNumber", emp.getRegistrationNumber());
+                    simple.put("hireDate", emp.getHireDate());
+                    simple.put("birthDate", emp.getBirthDate());
+                    simple.put("createdAt", emp.getCreatedAt());
+                    simple.put("updatedAt", emp.getUpdatedAt());
+                    if (emp.getPosition() != null) {
+                        simple.put("position", java.util.Map.of("id", emp.getPosition().getId(), "name", emp.getPosition().getName()));
+                        simple.put("positionDescription", emp.getPosition().getName());
+                    }
+                    if (emp.getUnit() != null) {
+                        simple.put("unit", java.util.Map.of("id", emp.getUnit().getId(), "name", emp.getUnit().getName()));
+                    }
+                    if (emp.getCompany() != null) {
+                        simple.put("company", java.util.Map.of("id", emp.getCompany().getId(), "sigla", emp.getCompany().getSigla()));
+                    }
+                    fallbackResult.add(simple);
+                }
+                return ResponseEntity.ok(fallbackResult);
             }
-            System.out.println("ðŸ” Encontrados " + data.size() + " funcionÃ¡rios no banco");
             
             if (data.isEmpty()) {
                 System.out.println("âš ï¸ Lista de funcionÃ¡rios vazia");

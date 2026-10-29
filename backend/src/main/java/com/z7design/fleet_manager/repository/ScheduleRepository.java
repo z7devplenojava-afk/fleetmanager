@@ -32,6 +32,21 @@ public interface ScheduleRepository extends JpaRepository<Schedule, UUID> {
             "LEFT JOIN FETCH s.patrol")
     List<Schedule> findAllWithRelations();
 
+    @Query("SELECT DISTINCT s FROM Schedule s " +
+            "LEFT JOIN FETCH s.employee e " +
+            "LEFT JOIN FETCH s.location " +
+            "LEFT JOIN FETCH s.workPost wp " +
+            "LEFT JOIN FETCH wp.client " +
+            "LEFT JOIN FETCH s.travelTrip tt " +
+            "LEFT JOIN FETCH tt.client " +
+            "LEFT JOIN FETCH s.route " +
+            "LEFT JOIN FETCH s.vehicle " +
+            "LEFT JOIN FETCH s.patrol " +
+            "WHERE e.id IN :employeeIds OR UPPER(TRIM(e.name)) = UPPER(TRIM(:employeeName))")
+    List<Schedule> findByEmployeeIdsOrNameWithRelations(
+            @Param("employeeIds") List<UUID> employeeIds,
+            @Param("employeeName") String employeeName);
+
     @Modifying
     @Query(value = "DELETE FROM schedules WHERE id = :id " +
             "AND (CAST(:companyId AS uuid) IS NULL OR company_id = CAST(:companyId AS uuid))", nativeQuery = true)

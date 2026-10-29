@@ -199,11 +199,11 @@ public class FleetWorkOrderPdfService {
                     if (order.getVehicle().getVehicleType() != null) vType += order.getVehicle().getVehicleType().name();
                     if (order.getVehicle().getModel() != null) vType += " " + order.getVehicle().getModel();
                 }
-                String categoryKey = "BUS";
-                if (vType.toUpperCase().contains("VAN") || vType.toUpperCase().contains("SPRINTER") || vType.toUpperCase().contains("DUCATO")) {
-                    categoryKey = "VAN";
-                }
-                var masterItems = checklistItemRepository.findByVehicleTypeApplicableInAndAtivoTrueOrderByOrdemAsc(List.of(categoryKey, "ALL"));
+                String vtUpper = vType.toUpperCase();
+                boolean isVan = vtUpper.contains("VAN") || vtUpper.contains("SPRINTER") || vtUpper.contains("DUCATO") || vtUpper.contains("MASTER") || vtUpper.contains("TRANSIT");
+                boolean isMicro = vtUpper.contains("MINIBUS") || vtUpper.contains("MICRO") || vtUpper.contains("VOLARE") || vtUpper.contains("SENIOR");
+                List<String> targetTypes = isVan ? List.of("VAN", "ALL") : (isMicro ? List.of("MINIBUS", "MICRO", "BUS", "ALL") : List.of("BUS", "ALL"));
+                var masterItems = checklistItemRepository.findByVehicleTypeApplicableInAndAtivoTrueOrderByOrdemAsc(targetTypes);
                 for (var m : masterItems) {
                     Map<String, Object> cMap = new HashMap<>();
                     cMap.put("itemDescricao", m.getDescricao() != null ? m.getDescricao() : "");
@@ -304,8 +304,9 @@ public class FleetWorkOrderPdfService {
         data.put("photoRows", photoRows);
 
         // Empresa (nome/logo para o cabeçalho do PDF)
+        Company company = null;
         try {
-            Company company = resolveCompany(order);
+            company = resolveCompany(order);
             if (company != null) {
                 data.put("companyName", company.getName());
                 data.put("companyCnpj", CompanyDataFormatter.formatCnpjForHeader(company));
@@ -315,6 +316,32 @@ public class FleetWorkOrderPdfService {
         } catch (Exception e) {
             log.warn("Aviso ao resolver dados de empresa para PDF da OS {}: {}", order.getId(), e.getMessage());
         }
+
+        // Local de Execução da Manutenção (Opção A: Garagem / Unidade com fallback para Empresa)
+        String localManutencao = null;
+        try {
+            if (order.getGarage() != null) {
+                localManutencao = order.getGarage().getName();
+                if (order.getGarage().getAddress() != null && !order.getGarage().getAddress().isBlank()) {
+                    localManutencao += " — " + order.getGarage().getAddress();
+                }
+            } else if (order.getVehicle() != null && order.getVehicle().getGarage() != null) {
+                localManutencao = order.getVehicle().getGarage().getName();
+                if (order.getVehicle().getGarage().getAddress() != null && !order.getVehicle().getGarage().getAddress().isBlank()) {
+                    localManutencao += " — " + order.getVehicle().getGarage().getAddress();
+                }
+            } else if (order.getWorkPost() != null) {
+                localManutencao = order.getWorkPost().getName();
+                if (order.getWorkPost().getAddress() != null && !order.getWorkPost().getAddress().isBlank()) {
+                    localManutencao += " — " + order.getWorkPost().getAddress();
+                }
+            } else if (company != null && company.getAddress() != null) {
+                localManutencao = CompanyDataFormatter.formatFullAddress(company);
+            }
+        } catch (Exception e) {
+            log.warn("Aviso ao resolver local de manutenção da OS {}: {}", order.getId(), e.getMessage());
+        }
+        data.put("manutencaoRealizadaEm", localManutencao);
 
         return data;
     }

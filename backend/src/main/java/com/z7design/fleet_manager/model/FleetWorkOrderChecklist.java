@@ -51,6 +51,6 @@ public class FleetWorkOrderChecklist {
     private LocalDateTime updatedAt;
 
     public enum ChecklistStatus {
-        OK, NAO_OK, NAO_APLICA
+        OK, NAO_OK, TROCAR, NAO_APLICA
     }
 }

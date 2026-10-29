@@ -67,8 +67,9 @@ public class FleetWorkOrderController {
     /** Lista os itens mestre de checklist ativo por tipo de veículo (BUS, VAN ou todos) */
     @GetMapping("/checklist-items")
     public ResponseEntity<List<com.z7design.fleet_manager.dto.ChecklistItemDTO>> getChecklistMasterItems(
-            @RequestParam(value = "vehicleType", required = false) String vehicleType) {
-        return ResponseEntity.ok(service.getChecklistMasterItems(vehicleType));
+            @RequestParam(value = "vehicleType", required = false) String vehicleType,
+            @RequestParam(value = "model", required = false) String model) {
+        return ResponseEntity.ok(service.getChecklistMasterItems(vehicleType, model));
     }
 
     /** Lista os serviços cadastrados na oficina */

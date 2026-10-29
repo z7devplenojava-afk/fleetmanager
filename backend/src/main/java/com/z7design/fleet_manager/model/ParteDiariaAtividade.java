@@ -34,6 +34,21 @@ public class ParteDiariaAtividade {
     @Column(name = "activity_type")
     private String activityType;
 
+    @Column(name = "route_code", length = 20)
+    private String routeCode;
+
+    @Column(name = "company_name", length = 200)
+    private String companyName;
+
+    @Column(name = "start_km")
+    private Integer startKm;
+
+    @Column(name = "end_km")
+    private Integer endKm;
+
+    @Column(name = "passengers_count")
+    private Integer passengersCount;
+
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 

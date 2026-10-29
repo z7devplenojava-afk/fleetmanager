@@ -7,8 +7,15 @@ export enum MaintenanceType {
     INSPECAO = 'INSPECAO',
     LUBRIFICACAO = 'LUBRIFICACAO',
     LIMPEZA = 'LIMPEZA',
-    OUTROS = 'OUTROS'
+    OUTROS = 'OUTROS',
+    CORRECTIVE = 'CORRETIVA',
+    PREVENTIVE = 'PREVENTIVA',
+    PREDICTIVE = 'PREDITIVA',
+    INSPECTION = 'INSPECAO'
 }
+
+export const WorkOrderType = MaintenanceType;
+export type WorkOrderType = MaintenanceType;
 
 export enum WorkOrderStatus {
     OPEN = 'OPEN',
@@ -41,6 +48,7 @@ export enum WorkOrderPriority {
 export enum ChecklistStatus {
     OK = 'OK',
     NAO_OK = 'NAO_OK',
+    TROCAR = 'TROCAR',
     NAO_APLICA = 'NAO_APLICA'
 }
 
@@ -227,8 +235,10 @@ class FleetWorkOrderService {
         return data;
     }
 
-    async getChecklistMasterItems(vehicleType?: string): Promise<ChecklistItemMaster[]> {
-        const params = vehicleType ? { vehicleType } : {};
+    async getChecklistMasterItems(vehicleType?: string, model?: string): Promise<ChecklistItemMaster[]> {
+        const params: Record<string, string> = {};
+        if (vehicleType) params.vehicleType = vehicleType;
+        if (model) params.model = model;
         const { data } = await api.get('/fleet-work-orders/checklist-items', { params });
         return data;
     }

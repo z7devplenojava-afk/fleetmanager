@@ -588,7 +588,6 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'mensagens',
   ]),
   MOTORISTA: new Set([
-    'dashboard',
     'driver-dashboard',
     'driver-checklist',
     'ponto-eletronico',
@@ -1772,6 +1771,9 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
     if (userRoles.some(r => r === 'SUPER_ADMIN' || r === 'FLEX_ADMIN')) {
       return null;
     }
+    if (isDriverUser(user) && !userRoles.some(r => r.includes('GESTOR') || r.includes('ADMIN') || r.includes('ENCARREGADO'))) {
+      return ROLE_ALLOWED_ITEM_IDS.MOTORISTA || null;
+    }
     const combined = new Set<string>();
     let hasMatchingRule = false;
     for (const r of userRoles) {
@@ -1782,7 +1784,7 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
       }
     }
     return hasMatchingRule ? combined : null;
-  }, [userRoles]);
+  }, [userRoles, user]);
 
   // Referências para controlar o scroll da própria sidebar
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
@@ -1958,8 +1960,8 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
       }
     }
 
-    return activeItem?.id || 'dashboard';
-  }, [location.pathname, location.search]);
+    return activeItem?.id || (isMotorista ? 'driver-dashboard' : 'dashboard');
+  }, [location.pathname, location.search, isMotorista]);
 
   const isActive = useCallback((id: string) => activeId === id, [activeId]);
 

@@ -154,7 +154,7 @@ public class SecurityConfig {
                                                                 "ROLE_MANUTENCAO", "MANUTENCAO", "ROLE_GESTOR", "ROLE_SUPERVISOR",
                                                                 "ROLE_SST", "SST", "ROLE_SEGURANCA_DO_TRABALHO")
                                                 // Endpoints de usuários - permitir leitura para usuários autenticados
-                                                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/users", "/api/users/profile", "/api/users/{id}")
+                                                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/users", "/api/users/profile", "/api/users/search", "/api/users/cpf/**", "/api/users/{id}")
                                                 .authenticated()
                                                 .requestMatchers(org.springframework.http.HttpMethod.POST,
                                                                 "/api/users/**")

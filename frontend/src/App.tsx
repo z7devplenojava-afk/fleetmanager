@@ -1093,6 +1093,7 @@ function App() {
                           </Suspense>
                         </ProtectedRoute>
                       } />
+                      <Route path="/fretamento/minhas-escalas" element={<Navigate to="/driver/trips" replace />} />
                       <Route path="/fretamento/:page" element={
                         <ProtectedRoute>
                           <Suspense fallback={<LoadingSpinner />}>

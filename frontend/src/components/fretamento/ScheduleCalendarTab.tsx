@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     format,
     startOfMonth,
@@ -19,14 +18,13 @@ import {
     ChevronRight,
     User,
     Route as RouteIcon,
-    MapPin,
     Car,
     Clock,
-    Calendar as CalendarIcon,
-    Loader2
+    Building2,
+    Loader2,
+    Calendar as CalendarIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
     Tooltip,
@@ -34,35 +32,48 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { scheduleService, Schedule } from '@/services/scheduleService';
-import ScheduleDayDetailsModal from './ScheduleDayDetailsModal';
+import {
+    scheduleService,
+    Schedule,
+    isScheduleActiveForDate,
+    resolveScheduleRecurrence,
+} from '@/services/scheduleService';
+import ScheduleDayDetailsModal, { resolveScheduleHelpers } from './ScheduleDayDetailsModal';
 import { parseLocalDate } from '@/utils/date-utils';
 
-const ScheduleCalendarTab: React.FC = () => {
+interface ScheduleCalendarTabProps {
+    schedulesProp?: Schedule[];
+    onRefresh?: () => void;
+}
+
+const ScheduleCalendarTab: React.FC<ScheduleCalendarTabProps> = ({
+    schedulesProp,
+    onRefresh
+}) => {
     const [currentDate, setCurrentDate] = useState(new Date());
-    const [schedules, setSchedules] = useState<Schedule[]>([]);
+    const [schedules, setSchedules] = useState<Schedule[]>(schedulesProp || []);
     const [isLoading, setIsLoading] = useState(false);
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
     const [modalOpen, setModalOpen] = useState(false);
 
-    useEffect(() => {
-        fetchSchedules();
-    }, [currentDate]);
-
-    const fetchSchedules = async () => {
+    const fetchSchedules = useCallback(async () => {
+        if (schedulesProp) {
+            setSchedules(schedulesProp);
+            return;
+        }
         setIsLoading(true);
         try {
             const start = startOfMonth(currentDate);
             const end = endOfMonth(currentDate);
-            // Ensure we get the full range including days from prev/next months that appear on the calendar
             const calendarStart = startOfWeek(start);
             const calendarEnd = endOfWeek(end);
 
-            const response = await scheduleService.findAll(); // Custom method to get all schedules
+            const response = await scheduleService.findAll();
 
-            // Filter client-side if backend doesn't support range yet (optimization for later)
-            // For now, let's assume we get relevant schedules or filter them here
-            const rangeSchedules = response.filter((s: any) => {
+            const rangeSchedules = response.filter((s: Schedule) => {
+                const rec = resolveScheduleRecurrence(s);
+                if (rec === 'WEEKLY_FIXED' || rec === 'WEEKEND') return true;
+                if (!s.scheduleDate) return false;
                 const sDate = parseLocalDate(s.scheduleDate);
                 return sDate >= calendarStart && sDate <= calendarEnd;
             });
@@ -73,7 +84,26 @@ const ScheduleCalendarTab: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [currentDate, schedulesProp]);
+
+    useEffect(() => {
+        fetchSchedules();
+    }, [fetchSchedules]);
+
+    useEffect(() => {
+        const handleRealtimeUpdate = () => {
+            if (onRefresh) {
+                onRefresh();
+            }
+            fetchSchedules();
+        };
+        window.addEventListener('fluxbus:driver-records-updated', handleRealtimeUpdate);
+        window.addEventListener('storage', handleRealtimeUpdate);
+        return () => {
+            window.removeEventListener('fluxbus:driver-records-updated', handleRealtimeUpdate);
+            window.removeEventListener('storage', handleRealtimeUpdate);
+        };
+    }, [fetchSchedules, onRefresh]);
 
     const nextMonth = () => setCurrentDate(addMonths(currentDate, 1));
     const prevMonth = () => setCurrentDate(subMonths(currentDate, 1));
@@ -85,43 +115,54 @@ const ScheduleCalendarTab: React.FC = () => {
     });
 
     const getSchedulesForDay = (date: Date) => {
-        return schedules.filter(schedule =>
-            isSameDay(parseLocalDate(schedule.scheduleDate), date)
+        const targetStr = format(date, 'yyyy-MM-dd');
+        return schedules.filter((schedule) =>
+            isScheduleActiveForDate(schedule, targetStr)
         );
     };
 
-    const handleDayClick = (date: Date, daySchedules: Schedule[]) => {
+    const handleDayClick = (date: Date) => {
         setSelectedDate(date);
         setModalOpen(true);
-    };
-
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'CONFIRMED': return 'bg-blue-500/20 text-blue-300 border-blue-500/30';
-            case 'COMPLETED': return 'bg-green-500/20 text-green-300 border-green-500/30';
-            case 'CANCELLED': return 'bg-red-500/20 text-red-300 border-red-500/30';
-            default: return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30';
-        }
     };
 
     return (
         <div className="space-y-4">
             {/* Header */}
-            <div className="flex items-center justify-between bg-seguranca-graphite border border-gray-700 p-4 rounded-lg">
-                <div className="flex items-center gap-4">
-                    <Button variant="outline" size="icon" onClick={prevMonth} className="border-gray-600 hover:bg-gray-800">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-seguranca-graphite border border-gray-700 p-4 rounded-lg">
+                <div className="flex items-center gap-3">
+                    <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={prevMonth}
+                        className="border-gray-600 hover:bg-gray-800"
+                    >
                         <ChevronLeft className="h-4 w-4" />
                     </Button>
-                    <h2 className="text-xl font-semibold text-white capitalize min-w-[200px] text-center">
+                    <h2 className="text-lg sm:text-xl font-semibold text-white capitalize min-w-[180px] text-center">
                         {format(currentDate, 'MMMM yyyy', { locale: ptBR })}
                     </h2>
-                    <Button variant="outline" size="icon" onClick={nextMonth} className="border-gray-600 hover:bg-gray-800">
+                    <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={nextMonth}
+                        className="border-gray-600 hover:bg-gray-800"
+                    >
                         <ChevronRight className="h-4 w-4" />
                     </Button>
                 </div>
-                <div className="flex items-center gap-2">
+
+                <div className="flex items-center justify-between sm:justify-end gap-3">
+                    <span className="text-xs text-gray-300 flex items-center gap-1.5">
+                        <CalendarIcon className="h-3.5 w-3.5 text-seguranca-yellow" />
+                        Clique em qualquer dia para visualizar motoristas, veículos, rotas, horários e clientes
+                    </span>
                     {isLoading && <Loader2 className="h-4 w-4 animate-spin text-seguranca-yellow" />}
-                    <Button variant="secondary" onClick={goToToday} className="bg-seguranca-yellow text-seguranca-black hover:bg-seguranca-yellow/90">
+                    <Button
+                        variant="secondary"
+                        onClick={goToToday}
+                        className="bg-seguranca-yellow text-seguranca-black hover:bg-seguranca-yellow/90 font-semibold"
+                    >
                         Hoje
                     </Button>
                 </div>
@@ -131,7 +172,7 @@ const ScheduleCalendarTab: React.FC = () => {
             <div className="rounded-lg border border-gray-700 bg-seguranca-graphite overflow-hidden">
                 {/* Week Days Header */}
                 <div className="grid grid-cols-7 border-b border-gray-700 bg-seguranca-black/50">
-                    {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
+                    {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((day) => (
                         <div key={day} className="p-3 text-center text-sm font-medium text-gray-400">
                             {day}
                         </div>
@@ -140,7 +181,7 @@ const ScheduleCalendarTab: React.FC = () => {
 
                 {/* Calendar Days */}
                 <div className="grid grid-cols-7 auto-rows-fr">
-                    {days.map((day, dayIdx) => {
+                    {days.map((day) => {
                         const daySchedules = getSchedulesForDay(day);
                         const isCurrentMonth = isSameMonth(day, currentDate);
                         const hasSchedules = daySchedules.length > 0;
@@ -148,21 +189,27 @@ const ScheduleCalendarTab: React.FC = () => {
                         return (
                             <div
                                 key={day.toISOString()}
-                                onClick={() => handleDayClick(day, daySchedules)}
+                                onClick={() => handleDayClick(day)}
                                 className={`
-                  min-h-[120px] border-b border-r border-gray-700 p-2 transition-all
-                  ${!isCurrentMonth ? 'bg-seguranca-black/30' : 'bg-transparent'}
-                  ${isToday(day) ? 'bg-seguranca-yellow/5 border-seguranca-yellow/40' : ''}
-                  ${isCurrentMonth ? 'cursor-pointer hover:bg-seguranca-yellow/10 hover:border-seguranca-yellow/60' : ''}
-                `}
+                                    min-h-[135px] border-b border-r border-gray-700 p-2 transition-all cursor-pointer
+                                    ${!isCurrentMonth ? 'bg-seguranca-black/30 opacity-75' : 'bg-transparent'}
+                                    ${isToday(day) ? 'bg-seguranca-yellow/5 border-seguranca-yellow/40' : ''}
+                                    hover:bg-seguranca-yellow/10 hover:border-seguranca-yellow/60
+                                `}
                             >
                                 <div className="flex justify-between items-start mb-2">
-                                    <span className={`
-                    text-sm font-medium rounded-full w-7 h-7 flex items-center justify-center
-                    ${isToday(day)
-                                            ? 'bg-seguranca-yellow text-seguranca-black font-bold'
-                                            : !isCurrentMonth ? 'text-gray-600' : 'text-gray-300'}
-                  `}>
+                                    <span
+                                        className={`
+                                            text-sm font-medium rounded-full w-7 h-7 flex items-center justify-center
+                                            ${
+                                                isToday(day)
+                                                    ? 'bg-seguranca-yellow text-seguranca-black font-bold'
+                                                    : !isCurrentMonth
+                                                    ? 'text-gray-500'
+                                                    : 'text-gray-300'
+                                            }
+                                        `}
+                                    >
                                         {format(day, 'd')}
                                     </span>
                                     {hasSchedules && (
@@ -170,68 +217,99 @@ const ScheduleCalendarTab: React.FC = () => {
                                             variant="outline"
                                             className="text-[10px] h-5 px-1.5 bg-seguranca-yellow/20 border-seguranca-yellow/40 text-seguranca-yellow font-semibold"
                                         >
-                                            {daySchedules.length}
+                                            {daySchedules.length} {daySchedules.length === 1 ? 'escala' : 'escalas'}
                                         </Badge>
                                     )}
                                 </div>
 
-                                <div className="space-y-1">
-                                    {daySchedules.slice(0, 3).map((schedule) => (
-                                        <TooltipProvider key={schedule.id}>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <div
-                                                        className="text-xs p-1.5 rounded bg-seguranca-black/40 border border-gray-700 hover:border-seguranca-yellow/50 transition-colors cursor-help"
-                                                    >
-                                                        <div className="flex items-center gap-1.5 truncate">
-                                                            <User className="h-3 w-3 shrink-0 text-seguranca-yellow" />
-                                                            <span className="truncate text-gray-200 font-medium">
-                                                                {schedule.employee?.name || 'Sem motorista'}
-                                                            </span>
-                                                        </div>
-                                                        {schedule.route && (
-                                                            <div className="flex items-center gap-1.5 truncate mt-1 text-gray-400">
-                                                                <RouteIcon className="h-2.5 w-2.5 shrink-0" />
-                                                                <span className="truncate text-[10px]">{schedule.route.name}</span>
+                                <div className="space-y-1.5">
+                                    {daySchedules.slice(0, 3).map((schedule) => {
+                                        const info = resolveScheduleHelpers(schedule);
+                                        return (
+                                            <TooltipProvider key={schedule.id}>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <div className="text-xs p-1.5 rounded bg-seguranca-black/60 border border-gray-700 hover:border-seguranca-yellow/50 transition-colors space-y-0.5">
+                                                            {/* Motorista + Horário */}
+                                                            <div className="flex items-center justify-between gap-1">
+                                                                <div className="flex items-center gap-1 truncate">
+                                                                    <User className="h-3 w-3 shrink-0 text-seguranca-yellow" />
+                                                                    <span className="truncate text-white font-semibold">
+                                                                        {info.driverName}
+                                                                    </span>
+                                                                </div>
+                                                                {(info.startTime || info.endTime) && (
+                                                                    <span className="text-[9px] text-orange-300 font-mono shrink-0">
+                                                                        {info.startTime || '--:--'}
+                                                                    </span>
+                                                                )}
                                                             </div>
-                                                        )}
-                                                    </div>
-                                                </TooltipTrigger>
-                                                <TooltipContent className="bg-seguranca-graphite border-gray-600 p-3 space-y-2 z-[100] pointer-events-none">
-                                                    <div className="space-y-1">
-                                                        <p className="text-[10px] font-bold text-seguranca-yellow uppercase tracking-wider mb-1">Detalhes da Escala</p>
-                                                        <div className="flex items-center gap-2">
-                                                            <User className="w-3.5 h-3.5 text-gray-400" />
-                                                            <span className="text-sm font-semibold text-white">{schedule.employee?.name}</span>
-                                                        </div>
-                                                        {schedule.route && (
-                                                            <div className="flex items-center gap-2">
-                                                                <RouteIcon className="w-3.5 h-3.5 text-gray-400" />
-                                                                <span className="text-xs text-gray-300">Rota: {schedule.route.name}</span>
-                                                            </div>
-                                                        )}
-                                                        <div className="flex items-center gap-2">
-                                                            <MapPin className="w-3.5 h-3.5 text-gray-400" />
-                                                            <span className="text-xs text-gray-300">
-                                                                Cliente: {schedule.client?.name || schedule.travelTrip?.client?.name || (schedule.workPost as any)?.client?.name || schedule.location?.name || '—'}
-                                                            </span>
-                                                        </div>
-                                                        {(schedule.workPost?.shiftStart || schedule.workPost?.shiftEnd) && (
-                                                            <div className="flex items-center gap-2">
-                                                                <Clock className="w-3.5 h-3.5 text-gray-400" />
-                                                                <span className="text-xs text-gray-300">
-                                                                    Horário: {schedule.workPost?.shiftStart || '--:--'} às {schedule.workPost?.shiftEnd || '--:--'}
+
+                                                            {/* Veículo + Rota */}
+                                                            <div className="flex items-center justify-between gap-1 text-[10px]">
+                                                                {info.vehiclePlate && (
+                                                                    <span className="inline-flex items-center gap-1 text-purple-300 font-medium shrink-0">
+                                                                        <Car className="h-2.5 w-2.5" />
+                                                                        {info.vehiclePlate}
+                                                                    </span>
+                                                                )}
+                                                                <span className="inline-flex items-center gap-1 text-blue-300 truncate">
+                                                                    <RouteIcon className="h-2.5 w-2.5 shrink-0" />
+                                                                    <span className="truncate">{info.routeDisplay}</span>
                                                                 </span>
                                                             </div>
-                                                        )}
-                                                    </div>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
-                                    ))}
+
+                                                            {/* Cliente */}
+                                                            {info.clientDisplay && info.clientDisplay !== 'Cliente / Operação Padrão' && (
+                                                                <div className="flex items-center gap-1 truncate text-[10px] text-emerald-300/90">
+                                                                    <Building2 className="h-2.5 w-2.5 shrink-0" />
+                                                                    <span className="truncate">{info.clientDisplay}</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent className="bg-seguranca-graphite border-gray-600 p-3 space-y-1.5 z-[100] pointer-events-none max-w-xs">
+                                                        <p className="text-[10px] font-bold text-seguranca-yellow uppercase tracking-wider mb-1">
+                                                            Detalhes da Escala (Clique no dia para ver todos)
+                                                        </p>
+                                                        <div className="flex items-center gap-2">
+                                                            <User className="w-3.5 h-3.5 text-seguranca-yellow shrink-0" />
+                                                            <span className="text-xs font-bold text-white">
+                                                                Motorista: {info.driverName}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <Car className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                                                            <span className="text-xs text-gray-200">
+                                                                Veículo: {info.vehicleDisplay}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <RouteIcon className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                                                            <span className="text-xs text-gray-200">
+                                                                Rota: {info.routeDisplay}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <Clock className="w-3.5 h-3.5 text-orange-400 shrink-0" />
+                                                            <span className="text-xs text-gray-200">
+                                                                Horário: {info.timeDisplay}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <Building2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                                                            <span className="text-xs text-gray-200">
+                                                                Cliente: {info.clientDisplay}
+                                                            </span>
+                                                        </div>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        );
+                                    })}
                                     {daySchedules.length > 3 && (
-                                        <div className="text-[10px] text-center text-seguranca-yellow/70 font-medium pt-1">
-                                            +{daySchedules.length - 3} mais
+                                        <div className="text-[10px] text-center text-seguranca-yellow font-semibold pt-0.5">
+                                            +{daySchedules.length - 3} motorista(s) escalado(s) • Clique para ver
                                         </div>
                                     )}
                                 </div>
@@ -241,12 +319,16 @@ const ScheduleCalendarTab: React.FC = () => {
                 </div>
             </div>
 
-            {/* Schedule Details Modal */}
+            {/* Schedule Details Modal ao clicar no dia */}
             <ScheduleDayDetailsModal
                 open={modalOpen}
                 onOpenChange={setModalOpen}
                 selectedDate={selectedDate}
                 schedules={selectedDate ? getSchedulesForDay(selectedDate) : []}
+                onScheduleUpdated={() => {
+                    if (onRefresh) onRefresh();
+                    fetchSchedules();
+                }}
             />
         </div>
     );

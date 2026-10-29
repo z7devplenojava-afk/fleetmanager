@@ -662,13 +662,18 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
             const busType = (currentVeh?.busType || '').toUpperCase();
             const modelStr = ((currentVeh?.model || '') + ' ' + (currentVeh?.brand || '')).toUpperCase();
 
-            // Detecta se é VAN ou ÔNIBUS/MICRO-ÔNIBUS
+            // Detecta se é VAN, MICRO-ÔNIBUS ou ÔNIBUS
             let filterType = 'BUS';
-            if (vType === 'VAN' || modelStr.includes('VAN') || modelStr.includes('SPRINTER') || modelStr.includes('DUCATO') || modelStr.includes('TRANSIT') || modelStr.includes('MASTER')) {
+            const isVan = vType === 'VAN' || modelStr.includes('VAN') || modelStr.includes('SPRINTER') || modelStr.includes('DUCATO') || modelStr.includes('TRANSIT') || modelStr.includes('MASTER');
+            const isMicro = vType.includes('MINI') || modelStr.includes('MICRO') || modelStr.includes('VOLARE') || modelStr.includes('SENIOR') || modelStr.includes('FLY');
+
+            if (isVan) {
                 filterType = 'VAN';
+            } else if (isMicro) {
+                filterType = 'MINIBUS';
             }
 
-            const masterItems = await fleetWorkOrderService.getChecklistMasterItems(filterType);
+            const masterItems = await fleetWorkOrderService.getChecklistMasterItems(filterType, currentVeh?.model);
             let itemsToUse: { id?: string; descricao: string; categoria: string }[] = [];
             if (masterItems && masterItems.length > 0) {
                 itemsToUse = masterItems;
@@ -2064,7 +2069,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                                     <div className="flex-1">
                                                         <p className="text-sm font-medium text-gray-200">{item.checklistItemDescricao}</p>
                                                     </div>
-                                                    <div className="flex items-center gap-2">
+                                                    <div className="flex items-center gap-1.5 flex-wrap">
                                                         <Button type="button" size="sm" variant={item.situacao === ChecklistStatus.OK ? 'default' : 'outline'}
                                                             onClick={() => handleChecklistStatusChange(originalIndex, ChecklistStatus.OK)}
                                                             className={`h-8 px-2 text-xs font-bold ${item.situacao === ChecklistStatus.OK ? 'bg-green-600 text-white' : 'border-gray-700 text-gray-400'}`}>
@@ -2075,16 +2080,22 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                                             className={`h-8 px-2 text-xs font-bold ${item.situacao === ChecklistStatus.NAO_OK ? 'bg-red-600 text-white' : 'border-gray-700 text-gray-400'}`}>
                                                             <XCircle className="h-3.5 w-3.5 mr-1" /> NÃO OK
                                                         </Button>
+                                                        <Button type="button" size="sm" variant={item.situacao === ChecklistStatus.TROCAR ? 'default' : 'outline'}
+                                                            onClick={() => handleChecklistStatusChange(originalIndex, ChecklistStatus.TROCAR)}
+                                                            className={`h-8 px-2 text-xs font-bold ${item.situacao === ChecklistStatus.TROCAR ? 'bg-amber-600 text-white' : 'border-gray-700 text-gray-400'}`}>
+                                                            <RefreshCw className="h-3.5 w-3.5 mr-1" /> TROCAR
+                                                        </Button>
                                                         <Button type="button" size="sm" variant={item.situacao === ChecklistStatus.NAO_APLICA ? 'default' : 'outline'}
                                                             onClick={() => handleChecklistStatusChange(originalIndex, ChecklistStatus.NAO_APLICA)}
                                                             className={`h-8 px-2 text-xs font-bold ${item.situacao === ChecklistStatus.NAO_APLICA ? 'bg-gray-600 text-white' : 'border-gray-700 text-gray-400'}`}>
                                                             <MinusCircle className="h-3.5 w-3.5 mr-1" /> N/A
                                                         </Button>
                                                     </div>
-                                                    {item.situacao === ChecklistStatus.NAO_OK && (
+                                                    {(item.situacao === ChecklistStatus.NAO_OK || item.situacao === ChecklistStatus.TROCAR) && (
                                                         <div className="w-full md:w-1/2 flex flex-col gap-1.5 mt-2 md:mt-0">
                                                             <Input value={item.observacao || ''} onChange={e => handleChecklistTextChange(originalIndex, 'observacao', e.target.value)}
-                                                                placeholder="Observação da anomalia…" className="bg-seguranca-black border-red-900 text-xs h-8" />
+                                                                placeholder={item.situacao === ChecklistStatus.TROCAR ? "Item a ser trocado / motivo da troca…" : "Observação da anomalia…"}
+                                                                className={`bg-seguranca-black text-xs h-8 ${item.situacao === ChecklistStatus.TROCAR ? 'border-amber-700' : 'border-red-900'}`} />
                                                             <Input value={item.reparoRealizado || ''} onChange={e => handleChecklistTextChange(originalIndex, 'reparoRealizado', e.target.value)}
                                                                 placeholder="Reparo executado para corrigir…" className="bg-seguranca-black border-green-900 text-xs h-8" />
                                                         </div>

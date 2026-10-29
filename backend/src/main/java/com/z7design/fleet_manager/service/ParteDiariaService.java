@@ -64,7 +64,16 @@ public class ParteDiariaService {
             clientRepository.findById(dto.getClientId()).ifPresent(pd::setClient);
         }
         if (dto.getVehicleId() != null) {
-            vehicleRepository.findById(dto.getVehicleId()).ifPresent(pd::setVehicle);
+            vehicleRepository.findById(dto.getVehicleId()).ifPresent(v -> {
+                pd.setVehicle(v);
+                if (dto.getEndKm() != null) {
+                    int endKmInt = dto.getEndKm().intValue();
+                    if (v.getCurrentMileage() == null || endKmInt > v.getCurrentMileage()) {
+                        v.setCurrentMileage(endKmInt);
+                        vehicleRepository.save(v);
+                    }
+                }
+            });
         }
         if (dto.getDriverId() != null) {
             driverRepository.findById(dto.getDriverId()).ifPresent(pd::setDriver);
@@ -83,6 +92,11 @@ public class ParteDiariaService {
                 at.setEndTime(atDto.getEndTime());
                 at.setDescription(atDto.getDescription() != null ? atDto.getDescription() : "Atendimento Operacional");
                 at.setActivityType(atDto.getActivityType());
+                at.setRouteCode(atDto.getRouteCode());
+                at.setCompanyName(atDto.getCompanyName());
+                at.setStartKm(atDto.getStartKm());
+                at.setEndKm(atDto.getEndKm());
+                at.setPassengersCount(atDto.getPassengersCount());
                 at.setNotes(atDto.getNotes());
                 pd.getAtividades().add(at);
             }
@@ -138,6 +152,11 @@ public class ParteDiariaService {
                 at.setEndTime(atDto.getEndTime());
                 at.setDescription(atDto.getDescription() != null ? atDto.getDescription() : "Atendimento Operacional");
                 at.setActivityType(atDto.getActivityType());
+                at.setRouteCode(atDto.getRouteCode());
+                at.setCompanyName(atDto.getCompanyName());
+                at.setStartKm(atDto.getStartKm());
+                at.setEndKm(atDto.getEndKm());
+                at.setPassengersCount(atDto.getPassengersCount());
                 at.setNotes(atDto.getNotes());
                 pd.getAtividades().add(at);
             }
@@ -241,6 +260,11 @@ public class ParteDiariaService {
                 atDto.setEndTime(at.getEndTime());
                 atDto.setDescription(at.getDescription());
                 atDto.setActivityType(at.getActivityType());
+                atDto.setRouteCode(at.getRouteCode());
+                atDto.setCompanyName(at.getCompanyName());
+                atDto.setStartKm(at.getStartKm());
+                atDto.setEndKm(at.getEndKm());
+                atDto.setPassengersCount(at.getPassengersCount());
                 atDto.setNotes(at.getNotes());
                 return atDto;
             }).collect(Collectors.toList()));

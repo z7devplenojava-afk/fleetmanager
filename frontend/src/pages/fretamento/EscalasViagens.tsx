@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useToast } from '@/hooks/use-toast';
 import {
     AlertCircle,
@@ -210,12 +211,24 @@ const EscalasViagens: React.FC = () => {
     };
 
     const handleSaveEscala = async () => {
+        if (!date) {
+            toast({ title: 'Campo Obrigatório', description: 'Informe a data da escala.', variant: 'destructive' });
+            return;
+        }
         if (!formData.routeId) {
-            toast({ title: 'Erro de Validação', description: 'Selecione a linha.', variant: 'destructive' });
+            toast({ title: 'Campo Obrigatório', description: 'Selecione a Linha / Rota da escala.', variant: 'destructive' });
             return;
         }
         if (!formData.departureTime) {
-            toast({ title: 'Erro de Validação', description: 'Informe o horário de partida.', variant: 'destructive' });
+            toast({ title: 'Campo Obrigatório', description: 'Informe o horário de partida.', variant: 'destructive' });
+            return;
+        }
+        if (!formData.vehicleId || formData.vehicleId === 'none') {
+            toast({ title: 'Campo Obrigatório', description: 'Selecione o Veículo escalado.', variant: 'destructive' });
+            return;
+        }
+        if (!formData.driverId || formData.driverId === 'none') {
+            toast({ title: 'Campo Obrigatório', description: 'Selecione o Motorista (Funcionário) escalado.', variant: 'destructive' });
             return;
         }
         if (violacoes.length > 0) {
@@ -228,8 +241,8 @@ const EscalasViagens: React.FC = () => {
                 scaleDate: date,
                 routeId: formData.routeId,
                 departureTime: `${formData.departureTime}:00`,
-                vehicleId: formData.vehicleId && formData.vehicleId !== 'none' ? formData.vehicleId : undefined,
-                driverId: formData.driverId && formData.driverId !== 'none' ? formData.driverId : undefined,
+                vehicleId: formData.vehicleId,
+                driverId: formData.driverId,
             };
             if (editing) {
                 await escalaService.update(editing.id, payload);
@@ -352,8 +365,40 @@ const EscalasViagens: React.FC = () => {
         await runTripAction(() => tripService.cancel(trip.id), 'Viagem cancelada.');
     };
 
-    const routeOptions = routes.filter((r) => r.status !== 'INATIVA');
-    const activeDrivers = drivers.filter((d) => d.status === 'ATIVO');
+    const routeSelectOptions = useMemo(
+        () =>
+            routes
+                .filter((r) => r.status !== 'INATIVA')
+                .map((r) => ({
+                    value: String(r.id),
+                    label: `${r.name}${r.unit?.name ? ` (${r.unit.name})` : ''}`,
+                    sublabel: r.shift ? `Turno: ${r.shift}` : undefined,
+                })),
+        [routes]
+    );
+
+    const vehicleSelectOptions = useMemo(
+        () =>
+            vehicles
+                .filter((v) => !v.status || v.status === 'ACTIVE' || v.status === 'AVAILABLE')
+                .map((v) => ({
+                    value: String(v.id),
+                    label: `${v.plate}${v.model ? ` — ${v.model}` : ''}`,
+                    sublabel: v.brand || undefined,
+                })),
+        [vehicles]
+    );
+
+    const driverSelectOptions = useMemo(
+        () =>
+            drivers
+                .filter((d) => !d.status || d.status === 'ATIVO')
+                .map((d) => ({
+                    value: String(d.id),
+                    label: d.name,
+                })),
+        [drivers]
+    );
 
     return (
         <StandardLayout title="Escalas e Viagens">
@@ -792,32 +837,27 @@ const EscalasViagens: React.FC = () => {
                             {editing ? 'Editar Escala' : 'Nova Escala de Fretamento'}
                         </DialogTitle>
                         <DialogDescription className="text-gray-400">
-                            Data da operação: {new Date(`${date}T00:00:00`).toLocaleDateString('pt-BR')}
+                            Data da operação: {new Date(`${date}T00:00:00`).toLocaleDateString('pt-BR')} (Motorista, Veículo, Data, Horário e Rota são obrigatórios)
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                         <div className="space-y-2">
-                            <Label className="text-gray-300 font-medium">Linha / Rota *</Label>
-                            <Select
+                            <Label className="text-gray-300 font-medium">
+                                Linha / Rota <span className="text-red-500">*</span>
+                            </Label>
+                            <SearchableSelect
+                                options={routeSelectOptions}
                                 value={formData.routeId}
                                 onValueChange={(v) => setFormData({ ...formData, routeId: v })}
-                            >
-                                <SelectTrigger className="bg-seguranca-black border-gray-700 text-white">
-                                    <SelectValue placeholder="Selecione a linha" />
-                                </SelectTrigger>
-                                <SelectContent className="bg-seguranca-graphite border-gray-700 text-white">
-                                    {routeOptions.map((r) => (
-                                        <SelectItem key={r.id} value={r.id} className="focus:bg-gray-700 focus:text-white">
-                                            {r.name} {r.unit?.name ? `(${r.unit.name})` : ''}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                                placeholder="Selecione ou pesquise a linha / rota..."
+                                searchPlaceholder="Digite o nome da rota..."
+                                maxVisibleOptions={50}
+                            />
                         </div>
 
                         {/* Detalhes contextuais da linha selecionada (Fretamento contínuo: cliente, sentido, funcionários) */}
                         {(() => {
-                            const selectedRoute = routes.find(r => r.id === formData.routeId);
+                            const selectedRoute = routes.find(r => String(r.id) === String(formData.routeId));
                             if (!selectedRoute) return null;
                             return (
                                 <div className="p-3 rounded-lg bg-seguranca-black/60 border border-gray-700/60 space-y-2 text-xs">
@@ -847,7 +887,9 @@ const EscalasViagens: React.FC = () => {
                         })()}
 
                         <div className="space-y-2">
-                            <Label htmlFor="escala-hora" className="text-gray-300 font-medium">Horário de partida *</Label>
+                            <Label htmlFor="escala-hora" className="text-gray-300 font-medium">
+                                Horário de partida <span className="text-red-500">*</span>
+                            </Label>
                             <Input
                                 id="escala-hora"
                                 type="time"
@@ -857,44 +899,30 @@ const EscalasViagens: React.FC = () => {
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label className="text-gray-300 font-medium">Veículo (opcional)</Label>
-                            <Select
+                            <Label className="text-gray-300 font-medium">
+                                Veículo <span className="text-red-500">*</span>
+                            </Label>
+                            <SearchableSelect
+                                options={vehicleSelectOptions}
                                 value={formData.vehicleId}
                                 onValueChange={(v) => setFormData({ ...formData, vehicleId: v })}
-                            >
-                                <SelectTrigger className="bg-seguranca-black border-gray-700 text-white">
-                                    <SelectValue placeholder="Sem veículo definido" />
-                                </SelectTrigger>
-                                <SelectContent className="bg-seguranca-graphite border-gray-700 text-white">
-                                    <SelectItem value="none" className="focus:bg-gray-700 focus:text-white">Sem veículo definido</SelectItem>
-                                    {vehicles
-                                        .filter((v) => v.status === 'ACTIVE')
-                                        .map((v) => (
-                                            <SelectItem key={v.id} value={v.id} className="focus:bg-gray-700 focus:text-white">
-                                                {v.plate} {v.model ? `— ${v.model}` : ''}
-                                            </SelectItem>
-                                        ))}
-                                </SelectContent>
-                            </Select>
+                                placeholder="Selecione ou pesquise o veículo (placa / modelo)..."
+                                searchPlaceholder="Digite a placa ou modelo..."
+                                maxVisibleOptions={50}
+                            />
                         </div>
                         <div className="space-y-2">
-                            <Label className="text-gray-300 font-medium">Motorista (opcional)</Label>
-                            <Select
+                            <Label className="text-gray-300 font-medium">
+                                Motorista (Funcionário) <span className="text-red-500">*</span>
+                            </Label>
+                            <SearchableSelect
+                                options={driverSelectOptions}
                                 value={formData.driverId}
                                 onValueChange={(v) => setFormData({ ...formData, driverId: v })}
-                            >
-                                <SelectTrigger className="bg-seguranca-black border-gray-700 text-white">
-                                    <SelectValue placeholder="Sem motorista definido" />
-                                </SelectTrigger>
-                                <SelectContent className="bg-seguranca-graphite border-gray-700 text-white">
-                                    <SelectItem value="none" className="focus:bg-gray-700 focus:text-white">Sem motorista definido</SelectItem>
-                                    {activeDrivers.map((d) => (
-                                        <SelectItem key={d.id} value={d.id} className="focus:bg-gray-700 focus:text-white">
-                                            {d.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                                placeholder="Selecione ou pesquise o motorista..."
+                                searchPlaceholder="Digite o nome do motorista..."
+                                maxVisibleOptions={50}
+                            />
                         </div>
 
                         {checking && (

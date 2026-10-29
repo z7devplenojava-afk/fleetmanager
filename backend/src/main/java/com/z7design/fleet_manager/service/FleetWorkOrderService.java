@@ -164,27 +164,73 @@ public class FleetWorkOrderService {
 
     @Transactional(readOnly = true)
     public List<com.z7design.fleet_manager.dto.ChecklistItemDTO> getChecklistMasterItems() {
-        return getChecklistMasterItems(null);
+        return getChecklistMasterItems(null, null);
     }
 
     @Transactional(readOnly = true)
     public List<com.z7design.fleet_manager.dto.ChecklistItemDTO> getChecklistMasterItems(String vehicleType) {
-        if (vehicleType != null && !vehicleType.isBlank()) {
-            String vUpper = vehicleType.toUpperCase().trim();
-            // Normalizar: BUS_ROAD, BUS_URBAN, MINIBUS -> BUS | VAN -> VAN
-            String categoryKey = "BUS";
-            if (vUpper.contains("VAN")) {
-                categoryKey = "VAN";
-            }
-            List<String> targetTypes = List.of(categoryKey, "ALL");
-            List<com.z7design.fleet_manager.model.ChecklistItem> list = checklistItemRepository.findByVehicleTypeApplicableInAndAtivoTrueOrderByOrdemAsc(targetTypes);
-            if (!list.isEmpty()) {
-                return list.stream()
+        return getChecklistMasterItems(vehicleType, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<com.z7design.fleet_manager.dto.ChecklistItemDTO> getChecklistMasterItems(String vehicleType, String model) {
+        UUID currentCompanyId = TenantContext.get();
+        List<com.z7design.fleet_manager.model.ChecklistItem> allItems = (currentCompanyId != null)
+                ? checklistItemRepository.findAllActiveForCompanyOrGlobal(currentCompanyId)
+                : checklistItemRepository.findByAtivoTrueOrderByOrdemAsc();
+
+        // Se houver itens customizados da empresa atual, priorizá-los
+        List<com.z7design.fleet_manager.model.ChecklistItem> companySpecific = (currentCompanyId != null)
+                ? allItems.stream().filter(i -> currentCompanyId.equals(i.getCompanyId())).toList()
+                : List.of();
+
+        List<com.z7design.fleet_manager.model.ChecklistItem> sourceList = !companySpecific.isEmpty() ? companySpecific : allItems;
+
+        String vUpper = vehicleType != null ? vehicleType.toUpperCase().trim() : "";
+        String mUpper = model != null ? model.toUpperCase().trim() : "";
+
+        // Detectar se é VAN, MICRO ou ÔNIBUS
+        boolean isVan = vUpper.contains("VAN") || mUpper.contains("SPRINTER") || mUpper.contains("DUCATO") || mUpper.contains("MASTER") || mUpper.contains("TRANSIT");
+        boolean isMicro = vUpper.contains("MINIBUS") || vUpper.contains("MICRO") || mUpper.contains("VOLARE") || mUpper.contains("SENIOR") || mUpper.contains("FLY");
+
+        // 1. Filtragem por modelo específico se cadastrado
+        if (!mUpper.isBlank()) {
+            List<com.z7design.fleet_manager.model.ChecklistItem> modelMatches = sourceList.stream()
+                    .filter(i -> i.getVehicleModelApplicable() != null && mUpper.contains(i.getVehicleModelApplicable().toUpperCase().trim()))
+                    .toList();
+            if (!modelMatches.isEmpty()) {
+                return modelMatches.stream()
                         .map(com.z7design.fleet_manager.dto.ChecklistItemDTO::fromEntity)
                         .collect(Collectors.toList());
             }
         }
-        return checklistItemRepository.findByAtivoTrueOrderByOrdemAsc().stream()
+
+        // 2. Filtragem por tipo de veículo:
+        // VAN: grupo de itens específicos de VAN + ALL (suspensão leve, sem freio a ar/motor)
+        // MICRO: itens específicos de MICRO-ÔNIBUS / BUS + ALL
+        // BUS: ônibus pesado completo (freio pneumático, eixos S, cuícas, compressor, 13 pontos lubrificação)
+        if (!vUpper.isBlank() || isVan || isMicro) {
+            List<String> validTypes;
+            if (isVan) {
+                validTypes = List.of("VAN", "ALL");
+            } else if (isMicro) {
+                validTypes = List.of("MINIBUS", "MICRO", "BUS", "ALL");
+            } else {
+                validTypes = List.of("BUS", "ALL");
+            }
+
+            List<com.z7design.fleet_manager.model.ChecklistItem> typeMatches = sourceList.stream()
+                    .filter(i -> i.getVehicleTypeApplicable() == null || validTypes.contains(i.getVehicleTypeApplicable().toUpperCase().trim()))
+                    .toList();
+
+            if (!typeMatches.isEmpty()) {
+                return typeMatches.stream()
+                        .map(com.z7design.fleet_manager.dto.ChecklistItemDTO::fromEntity)
+                        .collect(Collectors.toList());
+            }
+        }
+
+        return sourceList.stream()
                 .map(com.z7design.fleet_manager.dto.ChecklistItemDTO::fromEntity)
                 .collect(Collectors.toList());
     }
