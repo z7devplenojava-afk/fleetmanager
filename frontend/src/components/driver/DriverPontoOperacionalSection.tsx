@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import {
   Bus,
+  Car,
   Gauge,
   Users,
   Building2,
