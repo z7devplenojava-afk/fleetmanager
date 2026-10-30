@@ -2344,13 +2344,20 @@ export const scheduleService = {
 
           if (!matchesById && !matchesByName) continue;
 
-          // Valida se a escala está ativa para a data alvo (semanal fixa, FDS ou data exata)
-          if (targetDateStr && !isScheduleActiveForDate(s, targetDateStr)) {
-            // Se não bate a data de hoje, mas é do mesmo motorista e foi criada nos últimos 15 dias, mantém como disponível
-            const dateStr = s.scheduleDate ? s.scheduleDate.substring(0, 10) : '';
-            if (dateStr && filters?.startDate && dateStr < filters.startDate) {
+          const isDateRangeQuery = !!(filters?.startDate && filters?.endDate && filters.startDate !== filters.endDate);
+          const sDateStr = s.scheduleDate ? s.scheduleDate.substring(0, 10) : '';
+
+          if (isDateRangeQuery) {
+            // Se for consulta de período (ex: mês do motorista), inclui todas as escalas no intervalo ou com recorrência ativa
+            if (sDateStr && (sDateStr < filters!.startDate! || sDateStr > filters!.endDate!)) {
+              const rec = resolveScheduleRecurrence(s);
+              if (rec === 'SINGLE_DAY') continue;
+            }
+          } else if (targetDateStr && !isScheduleActiveForDate(s, targetDateStr)) {
+            // Se não bate a data de hoje, mas é do mesmo motorista e foi criada nos últimos 20 dias, mantém como disponível
+            if (sDateStr && filters?.startDate && sDateStr < filters.startDate) {
               const diffDays = Math.abs(
-                (new Date(targetDateStr).getTime() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24)
+                (new Date(targetDateStr).getTime() - new Date(sDateStr).getTime()) / (1000 * 60 * 60 * 24)
               );
               if (diffDays > 20) continue;
             }
@@ -2367,7 +2374,12 @@ export const scheduleService = {
 
     // 3. Consulta escalas de Fretamento (/api/escalas)
     try {
-      const escalasList = await escalaService.list(targetDateStr);
+      const isDateRange = !!(filters?.startDate && filters?.endDate && filters.startDate !== filters.endDate);
+      let escalasList = await escalaService.list(isDateRange ? undefined : targetDateStr);
+      if (!Array.isArray(escalasList) || escalasList.length === 0) {
+        escalasList = await escalaService.list();
+      }
+
       if (Array.isArray(escalasList)) {
         for (const esc of escalasList as any[]) {
           const drvName = esc.driverName || esc.driver?.name;
@@ -2379,14 +2391,30 @@ export const scheduleService = {
 
           if (!matchesDrv) continue;
 
+          const escDate = esc.scaleDate ? String(esc.scaleDate).substring(0, 10) : '';
+          if (isDateRange && escDate) {
+            if (escDate < (filters?.startDate || '') || escDate > (filters?.endDate || '')) {
+              continue;
+            }
+          }
+
           if (!mergedMap.has(esc.id)) {
+            const clientTitle =
+              esc.clientName ||
+              esc.client?.name ||
+              esc.route?.client?.name ||
+              esc.routeName ||
+              'Cliente da Escala';
+            const plateStr = esc.vehiclePlate || esc.vehicle?.plate || undefined;
+            const vehIdStr = esc.vehicleId || esc.vehicle?.id || undefined;
+
             const converted: Schedule = applyOverlayToSchedule({
               id: esc.id,
               employee: {
                 id: drvId || targetEmpId || 'driver',
                 name: drvName || targetName || 'Motorista',
               },
-              scheduleDate: esc.scaleDate ? String(esc.scaleDate).substring(0, 10) : targetDateStr,
+              scheduleDate: escDate || targetDateStr,
               shift: 'DAY',
               startTime: esc.departureTime ? String(esc.departureTime).substring(0, 5) : '08:00',
               endTime: '17:00',
@@ -2397,11 +2425,10 @@ export const scheduleService = {
               routeId: esc.routeId,
               route: esc.routeId ? { id: esc.routeId, name: esc.routeName || 'Rota' } : undefined,
               routeCode: esc.routeName || '01 - CASA/PONTO',
-              vehicleId: esc.vehicleId,
-              vehicle: esc.vehiclePlate
-                ? { id: esc.vehicleId || 'vehicle', plate: esc.vehiclePlate }
-                : undefined,
-              vehiclePlate: esc.vehiclePlate,
+              clientName: clientTitle,
+              vehicleId: vehIdStr,
+              vehicle: plateStr ? { id: vehIdStr || 'vehicle', plate: plateStr } : undefined,
+              vehiclePlate: plateStr,
               status:
                 esc.status === 'CONCLUIDA'
                   ? 'COMPLETED'

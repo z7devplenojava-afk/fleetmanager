@@ -219,10 +219,32 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
     if (!selectedSchedule || !selectedSchedule.startTime || isTripStarted) {
       return { withinTolerance: true, isWithinTolerance: true, diffMinutes: 0 };
     }
-    return scheduleService.checkPointTolerance(todayStr, selectedSchedule.startTime, 10);
-  }, [selectedSchedule, todayStr, isTripStarted]);
+    const schedTime = resolveScheduleStartTime(selectedSchedule);
+    const [schH, schM] = schedTime.split(':').map(Number);
+    const schedTotalMinutes = (schH || 0) * 60 + (schM || 0);
 
-  const requiresJustification = forgotPoint;
+    const now = new Date();
+    const nowTotalMinutes = now.getHours() * 60 + now.getMinutes();
+    const clockDiff = nowTotalMinutes - schedTotalMinutes;
+
+    let informedDiff = clockDiff;
+    if (startTime && startTime.includes(':')) {
+      const [infH, infM] = startTime.split(':').map(Number);
+      informedDiff = ((infH || 0) * 60 + (infM || 0)) - schedTotalMinutes;
+    }
+
+    const effectiveDiff = Math.abs(informedDiff) > 10 ? informedDiff : clockDiff;
+    const isWithin = Math.abs(effectiveDiff) <= 10;
+
+    return {
+      withinTolerance: isWithin,
+      isWithinTolerance: isWithin,
+      diffMinutes: effectiveDiff,
+    };
+  }, [selectedSchedule, isTripStarted, startTime]);
+
+  const isOutOfTolerance = !toleranceCheck.isWithinTolerance;
+  const requiresJustification = forgotPoint || isOutOfTolerance;
   const lastSyncedSignatureRef = React.useRef<string>('');
   const vehiclesLoadedRef = React.useRef<boolean>(false);
 
@@ -580,6 +602,22 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
     () => vehicles.find((v) => v.id === vehicleId),
     [vehicles, vehicleId]
   );
+
+  const scaleAssignedPlate = selectedSchedule?.vehiclePlate || selectedSchedule?.vehicle?.plate;
+  const hasScaleVehicle = Boolean(scaleAssignedPlate || (selectedSchedule && selectedSchedule.vehicleId));
+  const scaleVehicleDisplay = selectedVehicleObj
+    ? `${selectedVehicleObj.plate} — ${selectedVehicleObj.model || 'Veículo da Escala'}`
+    : scaleAssignedPlate
+      ? `${scaleAssignedPlate}${selectedSchedule?.vehicle?.model || selectedSchedule?.vehicleModel ? ` — ${selectedSchedule.vehicle?.model || selectedSchedule.vehicleModel}` : ''}`
+      : 'Veículo da Escala';
+
+  const scaleAssignedClient =
+    selectedSchedule?.clientName ||
+    selectedSchedule?.workPost?.client?.name ||
+    selectedSchedule?.travelTrip?.client?.name ||
+    selectedSchedule?.route?.client?.name;
+  const hasScaleClient = Boolean(scaleAssignedClient);
+  const scaleClientDisplay = scaleAssignedClient || clientName || 'Cliente da Escala';
 
   const handleRegisterStartPointAndTrip = async () => {
     const parsedInitialKm = Number(initialKm);
@@ -1206,15 +1244,7 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
                 Veículo
               </span>
               <span className="text-xs sm:text-sm font-bold text-emerald-400 truncate block mt-0.5">
-                {selectedVehicleObj
-                  ? `${selectedVehicleObj.plate} — ${selectedVehicleObj.model || 'Veículo'}`
-                  : selectedSchedule?.vehicle?.plate || selectedSchedule?.vehiclePlate
-                    ? `${selectedSchedule.vehicle?.plate || selectedSchedule.vehiclePlate}${
-                        selectedSchedule.vehicle?.model || selectedSchedule.vehicleModel
-                          ? ` — ${selectedSchedule.vehicle?.model || selectedSchedule.vehicleModel}`
-                          : ''
-                      }`
-                    : 'Informe no formulário abaixo'}
+                {scaleVehicleDisplay || 'A definir pela Gestão'}
               </span>
             </div>
 
@@ -1236,12 +1266,7 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
                 Cliente / Empresa
               </span>
               <span className="text-xs sm:text-sm font-bold text-blue-300 truncate block mt-0.5">
-                {clientName ||
-                  selectedSchedule?.clientName ||
-                  selectedSchedule?.workPost?.client?.name ||
-                  selectedSchedule?.travelTrip?.client?.name ||
-                  selectedSchedule?.location?.name ||
-                  'Informe no formulário abaixo'}
+                {scaleClientDisplay || 'Cliente da Escala'}
               </span>
             </div>
           </div>
@@ -1287,46 +1312,56 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
                 <Car className="h-3.5 w-3.5 shrink-0" />
                 Veículo da Viagem *
               </span>
-              {selectedVehicleObj && (
-                <span className="text-[10px] font-mono text-gray-400">
-                  {selectedVehicleObj.plate}
-                </span>
-              )}
+              <span className="text-[10px] font-mono text-gray-400">
+                {hasScaleVehicle ? 'Definido na Escala' : selectedVehicleObj?.plate || ''}
+              </span>
             </Label>
-            <select
-              value={vehicleId}
-              onChange={(e) => {
-                const val = e.target.value;
-                setVehicleId(val);
-                const foundV = vehicles.find((v) => v.id === val);
-                const suggested = checkAndSuggestKmForVehicle(val, foundV?.plate);
-                if (suggested != null && (!initialKm || suggestedFromPrevTrip != null)) {
-                  setInitialKm(String(suggested));
-                  setSuggestedFromPrevTrip(suggested);
-                } else if (!suggested && suggestedFromPrevTrip != null) {
-                  setSuggestedFromPrevTrip(null);
-                }
-                if (selectedScheduleId && selectedScheduleId !== 'NEW') {
-                  scheduleService.saveExecutionOverlay(selectedScheduleId, {
-                    vehicleId: val,
-                    vehiclePlate: foundV?.plate,
-                    vehicleModel: foundV?.model,
-                  });
-                  scheduleService.emitDriverRecordsUpdated();
-                }
-              }}
-              disabled={isTripCompleted}
-              style={{ backgroundColor: '#090d16', color: '#ffffff', colorScheme: 'dark' }}
-              aria-label="Selecionar Veículo"
-              className="w-full h-11 rounded-lg bg-[#090d16] border border-gray-600 px-3 text-xs sm:text-sm font-bold text-white focus:border-emerald-500 focus:outline-none"
-            >
-              <option value="">Selecione o Veículo da Escala...</option>
-              {vehicles.map((v) => (
-                <option key={v.id} value={v.id} style={{ backgroundColor: '#090d16', color: '#ffffff' }}>
-                  {v.plate} — {v.model || 'Veículo Operacional'}
-                </option>
-              ))}
-            </select>
+            {hasScaleVehicle ? (
+              <div className="w-full h-11 rounded-lg bg-[#090d16] border border-emerald-500/60 px-3 flex items-center justify-between text-xs sm:text-sm font-bold text-white shadow-inner">
+                <span className="flex items-center gap-2 truncate text-emerald-400">
+                  <Bus className="h-4 w-4 shrink-0 text-emerald-400" />
+                  <span className="font-mono">{scaleVehicleDisplay}</span>
+                </span>
+                <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40 text-[10px] shrink-0 font-bold">
+                  Definido na Escala
+                </Badge>
+              </div>
+            ) : (
+              <select
+                value={vehicleId}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setVehicleId(val);
+                  const foundV = vehicles.find((v) => v.id === val);
+                  const suggested = checkAndSuggestKmForVehicle(val, foundV?.plate);
+                  if (suggested != null && (!initialKm || suggestedFromPrevTrip != null)) {
+                    setInitialKm(String(suggested));
+                    setSuggestedFromPrevTrip(suggested);
+                  } else if (!suggested && suggestedFromPrevTrip != null) {
+                    setSuggestedFromPrevTrip(null);
+                  }
+                  if (selectedScheduleId && selectedScheduleId !== 'NEW') {
+                    scheduleService.saveExecutionOverlay(selectedScheduleId, {
+                      vehicleId: val,
+                      vehiclePlate: foundV?.plate,
+                      vehicleModel: foundV?.model,
+                    });
+                    scheduleService.emitDriverRecordsUpdated();
+                  }
+                }}
+                disabled={isTripCompleted}
+                style={{ backgroundColor: '#090d16', color: '#ffffff', colorScheme: 'dark' }}
+                aria-label="Selecionar Veículo"
+                className="w-full h-11 rounded-lg bg-[#090d16] border border-gray-600 px-3 text-xs sm:text-sm font-bold text-white focus:border-emerald-500 focus:outline-none"
+              >
+                <option value="">Selecione o Veículo da Escala...</option>
+                {vehicles.map((v) => (
+                  <option key={v.id} value={v.id} style={{ backgroundColor: '#090d16', color: '#ffffff' }}>
+                    {v.plate} — {v.model || 'Veículo Operacional'}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* Cliente / Empresa */}
@@ -1336,45 +1371,55 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
                 <Building2 className="h-3.5 w-3.5 shrink-0" />
                 Cliente / Empresa *
               </span>
-              {clientName && (
-                <span className="text-[10px] text-gray-400 truncate max-w-[140px]">
-                  {clientName}
-                </span>
-              )}
+              <span className="text-[10px] text-gray-400 truncate max-w-[140px]">
+                {hasScaleClient ? 'Definido na Escala' : clientName}
+              </span>
             </Label>
-            <div className="relative">
-              <Input
-                value={clientName}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setClientName(val);
-                  if (selectedScheduleId && selectedScheduleId !== 'NEW') {
-                    scheduleService.saveExecutionOverlay(selectedScheduleId, {
-                      clientName: val,
-                    });
-                    scheduleService.emitDriverRecordsUpdated();
-                  }
-                }}
-                disabled={isTripCompleted}
-                placeholder="Ex: ATERPA, DIEFRA, FAGUNDES..."
-                list="ponto-known-clients-list"
-                style={{ backgroundColor: '#090d16', color: '#ffffff', colorScheme: 'dark' }}
-                className="!bg-[#090d16] !text-white border-gray-600 placeholder:text-gray-500 font-bold h-11 text-xs sm:text-sm"
-              />
-              <datalist id="ponto-known-clients-list">
-                {clients.map((c) => (
-                  <option key={c.id} value={c.name} />
-                ))}
-                <option value="ATERPA" />
-                <option value="DIEFRA" />
-                <option value="FAGUNDES CONSTRUTORA" />
-                <option value="CKTR DO BRASIL" />
-                <option value="ALFA SERVIÇOS" />
-                <option value="COOPERTAR" />
-                <option value="PROSPERAR" />
-                <option value="VEÍCULOS MOBILIZADOS" />
-              </datalist>
-            </div>
+            {hasScaleClient ? (
+              <div className="w-full h-11 rounded-lg bg-[#090d16] border border-blue-500/60 px-3 flex items-center justify-between text-xs sm:text-sm font-bold text-white shadow-inner">
+                <span className="flex items-center gap-2 truncate text-blue-300">
+                  <Building2 className="h-4 w-4 shrink-0 text-blue-400" />
+                  <span className="truncate">{scaleClientDisplay}</span>
+                </span>
+                <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/40 text-[10px] shrink-0 font-bold">
+                  Definido na Escala
+                </Badge>
+              </div>
+            ) : (
+              <div className="relative">
+                <Input
+                  value={clientName}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setClientName(val);
+                    if (selectedScheduleId && selectedScheduleId !== 'NEW') {
+                      scheduleService.saveExecutionOverlay(selectedScheduleId, {
+                        clientName: val,
+                      });
+                      scheduleService.emitDriverRecordsUpdated();
+                    }
+                  }}
+                  disabled={isTripCompleted}
+                  placeholder="Ex: ATERPA, DIEFRA, FAGUNDES..."
+                  list="ponto-known-clients-list"
+                  style={{ backgroundColor: '#090d16', color: '#ffffff', colorScheme: 'dark' }}
+                  className="!bg-[#090d16] !text-white border-gray-600 placeholder:text-gray-500 font-bold h-11 text-xs sm:text-sm"
+                />
+                <datalist id="ponto-known-clients-list">
+                  {clients.map((c) => (
+                    <option key={c.id} value={c.name} />
+                  ))}
+                  <option value="ATERPA" />
+                  <option value="DIEFRA" />
+                  <option value="FAGUNDES CONSTRUTORA" />
+                  <option value="CKTR DO BRASIL" />
+                  <option value="ALFA SERVIÇOS" />
+                  <option value="COOPERTAR" />
+                  <option value="PROSPERAR" />
+                  <option value="VEÍCULOS MOBILIZADOS" />
+                </datalist>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1550,29 +1595,37 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
                   Esqueci de registrar o ponto no horário / Registro fora da tolerância de 10 minutos
                 </span>
               </label>
-              {!toleranceCheck.withinTolerance && (
-                <Badge className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs whitespace-normal leading-tight">
-                  Diferença de {toleranceCheck.diffMinutes} min do horário escalado (Tolerância: ±10 min)
-                </Badge>
+              {isOutOfTolerance && (
+                <div className="w-full p-3 rounded-lg bg-red-950/40 border border-red-500/60 text-red-200 text-xs flex items-start gap-2 shadow-md">
+                  <ShieldAlert className="h-4 w-4 shrink-0 text-red-400 mt-0.5 animate-bounce" />
+                  <div>
+                    <span className="font-extrabold text-red-300 text-xs sm:text-sm block">
+                      ⚠️ Horário fora da tolerância de 10 minutos (Diferença de {toleranceCheck.diffMinutes > 0 ? `+${toleranceCheck.diffMinutes}` : toleranceCheck.diffMinutes} min em relação ao previsto {selectedSchedule?.startTime?.substring(0, 5) || ''})
+                    </span>
+                    <p className="mt-0.5 text-[11px] text-red-200/90 leading-relaxed">
+                      Você deve <strong>obrigatoriamente justificar o motivo do atraso/divergência</strong> abaixo para que o registro seja liberado para aprovação do Tráfego.
+                    </p>
+                  </div>
+                </div>
               )}
             </div>
 
             {requiresJustification && (
-              <div className="space-y-1.5 pt-1">
+              <div className="space-y-1.5 pt-1.5 p-3 rounded-xl bg-amber-950/20 border border-amber-500/40">
                 <Label className="text-xs font-bold text-amber-300 flex items-start gap-1.5 leading-snug">
-                  <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5" />
-                  <span>Motivo do não registro no horário (Obrigatório para aprovação do Gestor / Encarregado de Tráfego) *</span>
+                  <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5 text-amber-400" />
+                  <span>Motivo do Atraso / Divergência de Horário (Obrigatório para aprovação do Tráfego) *</span>
                 </Label>
                 <Textarea
                   value={pointJustification}
                   onChange={(e) => setPointJustification(e.target.value)}
-                  placeholder="Explique o motivo pelo qual o ponto está sendo registrado fora do horário escalado..."
+                  placeholder="Descreva detalhadamente o motivo do atraso (ex: trânsito intenso, pane mecânica emergencial, atraso na liberação da garagem, etc.)..."
                   rows={2}
                   style={{ backgroundColor: '#090d16', color: '#ffffff', colorScheme: 'dark' }}
-                  className="!bg-[#090d16] !text-white border-amber-500/40 placeholder:text-gray-400 text-xs sm:text-sm"
+                  className="!bg-[#090d16] !text-white border-amber-500/60 placeholder:text-gray-400 text-xs sm:text-sm font-medium focus:border-amber-400"
                 />
                 <p className="text-[11px] text-amber-200/80 leading-relaxed">
-                  ⚠️ Atenção: Seu ponto será salvo, porém o status oficial e o horário do registro ficarão aguardando a aprovação do Gestor / Encarregado de Tráfego.
+                  ⚠️ Atenção: Seu ponto será salvo com justificativa e encaminhado ao Gestor / Encarregado de Tráfego para homologação oficial.
                 </p>
               </div>
             )}

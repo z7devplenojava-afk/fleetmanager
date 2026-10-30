@@ -15,6 +15,13 @@ public interface DriverRepository extends JpaRepository<Driver, UUID> {
     @org.springframework.data.jpa.repository.Query(value = "SELECT * FROM drivers WHERE REGEXP_REPLACE(COALESCE(cpf, ''), '[^0-9]', '', 'g') = :cpf LIMIT 1", nativeQuery = true)
     Optional<Driver> findByCleanCpfGlobal(@org.springframework.data.repository.query.Param("cpf") String cpf);
 
+    Optional<Driver> findByUserId(UUID userId);
+
+    @org.springframework.data.jpa.repository.Query(value = "SELECT * FROM drivers WHERE user_id = :userId LIMIT 1", nativeQuery = true)
+    Optional<Driver> findByUserIdGlobal(@org.springframework.data.repository.query.Param("userId") UUID userId);
+
+    java.util.List<Driver> findByNameContainingIgnoreCase(String name);
+
     @org.springframework.data.jpa.repository.Query(value = "SELECT * FROM drivers WHERE company_id = :companyId AND REGEXP_REPLACE(COALESCE(cpf, ''), '[^0-9]', '', 'g') = :cpf LIMIT 1", nativeQuery = true)
     Optional<Driver> findByCleanCpfAndCompanyId(@org.springframework.data.repository.query.Param("cpf") String cpf, @org.springframework.data.repository.query.Param("companyId") UUID companyId);
 }

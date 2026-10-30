@@ -27,6 +27,10 @@ import com.z7design.fleet_manager.model.Unit;
 import com.z7design.fleet_manager.model.Vehicle;
 import com.z7design.fleet_manager.model.TravelTrip;
 import com.z7design.fleet_manager.repository.TravelTripRepository;
+import com.z7design.fleet_manager.model.Driver;
+import com.z7design.fleet_manager.model.EscalaOperacional;
+import com.z7design.fleet_manager.repository.DriverRepository;
+import com.z7design.fleet_manager.repository.EscalaOperacionalRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -74,6 +78,8 @@ public class ScheduleService {
     private final VehicleRepository vehicleRepository;
     private final TravelTripRepository travelTripRepository;
     private final DriverJourneyService driverJourneyService;
+    private final DriverRepository driverRepository;
+    private final EscalaOperacionalRepository escalaOperacionalRepository;
 
     @Transactional
     public Schedule create(Schedule schedule) {
@@ -748,42 +754,153 @@ public class ScheduleService {
             }
         }
 
-        List<Schedule> allSchedules = findAll();
+        java.util.Set<UUID> driverIds = new java.util.HashSet<>();
+        Employee resolved = null;
+        try {
+            resolved = resolveEmployeeForUser(user);
+        } catch (Exception ignored) {}
 
-        return allSchedules.stream()
-                .filter(s -> {
-                    String empName = s.getEmployee() != null ? s.getEmployee().getName() : null;
-                    UUID empId = s.getEmployee() != null ? s.getEmployee().getId() : null;
+        if (user.getId() != null) {
+            try {
+                Optional<Driver> byUser = driverRepository.findByUserIdGlobal(user.getId());
+                if (byUser.isEmpty()) {
+                    byUser = driverRepository.findByUserId(user.getId());
+                }
+                byUser.ifPresent(d -> {
+                    if (d.getId() != null) driverIds.add(d.getId());
+                });
+            } catch (Exception ignored) {}
+        }
 
-                    boolean matchesId = empId != null && employeeIds.contains(empId);
-                    boolean matchesName = isDriverNameMatch(userName, empName);
-                    boolean matchesObs = s.getObservations() != null && isDriverNameMatch(userName, s.getObservations());
-                    boolean matchesClient = s.getClientName() != null && isDriverNameMatch(userName, s.getClientName());
-
-                    if (!matchesId && !matchesName && !matchesObs && !matchesClient) {
-                        return false;
-                    }
-
-                    if (startDate != null && s.getScheduleDate() != null) {
-                        LocalDate schedDate = s.getScheduleDate();
-                        LocalDate weekStart = startDate.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
-                        LocalDate weekEnd = startDate.with(java.time.temporal.TemporalAdjusters.nextOrSame(java.time.DayOfWeek.SUNDAY));
-                        boolean inSameWeek = !schedDate.isBefore(weekStart) && !schedDate.isAfter(weekEnd);
-                        if (!inSameWeek && schedDate.isBefore(startDate)) {
-                            long daysDiff = java.time.temporal.ChronoUnit.DAYS.between(schedDate, startDate);
-                            if (daysDiff > 35) {
-                                return false;
-                            }
+        if (!userName.isBlank()) {
+            try {
+                String[] words = normalizeNameForMatch(userName).split("\\s+");
+                if (words.length > 0 && words[0].length() > 2) {
+                    List<Driver> matchingDrivers = driverRepository.findByNameContainingIgnoreCase(words[0]);
+                    for (Driver drv : matchingDrivers) {
+                        if (drv.getId() != null && isDriverNameMatch(userName, drv.getName())) {
+                            driverIds.add(drv.getId());
                         }
                     }
-                    if (endDate != null && s.getScheduleDate() != null && s.getScheduleDate().isAfter(endDate.plusDays(7))) {
-                        return false;
+                }
+            } catch (Exception ignored) {}
+        }
+
+        List<Schedule> allSchedules = findAll();
+        java.util.Map<UUID, Schedule> mergedMap = new java.util.LinkedHashMap<>();
+
+        for (Schedule s : allSchedules) {
+            String empName = s.getEmployee() != null ? s.getEmployee().getName() : null;
+            UUID empId = s.getEmployee() != null ? s.getEmployee().getId() : null;
+
+            boolean matchesId = empId != null && (employeeIds.contains(empId) || driverIds.contains(empId));
+            boolean matchesName = isDriverNameMatch(userName, empName);
+            boolean matchesObs = s.getObservations() != null && isDriverNameMatch(userName, s.getObservations());
+            boolean matchesClient = s.getClientName() != null && isDriverNameMatch(userName, s.getClientName());
+
+            if (!matchesId && !matchesName && !matchesObs && !matchesClient) {
+                continue;
+            }
+
+            if (startDate != null && s.getScheduleDate() != null) {
+                LocalDate schedDate = s.getScheduleDate();
+                LocalDate weekStart = startDate.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
+                LocalDate weekEnd = startDate.with(java.time.temporal.TemporalAdjusters.nextOrSame(java.time.DayOfWeek.SUNDAY));
+                boolean inSameWeek = !schedDate.isBefore(weekStart) && !schedDate.isAfter(weekEnd);
+                if (!inSameWeek && schedDate.isBefore(startDate)) {
+                    long daysDiff = java.time.temporal.ChronoUnit.DAYS.between(schedDate, startDate);
+                    if (daysDiff > 35) {
+                        continue;
                     }
-                    return true;
-                })
+                }
+            }
+            if (endDate != null && s.getScheduleDate() != null && s.getScheduleDate().isAfter(endDate.plusDays(7))) {
+                continue;
+            }
+            if (s.getId() != null) {
+                mergedMap.put(s.getId(), s);
+            }
+        }
+
+        try {
+            List<EscalaOperacional> opList;
+            if (startDate != null && endDate != null && startDate.equals(endDate)) {
+                opList = escalaOperacionalRepository.findByScaleDateOrderByDepartureTimeAsc(startDate);
+            } else {
+                opList = escalaOperacionalRepository.findAll();
+            }
+
+            for (EscalaOperacional esc : opList) {
+                if (esc.getId() == null || mergedMap.containsKey(esc.getId())) continue;
+                UUID dId = esc.getDriver() != null ? esc.getDriver().getId() : null;
+                String dName = esc.getDriver() != null ? esc.getDriver().getName() : null;
+                boolean matchesDrv = (dId != null && driverIds.contains(dId))
+                        || (dId != null && employeeIds.contains(dId))
+                        || isDriverNameMatch(userName, dName);
+
+                if (!matchesDrv) continue;
+
+                if (startDate != null && esc.getScaleDate() != null && esc.getScaleDate().isBefore(startDate.minusDays(1))) {
+                    if (endDate == null || !startDate.equals(endDate)) {
+                        continue;
+                    }
+                }
+                if (endDate != null && esc.getScaleDate() != null && esc.getScaleDate().isAfter(endDate.plusDays(7))) {
+                    continue;
+                }
+
+                Schedule mapped = convertEscalaOperacionalToSchedule(esc, resolved);
+                mergedMap.put(mapped.getId(), mapped);
+            }
+        } catch (Exception e) {
+            log.warn("Erro ao mesclar escalas operacionais em findMySchedules: {}", e.getMessage());
+        }
+
+        return new java.util.ArrayList<>(mergedMap.values()).stream()
                 .sorted(Comparator.comparing(Schedule::getScheduleDate,
                         Comparator.nullsLast(Comparator.naturalOrder())))
                 .collect(Collectors.toList());
+    }
+
+
+    private Schedule convertEscalaOperacionalToSchedule(EscalaOperacional esc, Employee defaultEmployee) {
+        Employee emp = defaultEmployee;
+        if (emp == null && esc.getDriver() != null) {
+            emp = Employee.builder()
+                    .id(esc.getDriver().getId())
+                    .name(esc.getDriver().getName())
+                    .build();
+        }
+
+        String routeTitle = esc.getRoute() != null ? esc.getRoute().getName() : "Rota Operacional";
+        String clientTitle = (esc.getRoute() != null && esc.getRoute().getClient() != null)
+                ? esc.getRoute().getClient().getName()
+                : null;
+
+        com.z7design.fleet_manager.model.enums.ScheduleStatus status = com.z7design.fleet_manager.model.enums.ScheduleStatus.PENDING;
+        if (EscalaOperacional.STATUS_CONCLUIDA.equalsIgnoreCase(esc.getStatus())) {
+            status = com.z7design.fleet_manager.model.enums.ScheduleStatus.COMPLETED;
+        } else if (EscalaOperacional.STATUS_EXECUTANDO.equalsIgnoreCase(esc.getStatus())) {
+            status = com.z7design.fleet_manager.model.enums.ScheduleStatus.IN_PROGRESS;
+        } else if (EscalaOperacional.STATUS_CONFIRMADA.equalsIgnoreCase(esc.getStatus())) {
+            status = com.z7design.fleet_manager.model.enums.ScheduleStatus.CONFIRMED;
+        }
+
+        return Schedule.builder()
+                .id(esc.getId())
+                .employee(emp)
+                .scheduleDate(esc.getScaleDate())
+                .shift(com.z7design.fleet_manager.model.enums.Shift.DAY)
+                .startTime(esc.getDepartureTime() != null ? esc.getDepartureTime().toString().substring(0, 5) : "08:00")
+                .endTime("17:00")
+                .route(esc.getRoute())
+                .routeCode(routeTitle)
+                .clientName(clientTitle)
+                .vehicle(esc.getVehicle())
+                .vehiclePlate(esc.getVehicle() != null ? esc.getVehicle().getPlate() : null)
+                .status(status)
+                .legs(1)
+                .build();
     }
 
     @Transactional(readOnly = true)

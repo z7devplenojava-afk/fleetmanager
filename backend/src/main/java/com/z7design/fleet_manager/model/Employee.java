@@ -36,7 +36,7 @@ import com.z7design.fleet_manager.tenant.TenantEntityListener;
 @AllArgsConstructor
 @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler", "documents", "benefits", "dependents", "timeRecords",
         "payrolls", "epis", "occurrences" })
-@Filter(name = "tenantFilter", condition = "company_id = :companyId")
+@Filter(name = "tenantFilter", condition = "(company_id = :companyId OR company_id IS NULL)")
 public class Employee implements TenantAware {
 
     @Id

@@ -33,6 +33,8 @@ public class EscalaOperacionalDTO {
     private UUID driverId;
     private String driverName;
     private String driverStatus;
+    private UUID clientId;
+    private String clientName;
     private String status;
     private String origin;
     private UUID tripId;
@@ -60,6 +62,8 @@ public class EscalaOperacionalDTO {
                 .driverId(escala.getDriver() != null ? escala.getDriver().getId() : null)
                 .driverName(escala.getDriver() != null ? escala.getDriver().getName() : null)
                 .driverStatus(escala.getDriver() != null ? escala.getDriver().getStatus() : null)
+                .clientId(escala.getRoute() != null && escala.getRoute().getClient() != null ? escala.getRoute().getClient().getId() : null)
+                .clientName(escala.getRoute() != null && escala.getRoute().getClient() != null ? escala.getRoute().getClient().getName() : null)
                 .status(escala.getStatus())
                 .origin(escala.getOrigin())
                 .tripId(escala.getTripId())
