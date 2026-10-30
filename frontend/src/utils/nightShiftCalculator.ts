@@ -98,3 +98,4 @@ export function calculateNightShiftFromTimes(
 
   return calculateNightShiftMinutes(start, end);
 }
+
