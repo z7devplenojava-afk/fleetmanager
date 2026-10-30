@@ -33,7 +33,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import fleetWorkOrderService, {
     WorkOrderStatus,
     FleetWorkOrder,
-    MaintenanceType
+    MaintenanceType,
+    getOrderResponsibleDisplay
 } from '@/services/fleetWorkOrderService';
 import FleetWorkOrderForm from '@/components/frota/FleetWorkOrderForm';
 import { useToast } from '@/hooks/use-toast';
@@ -500,7 +501,7 @@ const ManutencaoDashboard: React.FC = () => {
                                                     {order.odometerIn != null ? `${order.odometerIn.toLocaleString('pt-BR')} km` : '—'}
                                                 </td>
                                                 <td className="p-4 text-gray-300">
-                                                    {order.mechanicName || 'Não atribuído'}
+                                                    {getOrderResponsibleDisplay(order)}
                                                 </td>
                                                 <td className="p-4 text-right font-mono font-bold text-seguranca-lightgray">
                                                     {(order.totalCost || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}

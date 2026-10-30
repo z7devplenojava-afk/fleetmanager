@@ -104,7 +104,28 @@ public class FleetWorkOrderService {
             } else if (dto.getResponsibleId() != null) {
                 employeeRepository.findById(dto.getResponsibleId())
                         .ifPresent(emp -> dto.setMechanicName(emp.getName()));
+            } else if (dto.getRequesterId() != null) {
+                employeeRepository.findById(dto.getRequesterId())
+                        .ifPresent(emp -> dto.setMechanicName(emp.getName()));
             }
+        }
+
+        // Completa responsibleName se ainda estiver nulo
+        if ((dto.getResponsibleName() == null || dto.getResponsibleName().isBlank()) && dto.getResponsibleId() != null) {
+            employeeRepository.findById(dto.getResponsibleId())
+                    .ifPresent(emp -> dto.setResponsibleName(emp.getName()));
+        }
+        if (dto.getResponsibleName() == null || dto.getResponsibleName().isBlank()) {
+            dto.setResponsibleName(dto.getMechanicName());
+        }
+
+        // Completa requesterName se ainda estiver nulo
+        if ((dto.getRequesterName() == null || dto.getRequesterName().isBlank()) && dto.getRequesterId() != null) {
+            employeeRepository.findById(dto.getRequesterId())
+                    .ifPresent(emp -> dto.setRequesterName(emp.getName()));
+        }
+        if (dto.getRequesterName() == null || dto.getRequesterName().isBlank()) {
+            dto.setRequesterName(dto.getMechanicName());
         }
 
         // Completa stopDate se nulo
@@ -347,6 +368,31 @@ public class FleetWorkOrderService {
                 ? dto.getMaintenanceType()
                 : FleetWorkOrder.MaintenanceType.CORRETIVA;
 
+        String resolvedMechanicName = dto.getMechanicName();
+        if (resolvedMechanicName == null || resolvedMechanicName.isBlank()) {
+            if (dto.getResponsibleName() != null && !dto.getResponsibleName().isBlank()) {
+                resolvedMechanicName = dto.getResponsibleName();
+            } else if (dto.getRequesterName() != null && !dto.getRequesterName().isBlank()) {
+                resolvedMechanicName = dto.getRequesterName();
+            } else if (dto.getNotes() != null) {
+                java.util.regex.Matcher m = java.util.regex.Pattern
+                        .compile("(?i)Motorista:\\s*([^\\n,]+?)(?:\\s+via|$)")
+                        .matcher(dto.getNotes());
+                if (m.find() && !m.group(1).trim().isEmpty()) {
+                    resolvedMechanicName = m.group(1).trim() + " (Motorista)";
+                }
+            } else if (dto.getAnomaliesDescription() != null) {
+                java.util.regex.Matcher m = java.util.regex.Pattern
+                        .compile("(?i)\\[Checklist Diário\\s*-\\s*([^\\]]+)\\]")
+                        .matcher(dto.getAnomaliesDescription());
+                if (m.find() && !m.group(1).trim().isEmpty()) {
+                    resolvedMechanicName = m.group(1).trim() + " (Motorista)";
+                }
+            } else if (vehicle.getAssignedDriver() != null && !vehicle.getAssignedDriver().isBlank()) {
+                resolvedMechanicName = vehicle.getAssignedDriver() + " (Motorista)";
+            }
+        }
+
         FleetWorkOrder entity = FleetWorkOrder.builder()
                 .osNumber(osNumber)
                 .maintenanceType(type)
@@ -355,7 +401,7 @@ public class FleetWorkOrderService {
                 .status(dto.getStatus() != null ? dto.getStatus() : FleetWorkOrder.WorkOrderStatus.OPEN)
                 .priority(dto.getPriority() != null ? dto.getPriority() : FleetWorkOrder.WorkOrderPriority.MEDIUM)
                 .mechanicId(dto.getMechanicId())
-                .mechanicName(dto.getMechanicName())
+                .mechanicName(resolvedMechanicName)
                 .laborType(dto.getLaborType())
                 .plannedDate(dto.getPlannedDate())
                 .actualDate(dto.getActualDate())

@@ -553,15 +553,24 @@ const DriverChecklist: React.FC = () => {
                 try {
                     const isUrgent = payload.data.driverProblemReport.toUpperCase().includes('URGÊNCIA') ||
                         payload.data.driverProblemReport.toUpperCase().includes('PNEU');
+                    const driverName = user?.name || 'Motorista';
                     await fleetWorkOrderService.create({
                         vehicleId: payload.data.vehicleId,
                         type: WorkOrderType.CORRECTIVE,
+                        maintenanceType: MaintenanceType.CORRETIVA,
                         priority: isUrgent ? WorkOrderPriority.HIGH : WorkOrderPriority.MEDIUM,
                         status: WorkOrderStatus.PENDING_APPROVAL,
                         odometerIn: payload.data.kmReading,
                         stopDate: new Date().toISOString().slice(0, 10),
                         reportedDefects: payload.data.driverProblemReport,
+                        anomaliesDescription: `[Checklist Diário - ${driverName}] ${payload.data.driverProblemReport}`,
                         observations: payload.data.observations,
+                        mechanicName: `${driverName} (Motorista)`,
+                        responsibleName: driverName,
+                        requesterName: driverName,
+                        responsibleId: (user as any)?.employeeId || (user?.id ? String(user.id) : undefined),
+                        requesterId: (user as any)?.employeeId || (user?.id ? String(user.id) : undefined),
+                        notes: `OS automática via Checklist do Motorista: ${driverName}`,
                     });
                 } catch {
                     // O backend também possui criação automática; ignora caso já tenha sido criada

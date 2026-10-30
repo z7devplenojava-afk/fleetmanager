@@ -42,7 +42,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
-import fleetWorkOrderService, { FleetWorkOrder, WorkOrderStatus } from '@/services/fleetWorkOrderService';
+import fleetWorkOrderService, { FleetWorkOrder, WorkOrderStatus, getOrderResponsibleDisplay } from '@/services/fleetWorkOrderService';
 import { materialRequisitionService, MaterialRequisition } from '@/services/materialRequisitionService';
 import FleetWorkOrderForm from '@/components/frota/FleetWorkOrderForm';
 import { FleetWorkOrderViewModal } from '@/components/frota/FleetWorkOrderViewModal';
@@ -146,7 +146,7 @@ export const StockWorkOrdersTab: React.FC<StockWorkOrdersTabProps> = ({ onGoToRe
         (order.osNumber && order.osNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (order.vehiclePlate && order.vehiclePlate.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (order.vehicleModel && order.vehicleModel.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (order.mechanicName && order.mechanicName.toLowerCase().includes(searchTerm.toLowerCase()));
+        getOrderResponsibleDisplay(order).toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchesStatus = statusFilter === 'ALL' || order.status === statusFilter;
 
@@ -484,7 +484,7 @@ export const StockWorkOrdersTab: React.FC<StockWorkOrdersTabProps> = ({ onGoToRe
                         <td className="py-3 px-4">
                           <div className="text-xs flex items-center gap-1 text-gray-300">
                             <User size={13} className="text-gray-400 shrink-0" />
-                            <span className="truncate max-w-[140px]">{order.mechanicName || 'Mecânico não atribuído'}</span>
+                            <span className="truncate max-w-[140px]">{getOrderResponsibleDisplay(order)}</span>
                           </div>
                           <div className="text-xs flex items-center gap-1 text-gray-400 mt-0.5">
                             <Building2 size={13} className="text-gray-500 shrink-0" />

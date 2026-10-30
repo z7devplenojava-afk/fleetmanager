@@ -136,7 +136,9 @@ export interface FleetWorkOrder {
     clientId?: string;
     sectorId?: string;
     requesterId?: string;
+    requesterName?: string;
     responsibleId?: string;
+    responsibleName?: string;
     supervisorId?: string;
 
     // Garagem executora da OS
@@ -447,6 +449,36 @@ async function compressImageToFile(file: File, maxWidth = 1920, maxHeight = 1920
         reader.onerror = () => resolve(file);
         reader.readAsDataURL(file);
     });
+}
+
+/**
+ * Retorna o nome do responsável pela OS formatado para exibição.
+ * Prioriza mecânico atribuído -> responsável/solicitante -> motorista informado nas notas/anomalias -> fallback.
+ */
+export function getOrderResponsibleDisplay(order?: Partial<FleetWorkOrder> | null): string {
+    if (!order) return 'Não atribuído';
+    if (order.mechanicName && order.mechanicName.trim()) {
+        return order.mechanicName;
+    }
+    if ((order as any).responsibleName && (order as any).responsibleName.trim()) {
+        return (order as any).responsibleName;
+    }
+    if ((order as any).requesterName && (order as any).requesterName.trim()) {
+        return `${(order as any).requesterName} (Solicitante)`;
+    }
+    if (order.notes) {
+        const m = order.notes.match(/Motorista:\s*([^\n,]+?)(?:\s+via|$)/i);
+        if (m && m[1]?.trim()) {
+            return `${m[1].trim()} (Motorista)`;
+        }
+    }
+    if (order.anomaliesDescription) {
+        const m = order.anomaliesDescription.match(/\[Checklist Diário\s*-\s*([^\]]+)\]/i);
+        if (m && m[1]?.trim()) {
+            return `${m[1].trim()} (Motorista)`;
+        }
+    }
+    return 'Não atribuído';
 }
 
 export const fleetWorkOrderService = new FleetWorkOrderService();

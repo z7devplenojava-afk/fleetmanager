@@ -159,9 +159,17 @@ public class VehicleGateChecklistService {
                 woDto.setStopDate(LocalDate.now());
                 woDto.setStopTime(LocalTime.now().toString().substring(0, 5));
                 String driverLabel = driver != null ? driver.getName() : (dto.getDriverName() != null ? dto.getDriverName() : "Motorista");
+                woDto.setMechanicName(driverLabel + " (Motorista)");
+                woDto.setResponsibleName(driverLabel);
+                woDto.setRequesterName(driverLabel);
+                if (driver != null) {
+                    woDto.setResponsibleId(driver.getId());
+                    woDto.setRequesterId(driver.getId());
+                }
                 woDto.setAnomaliesDescription("[Checklist Diário - " + driverLabel + "] " + dto.getDriverProblemReport());
                 woDto.setOtherDescription(dto.getObservations());
                 woDto.setStopReason("Checklist Diário - Avaria Informada");
+                woDto.setNotes("OS automática gerada a partir do Checklist Diário pelo Motorista: " + driverLabel);
                 fleetWorkOrderService.create(woDto);
                 log.info("OS Corretiva automática criada a partir do Checklist Diário para o veículo {}", vehicle.getPlate());
             } catch (Exception e) {

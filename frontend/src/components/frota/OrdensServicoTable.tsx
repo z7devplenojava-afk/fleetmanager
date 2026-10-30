@@ -12,7 +12,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import fleetWorkOrderService, {
-  WorkOrderStatus, MaintenanceType, FleetWorkOrder,
+  WorkOrderStatus, MaintenanceType, FleetWorkOrder, getOrderResponsibleDisplay,
 } from '@/services/fleetWorkOrderService';
 import { generateFleetWorkOrderPDFBlob } from '@/utils/fleetWorkOrderPDFGenerator';
 import {
@@ -227,7 +227,7 @@ const OrdensServicoTable: React.FC<OrdensServicoTableProps> = ({ onRefresh }) =>
                     {order.odometerIn != null ? `${order.odometerIn.toLocaleString('pt-BR')} km` : '—'}
                   </TableCell>
                   <TableCell className="text-gray-300 text-xs">
-                    {order.mechanicName || 'Não atribuído'}
+                    {getOrderResponsibleDisplay(order)}
                   </TableCell>
                   <TableCell className="text-right font-mono font-bold text-seguranca-lightgray text-xs">
                     {(order.totalCost || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
