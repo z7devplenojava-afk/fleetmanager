@@ -166,6 +166,19 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
     });
   }, [filteredDriverSchedules, todaySchedules]);
 
+  // Efeito para sincronizar veículo assim que a lista de veículos carregar
+  useEffect(() => {
+    if (!vehicleId && selectedSchedule && vehicles.length > 0) {
+      const targetPlate = (selectedSchedule.vehicle?.plate || selectedSchedule.vehiclePlate || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+      if (targetPlate) {
+        const found = vehicles.find((v) => v.plate.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === targetPlate);
+        if (found) {
+          setVehicleId(found.id);
+        }
+      }
+    }
+  }, [vehicles, selectedSchedule, vehicleId]);
+
   const checkAndSuggestKmForVehicle = (targetVehicleId?: string, targetPlate?: string) => {
     const vPlate = targetPlate || vehicles.find((v) => v.id === targetVehicleId)?.plate;
     if (!vPlate && !targetVehicleId) return null;
@@ -217,7 +230,13 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
     setLoadingSchedules(true);
     try {
       const [mySchedules, codesList, fleetList, clientList] = await Promise.all([
-        scheduleService.findMySchedules({ startDate: todayStr, endDate: todayStr }).catch(() => []),
+        scheduleService.findMySchedules({
+          startDate: todayStr,
+          endDate: todayStr,
+          employeeId: employeeId || undefined,
+          employeeName: employeeName || undefined,
+          targetDate: todayStr,
+        }).catch(() => []),
         driverRouteCodeService.getAll().catch(() => DEFAULT_DRIVER_ROUTE_CODES),
         fleetService.getVehicles().catch(() => []),
         clientService.getAllClients().catch(() => []),
@@ -257,6 +276,7 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
             list.find((s) => s.status === 'CONFIRMED' || s.status === 'PENDING') ||
             list[0];
           if (activeOrFirst) {
+            setSelectedScheduleId(activeOrFirst.id);
             applyScheduleToForm(activeOrFirst);
           }
         }
@@ -424,7 +444,12 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
       '01 - CASA/PONTO';
     setRouteCode(resolvedRoute);
     setDirection(sched.direction || inferDirectionFromRouteCode(resolvedRoute, 0));
-    const schedVehicleId = sched.vehicleId || sched.vehicle?.id || '';
+    let schedVehicleId = sched.vehicleId || sched.vehicle?.id || '';
+    if (!schedVehicleId && (sched.vehicle?.plate || sched.vehiclePlate)) {
+      const plateToFind = (sched.vehicle?.plate || sched.vehiclePlate || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+      const matchedVeh = vehicles.find((v) => v.plate.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === plateToFind);
+      if (matchedVeh) schedVehicleId = matchedVeh.id;
+    }
     setVehicleId(schedVehicleId);
 
     // Odômetro Inteligente (Continuidade de KM entre Pegadas do mesmo veículo)

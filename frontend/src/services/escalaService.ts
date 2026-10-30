@@ -48,11 +48,6 @@ export interface GeracaoResult {
   skipped: number;
 }
 
-const ESCALAS_FORBIDDEN_SESSION_KEY = 'fluxbus_escalas_forbidden_v1';
-let escalasForbiddenForRole =
-  typeof sessionStorage !== 'undefined' &&
-  sessionStorage.getItem(ESCALAS_FORBIDDEN_SESSION_KEY) === 'true';
-
 const toBody = (payload: EscalaPayload) => ({
   scaleDate: payload.scaleDate,
   departureTime: payload.departureTime,
@@ -65,28 +60,17 @@ const toBody = (payload: EscalaPayload) => ({
 
 const escalaService = {
   isEscalasForbidden(): boolean {
-    return escalasForbiddenForRole;
+    return false;
   },
 
   async list(date?: string): Promise<Escala[]> {
-    if (escalasForbiddenForRole) {
-      return [];
-    }
     try {
       const response = await api.get('/api/escalas', {
         params: date ? { date } : {},
         silentErrorLog: true,
       } as any);
       return Array.isArray(response.data) ? response.data : [];
-    } catch (err: any) {
-      if (err?.response?.status === 403) {
-        escalasForbiddenForRole = true;
-        try {
-          sessionStorage.setItem(ESCALAS_FORBIDDEN_SESSION_KEY, 'true');
-        } catch {
-          // ignore
-        }
-      }
+    } catch {
       return [];
     }
   },
