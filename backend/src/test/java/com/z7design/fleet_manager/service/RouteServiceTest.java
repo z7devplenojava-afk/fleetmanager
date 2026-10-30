@@ -29,6 +29,9 @@ class RouteServiceTest {
     private RouteRepository routeRepository;
 
     @Mock
+    private com.z7design.fleet_manager.repository.RoutePointRepository routePointRepository;
+
+    @Mock
     private RouteCodeGenerator routeCodeGenerator;
 
     @InjectMocks
