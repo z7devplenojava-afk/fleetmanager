@@ -12,6 +12,13 @@ public interface EscalaOperacionalRepository extends JpaRepository<EscalaOperaci
 
     List<EscalaOperacional> findByScaleDateOrderByDepartureTimeAsc(LocalDate scaleDate);
 
+    List<EscalaOperacional> findByDriverId(UUID driverId);
+
+    List<EscalaOperacional> findByDriverIdIn(List<UUID> driverIds);
+
+    @org.springframework.data.jpa.repository.Query(value = "SELECT * FROM escalas_operacionais WHERE driver_id = :driverId", nativeQuery = true)
+    List<EscalaOperacional> findByDriverIdNative(@org.springframework.data.repository.query.Param("driverId") UUID driverId);
+
     List<EscalaOperacional> findByScaleDateAndStatusNotOrderByDepartureTimeAsc(LocalDate scaleDate, String status);
 
     boolean existsByScaleDateAndRouteIdAndDepartureTime(LocalDate scaleDate, UUID routeId, LocalTime departureTime);

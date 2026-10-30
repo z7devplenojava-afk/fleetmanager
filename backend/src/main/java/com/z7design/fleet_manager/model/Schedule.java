@@ -42,7 +42,7 @@ import com.z7design.fleet_manager.tenant.TenantAware;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "schedules")
-@Filter(name = "tenantFilter", condition = "company_id = :companyId")
+@Filter(name = "tenantFilter", condition = "(company_id = :companyId OR company_id IS NULL)")
 public class Schedule implements TenantAware {
 
         @Id
