@@ -398,18 +398,25 @@ export async function captureDriverGeolocationAndAddress(
   };
 }
 
-export function emitDriverRecordsUpdated() {
+let lastEmitTimestamp = 0;
+export function emitDriverRecordsUpdated(options?: { force?: boolean }) {
   if (typeof window !== 'undefined') {
+    const now = Date.now();
+    if (!options?.force && now - lastEmitTimestamp < 2000) {
+      return; // Cooldown de 2s para eliminar loops em cascata
+    }
+    lastEmitTimestamp = now;
+
     window.dispatchEvent(new CustomEvent('fluxbus:driver-records-updated'));
     try {
-      localStorage.setItem('fluxbus_last_driver_sync', String(Date.now()));
+      localStorage.setItem('fluxbus_last_driver_sync', String(now));
     } catch {
       // ignore
     }
     try {
       if (typeof BroadcastChannel !== 'undefined') {
         const bc = new BroadcastChannel('fluxbus_realtime_sync');
-        bc.postMessage({ type: 'DRIVER_RECORDS_UPDATED', timestamp: Date.now() });
+        bc.postMessage({ type: 'DRIVER_RECORDS_UPDATED', timestamp: now });
         bc.close();
       }
     } catch {
@@ -916,25 +923,31 @@ export const scheduleService = {
     const timeRecordsByEmpId = new Map<string, any[]>();
     const allTodayTimeRecords: any[] = [];
 
-    // 1. Tenta carregar registros de ponto de hoje via endpoint administrativo (traz todos os colaboradores de uma só vez)
-    try {
-      const todayStr = format(new Date(), 'yyyy-MM-dd');
-      const adminTrRes = await api.get('/time-records/admin/records', {
-        params: { startDate: todayStr, endDate: todayStr, size: 200 },
-        validateStatus: (status) => status < 500,
-        silentErrorLog: true,
-      } as any);
-      const adminTrData = adminTrRes?.data;
-      const recList = Array.isArray(adminTrData)
-        ? adminTrData
-        : Array.isArray(adminTrData?.content)
-          ? adminTrData.content
-          : [];
-      if (recList.length > 0) {
-        allTodayTimeRecords.push(...recList);
+    // 1. Carrega registros de ponto de hoje via endpoint administrativo APENAS se for perfil administrativo
+    const currentUserRole = String(currentStoredUser?.role || '').toUpperCase();
+    const isCurrentUserDriver = currentUserRole === 'MOTORISTA' || (Array.isArray(currentStoredUser?.roles) && currentStoredUser.roles.some((r: any) => String(r).toUpperCase().includes('MOTORISTA')));
+    const isCurrentUserAdmin = !isCurrentUserDriver && (currentUserRole.includes('ADMIN') || currentUserRole.includes('GESTOR') || currentUserRole.includes('SUPERVISOR') || currentUserRole.includes('TRAFEGO') || currentUserRole.includes('RH'));
+
+    if (isCurrentUserAdmin) {
+      try {
+        const todayStr = format(new Date(), 'yyyy-MM-dd');
+        const adminTrRes = await api.get('/time-records/admin/records', {
+          params: { startDate: todayStr, endDate: todayStr, size: 200 },
+          validateStatus: (status) => status < 500,
+          silentErrorLog: true,
+        } as any);
+        const adminTrData = adminTrRes?.data;
+        const recList = Array.isArray(adminTrData)
+          ? adminTrData
+          : Array.isArray(adminTrData?.content)
+            ? adminTrData.content
+            : [];
+        if (recList.length > 0) {
+          allTodayTimeRecords.push(...recList);
+        }
+      } catch {
+        // ignore
       }
-    } catch {
-      // ignore
     }
 
     // 2. Busca também por employeeId individual para garantir histórico do colaborador
@@ -2353,10 +2366,31 @@ export const scheduleService = {
 
     // Sempre busca também em /api/schedules para unir escalas vinculadas pelo nome do funcionário (ex: Fernando Silva Santos)
     let allSchedules: Schedule[] = [];
-    try {
-      allSchedules = await this.findAll();
-    } catch {
-      allSchedules = [];
+    const myRole = String(storedUser?.role || '').toUpperCase();
+    const isDriverAcc = myRole === 'MOTORISTA' || (Array.isArray(storedUser?.roles) && storedUser.roles.some((r: any) => String(r).toUpperCase().includes('MOTORISTA')));
+
+    if (!isDriverAcc) {
+      try {
+        allSchedules = await this.findAll();
+      } catch {
+        allSchedules = [];
+      }
+    } else {
+      try {
+        const rawRes = await api.get('/api/schedules', {
+          params: filters,
+          validateStatus: (status) => status < 500,
+          silentErrorLog: true,
+        } as any);
+        const rawData = rawRes?.data;
+        if (Array.isArray(rawData)) {
+          allSchedules = rawData.map(applyOverlayToSchedule);
+        } else if (rawData && Array.isArray(rawData.content)) {
+          allSchedules = rawData.content.map(applyOverlayToSchedule);
+        }
+      } catch {
+        allSchedules = [];
+      }
     }
 
     const matchedFromAll = allSchedules.filter((s) => {

@@ -88,8 +88,16 @@ export const driverRouteCodeService = {
     }
     try {
       const response = await api.get('/api/driver-route-codes', {
+        validateStatus: (status) => status < 500,
         silentErrorLog: true,
       } as any);
+      if (response && (response.status === 404 || response.status === 403)) {
+        endpointUnavailableInSession = true;
+        try {
+          sessionStorage.setItem(SESSION_UNAVAILABLE_KEY, 'true');
+        } catch {}
+        return mergeCodes([], localCodes);
+      }
       const data = Array.isArray(response.data) ? response.data : [];
       return mergeCodes(data, localCodes);
     } catch (err: any) {

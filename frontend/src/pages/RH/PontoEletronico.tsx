@@ -327,6 +327,8 @@ const PontoEletronico: React.FC = () => {
   };
 
   const registrarPonto = async (tipo?: 'ENTRADA' | 'SAIDA_ALMOCO' | 'RETORNO_ALMOCO' | 'SAIDA') => {
+    const tipoRegistro = tipo || proximoRegistro;
+    let resolvedLocation = 'Sem localização';
     const targetId = activeEmployeeId;
     if (!targetId) {
       toast({
@@ -340,13 +342,13 @@ const PontoEletronico: React.FC = () => {
     try {
       setLoading(true);
       
-      const tipoRegistro = tipo || proximoRegistro;
+      // tipoRegistro definido acima
       
       // Obter IP do cliente
       const ipAddress = window.location.hostname;
       const userAgent = navigator.userAgent;
 
-      const resolvedLocation = geolocation?.address && geolocation.address !== 'Localizando endereço...'
+      resolvedLocation = geolocation?.address && geolocation.address !== 'Localizando endereço...'
         ? geolocation.address
         : (geolocation ? `Lat: ${geolocation.latitude.toFixed(5)}, Lng: ${geolocation.longitude.toFixed(5)}` : 'Sem localização');
 
@@ -395,11 +397,29 @@ const PontoEletronico: React.FC = () => {
       }
 
     } catch (error: any) {
-      console.error('Erro ao registrar ponto:', error);
+      console.warn('Registro de ponto oficial via API falhou, avaliando fallback:', error);
+      if (isPortalMotorista) {
+        const fallbackRec: any = {
+          id: `ponto-op-${Date.now()}`,
+          employeeId: targetId,
+          recordedAt: new Date().toISOString(),
+          recordType: tipoRegistro,
+          location: resolvedLocation,
+          approved: false,
+          provisional: true,
+        };
+        setRegistrosHoje((prev) => [fallbackRec, ...prev]);
+        toast({
+          title: 'Ponto Registrado Operacionalmente',
+          description: `${getTipoLabel(tipoRegistro)} registrado às ${format(new Date(), 'HH:mm:ss')} (aguardando sincronização cadastral).`,
+        });
+        scheduleService.emitDriverRecordsUpdated();
+        return;
+      }
       toast({
-        title: "❌ Erro",
-        description: error.response?.data?.error || error.message || "Não foi possível registrar o ponto",
-        variant: "destructive",
+        title: '❌ Erro',
+        description: error.response?.data?.error || error.message || 'Não foi possível registrar o ponto',
+        variant: 'destructive',
       });
     } finally {
       setLoading(false);

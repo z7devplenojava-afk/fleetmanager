@@ -36,7 +36,13 @@ public class TimeRecordController {
     @PreAuthorize("hasAnyAuthority('TIME_RECORD_CREATE', 'SUPER_ADMIN', 'ADMIN', 'ROLE_MOTORISTA', 'MOTORISTA', 'ROLE_EMPLOYEE', 'ROLE_COLABORADOR', 'ROLE_MECANICO') or isAuthenticated()")
     public ResponseEntity<?> registerTimeRecord(@RequestBody Map<String, Object> request) {
         try {
-            UUID employeeId = UUID.fromString((String) request.get("employeeId"));
+            String rawEmpId = request.get("employeeId") != null ? request.get("employeeId").toString() : null;
+            UUID employeeId = null;
+            if (rawEmpId != null && !rawEmpId.isBlank() && !"null".equalsIgnoreCase(rawEmpId) && !"driver".equalsIgnoreCase(rawEmpId)) {
+                try {
+                    employeeId = UUID.fromString(rawEmpId);
+                } catch (IllegalArgumentException ignored) {}
+            }
             TimeRecord.RecordType recordType = TimeRecord.RecordType.valueOf(
                     (String) request.get("recordType"));
             String qrCode = (String) request.get("qrCode");

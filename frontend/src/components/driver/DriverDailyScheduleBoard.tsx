@@ -376,7 +376,11 @@ export const DriverDailyScheduleBoard: React.FC<DriverDailyScheduleBoardProps> =
   // Carrega automaticamente a escala ao abrir, trocar a data ou receber novos registros do Ponto Eletrônico em tempo real
   useEffect(() => {
     syncFromDriverSchedule(true);
+    let lastRealtimeSync = 0;
     const handleRealtimeUpdate = () => {
+      const now = Date.now();
+      if (now - lastRealtimeSync < 3500) return;
+      lastRealtimeSync = now;
       syncFromDriverSchedule(true);
     };
     window.addEventListener('fluxbus:driver-records-updated', handleRealtimeUpdate);
