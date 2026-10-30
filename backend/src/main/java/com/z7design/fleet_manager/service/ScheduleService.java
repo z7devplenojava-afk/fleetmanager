@@ -649,10 +649,71 @@ public class ScheduleService {
                 }
             } catch (Exception ignored) {
             }
+
+            // Fallback por primeiro nome + correspondência flexível (ex: Fernando Silva Santos <-> Fernando Santos)
+            try {
+                String[] words = normalizeNameForMatch(trimmedName).split("\\s+");
+                if (words.length > 0 && words[0].length() > 2) {
+                    List<Employee> candidates = employeeRepository.findByNameContainingIgnoreCase(words[0]);
+                    for (Employee cand : candidates) {
+                        if (cand != null && isDriverNameMatch(trimmedName, cand.getName())) {
+                            return cand;
+                        }
+                    }
+                }
+            } catch (Exception ignored) {
+            }
         }
 
         throw new ResourceNotFoundException(
                 "Funcionário não vinculado ao seu usuário. Solicite ao RH o vínculo do perfil para acessar suas escalas.");
+    }
+
+    private String normalizeNameForMatch(String name) {
+        if (name == null) return "";
+        String normalized = java.text.Normalizer.normalize(name, java.text.Normalizer.Form.NFD);
+        normalized = normalized.replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
+        return normalized.trim().toLowerCase();
+    }
+
+    private boolean isPreposition(String word) {
+        if (word == null) return false;
+        String w = word.trim().toLowerCase();
+        return w.equals("de") || w.equals("da") || w.equals("do") || w.equals("das") || w.equals("dos") || w.equals("e");
+    }
+
+    private boolean isDriverNameMatch(String nameA, String nameB) {
+        if (nameA == null || nameB == null) return false;
+        String a = normalizeNameForMatch(nameA);
+        String b = normalizeNameForMatch(nameB);
+        if (a.isEmpty() || b.isEmpty()) return false;
+        if (a.equals(b) || a.contains(b) || b.contains(a)) return true;
+
+        String[] tokensA = java.util.Arrays.stream(a.split("\\s+"))
+                .filter(t -> t.length() > 2 && !isPreposition(t))
+                .toArray(String[]::new);
+        String[] tokensB = java.util.Arrays.stream(b.split("\\s+"))
+                .filter(t -> t.length() > 2 && !isPreposition(t))
+                .toArray(String[]::new);
+
+        if (tokensA.length == 0 || tokensB.length == 0) return false;
+
+        // Primeiro nome deve coincidir (ex: Fernando)
+        if (!tokensA[0].equals(tokensB[0])) return false;
+
+        // Se um deles só tem primeiro nome
+        if (tokensA.length == 1 || tokensB.length == 1) return true;
+
+        // Se o último sobrenome coincide (ex: Santos)
+        if (tokensA[tokensA.length - 1].equals(tokensB[tokensB.length - 1])) return true;
+
+        // Ou se qualquer outro token relevante coincide
+        for (int i = 1; i < tokensA.length; i++) {
+            for (int j = 1; j < tokensB.length; j++) {
+                if (tokensA[i].equals(tokensB[j])) return true;
+            }
+        }
+        return false;
     }
 
     @Transactional(readOnly = true)
@@ -674,10 +735,13 @@ public class ScheduleService {
 
         if (!userName.isBlank()) {
             try {
-                List<Employee> matchingByName = employeeRepository.findByNameContainingIgnoreCase(userName);
-                for (Employee emp : matchingByName) {
-                    if (emp.getId() != null) {
-                        employeeIds.add(emp.getId());
+                String[] words = normalizeNameForMatch(userName).split("\\s+");
+                if (words.length > 0 && words[0].length() > 2) {
+                    List<Employee> matchingByName = employeeRepository.findByNameContainingIgnoreCase(words[0]);
+                    for (Employee emp : matchingByName) {
+                        if (emp.getId() != null && isDriverNameMatch(userName, emp.getName())) {
+                            employeeIds.add(emp.getId());
+                        }
                     }
                 }
             } catch (Exception ignored) {
@@ -685,26 +749,34 @@ public class ScheduleService {
         }
 
         List<Schedule> allSchedules = findAll();
-        final String normalizedUserName = userName.toLowerCase();
 
         return allSchedules.stream()
                 .filter(s -> {
-                    if (s.getEmployee() == null) {
+                    String empName = s.getEmployee() != null ? s.getEmployee().getName() : null;
+                    UUID empId = s.getEmployee() != null ? s.getEmployee().getId() : null;
+
+                    boolean matchesId = empId != null && employeeIds.contains(empId);
+                    boolean matchesName = isDriverNameMatch(userName, empName);
+                    boolean matchesObs = s.getObservations() != null && isDriverNameMatch(userName, s.getObservations());
+                    boolean matchesClient = s.getClientName() != null && isDriverNameMatch(userName, s.getClientName());
+
+                    if (!matchesId && !matchesName && !matchesObs && !matchesClient) {
                         return false;
                     }
-                    boolean matchesId = s.getEmployee().getId() != null && employeeIds.contains(s.getEmployee().getId());
-                    boolean matchesName = !normalizedUserName.isBlank()
-                            && s.getEmployee().getName() != null
-                            && (s.getEmployee().getName().trim().equalsIgnoreCase(normalizedUserName)
-                                    || s.getEmployee().getName().toLowerCase().contains(normalizedUserName)
-                                    || normalizedUserName.contains(s.getEmployee().getName().trim().toLowerCase()));
-                    if (!matchesId && !matchesName) {
-                        return false;
+
+                    if (startDate != null && s.getScheduleDate() != null) {
+                        LocalDate schedDate = s.getScheduleDate();
+                        LocalDate weekStart = startDate.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
+                        LocalDate weekEnd = startDate.with(java.time.temporal.TemporalAdjusters.nextOrSame(java.time.DayOfWeek.SUNDAY));
+                        boolean inSameWeek = !schedDate.isBefore(weekStart) && !schedDate.isAfter(weekEnd);
+                        if (!inSameWeek && schedDate.isBefore(startDate)) {
+                            long daysDiff = java.time.temporal.ChronoUnit.DAYS.between(schedDate, startDate);
+                            if (daysDiff > 35) {
+                                return false;
+                            }
+                        }
                     }
-                    if (startDate != null && s.getScheduleDate() != null && s.getScheduleDate().isBefore(startDate)) {
-                        return false;
-                    }
-                    if (endDate != null && s.getScheduleDate() != null && s.getScheduleDate().isAfter(endDate)) {
+                    if (endDate != null && s.getScheduleDate() != null && s.getScheduleDate().isAfter(endDate.plusDays(7))) {
                         return false;
                     }
                     return true;

@@ -2240,69 +2240,6 @@ export const scheduleService = {
   },
 
   /**
-   * Registra ocorrência de atraso informada pelo motorista com motivo e tempo estimado.
-   */
-  async reportDelay(
-    id: string,
-    payload: {
-      delayMinutes: number;
-      delayReason: string;
-      direction?: 'IDA' | 'RETORNO';
-      routeName?: string;
-      notes?: string;
-    }
-  ): Promise<Schedule> {
-    const nowIso = new Date().toISOString();
-    const delayNotice = `[ATRASO ${payload.delayMinutes} MIN: ${payload.delayReason}]${
-      payload.notes ? ` ${payload.notes}` : ''
-    }`;
-
-    saveExecutionOverlay(id, {
-      delayMinutes: payload.delayMinutes,
-      delayReason: payload.delayReason,
-      delayReportedAt: nowIso,
-      direction: payload.direction,
-      observations: delayNotice,
-    });
-
-    try {
-      const rawEvents = localStorage.getItem('fleet_trip_events_v1') || '[]';
-      const events = JSON.parse(rawEvents);
-      events.unshift({
-        id: `delay-evt-${Date.now()}`,
-        scheduleId: id,
-        eventType: 'DELAY',
-        delayMinutes: payload.delayMinutes,
-        description: `Atraso relatado pelo motorista: ${payload.delayMinutes} min (${payload.delayReason})${
-          payload.notes ? ` - ${payload.notes}` : ''
-        }`,
-        createdAt: nowIso,
-      });
-      localStorage.setItem('fleet_trip_events_v1', JSON.stringify(events.slice(0, 100)));
-    } catch {
-      // ignore
-    }
-
-    try {
-      await api.patch(
-        `/api/schedules/${id}`,
-        {
-          delayMinutes: payload.delayMinutes,
-          delayReason: payload.delayReason,
-          observations: delayNotice,
-        },
-        { silentErrorLog: true } as any
-      );
-    } catch {
-      // fallback já salvo no overlay
-    }
-
-    emitDriverRecordsUpdated();
-    const current = await this.findById(id).catch(() => ({ id } as Schedule));
-    return applyOverlayToSchedule(current);
-  },
-
-  /**
    * Exclui uma escala de trabalho.
    */
   async delete(id: string): Promise<void> {
@@ -2345,116 +2282,111 @@ export const scheduleService = {
   async findMySchedules(filters?: {
     startDate?: string;
     endDate?: string;
+    employeeId?: string;
+    employeeName?: string;
+    targetDate?: string;
   }): Promise<Schedule[]> {
-    let directList: Schedule[] = [];
+    const storedUser = getCurrentStoredUser();
+    const targetName = filters?.employeeName || storedUser?.name || '';
+    const targetEmpId = filters?.employeeId || (storedUser?.employeeId ? String(storedUser.employeeId) : '');
+    const targetUserId = storedUser?.id ? String(storedUser.id) : '';
+    const targetDateStr = filters?.targetDate || filters?.startDate || new Date().toISOString().substring(0, 10);
+
+    const mergedMap = new Map<string, Schedule>();
+
+    // 1. Consulta direta /api/schedules/me
     try {
       const response = await api.get('/api/schedules/me', {
-        params: filters,
+        params: {
+          startDate: filters?.startDate,
+          endDate: filters?.endDate,
+        },
         silentErrorLog: true,
       } as any);
       if (Array.isArray(response.data)) {
-        directList = response.data.map(applyOverlayToSchedule);
+        for (const item of response.data) {
+          if (item && item.id) {
+            mergedMap.set(item.id, applyOverlayToSchedule(item));
+          }
+        }
       }
     } catch {
-      // Continua para o fallback inteligente
+      // Continua para os fallbacks inteligentes
     }
 
-    const storedUser = getCurrentStoredUser();
-    const targetName = normalizeName(storedUser?.name);
-    const targetEmpId = storedUser?.employeeId ? String(storedUser.employeeId) : '';
-    const targetUserId = storedUser?.id ? String(storedUser.id) : '';
-
-    // Sempre busca também em /api/schedules para unir escalas vinculadas pelo nome do funcionário (ex: Fernando Silva Santos)
-    let allSchedules: Schedule[] = [];
-    const myRole = String(storedUser?.role || '').toUpperCase();
-    const isDriverAcc = myRole === 'MOTORISTA' || (Array.isArray(storedUser?.roles) && storedUser.roles.some((r: any) => String(r).toUpperCase().includes('MOTORISTA')));
-
-    if (!isDriverAcc) {
-      try {
-        allSchedules = await this.findAll();
-      } catch {
-        allSchedules = [];
-      }
-    } else {
-      try {
-        const rawRes = await api.get('/api/schedules', {
-          params: filters,
-          validateStatus: (status) => status < 500,
-          silentErrorLog: true,
-        } as any);
-        const rawData = rawRes?.data;
-        if (Array.isArray(rawData)) {
-          allSchedules = rawData.map(applyOverlayToSchedule);
-        } else if (rawData && Array.isArray(rawData.content)) {
-          allSchedules = rawData.content.map(applyOverlayToSchedule);
-        }
-      } catch {
-        allSchedules = [];
-      }
-    }
-
-    const matchedFromAll = allSchedules.filter((s) => {
-      const empId = s.employee?.id ? String(s.employee.id) : '';
-      const empName = normalizeName(s.employee?.name);
-
-      const matchesById =
-        (targetEmpId && empId === targetEmpId) ||
-        (targetUserId && empId === targetUserId);
-
-      const matchesByName =
-        Boolean(targetName) &&
-        Boolean(empName) &&
-        (empName === targetName || empName.includes(targetName) || targetName.includes(empName));
-
-      if (!matchesById && !matchesByName) return false;
-
-      const recurrence = resolveScheduleRecurrence(s);
-      if (recurrence === 'WEEKLY_FIXED' || recurrence === 'WEEKEND') {
-        return true;
-      }
-
-      const dateStr = s.scheduleDate ? s.scheduleDate.substring(0, 10) : '';
-      if (filters?.startDate && dateStr && dateStr < filters.startDate) return false;
-      if (filters?.endDate && dateStr && dateStr > filters.endDate) return false;
-      return true;
-    });
-
-    // Mesclar sem duplicar por ID
-    const mergedMap = new Map<string, Schedule>();
-    for (const item of [...directList, ...matchedFromAll]) {
-      if (item && item.id) {
-        mergedMap.set(item.id, applyOverlayToSchedule(item));
-      }
-    }
-
-    // Também verificar se existem escalas na tabela de Fretamento (/api/escalas) para o mesmo motorista
+    // 2. Consulta geral em /api/schedules com correspondência resiliente de motorista
     try {
-      const escalasList = await escalaService.list();
+      const allSchedules = await this.findAll().catch(async () => {
+        const rawRes = await api.get('/api/schedules', { silentErrorLog: true } as any);
+        const data = rawRes?.data;
+        if (Array.isArray(data)) return data;
+        if (data && Array.isArray(data.content)) return data.content;
+        return [];
+      });
+
+      if (Array.isArray(allSchedules)) {
+        for (const s of allSchedules) {
+          if (!s || !s.id) continue;
+
+          const empId = s.employee?.id ? String(s.employee.id) : (s.employeeId ? String(s.employeeId) : '');
+          const empName = s.employee?.name || s.employeeName || (s as any).driverName;
+          const obs = s.observations || '';
+          const client = s.clientName || '';
+
+          const matchesById =
+            (targetEmpId && empId === targetEmpId) ||
+            (targetUserId && empId === targetUserId);
+
+          const matchesByName =
+            isDriverNameMatch(targetName, empName) ||
+            isDriverNameMatch(targetName, obs) ||
+            isDriverNameMatch(targetName, client);
+
+          if (!matchesById && !matchesByName) continue;
+
+          // Valida se a escala está ativa para a data alvo (semanal fixa, FDS ou data exata)
+          if (targetDateStr && !isScheduleActiveForDate(s, targetDateStr)) {
+            // Se não bate a data de hoje, mas é do mesmo motorista e foi criada nos últimos 15 dias, mantém como disponível
+            const dateStr = s.scheduleDate ? s.scheduleDate.substring(0, 10) : '';
+            if (dateStr && filters?.startDate && dateStr < filters.startDate) {
+              const diffDays = Math.abs(
+                (new Date(targetDateStr).getTime() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24)
+              );
+              if (diffDays > 20) continue;
+            }
+          }
+
+          if (!mergedMap.has(s.id)) {
+            mergedMap.set(s.id, applyOverlayToSchedule(s));
+          }
+        }
+      }
+    } catch {
+      // continua
+    }
+
+    // 3. Consulta escalas de Fretamento (/api/escalas)
+    try {
+      const escalasList = await escalaService.list(targetDateStr);
       if (Array.isArray(escalasList)) {
         for (const esc of escalasList as any[]) {
-          const drvName = normalizeName(esc.driverName || esc.driver?.name);
+          const drvName = esc.driverName || esc.driver?.name;
           const drvId = String(esc.driverId || esc.driver?.id || '');
           const matchesDrv =
             (targetEmpId && drvId === targetEmpId) ||
             (targetUserId && drvId === targetUserId) ||
-            (Boolean(targetName) &&
-              Boolean(drvName) &&
-              (drvName === targetName || drvName.includes(targetName) || targetName.includes(drvName)));
+            isDriverNameMatch(targetName, drvName);
 
           if (!matchesDrv) continue;
-
-          const scaleDate = esc.scaleDate ? String(esc.scaleDate).substring(0, 10) : '';
-          if (filters?.startDate && scaleDate && scaleDate < filters.startDate) continue;
-          if (filters?.endDate && scaleDate && scaleDate > filters.endDate) continue;
 
           if (!mergedMap.has(esc.id)) {
             const converted: Schedule = applyOverlayToSchedule({
               id: esc.id,
               employee: {
                 id: drvId || targetEmpId || 'driver',
-                name: esc.driverName || storedUser?.name || 'Motorista',
+                name: drvName || targetName || 'Motorista',
               },
-              scheduleDate: scaleDate || new Date().toISOString().substring(0, 10),
+              scheduleDate: esc.scaleDate ? String(esc.scaleDate).substring(0, 10) : targetDateStr,
               shift: 'DAY',
               startTime: esc.departureTime ? String(esc.departureTime).substring(0, 5) : '08:00',
               endTime: '17:00',
@@ -2464,6 +2396,7 @@ export const scheduleService = {
               },
               routeId: esc.routeId,
               route: esc.routeId ? { id: esc.routeId, name: esc.routeName || 'Rota' } : undefined,
+              routeCode: esc.routeName || '01 - CASA/PONTO',
               vehicleId: esc.vehicleId,
               vehicle: esc.vehiclePlate
                 ? { id: esc.vehicleId || 'vehicle', plate: esc.vehiclePlate }
@@ -2485,12 +2418,74 @@ export const scheduleService = {
         }
       }
     } catch {
-      // Ignora caso /api/escalas não esteja disponível para este perfil
+      // Ignora caso /api/escalas falhe
     }
 
-    return Array.from(mergedMap.values()).sort((a, b) =>
-      String(a.scheduleDate || '').localeCompare(String(b.scheduleDate || ''))
-    );
+    // 4. Consulta escalas operacionais (/operacional/escalas)
+    try {
+      const opRes = await api.get('/operacional/escalas', { silentErrorLog: true } as any);
+      const opList = Array.isArray(opRes.data) ? opRes.data : [];
+      for (const op of opList as any[]) {
+        const funcName = op.funcionario?.nome || op.funcionarioNome;
+        const funcId = String(op.funcionarioId || op.funcionario?.id || '');
+        const matchesOp =
+          (targetEmpId && funcId === targetEmpId) ||
+          (targetUserId && funcId === targetUserId) ||
+          isDriverNameMatch(targetName, funcName);
+
+        if (!matchesOp) continue;
+
+        if (!mergedMap.has(op.id)) {
+          const opStart = op.horarioInicio ? String(op.horarioInicio).substring(0, 5) : '08:00';
+          const opEnd = op.horarioFim ? String(op.horarioFim).substring(0, 5) : '17:00';
+          const converted: Schedule = applyOverlayToSchedule({
+            id: op.id,
+            employee: {
+              id: funcId || targetEmpId || 'driver',
+              name: funcName || targetName || 'Motorista',
+            },
+            scheduleDate: op.dataInicio ? String(op.dataInicio).substring(0, 10) : targetDateStr,
+            shift: 'DAY',
+            startTime: opStart,
+            endTime: opEnd,
+            clientName: op.posto?.cliente || op.posto?.nome || 'Cliente Operacional',
+            routeCode: op.posto?.nome || '01 - CASA/PONTO',
+            status: op.status === 'FOLGA' ? 'CANCELLED' : 'PENDING',
+            observations: op.observacoes,
+          });
+          mergedMap.set(op.id, converted);
+        }
+      }
+    } catch {
+      // ignora
+    }
+
+    // 5. Incluir escalas locais salvas em contingência/offline
+    try {
+      const localList = getLocalPontoSchedules();
+      for (const loc of localList) {
+        if (!loc || !loc.id) continue;
+        const empName = loc.employee?.name || loc.employeeName;
+        const empId = loc.employee?.id ? String(loc.employee.id) : (loc.employeeId ? String(loc.employeeId) : '');
+        const matchesLoc =
+          (targetEmpId && empId === targetEmpId) ||
+          (targetUserId && empId === targetUserId) ||
+          isDriverNameMatch(targetName, empName);
+
+        if (matchesLoc && !mergedMap.has(loc.id)) {
+          mergedMap.set(loc.id, applyOverlayToSchedule(loc));
+        }
+      }
+    } catch {
+      // ignora
+    }
+
+    // 6. Ordenar por horário de início
+    return Array.from(mergedMap.values()).sort((a, b) => {
+      const timeA = resolveScheduleStartTime(a);
+      const timeB = resolveScheduleStartTime(b);
+      return timeA.localeCompare(timeB);
+    });
   },
 
   /**
