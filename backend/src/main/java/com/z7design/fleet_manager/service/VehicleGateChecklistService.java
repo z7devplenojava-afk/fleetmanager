@@ -148,7 +148,7 @@ public class VehicleGateChecklistService {
             try {
                 FleetWorkOrderDTO woDto = new FleetWorkOrderDTO();
                 woDto.setVehicleId(vehicle.getId());
-                woDto.setType(FleetWorkOrder.WorkOrderType.CORRECTIVE);
+                woDto.setMaintenanceType(FleetWorkOrder.MaintenanceType.CORRETIVA);
                 boolean isUrgent = dto.getDriverProblemReport().toUpperCase().contains("URGÊNCIA")
                         || dto.getDriverProblemReport().toUpperCase().contains("URGENCIA")
                         || dto.getDriverProblemReport().toUpperCase().contains("PNEU")
@@ -157,10 +157,11 @@ public class VehicleGateChecklistService {
                 woDto.setStatus(FleetWorkOrder.WorkOrderStatus.PENDING_APPROVAL);
                 woDto.setOdometerIn(dto.getKmReading());
                 woDto.setStopDate(LocalDate.now());
-                woDto.setStopTime(LocalTime.now());
+                woDto.setStopTime(LocalTime.now().toString().substring(0, 5));
                 String driverLabel = driver != null ? driver.getName() : (dto.getDriverName() != null ? dto.getDriverName() : "Motorista");
-                woDto.setReportedDefects("[Checklist Diário - " + driverLabel + "] " + dto.getDriverProblemReport());
-                woDto.setObservations(dto.getObservations());
+                woDto.setAnomaliesDescription("[Checklist Diário - " + driverLabel + "] " + dto.getDriverProblemReport());
+                woDto.setOtherDescription(dto.getObservations());
+                woDto.setStopReason("Checklist Diário - Avaria Informada");
                 fleetWorkOrderService.create(woDto);
                 log.info("OS Corretiva automática criada a partir do Checklist Diário para o veículo {}", vehicle.getPlate());
             } catch (Exception e) {

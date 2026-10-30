@@ -1,6 +1,7 @@
 package com.z7design.fleet_manager.service;
 
 import com.z7design.fleet_manager.model.*;
+import com.z7design.fleet_manager.model.enums.EmploymentStatus;
 import com.z7design.fleet_manager.repository.*;
 import com.z7design.fleet_manager.dto.WorkedHoursReportDTO;
 import com.z7design.fleet_manager.dto.DailyWorkedHoursDTO;
@@ -90,8 +91,7 @@ public class TimeRecordService {
                         newEmp.setEmail(user.getEmail());
                         newEmp.setCompanyId(user.getCompanyId());
                         newEmp.setStatus(EmploymentStatus.ACTIVE);
-                        newEmp.setDepartment("TRANSPORTE");
-                        newEmp = employeeRepository.save(newEmp);
+                                                newEmp = employeeRepository.save(newEmp);
                         empOpt = Optional.of(newEmp);
                         log.info("Colaborador provisionado automaticamente para ponto: {} (ID: {})", newEmp.getName(), newEmp.getId());
                     } catch (Exception eProv) {
