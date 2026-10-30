@@ -30,10 +30,13 @@ import {
   Send,
   ShieldCheck,
   FileSpreadsheet,
-  RefreshCw
+  RefreshCw,
+  Moon,
+  Sparkles
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, startOfWeek, startOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { calculateNightShiftMinutes } from '@/utils/nightShiftCalculator';
 import timeRecordService, { TimeRecord } from '@/services/timeRecordService';
 import { timeSheetService } from '@/services/timeSheetService';
 import api from '@/lib/axios';
@@ -473,6 +476,96 @@ const PontoEletronico: React.FC = () => {
     };
     return colors[tipo];
   };
+
+  const [summaryTab, setSummaryTab] = useState<'HOJE' | 'SEMANA' | 'MES'>('HOJE');
+  const [periodSummaryRecords, setPeriodSummaryRecords] = useState<TimeRecord[]>([]);
+  const [loadingSummaryRecords, setLoadingSummaryRecords] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (summaryTab !== 'HOJE' && activeEmployeeId && periodSummaryRecords.length === 0) {
+      setLoadingSummaryRecords(true);
+      timeRecordService.getEmployeeRecords(activeEmployeeId, 0, 100)
+        .then((recs) => {
+          setPeriodSummaryRecords(Array.isArray(recs) ? recs : []);
+        })
+        .catch(() => {})
+        .finally(() => setLoadingSummaryRecords(false));
+    }
+  }, [summaryTab, activeEmployeeId, periodSummaryRecords.length]);
+
+  const calcularAdicionalNoturnoHoje = () => {
+    if (registrosHoje.length < 2) {
+      return { totalMinutes: 0, formattedNightClt: '0h 0min', hasNightShift: false };
+    }
+
+    const entrada = registrosHoje.find(r => r.recordType === 'ENTRADA');
+    const saida = registrosHoje.find(r => r.recordType === 'SAIDA');
+    if (!entrada) return { totalMinutes: 0, formattedNightClt: '0h 0min', hasNightShift: false };
+
+    const fim = saida ? new Date(saida.recordedAt) : currentTime;
+    return calculateNightShiftMinutes(new Date(entrada.recordedAt), fim);
+  };
+
+  const summaryMetrics = useMemo(() => {
+    if (summaryTab === 'HOJE') {
+      const nightCalc = calcularAdicionalNoturnoHoje();
+      return {
+        recordsCount: registrosHoje.length,
+        hoursWorked: calcularHorasTrabalhadas(),
+        nightCltFormatted: nightCalc.formattedNightClt,
+        hasNightShift: nightCalc.hasNightShift,
+        periodLabel: 'Hoje',
+      };
+    }
+
+    const now = new Date();
+    const threshold = summaryTab === 'SEMANA'
+      ? startOfWeek(now, { weekStartsOn: 1 })
+      : startOfMonth(now);
+
+    const filtered = periodSummaryRecords.filter((r) => {
+      const dt = new Date(r.recordedAt);
+      return !isNaN(dt.getTime()) && dt >= threshold;
+    });
+
+    const recordsByDay = new Map<string, TimeRecord[]>();
+    filtered.forEach((r) => {
+      const dayKey = format(new Date(r.recordedAt), 'yyyy-MM-dd');
+      if (!recordsByDay.has(dayKey)) recordsByDay.set(dayKey, []);
+      recordsByDay.get(dayKey)!.push(r);
+    });
+
+    let totalWorkedMinutes = 0;
+    let totalNightCltMinutes = 0;
+
+    recordsByDay.forEach((dayRecs) => {
+      const entrada = dayRecs.find((r) => r.recordType === 'ENTRADA');
+      const saida = dayRecs.find((r) => r.recordType === 'SAIDA');
+      if (entrada && saida) {
+        const entTime = new Date(entrada.recordedAt).getTime();
+        const saiTime = new Date(saida.recordedAt).getTime();
+        if (saiTime > entTime) {
+          totalWorkedMinutes += Math.floor((saiTime - entTime) / 60000);
+          const nightRes = calculateNightShiftMinutes(new Date(entrada.recordedAt), new Date(saida.recordedAt));
+          totalNightCltMinutes += nightRes.nightReducedMinutes;
+        }
+      }
+    });
+
+    const formatM = (min: number) => {
+      const h = Math.floor(min / 60);
+      const m = min % 60;
+      return `${h}h ${m}min`;
+    };
+
+    return {
+      recordsCount: filtered.length,
+      hoursWorked: formatM(totalWorkedMinutes),
+      nightCltFormatted: formatM(totalNightCltMinutes),
+      hasNightShift: totalNightCltMinutes > 0,
+      periodLabel: summaryTab === 'SEMANA' ? 'Esta Semana' : 'Este Mês',
+    };
+  }, [summaryTab, registrosHoje, periodSummaryRecords, currentTime]);
 
   const calcularHorasTrabalhadas = () => {
     if (registrosHoje.length < 2) return '0h 0min';
@@ -1281,30 +1374,90 @@ const PontoEletronico: React.FC = () => {
 
         {/* Rodapé da Tela: Resumo do Dia & Colaborador e Local Organizados */}
         <div className="grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-2">
-          {/* Resumo do Dia */}
+          {/* Resumo de Horas, Adicional Noturno e Movimentações (Hoje / Semana / Mês) */}
           <Card className="bg-seguranca-darkgray/50 border-seguranca-gray/20 shadow-md">
-            <CardHeader className="pb-2 pt-3.5 px-4">
+            <CardHeader className="pb-2 pt-3.5 px-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <CardTitle className="text-xs sm:text-sm font-bold uppercase tracking-wider text-seguranca-lightgray flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-seguranca-yellow shrink-0" />
-                Resumo do Dia
+                <span>Resumo de Horas & Movimentações</span>
               </CardTitle>
+
+              {/* Seletor de Período (Hoje, Semana, Mês) */}
+              <div className="flex items-center gap-1 bg-black/40 p-0.5 rounded-lg border border-gray-800 self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setSummaryTab('HOJE')}
+                  className={`px-2 py-1 rounded text-[11px] font-bold transition-all ${
+                    summaryTab === 'HOJE'
+                      ? 'bg-seguranca-yellow text-seguranca-black shadow-sm'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  Hoje
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSummaryTab('SEMANA')}
+                  className={`px-2 py-1 rounded text-[11px] font-bold transition-all ${
+                    summaryTab === 'SEMANA'
+                      ? 'bg-seguranca-yellow text-seguranca-black shadow-sm'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  Semana
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSummaryTab('MES')}
+                  className={`px-2 py-1 rounded text-[11px] font-bold transition-all ${
+                    summaryTab === 'MES'
+                      ? 'bg-seguranca-yellow text-seguranca-black shadow-sm'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  Mês
+                </button>
+              </div>
             </CardHeader>
-            <CardContent className="px-4 pb-4 pt-1">
-              <div className="grid grid-cols-3 gap-2 text-center">
+            <CardContent className="px-4 pb-4 pt-1 space-y-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                {/* Horas Trabalhadas */}
                 <div className="rounded-xl bg-black/30 border border-gray-800 p-2.5">
-                  <span className="text-[10px] sm:text-xs text-seguranca-gray block">Registros Hoje</span>
-                  <span className="text-base sm:text-lg font-black text-white mt-0.5 block">
-                    {registrosHoje.length}
+                  <span className="text-[10px] text-seguranca-gray block font-semibold">Horas Trab.</span>
+                  <span className="text-sm sm:text-base font-black text-seguranca-yellow mt-0.5 block truncate">
+                    {summaryMetrics.hoursWorked}
                   </span>
                 </div>
+
+                {/* Adicional Noturno */}
+                <div className="rounded-xl bg-black/30 border border-indigo-500/30 p-2.5">
+                  <span className="text-[10px] text-indigo-300 block font-semibold flex items-center justify-center gap-1">
+                    <Moon className="h-3 w-3" />
+                    Adic. Noturno
+                  </span>
+                  <span className={`text-sm sm:text-base font-black mt-0.5 block truncate ${
+                    summaryMetrics.hasNightShift ? 'text-indigo-400' : 'text-gray-400'
+                  }`}>
+                    {summaryMetrics.nightCltFormatted}
+                  </span>
+                  {summaryMetrics.hasNightShift && (
+                    <span className="text-[9px] text-indigo-300/80 block mt-0.5">CLT (52m30s)</span>
+                  )}
+                </div>
+
+                {/* Registros */}
                 <div className="rounded-xl bg-black/30 border border-gray-800 p-2.5">
-                  <span className="text-[10px] sm:text-xs text-seguranca-gray block">Horas Trab.</span>
-                  <span className="text-sm sm:text-base font-black text-seguranca-yellow mt-1 block">
-                    {calcularHorasTrabalhadas()}
+                  <span className="text-[10px] text-seguranca-gray block font-semibold">
+                    {summaryTab === 'HOJE' ? 'Registros Hoje' : `Registros (${summaryMetrics.periodLabel})`}
+                  </span>
+                  <span className="text-sm sm:text-base font-black text-white mt-0.5 block">
+                    {summaryMetrics.recordsCount}
                   </span>
                 </div>
+
+                {/* Situação */}
                 <div className="rounded-xl bg-black/30 border border-gray-800 p-2.5 flex flex-col items-center justify-center">
-                  <span className="text-[10px] sm:text-xs text-seguranca-gray block mb-1">Situação</span>
+                  <span className="text-[10px] text-seguranca-gray block mb-1 font-semibold">Situação</span>
                   <Badge
                     variant={registrosHoje.length > 0 ? 'default' : 'outline'}
                     className={
@@ -1316,6 +1469,31 @@ const PontoEletronico: React.FC = () => {
                     {registrosHoje.length > 0 ? 'Em Expediente' : 'Fora'}
                   </Badge>
                 </div>
+              </div>
+
+              {/* Botões de Ação Rápida: Folha de Ponto (PDF) & Histórico */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 pt-1 border-t border-gray-800/80">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowPdfDialog(true)}
+                  className="h-8 text-xs font-bold border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10 flex items-center justify-center gap-1.5"
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                  <span>Gerar Folha de Ponto / Espelho (PDF)</span>
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={openHistoryDialog}
+                  className="h-8 text-xs font-semibold text-gray-300 hover:text-white flex items-center justify-center gap-1"
+                >
+                  <History className="h-3.5 w-3.5 text-seguranca-yellow" />
+                  <span>Ver Histórico Completo</span>
+                </Button>
               </div>
             </CardContent>
           </Card>
