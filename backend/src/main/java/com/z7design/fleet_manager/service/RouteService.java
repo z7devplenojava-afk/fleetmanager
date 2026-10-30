@@ -1,15 +1,18 @@
 package com.z7design.fleet_manager.service;
 
+import com.z7design.fleet_manager.dto.BoardingPointDTO;
+import com.z7design.fleet_manager.dto.RouteDTO;
 import com.z7design.fleet_manager.model.Route;
 import com.z7design.fleet_manager.model.RoutePoint;
+import com.z7design.fleet_manager.repository.RoutePointRepository;
 import com.z7design.fleet_manager.repository.RouteRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class RouteService {
@@ -18,11 +21,52 @@ public class RouteService {
     private RouteRepository routeRepository;
 
     @Autowired
+    private RoutePointRepository routePointRepository;
+
+    @Autowired
     private com.z7design.fleet_manager.service.RouteCodeGenerator routeCodeGenerator;
+
+    @Transactional(readOnly = true)
+    public List<RouteDTO> findAllRoutesDTO() {
+        List<Route> routes = routeRepository.findAll();
+        Map<UUID, List<BoardingPointDTO>> pointsByRoute = new HashMap<>();
+        try {
+            pointsByRoute = routePointRepository.findAll().stream()
+                    .map(BoardingPointDTO::fromEntity)
+                    .filter(p -> p != null && p.getRouteId() != null)
+                    .collect(Collectors.groupingBy(BoardingPointDTO::getRouteId));
+        } catch (Exception ignored) {}
+
+        List<RouteDTO> dtos = new ArrayList<>();
+        for (Route r : routes) {
+            RouteDTO dto = RouteDTO.fromEntity(r);
+            if (dto != null) {
+                if (pointsByRoute.containsKey(r.getId())) {
+                    dto.setPoints(pointsByRoute.get(r.getId()));
+                }
+                dtos.add(dto);
+            }
+        }
+        return dtos;
+    }
 
     @Transactional(readOnly = true)
     public List<Route> findAllRoutes() {
         return routeRepository.findAll();
+    }
+
+    @Transactional(readOnly = true)
+    public RouteDTO findRouteDTOById(UUID id) {
+        Route route = findRouteById(id);
+        RouteDTO dto = RouteDTO.fromEntity(route);
+        if (dto != null) {
+            try {
+                dto.setPoints(routePointRepository.findByRouteIdOrderByOrderAsc(id).stream()
+                        .map(BoardingPointDTO::fromEntity)
+                        .collect(Collectors.toList()));
+            } catch (Exception ignored) {}
+        }
+        return dto;
     }
 
     @Transactional(readOnly = true)
