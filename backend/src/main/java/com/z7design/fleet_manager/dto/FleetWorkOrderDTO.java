@@ -155,10 +155,16 @@ public class FleetWorkOrderDTO {
         if (mechanicName == null || mechanicName.isBlank()) {
             if (entity.getNotes() != null) {
                 java.util.regex.Matcher m = java.util.regex.Pattern
-                        .compile("(?i)Motorista:\\s*([^\\n,]+?)(?:\\s+via|$)")
+                        .compile("(?i)(?:motorista|condutor)[\\s:]+([^\\n,]+?)(?:\\s+via|\\s+no|\\s+pelo|$)")
                         .matcher(entity.getNotes());
+                if (!m.find()) {
+                    m = java.util.regex.Pattern
+                            .compile("(?i)(?:aberta|criada)\\s+pelo\\s+(?:motorista|condutor)[\\s:]*([^\\n,]+?)(?:\\s+via|$)")
+                            .matcher(entity.getNotes());
+                }
                 if (m.find() && !m.group(1).trim().isEmpty()) {
-                    mechanicName = m.group(1).trim() + " (Motorista)";
+                    String extracted = m.group(1).trim();
+                    mechanicName = extracted.toLowerCase().contains("motorista") ? extracted : (extracted + " (Motorista)");
                 }
             }
             if ((mechanicName == null || mechanicName.isBlank()) && entity.getAnomaliesDescription() != null) {
@@ -166,7 +172,8 @@ public class FleetWorkOrderDTO {
                         .compile("(?i)\\[Checklist Diário\\s*-\\s*([^\\]]+)\\]")
                         .matcher(entity.getAnomaliesDescription());
                 if (m.find() && !m.group(1).trim().isEmpty()) {
-                    mechanicName = m.group(1).trim() + " (Motorista)";
+                    String extracted = m.group(1).trim();
+                    mechanicName = extracted.toLowerCase().contains("motorista") ? extracted : (extracted + " (Motorista)");
                 }
             }
             if ((mechanicName == null || mechanicName.isBlank()) && entity.getVehicle() != null) {
@@ -174,6 +181,11 @@ public class FleetWorkOrderDTO {
                     mechanicName = entity.getVehicle().getResponsibleEmployee().getName();
                 } else if (entity.getVehicle().getAssignedDriver() != null && !entity.getVehicle().getAssignedDriver().isBlank()) {
                     mechanicName = entity.getVehicle().getAssignedDriver() + " (Motorista)";
+                }
+            }
+            if ((mechanicName == null || mechanicName.isBlank()) && entity.getStopReason() != null) {
+                if (entity.getStopReason().toLowerCase().contains("condutor") || entity.getStopReason().toLowerCase().contains("motorista")) {
+                    mechanicName = "Condutor / Motorista";
                 }
             }
         }

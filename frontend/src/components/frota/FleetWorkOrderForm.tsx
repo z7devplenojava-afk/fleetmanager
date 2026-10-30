@@ -728,6 +728,8 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         } else {
             const today = new Date().toISOString().split('T')[0];
             const nowTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const isDriver = user?.role === 'MOTORISTA' || (user as any)?.roles?.some((r: any) => typeof r === 'string' ? r.includes('MOTORISTA') : r?.name?.includes('MOTORISTA'));
+            const defaultResponsible = isDriver ? `${user?.name || 'Motorista'} (Motorista)` : '';
             setFormData({
                 vehicleId: initialVehicleId || '',
                 maintenanceType: MaintenanceType.CORRETIVA,
@@ -738,7 +740,14 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                 stopDate: today,
                 stopTime: nowTime,
                 laborCost: 0, partsCost: 0, totalCost: 0,
-                stopReason: '', mechanicName: '', notes: '', items: [], checklistItems: [],
+                stopReason: isDriver ? 'Abertura de Chamado pelo Condutor/Motorista' : '',
+                mechanicName: defaultResponsible,
+                responsibleName: user?.name,
+                requesterName: user?.name,
+                responsibleId: (user as any)?.employeeId || (user?.id ? String(user.id) : undefined),
+                requesterId: (user as any)?.employeeId || (user?.id ? String(user.id) : undefined),
+                notes: isDriver ? `OS aberta pelo Motorista: ${user?.name || 'Condutor'} via Sistema` : '',
+                items: [], checklistItems: [],
                 anomaliesDescription: '', otherDescription: '', maintenancePerformed: ''
             });
             setIsExpressMode(true);
@@ -1182,8 +1191,15 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
             const nowTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
             const resolvedAnomalies = defectText || (formData.maintenanceType === MaintenanceType.PREVENTIVA ? 'Revisão preventiva periódica' : '');
 
+            const isDriver = user?.role === 'MOTORISTA' || (user as any)?.roles?.some((r: any) => typeof r === 'string' ? r.includes('MOTORISTA') : r?.name?.includes('MOTORISTA'));
+            const driverName = user?.name || user?.username || 'Motorista';
+            const resolvedMechanic = formData.mechanicName?.trim() || (isDriver ? `${driverName} (Motorista)` : undefined);
+
             const payload: Partial<FleetWorkOrder> = {
                 ...formData,
+                mechanicName: resolvedMechanic,
+                responsibleName: formData.responsibleName || (isDriver ? driverName : undefined),
+                requesterName: formData.requesterName || (isDriver ? driverName : undefined),
                 stopDate: formData.stopDate || today,
                 stopTime: formData.stopTime || nowTime,
                 stopReason: formData.stopReason?.trim() || resolvedAnomalies,
@@ -1247,8 +1263,15 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
             const nowTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
             const resolvedAnomalies = defectText || (formData.maintenanceType === MaintenanceType.PREVENTIVA ? 'Revisão preventiva periódica' : '');
 
+            const isDriver = user?.role === 'MOTORISTA' || (user as any)?.roles?.some((r: any) => typeof r === 'string' ? r.includes('MOTORISTA') : r?.name?.includes('MOTORISTA'));
+            const driverName = user?.name || user?.username || 'Motorista';
+            const resolvedMechanic = formData.mechanicName?.trim() || (isDriver ? `${driverName} (Motorista)` : undefined);
+
             const payload: Partial<FleetWorkOrder> = {
                 ...formData,
+                mechanicName: resolvedMechanic,
+                responsibleName: formData.responsibleName || (isDriver ? driverName : undefined),
+                requesterName: formData.requesterName || (isDriver ? driverName : undefined),
                 stopDate: formData.stopDate || today,
                 stopTime: formData.stopTime || nowTime,
                 stopReason: formData.stopReason?.trim() || resolvedAnomalies,

@@ -73,6 +73,27 @@ public class FleetWorkOrderService {
     private final InvoiceRepository invoiceRepository;
     private final InvoiceService invoiceService;
     private final FleetWorkOrderExecutionHistoryRepository executionHistoryRepository;
+    private final com.z7design.fleet_manager.repository.UserRepository userRepository;
+
+    private boolean isUserDriver(com.z7design.fleet_manager.model.User user) {
+        if (user == null || user.getRoles() == null) return false;
+        return user.getRoles().stream()
+                .anyMatch(r -> r != null && r.getName() != null && r.getName().toUpperCase().contains("MOTORISTA"));
+    }
+
+    private String resolvePersonName(UUID id) {
+        if (id == null) return null;
+        var emp = employeeRepository.findById(id);
+        if (emp.isPresent() && emp.get().getName() != null && !emp.get().getName().isBlank()) {
+            return emp.get().getName();
+        }
+        var usr = userRepository.findById(id);
+        if (usr.isPresent() && usr.get().getName() != null && !usr.get().getName().isBlank()) {
+            boolean isDriver = isUserDriver(usr.get());
+            return usr.get().getName() + (isDriver ? " (Motorista)" : "");
+        }
+        return null;
+    }
 
     private FleetWorkOrderDTO toDTO(FleetWorkOrder entity) {
         FleetWorkOrderDTO dto = FleetWorkOrderDTO.fromEntity(entity);
@@ -99,30 +120,84 @@ public class FleetWorkOrderService {
         // Completa mechanicName se ainda estiver nulo
         if (dto.getMechanicName() == null || dto.getMechanicName().isBlank()) {
             if (dto.getMechanicId() != null) {
-                employeeRepository.findById(dto.getMechanicId())
-                        .ifPresent(emp -> dto.setMechanicName(emp.getName()));
+                dto.setMechanicName(resolvePersonName(dto.getMechanicId()));
             } else if (dto.getResponsibleId() != null) {
-                employeeRepository.findById(dto.getResponsibleId())
-                        .ifPresent(emp -> dto.setMechanicName(emp.getName()));
+                dto.setMechanicName(resolvePersonName(dto.getResponsibleId()));
             } else if (dto.getRequesterId() != null) {
-                employeeRepository.findById(dto.getRequesterId())
-                        .ifPresent(emp -> dto.setMechanicName(emp.getName()));
+                dto.setMechanicName(resolvePersonName(dto.getRequesterId()));
+            }
+        }
+
+        if (dto.getMechanicName() == null || dto.getMechanicName().isBlank()) {
+            if (entity.getNotes() != null) {
+                java.util.regex.Matcher m = java.util.regex.Pattern
+                        .compile("(?i)(?:motorista|condutor)[\\s:]+([^\\n,]+?)(?:\\s+via|\\s+no|\\s+pelo|$)")
+                        .matcher(entity.getNotes());
+                if (!m.find()) {
+                    m = java.util.regex.Pattern
+                            .compile("(?i)(?:aberta|criada)\\s+pelo\\s+(?:motorista|condutor)[\\s:]*([^\\n,]+?)(?:\\s+via|$)")
+                            .matcher(entity.getNotes());
+                }
+                if (m.find() && !m.group(1).trim().isEmpty()) {
+                    String extracted = m.group(1).trim();
+                    dto.setMechanicName(extracted.toLowerCase().contains("motorista") ? extracted : (extracted + " (Motorista)"));
+                }
+            }
+        }
+
+        if (dto.getMechanicName() == null || dto.getMechanicName().isBlank()) {
+            if (entity.getAnomaliesDescription() != null) {
+                java.util.regex.Matcher m = java.util.regex.Pattern
+                        .compile("(?i)\\[Checklist Diário\\s*-\\s*([^\\]]+)\\]")
+                        .matcher(entity.getAnomaliesDescription());
+                if (m.find() && !m.group(1).trim().isEmpty()) {
+                    String extracted = m.group(1).trim();
+                    dto.setMechanicName(extracted.toLowerCase().contains("motorista") ? extracted : (extracted + " (Motorista)"));
+                }
+            }
+        }
+
+        if (dto.getMechanicName() == null || dto.getMechanicName().isBlank()) {
+            List<FleetWorkOrderHistory> hist = historyRepository.findByWorkOrderIdOrderByCreatedAtAsc(entity.getId());
+            for (FleetWorkOrderHistory h : hist) {
+                if (h.getPerformedBy() != null && !h.getPerformedBy().isBlank() && !"Sistema".equalsIgnoreCase(h.getPerformedBy().trim())) {
+                    dto.setMechanicName(h.getPerformedBy().trim());
+                    break;
+                }
+            }
+        }
+
+        if (dto.getMechanicName() == null || dto.getMechanicName().isBlank()) {
+            if (entity.getVehicle() != null) {
+                if (entity.getVehicle().getResponsibleEmployee() != null) {
+                    dto.setMechanicName(entity.getVehicle().getResponsibleEmployee().getName());
+                } else if (entity.getVehicle().getAssignedDriver() != null && !entity.getVehicle().getAssignedDriver().isBlank()) {
+                    dto.setMechanicName(entity.getVehicle().getAssignedDriver() + " (Motorista)");
+                }
+            }
+        }
+
+        if (dto.getMechanicName() == null || dto.getMechanicName().isBlank()) {
+            if (entity.getStopReason() != null && (entity.getStopReason().toLowerCase().contains("condutor") || entity.getStopReason().toLowerCase().contains("motorista"))) {
+                dto.setMechanicName("Condutor / Motorista");
             }
         }
 
         // Completa responsibleName se ainda estiver nulo
-        if ((dto.getResponsibleName() == null || dto.getResponsibleName().isBlank()) && dto.getResponsibleId() != null) {
-            employeeRepository.findById(dto.getResponsibleId())
-                    .ifPresent(emp -> dto.setResponsibleName(emp.getName()));
+        if (dto.getResponsibleName() == null || dto.getResponsibleName().isBlank()) {
+            if (dto.getResponsibleId() != null) {
+                dto.setResponsibleName(resolvePersonName(dto.getResponsibleId()));
+            }
         }
         if (dto.getResponsibleName() == null || dto.getResponsibleName().isBlank()) {
             dto.setResponsibleName(dto.getMechanicName());
         }
 
         // Completa requesterName se ainda estiver nulo
-        if ((dto.getRequesterName() == null || dto.getRequesterName().isBlank()) && dto.getRequesterId() != null) {
-            employeeRepository.findById(dto.getRequesterId())
-                    .ifPresent(emp -> dto.setRequesterName(emp.getName()));
+        if (dto.getRequesterName() == null || dto.getRequesterName().isBlank()) {
+            if (dto.getRequesterId() != null) {
+                dto.setRequesterName(resolvePersonName(dto.getRequesterId()));
+            }
         }
         if (dto.getRequesterName() == null || dto.getRequesterName().isBlank()) {
             dto.setRequesterName(dto.getMechanicName());
@@ -368,30 +443,51 @@ public class FleetWorkOrderService {
                 ? dto.getMaintenanceType()
                 : FleetWorkOrder.MaintenanceType.CORRETIVA;
 
+        // Identificar usuário autenticado que está criando a OS
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        com.z7design.fleet_manager.model.User currentUser = null;
+        if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName())) {
+            currentUser = userRepository.findByUsername(auth.getName()).orElse(null);
+        }
+
         String resolvedMechanicName = dto.getMechanicName();
         if (resolvedMechanicName == null || resolvedMechanicName.isBlank()) {
             if (dto.getResponsibleName() != null && !dto.getResponsibleName().isBlank()) {
                 resolvedMechanicName = dto.getResponsibleName();
             } else if (dto.getRequesterName() != null && !dto.getRequesterName().isBlank()) {
                 resolvedMechanicName = dto.getRequesterName();
+            } else if (currentUser != null && isUserDriver(currentUser)) {
+                resolvedMechanicName = currentUser.getName() + " (Motorista)";
             } else if (dto.getNotes() != null) {
                 java.util.regex.Matcher m = java.util.regex.Pattern
-                        .compile("(?i)Motorista:\\s*([^\\n,]+?)(?:\\s+via|$)")
+                        .compile("(?i)(?:motorista|condutor)[\\s:]+([^\\n,]+?)(?:\\s+via|\\s+no|\\s+pelo|$)")
                         .matcher(dto.getNotes());
+                if (!m.find()) {
+                    m = java.util.regex.Pattern
+                            .compile("(?i)(?:aberta|criada)\\s+pelo\\s+(?:motorista|condutor)[\\s:]*([^\\n,]+?)(?:\\s+via|$)")
+                            .matcher(dto.getNotes());
+                }
                 if (m.find() && !m.group(1).trim().isEmpty()) {
-                    resolvedMechanicName = m.group(1).trim() + " (Motorista)";
+                    String extracted = m.group(1).trim();
+                    resolvedMechanicName = extracted.toLowerCase().contains("motorista") ? extracted : (extracted + " (Motorista)");
                 }
             } else if (dto.getAnomaliesDescription() != null) {
                 java.util.regex.Matcher m = java.util.regex.Pattern
                         .compile("(?i)\\[Checklist Diário\\s*-\\s*([^\\]]+)\\]")
                         .matcher(dto.getAnomaliesDescription());
                 if (m.find() && !m.group(1).trim().isEmpty()) {
-                    resolvedMechanicName = m.group(1).trim() + " (Motorista)";
+                    String extracted = m.group(1).trim();
+                    resolvedMechanicName = extracted.toLowerCase().contains("motorista") ? extracted : (extracted + " (Motorista)");
                 }
             } else if (vehicle.getAssignedDriver() != null && !vehicle.getAssignedDriver().isBlank()) {
                 resolvedMechanicName = vehicle.getAssignedDriver() + " (Motorista)";
+            } else if (currentUser != null) {
+                resolvedMechanicName = currentUser.getName();
             }
         }
+
+        UUID resolvedRequesterId = dto.getRequesterId() != null ? dto.getRequesterId() : (currentUser != null ? currentUser.getId() : null);
+        UUID resolvedResponsibleId = dto.getResponsibleId() != null ? dto.getResponsibleId() : (currentUser != null ? currentUser.getId() : null);
 
         FleetWorkOrder entity = FleetWorkOrder.builder()
                 .osNumber(osNumber)
@@ -417,8 +513,8 @@ public class FleetWorkOrderService {
                 .garage(garage)
                 .clientId(resolvedClientId)
                 .sectorId(dto.getSectorId())
-                .requesterId(dto.getRequesterId())
-                .responsibleId(dto.getResponsibleId())
+                .requesterId(resolvedRequesterId)
+                .responsibleId(resolvedResponsibleId)
                 .supervisorId(dto.getSupervisorId())
                 .responsibleSignature(dto.getResponsibleSignature())
                 .responsibleSignatureDate(dto.getResponsibleSignatureDate())
@@ -473,8 +569,12 @@ public class FleetWorkOrderService {
         FleetWorkOrder saved = repository.save(entity);
 
         // Registra histórico de criação
+        String historyPerformedBy = (resolvedMechanicName != null && !resolvedMechanicName.isBlank())
+                ? resolvedMechanicName
+                : (currentUser != null ? currentUser.getName() : "Usuário");
+
         addHistory(saved.getId(), "CREATED", "Ordem de Serviço (" + saved.getMaintenanceType() + ") criada com status: "
-                + saved.getStatus().name(), dto.getMechanicName(), null, saved.getStatus().name());
+                + saved.getStatus().name(), historyPerformedBy, null, saved.getStatus().name());
 
         return toDTO(saved);
     }
