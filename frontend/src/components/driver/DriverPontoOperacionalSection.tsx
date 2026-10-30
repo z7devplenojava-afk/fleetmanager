@@ -157,6 +157,11 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
     [todaySchedules, selectedScheduleMode]
   );
 
+  const selectedSchedule = useMemo(
+    () => todaySchedules.find((s) => s.id === selectedScheduleId) || null,
+    [todaySchedules, selectedScheduleId]
+  );
+
   const sortedDailySchedules = useMemo(() => {
     const base = filteredDriverSchedules.length > 0 ? filteredDriverSchedules : todaySchedules;
     return [...base].sort((a, b) => {
@@ -193,11 +198,6 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
 
     return prevCompleted?.finalKm != null ? prevCompleted.finalKm : null;
   };
-
-  const selectedSchedule = useMemo(
-    () => todaySchedules.find((s) => s.id === selectedScheduleId) || null,
-    [todaySchedules, selectedScheduleId]
-  );
 
   const isTripStarted = useMemo(() => {
     if (isFinishingMode) return true;
