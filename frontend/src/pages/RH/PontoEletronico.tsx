@@ -506,6 +506,36 @@ const PontoEletronico: React.FC = () => {
     return calculateNightShiftMinutes(new Date(entrada.recordedAt), fim);
   };
 
+  const calcularHorasTrabalhadas = () => {
+    if (registrosHoje.length < 2) return '0h 0min';
+
+    const entrada = registrosHoje.find(r => r.recordType === 'ENTRADA');
+    const saida = registrosHoje.find(r => r.recordType === 'SAIDA');
+
+    if (!entrada) return '0h 0min';
+
+    const entradaTime = new Date(entrada.recordedAt);
+    const fim = saida ? new Date(saida.recordedAt) : currentTime;
+    const diff = fim.getTime() - entradaTime.getTime();
+    
+    // Subtrair tempo de almoço
+    const almocoSaida = registrosHoje.find(r => r.recordType === 'SAIDA_ALMOCO');
+    const almocoEntrada = registrosHoje.find(r => r.recordType === 'RETORNO_ALMOCO');
+    let tempoAlmoco = 0;
+    
+    if (almocoSaida && almocoEntrada) {
+      const almocoSaidaTime = new Date(almocoSaida.recordedAt);
+      const almocoEntradaTime = new Date(almocoEntrada.recordedAt);
+      tempoAlmoco = almocoEntradaTime.getTime() - almocoSaidaTime.getTime();
+    }
+
+    const totalTrabalhado = Math.max(0, diff - tempoAlmoco);
+    const horas = Math.floor(totalTrabalhado / (1000 * 60 * 60));
+    const minutos = Math.floor((totalTrabalhado % (1000 * 60 * 60)) / (1000 * 60));
+
+    return `${horas}h ${minutos}min`;
+  };
+
   const summaryMetrics = useMemo(() => {
     if (summaryTab === 'HOJE') {
       const nightCalc = calcularAdicionalNoturnoHoje();
@@ -566,36 +596,6 @@ const PontoEletronico: React.FC = () => {
       periodLabel: summaryTab === 'SEMANA' ? 'Esta Semana' : 'Este Mês',
     };
   }, [summaryTab, registrosHoje, periodSummaryRecords, currentTime]);
-
-  const calcularHorasTrabalhadas = () => {
-    if (registrosHoje.length < 2) return '0h 0min';
-
-    const entrada = registrosHoje.find(r => r.recordType === 'ENTRADA');
-    const saida = registrosHoje.find(r => r.recordType === 'SAIDA');
-
-    if (!entrada) return '0h 0min';
-
-    const entradaTime = new Date(entrada.recordedAt);
-    const fim = saida ? new Date(saida.recordedAt) : currentTime;
-    const diff = fim.getTime() - entradaTime.getTime();
-    
-    // Subtrair tempo de almoço
-    const almocoSaida = registrosHoje.find(r => r.recordType === 'SAIDA_ALMOCO');
-    const almocoEntrada = registrosHoje.find(r => r.recordType === 'RETORNO_ALMOCO');
-    let tempoAlmoco = 0;
-    
-    if (almocoSaida && almocoEntrada) {
-      const almocoSaidaTime = new Date(almocoSaida.recordedAt);
-      const almocoEntradaTime = new Date(almocoEntrada.recordedAt);
-      tempoAlmoco = almocoEntradaTime.getTime() - almocoSaidaTime.getTime();
-    }
-
-    const totalTrabalhado = Math.max(0, diff - tempoAlmoco);
-    const horas = Math.floor(totalTrabalhado / (1000 * 60 * 60));
-    const minutos = Math.floor((totalTrabalhado % (1000 * 60 * 60)) / (1000 * 60));
-
-    return `${horas}h ${minutos}min`;
-  };
 
   const openHistoryDialog = async () => {
     const targetId = activeEmployeeId;
