@@ -81,6 +81,23 @@ public class TimeRecordService {
                         log.warn("Erro ao salvar auto-vínculo no ponto: {}", ex.getMessage());
                     }
                 });
+
+                if (empOpt.isEmpty()) {
+                    try {
+                        Employee newEmp = new Employee();
+                        newEmp.setName(user.getName() != null && !user.getName().isBlank() ? user.getName() : user.getUsername());
+                        newEmp.setUser(user);
+                        newEmp.setEmail(user.getEmail());
+                        newEmp.setCompanyId(user.getCompanyId());
+                        newEmp.setStatus(EmploymentStatus.ACTIVE);
+                        newEmp.setDepartment("TRANSPORTE");
+                        newEmp = employeeRepository.save(newEmp);
+                        empOpt = Optional.of(newEmp);
+                        log.info("Colaborador provisionado automaticamente para ponto: {} (ID: {})", newEmp.getName(), newEmp.getId());
+                    } catch (Exception eProv) {
+                        log.warn("Nao foi possivel provisionar colaborador: {}", eProv.getMessage());
+                    }
+                }
             }
         }
 

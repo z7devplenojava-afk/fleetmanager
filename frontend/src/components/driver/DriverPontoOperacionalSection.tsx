@@ -148,6 +148,8 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
   }, [selectedSchedule, todayStr, isTripStarted]);
 
   const requiresJustification = forgotPoint;
+  const lastSyncedSignatureRef = React.useRef<string>('');
+  const vehiclesLoadedRef = React.useRef<boolean>(false);
 
   const loadData = async () => {
     setLoadingSchedules(true);
