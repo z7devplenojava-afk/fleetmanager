@@ -120,33 +120,15 @@ public class FleetWorkOrderPdfService {
                 ? order.getPlan().getTaskName() : null);
         String resolvedMechanic = order.getMechanicName();
         if (resolvedMechanic == null || resolvedMechanic.isBlank()) {
-            if (order.getNotes() != null) {
-                java.util.regex.Matcher m = java.util.regex.Pattern.compile("(?i)(?:motorista|condutor)[\\s:]+([^\\n,]+?)(?:\\s+via|\\s+no|\\s+pelo|$)").matcher(order.getNotes());
-                if (!m.find()) {
-                    m = java.util.regex.Pattern.compile("(?i)(?:aberta|criada)\\s+pelo\\s+(?:motorista|condutor)[\\s:]*([^\\n,]+?)(?:\\s+via|$)").matcher(order.getNotes());
-                }
-                if (m.find() && !m.group(1).trim().isEmpty()) {
-                    String extracted = m.group(1).trim();
-                    resolvedMechanic = extracted.toLowerCase().contains("motorista") ? extracted : (extracted + " (Motorista)");
-                }
-            }
-            if ((resolvedMechanic == null || resolvedMechanic.isBlank()) && order.getAnomaliesDescription() != null) {
-                java.util.regex.Matcher m = java.util.regex.Pattern.compile("(?i)\\[Checklist Diário\\s*-\\s*([^\\]]+)\\]").matcher(order.getAnomaliesDescription());
-                if (m.find() && !m.group(1).trim().isEmpty()) {
-                    String extracted = m.group(1).trim();
-                    resolvedMechanic = extracted.toLowerCase().contains("motorista") ? extracted : (extracted + " (Motorista)");
-                }
+            String extracted = com.z7design.fleet_manager.dto.FleetWorkOrderDTO.extractDriverFromText(order.getNotes(), order.getAnomaliesDescription(), order.getStopReason());
+            if (extracted != null && !extracted.isBlank()) {
+                resolvedMechanic = extracted;
             }
             if ((resolvedMechanic == null || resolvedMechanic.isBlank()) && order.getVehicle() != null) {
                 if (order.getVehicle().getResponsibleEmployee() != null) {
                     resolvedMechanic = order.getVehicle().getResponsibleEmployee().getName();
                 } else if (order.getVehicle().getAssignedDriver() != null && !order.getVehicle().getAssignedDriver().isBlank()) {
                     resolvedMechanic = order.getVehicle().getAssignedDriver() + " (Motorista)";
-                }
-            }
-            if ((resolvedMechanic == null || resolvedMechanic.isBlank()) && order.getStopReason() != null) {
-                if (order.getStopReason().toLowerCase().contains("condutor") || order.getStopReason().toLowerCase().contains("motorista")) {
-                    resolvedMechanic = "Condutor / Motorista";
                 }
             }
         }

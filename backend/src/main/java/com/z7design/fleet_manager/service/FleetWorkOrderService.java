@@ -23,6 +23,7 @@ import com.z7design.fleet_manager.repository.FleetWorkOrderExecutionHistoryRepos
 import com.z7design.fleet_manager.model.FleetWorkOrderExecutionHistory;
 import com.z7design.fleet_manager.repository.MaintenancePlanRepository;
 import com.z7design.fleet_manager.repository.VehicleRepository;
+import com.z7design.fleet_manager.repository.DriverRepository;
 import com.z7design.fleet_manager.repository.ChecklistItemRepository;
 import com.z7design.fleet_manager.repository.ClientRepository;
 import com.z7design.fleet_manager.repository.EmployeeRepository;
@@ -74,6 +75,7 @@ public class FleetWorkOrderService {
     private final InvoiceService invoiceService;
     private final FleetWorkOrderExecutionHistoryRepository executionHistoryRepository;
     private final com.z7design.fleet_manager.repository.UserRepository userRepository;
+    private final DriverRepository driverRepository;
 
     private boolean isUserDriver(com.z7design.fleet_manager.model.User user) {
         if (user == null || user.getRoles() == null) return false;
@@ -86,6 +88,10 @@ public class FleetWorkOrderService {
         var emp = employeeRepository.findById(id);
         if (emp.isPresent() && emp.get().getName() != null && !emp.get().getName().isBlank()) {
             return emp.get().getName();
+        }
+        var drv = driverRepository.findById(id);
+        if (drv.isPresent() && drv.get().getName() != null && !drv.get().getName().isBlank()) {
+            return drv.get().getName() + " (Motorista)";
         }
         var usr = userRepository.findById(id);
         if (usr.isPresent() && usr.get().getName() != null && !usr.get().getName().isBlank()) {
@@ -129,31 +135,9 @@ public class FleetWorkOrderService {
         }
 
         if (dto.getMechanicName() == null || dto.getMechanicName().isBlank()) {
-            if (entity.getNotes() != null) {
-                java.util.regex.Matcher m = java.util.regex.Pattern
-                        .compile("(?i)(?:motorista|condutor)[\\s:]+([^\\n,]+?)(?:\\s+via|\\s+no|\\s+pelo|$)")
-                        .matcher(entity.getNotes());
-                if (!m.find()) {
-                    m = java.util.regex.Pattern
-                            .compile("(?i)(?:aberta|criada)\\s+pelo\\s+(?:motorista|condutor)[\\s:]*([^\\n,]+?)(?:\\s+via|$)")
-                            .matcher(entity.getNotes());
-                }
-                if (m.find() && !m.group(1).trim().isEmpty()) {
-                    String extracted = m.group(1).trim();
-                    dto.setMechanicName(extracted.toLowerCase().contains("motorista") ? extracted : (extracted + " (Motorista)"));
-                }
-            }
-        }
-
-        if (dto.getMechanicName() == null || dto.getMechanicName().isBlank()) {
-            if (entity.getAnomaliesDescription() != null) {
-                java.util.regex.Matcher m = java.util.regex.Pattern
-                        .compile("(?i)\\[Checklist Diário\\s*-\\s*([^\\]]+)\\]")
-                        .matcher(entity.getAnomaliesDescription());
-                if (m.find() && !m.group(1).trim().isEmpty()) {
-                    String extracted = m.group(1).trim();
-                    dto.setMechanicName(extracted.toLowerCase().contains("motorista") ? extracted : (extracted + " (Motorista)"));
-                }
+            String extracted = com.z7design.fleet_manager.dto.FleetWorkOrderDTO.extractDriverFromText(entity.getNotes(), entity.getAnomaliesDescription(), entity.getStopReason());
+            if (extracted != null && !extracted.isBlank()) {
+                dto.setMechanicName(extracted);
             }
         }
 
@@ -174,12 +158,6 @@ public class FleetWorkOrderService {
                 } else if (entity.getVehicle().getAssignedDriver() != null && !entity.getVehicle().getAssignedDriver().isBlank()) {
                     dto.setMechanicName(entity.getVehicle().getAssignedDriver() + " (Motorista)");
                 }
-            }
-        }
-
-        if (dto.getMechanicName() == null || dto.getMechanicName().isBlank()) {
-            if (entity.getStopReason() != null && (entity.getStopReason().toLowerCase().contains("condutor") || entity.getStopReason().toLowerCase().contains("motorista"))) {
-                dto.setMechanicName("Condutor / Motorista");
             }
         }
 
@@ -458,31 +436,15 @@ public class FleetWorkOrderService {
                 resolvedMechanicName = dto.getRequesterName();
             } else if (currentUser != null && isUserDriver(currentUser)) {
                 resolvedMechanicName = currentUser.getName() + " (Motorista)";
-            } else if (dto.getNotes() != null) {
-                java.util.regex.Matcher m = java.util.regex.Pattern
-                        .compile("(?i)(?:motorista|condutor)[\\s:]+([^\\n,]+?)(?:\\s+via|\\s+no|\\s+pelo|$)")
-                        .matcher(dto.getNotes());
-                if (!m.find()) {
-                    m = java.util.regex.Pattern
-                            .compile("(?i)(?:aberta|criada)\\s+pelo\\s+(?:motorista|condutor)[\\s:]*([^\\n,]+?)(?:\\s+via|$)")
-                            .matcher(dto.getNotes());
+            } else {
+                String extracted = com.z7design.fleet_manager.dto.FleetWorkOrderDTO.extractDriverFromText(dto.getNotes(), dto.getAnomaliesDescription(), dto.getStopReason());
+                if (extracted != null && !extracted.isBlank()) {
+                    resolvedMechanicName = extracted;
+                } else if (vehicle.getAssignedDriver() != null && !vehicle.getAssignedDriver().isBlank()) {
+                    resolvedMechanicName = vehicle.getAssignedDriver() + " (Motorista)";
+                } else if (currentUser != null) {
+                    resolvedMechanicName = currentUser.getName();
                 }
-                if (m.find() && !m.group(1).trim().isEmpty()) {
-                    String extracted = m.group(1).trim();
-                    resolvedMechanicName = extracted.toLowerCase().contains("motorista") ? extracted : (extracted + " (Motorista)");
-                }
-            } else if (dto.getAnomaliesDescription() != null) {
-                java.util.regex.Matcher m = java.util.regex.Pattern
-                        .compile("(?i)\\[Checklist Diário\\s*-\\s*([^\\]]+)\\]")
-                        .matcher(dto.getAnomaliesDescription());
-                if (m.find() && !m.group(1).trim().isEmpty()) {
-                    String extracted = m.group(1).trim();
-                    resolvedMechanicName = extracted.toLowerCase().contains("motorista") ? extracted : (extracted + " (Motorista)");
-                }
-            } else if (vehicle.getAssignedDriver() != null && !vehicle.getAssignedDriver().isBlank()) {
-                resolvedMechanicName = vehicle.getAssignedDriver() + " (Motorista)";
-            } else if (currentUser != null) {
-                resolvedMechanicName = currentUser.getName();
             }
         }
 

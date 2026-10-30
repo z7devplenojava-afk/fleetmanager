@@ -723,8 +723,12 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
     // Popular form ao abrir
     useEffect(() => {
         if (order) {
-            setFormData({ ...order });
-            setIsExpressMode(false);
+            const resp = getOrderResponsibleDisplay(order);
+            setFormData({
+                ...order,
+                mechanicName: (order.mechanicName && order.mechanicName.trim()) ? order.mechanicName : (resp !== 'Não atribuído' ? resp : ''),
+                responsibleName: (order.responsibleName && order.responsibleName.trim()) ? order.responsibleName : (resp !== 'Não atribuído' ? resp : '')
+            });
         } else {
             const today = new Date().toISOString().split('T')[0];
             const nowTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });

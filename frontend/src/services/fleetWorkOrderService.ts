@@ -468,21 +468,37 @@ export function getOrderResponsibleDisplay(order?: Partial<FleetWorkOrder> | nul
     }
     if (order.notes) {
         const m = order.notes.match(/(?:motorista|condutor)[\s:]+([^\n,]+?)(?:\s+via|\s+no|\s+pelo|$)/i)
-               || order.notes.match(/(?:aberta|criada)\s+pelo\s+(?:motorista|condutor)[\s:]*([^\n,]+?)(?:\s+via|$)/i)
+               || order.notes.match(/(?:aberta|criada|gerada|solicitad[ao])\s+(?:pelo|por)\s+(?:o\s+)?(?:motorista|condutor|solicitante)?[:\s]*([^\n,]+?)(?:\s+via|$)/i)
                || order.notes.match(/solicitad[ao]\s+por[\s:]*([^\n,]+?)(?:\s+via|$)/i);
-        if (m && m[1]?.trim() && !m[1].trim().toLowerCase().includes('não informado')) {
+        if (m && m[1]?.trim()) {
             const val = m[1].trim();
-            return val.toLowerCase().includes('motorista') ? val : `${val} (Motorista)`;
+            const lower = val.toLowerCase();
+            if (!lower.includes('não informado') && lower !== 'condutor' && lower !== 'motorista') {
+                return lower.includes('motorista') ? val : `${val} (Motorista)`;
+            }
         }
     }
     if (order.anomaliesDescription) {
         const m = order.anomaliesDescription.match(/\[Checklist Diário\s*-\s*([^\]]+)\]/i);
         if (m && m[1]?.trim()) {
             const val = m[1].trim();
-            return val.toLowerCase().includes('motorista') ? val : `${val} (Motorista)`;
+            const lower = val.toLowerCase();
+            if (!lower.includes('não informado') && lower !== 'condutor' && lower !== 'motorista') {
+                return lower.includes('motorista') ? val : `${val} (Motorista)`;
+            }
         }
     }
-    if (order.stopReason && (order.stopReason.toLowerCase().includes('condutor') || order.stopReason.toLowerCase().includes('motorista'))) {
+    if ((order as any).vehicle?.assignedDriver || (order as any).assignedDriver) {
+        const d = ((order as any).vehicle?.assignedDriver || (order as any).assignedDriver).trim();
+        return d.toLowerCase().includes('motorista') ? d : `${d} (Motorista)`;
+    }
+    if ((order as any).vehicle?.responsibleEmployee?.name) {
+        return (order as any).vehicle.responsibleEmployee.name;
+    }
+    if (order.stopReason && (order.stopReason.toLowerCase().includes('condutor') || order.stopReason.toLowerCase().includes('motorista') || order.stopReason.toLowerCase().includes('checklist'))) {
+        return 'Condutor / Motorista';
+    }
+    if (order.notes && (order.notes.toLowerCase().includes('motorista') || order.notes.toLowerCase().includes('condutor') || order.notes.toLowerCase().includes('portal mobile') || order.notes.toLowerCase().includes('checklist'))) {
         return 'Condutor / Motorista';
     }
     return 'Não atribuído';
