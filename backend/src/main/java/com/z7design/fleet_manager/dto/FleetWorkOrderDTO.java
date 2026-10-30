@@ -101,6 +101,60 @@ public class FleetWorkOrderDTO {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
+    public static String extractDriverFromText(String notes, String anomalies, String stopReason) {
+        if (notes != null && !notes.isBlank()) {
+            java.util.regex.Matcher m1 = java.util.regex.Pattern
+                    .compile("(?i)(?:motorista|condutor)[\\s:]+([^\\n,]+?)(?:\\s+via|\\s+no|\\s+pelo|$)")
+                    .matcher(notes);
+            if (m1.find() && !m1.group(1).trim().isEmpty()) {
+                String val = m1.group(1).trim();
+                String lower = val.toLowerCase();
+                if (!lower.contains("não informado") && !lower.equals("condutor") && !lower.equals("motorista")) {
+                    return lower.contains("motorista") ? val : (val + " (Motorista)");
+                }
+            }
+            java.util.regex.Matcher m2 = java.util.regex.Pattern
+                    .compile("(?i)(?:aberta|criada|gerada|solicitad[ao])\\s+(?:pelo|por)\\s+(?:o\\s+)?(?:motorista|condutor|solicitante)?[:\\s]*([^\\n,]+?)(?:\\s+via|$)")
+                    .matcher(notes);
+            if (m2.find() && !m2.group(1).trim().isEmpty()) {
+                String val = m2.group(1).trim();
+                String lower = val.toLowerCase();
+                if (!lower.contains("não informado") && !lower.equals("condutor") && !lower.equals("motorista")) {
+                    return lower.contains("motorista") ? val : (val + " (Motorista)");
+                }
+            }
+        }
+
+        if (anomalies != null && !anomalies.isBlank()) {
+            java.util.regex.Matcher m3 = java.util.regex.Pattern
+                    .compile("(?i)\\[Checklist Diário\\s*-\\s*([^\\]]+)\\]")
+                    .matcher(anomalies);
+            if (m3.find() && !m3.group(1).trim().isEmpty()) {
+                String val = m3.group(1).trim();
+                String lower = val.toLowerCase();
+                if (!lower.contains("não informado") && !lower.equals("condutor") && !lower.equals("motorista")) {
+                    return lower.contains("motorista") ? val : (val + " (Motorista)");
+                }
+            }
+        }
+
+        if (stopReason != null && !stopReason.isBlank()) {
+            String lower = stopReason.toLowerCase();
+            if (lower.contains("condutor") || lower.contains("motorista") || lower.contains("checklist")) {
+                return "Condutor / Motorista";
+            }
+        }
+
+        if (notes != null && !notes.isBlank()) {
+            String lower = notes.toLowerCase();
+            if (lower.contains("portal mobile") || lower.contains("condutor") || lower.contains("motorista") || lower.contains("checklist")) {
+                return "Condutor / Motorista";
+            }
+        }
+
+        return null;
+    }
+
     public static FleetWorkOrderDTO fromEntity(FleetWorkOrder entity) {
         if (entity == null) return null;
 
@@ -153,39 +207,15 @@ public class FleetWorkOrderDTO {
 
         String mechanicName = entity.getMechanicName();
         if (mechanicName == null || mechanicName.isBlank()) {
-            if (entity.getNotes() != null) {
-                java.util.regex.Matcher m = java.util.regex.Pattern
-                        .compile("(?i)(?:motorista|condutor)[\\s:]+([^\\n,]+?)(?:\\s+via|\\s+no|\\s+pelo|$)")
-                        .matcher(entity.getNotes());
-                if (!m.find()) {
-                    m = java.util.regex.Pattern
-                            .compile("(?i)(?:aberta|criada)\\s+pelo\\s+(?:motorista|condutor)[\\s:]*([^\\n,]+?)(?:\\s+via|$)")
-                            .matcher(entity.getNotes());
-                }
-                if (m.find() && !m.group(1).trim().isEmpty()) {
-                    String extracted = m.group(1).trim();
-                    mechanicName = extracted.toLowerCase().contains("motorista") ? extracted : (extracted + " (Motorista)");
-                }
-            }
-            if ((mechanicName == null || mechanicName.isBlank()) && entity.getAnomaliesDescription() != null) {
-                java.util.regex.Matcher m = java.util.regex.Pattern
-                        .compile("(?i)\\[Checklist Diário\\s*-\\s*([^\\]]+)\\]")
-                        .matcher(entity.getAnomaliesDescription());
-                if (m.find() && !m.group(1).trim().isEmpty()) {
-                    String extracted = m.group(1).trim();
-                    mechanicName = extracted.toLowerCase().contains("motorista") ? extracted : (extracted + " (Motorista)");
-                }
+            String extracted = extractDriverFromText(entity.getNotes(), entity.getAnomaliesDescription(), entity.getStopReason());
+            if (extracted != null && !extracted.isBlank()) {
+                mechanicName = extracted;
             }
             if ((mechanicName == null || mechanicName.isBlank()) && entity.getVehicle() != null) {
                 if (entity.getVehicle().getResponsibleEmployee() != null) {
                     mechanicName = entity.getVehicle().getResponsibleEmployee().getName();
                 } else if (entity.getVehicle().getAssignedDriver() != null && !entity.getVehicle().getAssignedDriver().isBlank()) {
                     mechanicName = entity.getVehicle().getAssignedDriver() + " (Motorista)";
-                }
-            }
-            if ((mechanicName == null || mechanicName.isBlank()) && entity.getStopReason() != null) {
-                if (entity.getStopReason().toLowerCase().contains("condutor") || entity.getStopReason().toLowerCase().contains("motorista")) {
-                    mechanicName = "Condutor / Motorista";
                 }
             }
         }
