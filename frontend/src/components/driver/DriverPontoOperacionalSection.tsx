@@ -28,8 +28,13 @@ import {
   MapPin,
   Navigation,
   ArrowRight,
-  CornerDownLeft
+  CornerDownLeft,
+  Moon,
+  Wifi,
+  WifiOff,
+  Zap
 } from 'lucide-react';
+import { calculateNightShiftFromTimes, calculateNightShiftMinutes } from '@/utils/nightShiftCalculator';
 import { CameraCapture } from '@/components/frota/CameraCapture';
 import { SearchableSelect, SearchableOption } from '@/components/frota/SearchableSelect';
 import { DriverRouteTrajectoryMap } from '@/components/driver/DriverRouteTrajectoryMap';
@@ -53,6 +58,32 @@ interface DriverPontoOperacionalSectionProps {
   employeeName: string;
   onTriggerOfficialPoint?: (recordType?: 'ENTRADA' | 'SAIDA_ALMOCO' | 'RETORNO_ALMOCO' | 'SAIDA') => Promise<void>;
 }
+
+interface OfflineTripItem {
+  id: string;
+  type: 'START' | 'FINISH';
+  timestamp: number;
+  payload: any;
+}
+
+const OFFLINE_QUEUE_KEY = 'fluxbus:offline-trip-queue';
+
+const getOfflineQueue = (): OfflineTripItem[] => {
+  try {
+    const raw = localStorage.getItem(OFFLINE_QUEUE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
+
+const saveOfflineQueue = (queue: OfflineTripItem[]) => {
+  try {
+    localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+  } catch (e) {
+    console.error('Erro ao salvar fila offline', e);
+  }
+};
 
 const fileToDataUrl = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -99,6 +130,13 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
   const [existingPhotos, setExistingPhotos] = useState<string[]>([]);
   const [cameraResetKey, setCameraResetKey] = useState<number>(0);
 
+  // Odômetro Inteligente (Sugerido da pegada anterior para o mesmo veículo)
+  const [suggestedFromPrevTrip, setSuggestedFromPrevTrip] = useState<number | null>(null);
+
+  // Resiliência Offline
+  const [offlineQueueCount, setOfflineQueueCount] = useState<number>(() => getOfflineQueue().length);
+  const [isOnline, setIsOnline] = useState<boolean>(() => (typeof navigator !== 'undefined' ? navigator.onLine : true));
+
   // Controle de tolerância de 10 minutos e esquecimento de ponto
   const [forgotPoint, setForgotPoint] = useState<boolean>(false);
   const [pointJustification, setPointJustification] = useState<string>('');
@@ -118,6 +156,30 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
     () => todaySchedules.filter((s) => matchesScheduleModeFilter(s, selectedScheduleMode)),
     [todaySchedules, selectedScheduleMode]
   );
+
+  const sortedDailySchedules = useMemo(() => {
+    const base = filteredDriverSchedules.length > 0 ? filteredDriverSchedules : todaySchedules;
+    return [...base].sort((a, b) => {
+      const timeA = resolveScheduleStartTime(a);
+      const timeB = resolveScheduleStartTime(b);
+      return timeA.localeCompare(timeB);
+    });
+  }, [filteredDriverSchedules, todaySchedules]);
+
+  const checkAndSuggestKmForVehicle = (targetVehicleId?: string, targetPlate?: string) => {
+    const vPlate = targetPlate || vehicles.find((v) => v.id === targetVehicleId)?.plate;
+    if (!vPlate && !targetVehicleId) return null;
+
+    const prevCompleted = todaySchedules.find(
+      (s) =>
+        s.id !== selectedScheduleId &&
+        (s.finalKm != null || s.status === 'COMPLETED') &&
+        ((vPlate && (s.vehicle?.plate === vPlate || s.vehiclePlate === vPlate)) ||
+         (targetVehicleId && (s.vehicleId === targetVehicleId || s.vehicle?.id === targetVehicleId)))
+    );
+
+    return prevCompleted?.finalKm != null ? prevCompleted.finalKm : null;
+  };
 
   const selectedSchedule = useMemo(
     () => todaySchedules.find((s) => s.id === selectedScheduleId) || null,
@@ -204,8 +266,59 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
     }
   };
 
+  const syncOfflineQueue = async () => {
+    if (!navigator.onLine) return;
+    const queue = getOfflineQueue();
+    if (queue.length === 0) {
+      setOfflineQueueCount(0);
+      return;
+    }
+
+    let synced = 0;
+    const remaining: OfflineTripItem[] = [];
+
+    for (const item of queue) {
+      try {
+        if (item.type === 'START') {
+          await scheduleService.registerDriverPontoTrip(item.payload);
+          synced++;
+        } else if (item.type === 'FINISH') {
+          await scheduleService.finishTrip(item.payload.scheduleId, item.payload.data);
+          synced++;
+        }
+      } catch {
+        remaining.push(item);
+      }
+    }
+
+    saveOfflineQueue(remaining);
+    setOfflineQueueCount(remaining.length);
+
+    if (synced > 0) {
+      toast({
+        title: '✅ Sincronização Offline Concluída',
+        description: `${synced} registro(s) offline foram sincronizados com o servidor.`,
+      });
+      loadData();
+    }
+  };
+
   useEffect(() => {
     loadData();
+
+    const handleOnline = () => {
+      setIsOnline(true);
+      syncOfflineQueue();
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+    };
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    if (typeof navigator !== 'undefined' && navigator.onLine) {
+      syncOfflineQueue();
+    }
+
     // Captura preventiva da geolocalização atual e nome do endereço ao abrir o Ponto
     captureDriverGeolocationAndAddress('START')
       .then((geo) => {
@@ -229,6 +342,8 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
     }
     return () => {
       window.removeEventListener('storage', handleRealtimeUpdate);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
       if (bc) bc.close();
     };
   }, [todayStr, employeeId]);
@@ -309,8 +424,24 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
       '01 - CASA/PONTO';
     setRouteCode(resolvedRoute);
     setDirection(sched.direction || inferDirectionFromRouteCode(resolvedRoute, 0));
-    setVehicleId(sched.vehicleId || sched.vehicle?.id || '');
-    setInitialKm(sched.initialKm != null ? String(sched.initialKm) : '');
+    const schedVehicleId = sched.vehicleId || sched.vehicle?.id || '';
+    setVehicleId(schedVehicleId);
+
+    // Odômetro Inteligente (Continuidade de KM entre Pegadas do mesmo veículo)
+    if (sched.initialKm != null) {
+      setInitialKm(String(sched.initialKm));
+      setSuggestedFromPrevTrip(null);
+    } else {
+      const targetPlate = sched.vehicle?.plate || sched.vehiclePlate;
+      const suggested = checkAndSuggestKmForVehicle(schedVehicleId, targetPlate);
+      if (suggested != null) {
+        setInitialKm(String(suggested));
+        setSuggestedFromPrevTrip(suggested);
+      } else {
+        setInitialKm('');
+        setSuggestedFromPrevTrip(null);
+      }
+    }
     setFinalKm(sched.finalKm != null ? String(sched.finalKm) : '');
     setPassengersCount(sched.passengersCount != null ? String(sched.passengersCount) : '0');
     setPointJustification(sched.pointJustification || '');
@@ -354,6 +485,7 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
       setStartTime(format(new Date(), 'HH:mm'));
       setEndTime('');
       setInitialKm('');
+      setSuggestedFromPrevTrip(null);
       setFinalKm('');
       setPassengersCount('0');
       setCapturedFiles([]);
@@ -543,11 +675,53 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
       applyScheduleToForm(finalSavedSchedule);
       await loadData();
     } catch (error: any) {
-      toast({
-        title: 'Erro ao registrar ponto da viagem',
-        description: error?.message || 'Não foi possível salvar os dados operacionais do ponto.',
-        variant: 'destructive',
-      });
+      if (!navigator.onLine || error?.message?.includes('Network') || error?.message?.includes('Failed to fetch')) {
+        const offlineItem: OfflineTripItem = {
+          id: `start-${Date.now()}`,
+          type: 'START',
+          timestamp: Date.now(),
+          payload: {
+            scheduleId: selectedScheduleId !== 'NEW' ? selectedScheduleId : undefined,
+            employeeId: employeeId || 'driver',
+            employeeName: employeeName || 'Motorista',
+            scheduleDate: todayStr,
+            startTime: startTime || format(new Date(), 'HH:mm'),
+            endTime: endTime || undefined,
+            clientName: resolvedClientName,
+            routeCode: effectiveRouteCode,
+            direction,
+            vehicleId: vehicleId || selectedSchedule?.vehicleId || selectedSchedule?.vehicle?.id || undefined,
+            vehiclePlate: selectedVehicleObj?.plate || selectedSchedule?.vehicle?.plate || selectedSchedule?.vehiclePlate,
+            vehicleModel: selectedVehicleObj?.model || selectedSchedule?.vehicle?.model || selectedSchedule?.vehicleModel,
+            initialKm: parsedInitialKm,
+            passengersCount: passengersCount ? Number(passengersCount) : 0,
+            photos: allPhotos,
+            forgotPoint: requiresJustification,
+            justification: pointJustification.trim() || undefined,
+            expectedStartTime: selectedSchedule?.startTime || startTime,
+            startLatitude: geoStart.latitude,
+            startLongitude: geoStart.longitude,
+            startAddress: geoStart.address,
+          }
+        };
+        const currentQ = getOfflineQueue();
+        currentQ.push(offlineItem);
+        saveOfflineQueue(currentQ);
+        setOfflineQueueCount(currentQ.length);
+        toast({
+          title: 'Ponto salvo offline no celular',
+          description: 'Sem sinal de internet no momento. As informações e fotos foram salvas localmente e serão sincronizadas assim que a conexão retornar.',
+        });
+        if (onTriggerOfficialPoint) {
+          onTriggerOfficialPoint('ENTRADA').catch(() => {});
+        }
+      } else {
+        toast({
+          title: 'Erro ao registrar ponto da viagem',
+          description: error?.message || 'Não foi possível salvar os dados operacionais do ponto.',
+          variant: 'destructive',
+        });
+      }
     } finally {
       setSubmitting(false);
     }
@@ -617,16 +791,54 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
       applyScheduleToForm(updated);
       await loadData();
 
+      // Dispara também o ponto oficial de SAIDA no Ponto Eletrônico
+      if (onTriggerOfficialPoint) {
+        await onTriggerOfficialPoint('SAIDA').catch(() => {});
+      }
+
       toast({
         title: 'Viagem Finalizada com Sucesso!',
         description: `KM Final (${parsedFinalKm} km), Horário Final (${resolvedEndTime}) e fotos enviados para o Gestor de Tráfego.`,
       });
     } catch (error: any) {
-      toast({
-        title: 'Erro ao finalizar viagem',
-        description: error?.message || 'Não foi possível registrar o KM Final.',
-        variant: 'destructive',
-      });
+      if (!navigator.onLine || error?.message?.includes('Network') || error?.message?.includes('Failed to fetch')) {
+        const offlineItem: OfflineTripItem = {
+          id: `finish-${Date.now()}`,
+          type: 'FINISH',
+          timestamp: Date.now(),
+          payload: {
+            scheduleId: targetSchedule.id,
+            data: {
+              finalKm: parsedFinalKm,
+              endTime: resolvedEndTime,
+              passengersCount: passengersCount ? Number(passengersCount) : targetSchedule.passengersCount,
+              photos: allPhotos,
+              endLatitude: geoEnd.latitude,
+              endLongitude: geoEnd.longitude,
+              endAddress: geoEnd.address,
+              direction,
+              observations: `Viagem finalizada no Ponto Eletrônico (${direction}) • Cliente: ${clientName} • Percurso: ${routeCode} • KM: ${baseInitialKm} -> ${parsedFinalKm} • Origem: ${startAddress || targetSchedule.startAddress || '-'} -> Destino: ${geoEnd.address}`,
+            }
+          }
+        };
+        const currentQ = getOfflineQueue();
+        currentQ.push(offlineItem);
+        saveOfflineQueue(currentQ);
+        setOfflineQueueCount(currentQ.length);
+        toast({
+          title: 'Finalização salva offline no celular',
+          description: 'KM Final salvo localmente. A finalização será sincronizada automaticamente assim que a conexão com a internet retornar.',
+        });
+        if (onTriggerOfficialPoint) {
+          onTriggerOfficialPoint('SAIDA').catch(() => {});
+        }
+      } else {
+        toast({
+          title: 'Erro ao finalizar viagem',
+          description: error?.message || 'Não foi possível registrar o KM Final.',
+          variant: 'destructive',
+        });
+      }
     } finally {
       setSubmitting(false);
     }
@@ -729,104 +941,229 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
             </div>
           </div>
 
-          {/* Exibe os botões de Semanal vs FDS e o dropdown se o motorista tiver mais de uma escala */}
+          {/* Filtros de Tipo de Escala (Semanal vs FDS) se o motorista tiver mais de uma escala cadastrada */}
           {todaySchedules.length > 1 && (
-            <>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedScheduleMode('WEEKLY_FIXED');
-                    const firstMatch = todaySchedules.find((s) => matchesScheduleModeFilter(s, 'WEEKLY_FIXED'));
-                    if (firstMatch) applyScheduleToForm(firstMatch);
-                  }}
-                  className={`p-2.5 rounded-xl border text-left transition-all ${
-                    selectedScheduleMode === 'WEEKLY_FIXED'
-                      ? 'bg-emerald-500/20 border-emerald-500 text-white shadow-lg shadow-emerald-950/30'
-                      : 'bg-[#090d16] border-gray-700 text-gray-300 hover:border-gray-500'
-                  }`}
-                >
-                  <div className="text-xs font-extrabold text-emerald-300 flex items-center justify-between gap-1">
-                    <span>📅 Escala Semanal (Fixa)</span>
-                    <Badge className="bg-emerald-500/30 text-emerald-200 border-none text-[10px] shrink-0">
-                      {todaySchedules.filter((s) => matchesScheduleModeFilter(s, 'WEEKLY_FIXED')).length}
-                    </Badge>
-                  </div>
-                  <div className="text-[11px] text-gray-300 mt-0.5 leading-snug">
-                    Segunda a Sexta (fixa na semana)
-                  </div>
-                </button>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedScheduleMode('WEEKLY_FIXED');
+                  const firstMatch = todaySchedules.find((s) => matchesScheduleModeFilter(s, 'WEEKLY_FIXED'));
+                  if (firstMatch) applyScheduleToForm(firstMatch);
+                }}
+                className={`p-2.5 rounded-xl border text-left transition-all ${
+                  selectedScheduleMode === 'WEEKLY_FIXED'
+                    ? 'bg-emerald-500/20 border-emerald-500 text-white shadow-lg shadow-emerald-950/30'
+                    : 'bg-[#090d16] border-gray-700 text-gray-300 hover:border-gray-500'
+                }`}
+              >
+                <div className="text-xs font-extrabold text-emerald-300 flex items-center justify-between gap-1">
+                  <span>📅 Escala Semanal (Fixa)</span>
+                  <Badge className="bg-emerald-500/30 text-emerald-200 border-none text-[10px] shrink-0">
+                    {todaySchedules.filter((s) => matchesScheduleModeFilter(s, 'WEEKLY_FIXED')).length}
+                  </Badge>
+                </div>
+                <div className="text-[11px] text-gray-300 mt-0.5 leading-snug">
+                  Segunda a Sexta (fixa na semana)
+                </div>
+              </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedScheduleMode('WEEKEND');
-                    const firstMatch = todaySchedules.find((s) => matchesScheduleModeFilter(s, 'WEEKEND'));
-                    if (firstMatch) applyScheduleToForm(firstMatch);
-                  }}
-                  className={`p-2.5 rounded-xl border text-left transition-all ${
-                    selectedScheduleMode === 'WEEKEND'
-                      ? 'bg-amber-500/20 border-amber-500 text-white shadow-lg shadow-amber-950/30'
-                      : 'bg-[#090d16] border-gray-700 text-gray-300 hover:border-gray-500'
-                  }`}
-                >
-                  <div className="text-xs font-extrabold text-amber-300 flex items-center justify-between gap-1">
-                    <span>🗓️ Escala Final de Semana (FDS)</span>
-                    <Badge className="bg-amber-500/30 text-amber-200 border-none text-[10px] shrink-0">
-                      {todaySchedules.filter((s) => matchesScheduleModeFilter(s, 'WEEKEND')).length}
-                    </Badge>
-                  </div>
-                  <div className="text-[11px] text-gray-300 mt-0.5 leading-snug">
-                    Sábado e Domingo (plantão / FDS)
-                  </div>
-                </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedScheduleMode('WEEKEND');
+                  const firstMatch = todaySchedules.find((s) => matchesScheduleModeFilter(s, 'WEEKEND'));
+                  if (firstMatch) applyScheduleToForm(firstMatch);
+                }}
+                className={`p-2.5 rounded-xl border text-left transition-all ${
+                  selectedScheduleMode === 'WEEKEND'
+                    ? 'bg-amber-500/20 border-amber-500 text-white shadow-lg shadow-amber-950/30'
+                    : 'bg-[#090d16] border-gray-700 text-gray-300 hover:border-gray-500'
+                }`}
+              >
+                <div className="text-xs font-extrabold text-amber-300 flex items-center justify-between gap-1">
+                  <span>🗓️ Escala Final de Semana (FDS)</span>
+                  <Badge className="bg-amber-500/30 text-amber-200 border-none text-[10px] shrink-0">
+                    {todaySchedules.filter((s) => matchesScheduleModeFilter(s, 'WEEKEND')).length}
+                  </Badge>
+                </div>
+                <div className="text-[11px] text-gray-300 mt-0.5 leading-snug">
+                  Sábado e Domingo (plantão / FDS)
+                </div>
+              </button>
 
-                <button
-                  type="button"
-                  onClick={() => setSelectedScheduleMode('ALL')}
-                  className={`p-2.5 rounded-xl border text-left transition-all ${
-                    selectedScheduleMode === 'ALL'
-                      ? 'bg-blue-500/20 border-blue-500 text-white shadow-lg shadow-blue-950/30'
-                      : 'bg-[#090d16] border-gray-700 text-gray-300 hover:border-gray-500'
-                  }`}
-                >
-                  <div className="text-xs font-extrabold text-blue-300 flex items-center justify-between gap-1">
-                    <span>📋 Todas as Minhas Escalas</span>
-                    <Badge className="bg-blue-500/30 text-blue-200 border-none text-[10px] shrink-0">
-                      {todaySchedules.length}
-                    </Badge>
-                  </div>
-                  <div className="text-[11px] text-gray-300 mt-0.5 leading-snug">
-                    Exibir semanais e final de semana
-                  </div>
-                </button>
-              </div>
-
-              <div className="min-w-0">
-                <select
-                  value={selectedScheduleId}
-                  onChange={(e) => handleSelectScheduleChange(e.target.value)}
-                  style={{ backgroundColor: '#090d16', color: '#ffffff', colorScheme: 'dark' }}
-                  className="w-full h-11 rounded-lg bg-[#090d16] border border-gray-600 px-2.5 sm:px-3 text-xs sm:text-sm font-medium text-white focus:border-seguranca-yellow focus:outline-none truncate"
-                >
-                  {(filteredDriverSchedules.length > 0 ? filteredDriverSchedules : todaySchedules).map((s) => {
-                    const plate = s.vehicle?.plate || s.vehiclePlate || 'Sem placa';
-                    const routeLabel = s.route?.name || s.routeCode || s.travelTrip?.name || s.workPost?.name || 'Rota';
-                    const clientLabel =
-                      s.clientName || s.workPost?.client?.name || s.travelTrip?.client?.name || s.location?.name || '';
-                    const rec = resolveScheduleRecurrence(s);
-                    const recTag = rec === 'WEEKEND' ? '[FDS]' : '[SEMANAL]';
-                    const startT = resolveScheduleStartTime(s);
-                    return (
-                      <option key={s.id} value={s.id} style={{ backgroundColor: '#090d16', color: '#ffffff' }}>
-                        {`${recTag} ${startT} • ${routeLabel}${clientLabel ? ` (${clientLabel})` : ''} • ${plate}`}
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
-            </>
+              <button
+                type="button"
+                onClick={() => setSelectedScheduleMode('ALL')}
+                className={`p-2.5 rounded-xl border text-left transition-all ${
+                  selectedScheduleMode === 'ALL'
+                    ? 'bg-blue-500/20 border-blue-500 text-white shadow-lg shadow-blue-950/30'
+                    : 'bg-[#090d16] border-gray-700 text-gray-300 hover:border-gray-500'
+                }`}
+              >
+                <div className="text-xs font-extrabold text-blue-300 flex items-center justify-between gap-1">
+                  <span>📋 Todas as Minhas Escalas</span>
+                  <Badge className="bg-blue-500/30 text-blue-200 border-none text-[10px] shrink-0">
+                    {todaySchedules.length}
+                  </Badge>
+                </div>
+                <div className="text-[11px] text-gray-300 mt-0.5 leading-snug">
+                  Exibir semanais e final de semana
+                </div>
+              </button>
+            </div>
           )}
+
+          {/* Cards Visuais Interativos de Pegadas do Dia (Escala do Gestor) */}
+          <div className="space-y-2 pt-1">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <span className="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
+                <Bus className="h-3.5 w-3.5 text-seguranca-yellow" />
+                Pegadas Disponíveis Hoje na sua Escala ({sortedDailySchedules.length})
+              </span>
+              {offlineQueueCount > 0 && (
+                <Badge variant="outline" className="border-amber-500/40 text-amber-300 bg-amber-500/10 text-[10px] animate-pulse">
+                  <WifiOff className="h-3 w-3 mr-1" />
+                  {offlineQueueCount} pendência(s) na fila offline
+                </Badge>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+              {sortedDailySchedules.map((s, idx) => {
+                const isSelected = s.id === selectedScheduleId;
+                const isCompleted = s.finalKm != null || s.status === 'COMPLETED';
+                const isInProgress = (s.initialKm != null || s.status === 'IN_PROGRESS') && !isCompleted;
+                const legNumber = idx + 1;
+                const startT = resolveScheduleStartTime(s);
+                const endT = resolveScheduleEndTime(s);
+                const routeTitle = s.routeCode || s.route?.name || s.travelTrip?.name || 'Percurso';
+                const clientTitle =
+                  s.clientName ||
+                  s.workPost?.client?.name ||
+                  s.travelTrip?.client?.name ||
+                  s.location?.name ||
+                  'Cliente da Escala';
+                const plate = s.vehicle?.plate || s.vehiclePlate || 'Veículo a definir';
+                const model = s.vehicle?.model || s.vehicleModel || '';
+                const dir = s.direction || inferDirectionFromRouteCode(routeTitle, idx);
+                const nightShift = calculateNightShiftFromTimes(todayStr, startT, endT);
+
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => applyScheduleToForm(s)}
+                    className={`relative p-3 rounded-xl border text-left transition-all flex flex-col justify-between gap-2.5 cursor-pointer ${
+                      isSelected
+                        ? 'bg-seguranca-yellow/15 border-seguranca-yellow ring-2 ring-seguranca-yellow/40 shadow-lg shadow-yellow-950/40'
+                        : 'bg-[#090d16] border-gray-800 hover:border-gray-600 hover:bg-[#101726]'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2 w-full">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <Badge
+                          className={`text-[10px] font-black px-2 py-0.5 ${
+                            isSelected
+                              ? 'bg-seguranca-yellow text-seguranca-black'
+                              : isCompleted
+                              ? 'bg-emerald-600 text-white'
+                              : isInProgress
+                              ? 'bg-blue-600 text-white animate-pulse'
+                              : 'bg-gray-800 text-gray-200'
+                          }`}
+                        >
+                          Pegada {legNumber}
+                        </Badge>
+                        <Badge
+                          className={`text-[9px] font-bold px-1.5 py-0.2 ${
+                            dir === 'IDA'
+                              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                              : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                          }`}
+                        >
+                          {dir === 'IDA' ? 'Ida' : 'Retorno'}
+                        </Badge>
+                        {nightShift.hasNightShift && (
+                          <Badge className="bg-indigo-500/20 text-indigo-300 border-indigo-500/30 text-[9px] px-1.5 py-0.2 flex items-center gap-0.5">
+                            <Moon className="h-2.5 w-2.5" />
+                            <span>Noturno</span>
+                          </Badge>
+                        )}
+                      </div>
+
+                      <div className="shrink-0">
+                        {isCompleted ? (
+                          <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40 text-[10px] font-bold">
+                            ✓ Concluída
+                          </Badge>
+                        ) : isInProgress ? (
+                          <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/40 text-[10px] font-bold">
+                            ● Em Curso
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-gray-400 border-gray-700 text-[10px]">
+                            Pendente
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1 w-full min-w-0">
+                      <div className="flex items-center gap-1.5 text-xs sm:text-sm font-extrabold text-white truncate">
+                        <Clock className="h-3.5 w-3.5 text-seguranca-yellow shrink-0" />
+                        <span>{startT} às {endT || '--:--'}</span>
+                      </div>
+                      <div className="text-xs font-bold text-seguranca-yellow truncate" title={routeTitle}>
+                        {routeTitle}
+                      </div>
+                      <div className="text-[11px] text-gray-300 truncate" title={clientTitle}>
+                        🏢 {clientTitle}
+                      </div>
+                      <div className="text-[11px] text-emerald-400 font-mono font-medium truncate">
+                        🚌 {plate} {model ? `(${model})` : ''}
+                      </div>
+                    </div>
+
+                    {/* Rodapé da Pegada: Odômetro ou KM Rodados */}
+                    <div className="pt-1.5 border-t border-gray-800/80 flex items-center justify-between text-[10px] text-gray-400 w-full">
+                      {isCompleted ? (
+                        <span className="text-emerald-300 font-bold">
+                          🛣️ {s.initialKm} → {s.finalKm} km ({s.finalKm != null && s.initialKm != null ? s.finalKm - s.initialKm : 0} km rodados)
+                        </span>
+                      ) : isInProgress ? (
+                        <span className="text-blue-300 font-bold">
+                          🛣️ KM Ini: {s.initialKm} km (Em viagem)
+                        </span>
+                      ) : (
+                        <span>Clique para carregar</span>
+                      )}
+                      {s.passengersCount != null && s.passengersCount > 0 && (
+                        <span className="text-purple-300">👥 {s.passengersCount} pass.</span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+
+              {/* Botão para Nova Pegada Avulsa */}
+              <button
+                type="button"
+                onClick={() => handleSelectScheduleChange('NEW')}
+                className={`p-3 rounded-xl border border-dashed text-left transition-all flex flex-col items-center justify-center text-center gap-1.5 min-h-[110px] cursor-pointer ${
+                  selectedScheduleId === 'NEW'
+                    ? 'bg-seguranca-yellow/15 border-seguranca-yellow text-seguranca-yellow ring-2 ring-seguranca-yellow/40'
+                    : 'bg-[#090d16]/60 border-gray-700 text-gray-400 hover:text-white hover:border-gray-500'
+                }`}
+              >
+                <div className="h-8 w-8 rounded-full bg-seguranca-yellow/20 flex items-center justify-center text-seguranca-yellow font-black text-lg">
+                  +
+                </div>
+                <div className="text-xs font-bold">Nova Pegada / Viagem Extra</div>
+                <div className="text-[10px] opacity-75">Iniciar viagem não planejada</div>
+              </button>
+            </div>
+          </div>
 
           {/* Resumo Automático da Escala: Motorista, Veículo, Rota e Cliente */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 pt-1">
@@ -937,6 +1274,13 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
                 const val = e.target.value;
                 setVehicleId(val);
                 const foundV = vehicles.find((v) => v.id === val);
+                const suggested = checkAndSuggestKmForVehicle(val, foundV?.plate);
+                if (suggested != null && (!initialKm || suggestedFromPrevTrip != null)) {
+                  setInitialKm(String(suggested));
+                  setSuggestedFromPrevTrip(suggested);
+                } else if (!suggested && suggestedFromPrevTrip != null) {
+                  setSuggestedFromPrevTrip(null);
+                }
                 if (selectedScheduleId && selectedScheduleId !== 'NEW') {
                   scheduleService.saveExecutionOverlay(selectedScheduleId, {
                     vehicleId: val,
@@ -1101,6 +1445,14 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
                 style={{ backgroundColor: '#090d16', color: '#ffffff', colorScheme: 'dark' }}
                 className="!bg-[#090d16] !text-white border-emerald-500/40 placeholder:text-gray-400 text-lg sm:text-xl font-mono font-bold h-13"
               />
+              {suggestedFromPrevTrip != null && (
+                <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-start gap-2 mt-1">
+                  <Sparkles className="h-4 w-4 text-seguranca-yellow shrink-0 mt-0.5" />
+                  <div className="text-[11px] text-emerald-300 leading-snug">
+                    <strong>Odômetro Inteligente:</strong> Sugerido automaticamente da Pegada anterior deste veículo ({suggestedFromPrevTrip} km). Você pode ajustar livremente caso tenha manobrado no pátio ou abastecido.
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* KM Final */}
@@ -1149,6 +1501,12 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
                 style={{ backgroundColor: '#090d16', color: '#ffffff', colorScheme: 'dark' }}
                 className="!bg-[#090d16] !text-white border-amber-500/40 placeholder:text-gray-400 text-lg sm:text-xl font-mono font-bold h-13 disabled:opacity-40 disabled:cursor-not-allowed"
               />
+              {finalKm && initialKm && Number(finalKm) >= Number(initialKm) && (
+                <div className="text-[11px] text-emerald-400 font-bold flex items-center gap-1.5 mt-1">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                  <span>Distância calculada da viagem: <strong>{Number(finalKm) - Number(initialKm)} km rodados</strong></span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -1399,15 +1757,26 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
                         </Badge>
                       )}
                     </div>
-                    <div className="text-xs text-gray-300 mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
-                      <span>
-                        🕒 {isPendingApproval ? 'Horário retido (Aguard. Aprovação)' : `${item.startTime || '--:--'} - ${item.endTime || 'em curso'}`}
-                      </span>
-                      <span>🏢 {item.clientName || item.workPost?.client?.name || item.location?.name || '-'}</span>
-                      <span>🛣️ KM: {item.initialKm ?? '-'} → {item.finalKm ?? '-'}</span>
-                      <span>👥 Passag.: {item.passengersCount ?? 0}</span>
-                      {pCount > 0 && <span className="text-cyan-400">📷 {pCount} foto(s)</span>}
-                    </div>
+                    {(() => {
+                      const legDistance = item.finalKm != null && item.initialKm != null ? item.finalKm - item.initialKm : null;
+                      const nightCalc = calculateNightShiftFromTimes(todayStr, item.startTime || '', item.endTime || '');
+                      return (
+                        <div className="text-xs text-gray-300 mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                          <span>
+                            🕒 {isPendingApproval ? 'Horário retido (Aguard. Aprovação)' : `${item.startTime || '--:--'} às ${item.endTime || 'em curso'}`}
+                          </span>
+                          <span>🏢 {item.clientName || item.workPost?.client?.name || item.location?.name || '-'}</span>
+                          <span>🛣️ KM: {item.initialKm ?? '-'} → {item.finalKm ?? '-'} {legDistance != null ? `(${legDistance} km)` : ''}</span>
+                          <span>👥 Passag.: {item.passengersCount ?? 0}</span>
+                          {pCount > 0 && <span className="text-cyan-400">📷 {pCount} foto(s)</span>}
+                          {nightCalc.hasNightShift && (
+                            <Badge className="bg-indigo-500/20 text-indigo-300 border-indigo-500/40 text-[10px] px-1.5 py-0">
+                              🌙 Adicional Noturno: {nightCalc.formattedNightClt} (CLT)
+                            </Badge>
+                          )}
+                        </div>
+                      );
+                    })()}
                     {(item.startAddress || item.endAddress) && (
                       <div className="mt-2 pt-2 border-t border-gray-800/80 space-y-1 text-[11px]">
                         {item.startAddress && (
