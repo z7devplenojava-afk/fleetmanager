@@ -28,6 +28,9 @@ export interface TimeRecord {
   createdAt: string;
 }
 
+const isValidUuid = (id?: string | null): boolean =>
+  Boolean(id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(id).trim()) && !String(id).startsWith('00000000-0000-0000-0000'));
+
 export const timeRecordService = {
   async registerTimeRecord(data: TimeRecordRequest) {
     const response = await api.post('/time-records/register', data);
@@ -35,7 +38,7 @@ export const timeRecordService = {
   },
 
   async getTodayRecords(employeeId: string) {
-    if (!employeeId || employeeId.startsWith('00000000-0000-0000-0000')) {
+    if (!isValidUuid(employeeId)) {
       return [];
     }
     try {
@@ -47,7 +50,7 @@ export const timeRecordService = {
   },
 
   async getEmployeeRecords(employeeId: string, page = 0, size = 20) {
-    if (!employeeId || employeeId.startsWith('00000000-0000-0000-0000')) {
+    if (!isValidUuid(employeeId)) {
       return [];
     }
     try {
@@ -61,15 +64,29 @@ export const timeRecordService = {
   },
 
   async getRecordsByPeriod(employeeId: string, startDate: string, endDate: string) {
-    const response = await api.get(`/time-records/period/${employeeId}`, {
-      params: { startDate, endDate }
-    });
-    return response.data;
+    if (!isValidUuid(employeeId)) {
+      return { success: true, data: [] };
+    }
+    try {
+      const response = await api.get(`/time-records/period/${employeeId}`, {
+        params: { startDate, endDate }
+      });
+      return response.data;
+    } catch {
+      return { success: true, data: [] };
+    }
   },
 
   async getNextRecordType(employeeId: string) {
-    const response = await api.get(`/time-records/next-record-type/${employeeId}`);
-    return response.data;
+    if (!isValidUuid(employeeId)) {
+      return { success: true, nextRecordType: 'ENTRADA' };
+    }
+    try {
+      const response = await api.get(`/time-records/next-record-type/${employeeId}`);
+      return response.data;
+    } catch {
+      return { success: true, nextRecordType: 'ENTRADA' };
+    }
   },
 
   async approveRecord(recordId: string, approverId: string) {
