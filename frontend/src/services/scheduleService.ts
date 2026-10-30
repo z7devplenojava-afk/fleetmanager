@@ -2421,46 +2421,7 @@ export const scheduleService = {
       // Ignora caso /api/escalas falhe
     }
 
-    // 4. Consulta escalas operacionais (/operacional/escalas)
-    try {
-      const opRes = await api.get('/operacional/escalas', { silentErrorLog: true } as any);
-      const opList = Array.isArray(opRes.data) ? opRes.data : [];
-      for (const op of opList as any[]) {
-        const funcName = op.funcionario?.nome || op.funcionarioNome;
-        const funcId = String(op.funcionarioId || op.funcionario?.id || '');
-        const matchesOp =
-          (targetEmpId && funcId === targetEmpId) ||
-          (targetUserId && funcId === targetUserId) ||
-          isDriverNameMatch(targetName, funcName);
-
-        if (!matchesOp) continue;
-
-        if (!mergedMap.has(op.id)) {
-          const opStart = op.horarioInicio ? String(op.horarioInicio).substring(0, 5) : '08:00';
-          const opEnd = op.horarioFim ? String(op.horarioFim).substring(0, 5) : '17:00';
-          const converted: Schedule = applyOverlayToSchedule({
-            id: op.id,
-            employee: {
-              id: funcId || targetEmpId || 'driver',
-              name: funcName || targetName || 'Motorista',
-            },
-            scheduleDate: op.dataInicio ? String(op.dataInicio).substring(0, 10) : targetDateStr,
-            shift: 'DAY',
-            startTime: opStart,
-            endTime: opEnd,
-            clientName: op.posto?.cliente || op.posto?.nome || 'Cliente Operacional',
-            routeCode: op.posto?.nome || '01 - CASA/PONTO',
-            status: op.status === 'FOLGA' ? 'CANCELLED' : 'PENDING',
-            observations: op.observacoes,
-          });
-          mergedMap.set(op.id, converted);
-        }
-      }
-    } catch {
-      // ignora
-    }
-
-    // 5. Incluir escalas locais salvas em contingência/offline
+    // 4. Incluir escalas locais salvas em contingência/offline
     try {
       const localList = getLocalPontoSchedules();
       for (const loc of localList) {
