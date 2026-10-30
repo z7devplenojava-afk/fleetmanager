@@ -46,7 +46,8 @@ import fleetWorkOrderService, {
     WorkOrderStatus,
     WorkOrderItemType,
     FleetWorkOrder,
-    MaintenanceType
+    MaintenanceType,
+    getOrderResponsibleDisplay
 } from '@/services/fleetWorkOrderService';
 import FleetWorkOrderForm from '@/components/frota/FleetWorkOrderForm';
 import { FleetWorkOrderViewModal } from '@/components/frota/FleetWorkOrderViewModal';
@@ -217,7 +218,7 @@ const FleetWorkOrdersPage: React.FC = () => {
                 const osNum = (o.osNumber || '').toLowerCase();
                 const plate = (o.vehiclePlate || '').toLowerCase();
                 const model = (o.vehicleModel || '').toLowerCase();
-                const mech = (o.mechanicName || '').toLowerCase();
+                const mech = getOrderResponsibleDisplay(o).toLowerCase();
                 const client = (o.clientName || '').toLowerCase();
                 const wp = (o.workPostName || '').toLowerCase();
                 const garage = getOrderGarageName(o).toLowerCase();
@@ -268,8 +269,8 @@ const FleetWorkOrdersPage: React.FC = () => {
                     bVal = b.odometerIn || 0;
                     return sortDir === 'asc' ? aVal - bVal : bVal - aVal;
                 case 'mechanicName':
-                    aVal = a.mechanicName || '';
-                    bVal = b.mechanicName || '';
+                    aVal = getOrderResponsibleDisplay(a);
+                    bVal = getOrderResponsibleDisplay(b);
                     return sortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
                 case 'totalCost':
                     aVal = a.totalCost || 0;
@@ -570,7 +571,7 @@ const FleetWorkOrdersPage: React.FC = () => {
                                                     {order.odometerIn != null ? `${order.odometerIn.toLocaleString('pt-BR')} km` : '—'}
                                                 </td>
                                                 <td className="hidden md:table-cell p-4 text-gray-300 text-xs sm:text-sm">
-                                                    {order.mechanicName || 'Não atribuído'}
+                                                    {getOrderResponsibleDisplay(order)}
                                                 </td>
                                                 <td className="p-3 sm:p-4 text-right font-mono font-bold text-seguranca-lightgray text-xs sm:text-sm">
                                                     {(order.totalCost || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}

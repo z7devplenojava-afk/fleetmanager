@@ -60,8 +60,11 @@ public class FleetWorkOrderDTO {
     // Envolvidos PRD
     private UUID sectorId;
     private UUID requesterId;
+    private String requesterName;
     private UUID responsibleId;
+    private String responsibleName;
     private UUID supervisorId;
+    private String supervisorName;
 
     // Assinaturas PRD
     private String responsibleSignature;
@@ -149,11 +152,29 @@ public class FleetWorkOrderDTO {
         }
 
         String mechanicName = entity.getMechanicName();
-        if ((mechanicName == null || mechanicName.isBlank()) && entity.getVehicle() != null) {
-            if (entity.getVehicle().getResponsibleEmployee() != null) {
-                mechanicName = entity.getVehicle().getResponsibleEmployee().getName();
-            } else if (entity.getVehicle().getAssignedDriver() != null && !entity.getVehicle().getAssignedDriver().isBlank()) {
-                mechanicName = entity.getVehicle().getAssignedDriver();
+        if (mechanicName == null || mechanicName.isBlank()) {
+            if (entity.getNotes() != null) {
+                java.util.regex.Matcher m = java.util.regex.Pattern
+                        .compile("(?i)Motorista:\\s*([^\\n,]+?)(?:\\s+via|$)")
+                        .matcher(entity.getNotes());
+                if (m.find() && !m.group(1).trim().isEmpty()) {
+                    mechanicName = m.group(1).trim() + " (Motorista)";
+                }
+            }
+            if ((mechanicName == null || mechanicName.isBlank()) && entity.getAnomaliesDescription() != null) {
+                java.util.regex.Matcher m = java.util.regex.Pattern
+                        .compile("(?i)\\[Checklist Diário\\s*-\\s*([^\\]]+)\\]")
+                        .matcher(entity.getAnomaliesDescription());
+                if (m.find() && !m.group(1).trim().isEmpty()) {
+                    mechanicName = m.group(1).trim() + " (Motorista)";
+                }
+            }
+            if ((mechanicName == null || mechanicName.isBlank()) && entity.getVehicle() != null) {
+                if (entity.getVehicle().getResponsibleEmployee() != null) {
+                    mechanicName = entity.getVehicle().getResponsibleEmployee().getName();
+                } else if (entity.getVehicle().getAssignedDriver() != null && !entity.getVehicle().getAssignedDriver().isBlank()) {
+                    mechanicName = entity.getVehicle().getAssignedDriver() + " (Motorista)";
+                }
             }
         }
 
@@ -207,7 +228,9 @@ public class FleetWorkOrderDTO {
                 .clientName(clientName)
                 .sectorId(entity.getSectorId())
                 .requesterId(entity.getRequesterId())
+                .requesterName(mechanicName)
                 .responsibleId(entity.getResponsibleId())
+                .responsibleName(mechanicName)
                 .supervisorId(entity.getSupervisorId())
                 .responsibleSignature(entity.getResponsibleSignature())
                 .responsibleSignatureDate(entity.getResponsibleSignatureDate())

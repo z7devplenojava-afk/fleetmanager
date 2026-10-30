@@ -118,8 +118,26 @@ public class FleetWorkOrderPdfService {
         data.put("vehicleBrand", order.getVehicle() != null ? order.getVehicle().getBrand() : null);
         data.put("planoManutencao", (order.getPlan() != null && order.getPlan().getTaskName() != null)
                 ? order.getPlan().getTaskName() : null);
-        data.put("mechanicName", order.getMechanicName());
-        data.put("mecanicoAssinatura", order.getMechanicName());
+        String resolvedMechanic = order.getMechanicName();
+        if (resolvedMechanic == null || resolvedMechanic.isBlank()) {
+            if (order.getNotes() != null) {
+                java.util.regex.Matcher m = java.util.regex.Pattern.compile("(?i)Motorista:\\s*([^\\n,]+?)(?:\\s+via|$)").matcher(order.getNotes());
+                if (m.find() && !m.group(1).trim().isEmpty()) {
+                    resolvedMechanic = m.group(1).trim() + " (Motorista)";
+                }
+            }
+            if ((resolvedMechanic == null || resolvedMechanic.isBlank()) && order.getAnomaliesDescription() != null) {
+                java.util.regex.Matcher m = java.util.regex.Pattern.compile("(?i)\\[Checklist Diário\\s*-\\s*([^\\]]+)\\]").matcher(order.getAnomaliesDescription());
+                if (m.find() && !m.group(1).trim().isEmpty()) {
+                    resolvedMechanic = m.group(1).trim() + " (Motorista)";
+                }
+            }
+            if ((resolvedMechanic == null || resolvedMechanic.isBlank()) && order.getVehicle() != null && order.getVehicle().getAssignedDriver() != null && !order.getVehicle().getAssignedDriver().isBlank()) {
+                resolvedMechanic = order.getVehicle().getAssignedDriver() + " (Motorista)";
+            }
+        }
+        data.put("mechanicName", resolvedMechanic);
+        data.put("mecanicoAssinatura", resolvedMechanic);
         data.put("laborType", formatLaborType(order.getLaborType()));
         data.put("status", formatStatus(order.getStatus()));
         data.put("prioridade", formatPriority(order.getPriority()));

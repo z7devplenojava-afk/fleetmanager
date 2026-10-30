@@ -264,19 +264,25 @@ export const DriverWorkOrdersPage: React.FC = () => {
             const dateStr = now.toISOString().split('T')[0];
             const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
+            const driverName = user?.name || 'Motorista';
             const payload: Partial<FleetWorkOrder> = {
                 vehicleId: selectedVehicleId,
                 maintenanceType: MaintenanceType.CORRETIVA,
                 status: WorkOrderStatus.OPEN,
                 priority,
                 laborType: LaborType.INTERNAL,
+                mechanicName: `${driverName} (Motorista)`,
+                responsibleName: driverName,
+                requesterName: driverName,
+                responsibleId: (user as any)?.employeeId || (user?.id ? String(user.id) : undefined),
+                requesterId: (user as any)?.employeeId || (user?.id ? String(user.id) : undefined),
                 stopDate: dateStr,
                 stopTime: timeStr,
                 odometerIn: currentKm !== '' ? Number(currentKm) : (selectedVehicle?.currentMileage || undefined),
                 stopReason: 'Abertura de Chamado pelo Condutor/Motorista',
                 anomaliesDescription: anomaliesDescription.trim(),
                 otherDescription: otherDetails.trim() || undefined,
-                notes: `OS aberta pelo Motorista: ${user?.name || 'Condutor'} via Portal Mobile`,
+                notes: `OS aberta pelo Motorista: ${driverName} via Portal Mobile`,
                 photoAttachments: photoUrls,
                 clientId: selectedVehicle?.clientId,
                 sectorId: selectedVehicle?.workPostId,
