@@ -157,6 +157,24 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
     [todaySchedules, selectedScheduleMode]
   );
 
+  // Ajusta automaticamente a aba de exibição caso o modo atual não contenha escalas
+  useEffect(() => {
+    if (todaySchedules && todaySchedules.length > 0) {
+      const inCurrentMode = todaySchedules.filter((s) => matchesScheduleModeFilter(s, selectedScheduleMode)).length;
+      if (inCurrentMode === 0) {
+        const weeklyCount = todaySchedules.filter((s) => matchesScheduleModeFilter(s, 'WEEKLY_FIXED')).length;
+        const weekendCount = todaySchedules.filter((s) => matchesScheduleModeFilter(s, 'WEEKEND')).length;
+        if (weeklyCount > 0 && selectedScheduleMode === 'WEEKEND') {
+          setSelectedScheduleMode('WEEKLY_FIXED');
+        } else if (weekendCount > 0 && selectedScheduleMode === 'WEEKLY_FIXED') {
+          setSelectedScheduleMode('WEEKEND');
+        } else {
+          setSelectedScheduleMode('ALL');
+        }
+      }
+    }
+  }, [todaySchedules, selectedScheduleMode]);
+
   const selectedSchedule = useMemo(
     () => todaySchedules.find((s) => s.id === selectedScheduleId) || null,
     [todaySchedules, selectedScheduleId]
