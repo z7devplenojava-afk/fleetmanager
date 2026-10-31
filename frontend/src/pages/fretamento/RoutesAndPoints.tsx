@@ -560,10 +560,11 @@ const RoutesAndPoints: React.FC = () => {
 
     /** Otimiza a ordem das paradas intermediárias mantendo fixos Origem e Destino */
     const handleOtimizarOrdem = async () => {
-        if (routePoints.length <= 3) {
+        if (routePoints.length < 2) {
             toast({
-                title: 'Otimização de Trajeto',
-                description: 'Adicione pelo menos 2 paradas intermediárias de embarque para otimizar o percurso.',
+                title: 'Traçado de Rota',
+                description: 'Adicione ao menos a Origem e o Destino para traçar ou otimizar a rota.',
+                variant: 'destructive',
             });
             return;
         }
@@ -984,20 +985,38 @@ const RoutesAndPoints: React.FC = () => {
         setRoutePoints(reordered);
         setPointModalOpen(false);
 
-        // Recalcula o trajeto viário completo automaticamente com a nova parada
-        if (reordered.length >= 2) {
-            smartRoutingService.calculateRoute(reordered as RoutingPoint[])
-                .then(res => {
-                    setRoutePolyline(res.polyline);
-                    setRoutingProvider(res.provider);
-                    setFormData(prev => ({
-                        ...prev,
-                        distanceKm: res.distanceKm,
-                        estimatedDuration: res.durationMinutes
-                    }));
-                })
-                .catch(e => console.warn('Atualização de rota em background:', e));
-        }
+        toast({
+            title: editingPointIndex !== null ? 'Ponto Atualizado!' : 'Ponto de Embarque Marcado!',
+            description: `Ponto "${newPoint.name}" posicionado no mapa. O traçado viário será recalculado ao clicar em "Otimizar Ordem dos Pontos".`,
+        });
+    };
+
+    /** Reposiciona o ponto de embarque ao arrastar no mapa */
+    const handlePointDragEnd = (pointId: string, lat: number, lng: number) => {
+        setRoutePoints(prev =>
+            prev.map((p, idx) => {
+                if (p.id === pointId || `point-${idx}` === pointId || String(idx) === pointId) {
+                    return { ...p, latitude: lat, longitude: lng };
+                }
+                return p;
+            })
+        );
+        toast({
+            title: 'Ponto Reposicionado!',
+            description: 'Localização atualizada. Clique em "Otimizar Ordem dos Pontos" para atualizar o traçado viário.',
+        });
+    };
+
+    /** Exclui o ponto de embarque diretamente pelo popup do mapa */
+    const handlePointDeleteFromMap = (pointId: string) => {
+        setRoutePoints(prev => {
+            const filtered = prev.filter((p, idx) => p.id !== pointId && `point-${idx}` !== pointId && String(idx) !== pointId);
+            return filtered.map((p, idx) => ({ ...p, order: idx }));
+        });
+        toast({
+            title: 'Ponto de Embarque Excluído',
+            description: 'O ponto foi removido do mapa e do itinerário.',
+        });
     };
 
     const handleDeletePoint = (index: number) => {
@@ -2012,6 +2031,12 @@ const RoutesAndPoints: React.FC = () => {
                                                 }))}
                                                 routePolyline={routePolyline}
                                                 onMapClick={handleMapClick}
+                                                onPointClick={(pointId) => {
+                                                    const idx = routePoints.findIndex((p, i) => p.id === pointId || `point-${i}` === pointId || String(i) === pointId);
+                                                    if (idx >= 0) handleOpenEditPoint(idx);
+                                                }}
+                                                onPointDelete={handlePointDeleteFromMap}
+                                                onPointDragEnd={handlePointDragEnd}
                                                 readOnly={modalMode === 'view'}
                                                 provider={routingProvider}
                                             />

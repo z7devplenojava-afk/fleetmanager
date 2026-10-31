@@ -31,6 +31,8 @@ interface OpenMapInteractiveProps {
     /** Polyline real da rota (coordenadas [lat, lng][] vindas do OSRM/Google) */
     routePolyline?: [number, number][];
     onPointClick?: (pointId: string) => void;
+    onPointDelete?: (pointId: string) => void;
+    onPointDragEnd?: (pointId: string, lat: number, lng: number) => void;
     onMapClick?: (event: any) => void;
     readOnly?: boolean;
     provider?: 'OSRM' | 'GOOGLE_MAPS';
@@ -117,6 +119,8 @@ export const OpenMapInteractive: React.FC<OpenMapInteractiveProps> = ({
     points = [],
     routePolyline,
     onPointClick,
+    onPointDelete,
+    onPointDragEnd,
     onMapClick,
     readOnly = false,
     provider = 'OSRM'
@@ -126,8 +130,8 @@ export const OpenMapInteractive: React.FC<OpenMapInteractiveProps> = ({
     const polylinePositions = useMemo(() =>
         routePolyline && routePolyline.length > 1
             ? routePolyline
-            : points.map(p => [p.latitude, p.longitude] as [number, number]),
-        [points, routePolyline]);
+            : [],
+        [routePolyline]);
 
     const isRealRoute = !!(routePolyline && routePolyline.length > 1);
 
@@ -259,27 +263,58 @@ export const OpenMapInteractive: React.FC<OpenMapInteractiveProps> = ({
                     </>
                 )}
 
-                {/* Marcadores dos Pontos com Pins Diferenciados */}
+                {/* Marcadores dos Pontos com Pins Diferenciados (Arrastáveis para ajuste e com ações) */}
                 {points.map((point, index) => (
                     <Marker
                         key={point.id || index}
                         position={[point.latitude, point.longitude]}
                         icon={createCustomIcon(point, index)}
+                        draggable={!readOnly}
                         eventHandlers={{
-                            click: () => onPointClick?.(point.id || String(index))
+                            click: () => onPointClick?.(point.id || String(index)),
+                            dragend: (e) => {
+                                const latLng = e.target.getLatLng();
+                                onPointDragEnd?.(point.id || String(index), latLng.lat, latLng.lng);
+                            }
                         }}
                     >
                         <Popup>
-                            <div className="p-1 text-slate-800 text-xs">
+                            <div className="p-1.5 text-slate-800 text-xs min-w-[200px]">
                                 <div className="font-bold text-sm text-slate-950 mb-0.5">
-                                    {point.type === 'START' ? '🟢 Ponto de Origem (1º Embarque)' :
-                                     point.type === 'END' ? '🔴 Ponto de Destino (Todos descem)' :
+                                    {point.type === 'START' ? '🟢 1º Embarque (Origem)' :
+                                     point.type === 'END' ? '🔴 Destino Final' :
                                      `🔵 Parada #${index + 1} (Embarque)`}
                                 </div>
-                                <div className="text-slate-600 font-medium mb-1">{point.label || 'Sem identificação'}</div>
-                                <div className="text-[10px] text-slate-500 font-mono">
+                                <div className="text-slate-700 font-semibold mb-1">{point.label || 'Ponto de Embarque'}</div>
+                                <div className="text-[10px] text-slate-500 font-mono mb-2">
                                     Lat: {point.latitude.toFixed(6)}, Lng: {point.longitude.toFixed(6)}
                                 </div>
+                                {!readOnly && (
+                                    <div className="flex items-center gap-1.5 pt-1.5 border-t border-slate-200">
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onPointClick?.(point.id || String(index));
+                                            }}
+                                            className="flex-1 px-2 py-1 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded text-[11px] transition-colors"
+                                        >
+                                            ✏️ Editar
+                                        </button>
+                                        {point.type !== 'START' && point.type !== 'END' && (
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    onPointDelete?.(point.id || String(index));
+                                                }}
+                                                className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white font-bold rounded text-[11px] transition-colors"
+                                            >
+                                                🗑️ Excluir
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </Popup>
                     </Marker>
