@@ -12,6 +12,39 @@ L.Icon.Default.mergeOptions({
     shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
+export type MapLayerType = 'GOOGLE_STREETS' | 'GOOGLE_HYBRID' | 'GOOGLE_TRAFFIC' | 'OPENSTREETMAP';
+
+export const MAP_LAYERS: Record<MapLayerType, { name: string; url: string; subdomains?: string[]; maxZoom: number; attribution: string }> = {
+    GOOGLE_STREETS: {
+        name: 'Google Maps (Ruas)',
+        url: 'https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+        maxZoom: 20,
+        attribution: '&copy; Google Maps'
+    },
+    GOOGLE_HYBRID: {
+        name: 'Google Satélite',
+        url: 'https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+        maxZoom: 20,
+        attribution: '&copy; Google Maps Imagens'
+    },
+    GOOGLE_TRAFFIC: {
+        name: 'Google Tráfego',
+        url: 'https://{s}.google.com/vt/lyrs=m,traffic&x={x}&y={y}&z={z}',
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+        maxZoom: 20,
+        attribution: '&copy; Google Maps Tráfego'
+    },
+    OPENSTREETMAP: {
+        name: 'OpenStreetMap',
+        url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        subdomains: ['a', 'b', 'c'],
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap'
+    }
+};
+
 export interface MapPoint {
     id: string;
     latitude: number;
@@ -210,6 +243,7 @@ export const OpenMapInteractive: React.FC<OpenMapInteractiveProps> = ({
         });
     };
 
+    const [activeLayer, setActiveLayer] = React.useState<MapLayerType>('GOOGLE_STREETS');
     const [fitTrigger, setFitTrigger] = React.useState<number>(0);
 
     return (
@@ -222,8 +256,11 @@ export const OpenMapInteractive: React.FC<OpenMapInteractiveProps> = ({
                 doubleClickZoom={false}
             >
                 <TileLayer
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    key={activeLayer}
+                    attribution={MAP_LAYERS[activeLayer].attribution}
+                    url={MAP_LAYERS[activeLayer].url}
+                    subdomains={MAP_LAYERS[activeLayer].subdomains}
+                    maxZoom={MAP_LAYERS[activeLayer].maxZoom}
                 />
 
                 <MapViewHandler
@@ -329,21 +366,58 @@ export const OpenMapInteractive: React.FC<OpenMapInteractiveProps> = ({
                 </div>
             )}
 
-            {/* Botão de Enquadrar Rota: permite ajustar o zoom manualmente sem forçar a cada clique */}
-            {points.length > 0 && (
+            {/* Seletor de Camadas Google Maps e Botão de Enquadrar Rota */}
+            <div className="absolute top-3 right-3 flex items-center gap-1.5 z-[1000] bg-slate-900/95 backdrop-blur-md p-1 rounded-lg border border-slate-700 shadow-xl">
                 <button
                     type="button"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        setFitTrigger((prev) => prev + 1);
-                    }}
-                    title="Ajustar visualização para enquadrar todos os pontos no mapa"
-                    className="absolute top-3 right-3 bg-slate-900/95 hover:bg-slate-800 text-slate-200 border border-slate-700 px-3 py-1.5 rounded-lg shadow-xl text-xs font-bold z-[1000] flex items-center gap-1.5 transition-all hover:scale-105 cursor-pointer"
+                    onClick={() => setActiveLayer('GOOGLE_STREETS')}
+                    className={`px-2.5 py-1 rounded text-xs font-bold transition-all ${
+                        activeLayer === 'GOOGLE_STREETS'
+                            ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                            : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                    }`}
+                    title="Google Maps Padrão: Vias, Ruas e Bairros oficiais"
                 >
-                    <span className="text-seguranca-yellow">🎯</span>
-                    <span>Enquadrar Rota</span>
+                    🗺️ Google Maps
                 </button>
-            )}
+                <button
+                    type="button"
+                    onClick={() => setActiveLayer('GOOGLE_HYBRID')}
+                    className={`px-2.5 py-1 rounded text-xs font-bold transition-all ${
+                        activeLayer === 'GOOGLE_HYBRID'
+                            ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                            : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                    }`}
+                    title="Google Maps Satélite: Imagens aéreas de alta resolução com ruas"
+                >
+                    🛰️ Satélite
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setActiveLayer('GOOGLE_TRAFFIC')}
+                    className={`px-2.5 py-1 rounded text-xs font-bold transition-all ${
+                        activeLayer === 'GOOGLE_TRAFFIC'
+                            ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                            : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                    }`}
+                    title="Google Maps Tráfego: Situação do trânsito nas vias"
+                >
+                    🚦 Tráfego
+                </button>
+                {points.length > 0 && (
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setFitTrigger((prev) => prev + 1);
+                        }}
+                        title="Ajustar zoom para enquadrar todos os pontos no mapa"
+                        className="ml-1 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-seguranca-yellow border border-slate-600 text-xs font-bold flex items-center gap-1 transition-all hover:scale-105 cursor-pointer"
+                    >
+                        <span>🎯 Enquadrar</span>
+                    </button>
+                )}
+            </div>
 
             {/* Legenda Visual Inferior */}
             <div className="absolute bottom-3 left-3 right-3 sm:right-auto bg-slate-900/95 backdrop-blur-md px-3.5 py-2 rounded-xl shadow-xl text-[11px] text-slate-300 border border-slate-700/80 z-[1000] flex items-center gap-3 flex-wrap">
@@ -360,7 +434,7 @@ export const OpenMapInteractive: React.FC<OpenMapInteractiveProps> = ({
                     <span className="font-semibold text-red-300">Destino Final</span>
                 </div>
                 <div className="flex items-center gap-1.5 pl-1 border-l border-slate-700 text-slate-400 text-[10px]">
-                    <span>🛣️ {isRealRoute ? (provider === 'GOOGLE_MAPS' ? 'Google Maps (Tráfego)' : 'OSRM (Sentido das Vias)') : 'Linha Guia'}</span>
+                    <span>🛣️ Google Maps (Cartografia e Vias) • {isRealRoute ? (provider === 'GOOGLE_MAPS' ? 'Google Directions' : 'Roteirização OSRM') : 'Pontos de Embarque'}</span>
                 </div>
             </div>
         </div>
