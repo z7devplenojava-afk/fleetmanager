@@ -296,3 +296,26 @@ export function getDefaultMapView(): { latitude: number; longitude: number; zoom
     zoom: DEFAULT_MAP_ZOOM_MG,
   };
 }
+
+
+/** Configurações oficiais de camadas Google Maps de alta precisão */
+export const GOOGLE_MAPS_TILES = {
+  url: 'https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+  subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+  maxZoom: 20,
+  attribution: '&copy; Google Maps',
+};
+
+export const GOOGLE_MAPS_SATELLITE_TILES = {
+  url: 'https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+  subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+  maxZoom: 20,
+  attribution: '&copy; Google Maps Imagens',
+};
+
+export const GOOGLE_MAPS_TRAFFIC_TILES = {
+  url: 'https://{s}.google.com/vt/lyrs=m,traffic&x={x}&y={y}&z={z}',
+  subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+  maxZoom: 20,
+  attribution: '&copy; Google Maps Tráfego',
+};

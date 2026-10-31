@@ -953,7 +953,12 @@ const DriverTripList: React.FC = () => {
                 style={{ height: '100%', width: '100%' }}
                 zoomControl={false}
               >
-                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                <TileLayer
+                  attribution='&copy; Google Maps'
+                  url="https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
+                  subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
+                  maxZoom={20}
+                />
                 <Polyline positions={defaultRouteCoords} color="#2563eb" weight={5} opacity={0.8} />
                 {defaultRouteCoords.map((pos, idx) => (
                   <Marker key={idx} position={pos}>

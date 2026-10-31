@@ -1853,7 +1853,7 @@ export const scheduleService = {
   syncLiveExecutionOverlay(id: string, patch: ScheduleOverlayData) {
     if (!id || id === 'NEW') return;
     saveExecutionOverlay(id, patch);
-    emitDriverRecordsUpdated();
+    // Background draft sync: não dispara recarregamento em massa
   },
 
   /**
