@@ -2659,9 +2659,9 @@ export const scheduleService = {
     // 3. Consulta escalas de Fretamento (/api/escalas)
     try {
       const isDateRange = !!(filters?.startDate && filters?.endDate && filters.startDate !== filters.endDate);
-      let escalasList = await escalaService.list(isDateRange ? undefined : targetDateStr);
+      let escalasList = await escalaService.list();
       if (!Array.isArray(escalasList) || escalasList.length === 0) {
-        escalasList = await escalaService.list();
+        escalasList = await escalaService.list(isDateRange ? undefined : targetDateStr);
       }
 
       if (Array.isArray(escalasList)) {
@@ -2680,6 +2680,11 @@ export const scheduleService = {
             if (escDate < (filters?.startDate || '') || escDate > (filters?.endDate || '')) {
               continue;
             }
+          } else if (targetDateStr && escDate && !isScheduleActiveForDate({ ...esc, scheduleDate: escDate } as any, targetDateStr)) {
+            const diffDays = Math.abs(
+              (new Date(targetDateStr).getTime() - new Date(escDate).getTime()) / (1000 * 60 * 60 * 24)
+            );
+            if (diffDays > 25) continue;
           }
 
           if (!mergedMap.has(esc.id)) {

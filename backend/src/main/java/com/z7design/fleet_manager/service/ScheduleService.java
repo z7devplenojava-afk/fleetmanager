@@ -823,12 +823,7 @@ public class ScheduleService {
         }
 
         try {
-            List<EscalaOperacional> opList;
-            if (startDate != null && endDate != null && startDate.equals(endDate)) {
-                opList = escalaOperacionalRepository.findByScaleDateOrderByDepartureTimeAsc(startDate);
-            } else {
-                opList = escalaOperacionalRepository.findAll();
-            }
+            List<EscalaOperacional> opList = escalaOperacionalRepository.findAll();
 
             for (EscalaOperacional esc : opList) {
                 if (esc.getId() == null || mergedMap.containsKey(esc.getId())) continue;
@@ -840,9 +835,16 @@ public class ScheduleService {
 
                 if (!matchesDrv) continue;
 
-                if (startDate != null && esc.getScaleDate() != null && esc.getScaleDate().isBefore(startDate.minusDays(1))) {
-                    if (endDate == null || !startDate.equals(endDate)) {
-                        continue;
+                if (startDate != null && esc.getScaleDate() != null) {
+                    LocalDate escDate = esc.getScaleDate();
+                    LocalDate weekStart = startDate.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
+                    LocalDate weekEnd = startDate.with(java.time.temporal.TemporalAdjusters.nextOrSame(java.time.DayOfWeek.SUNDAY));
+                    boolean inSameWeek = !escDate.isBefore(weekStart) && !escDate.isAfter(weekEnd);
+                    if (!inSameWeek && escDate.isBefore(startDate)) {
+                        long daysDiff = java.time.temporal.ChronoUnit.DAYS.between(escDate, startDate);
+                        if (daysDiff > 35) {
+                            continue;
+                        }
                     }
                 }
                 if (endDate != null && esc.getScaleDate() != null && esc.getScaleDate().isAfter(endDate.plusDays(7))) {
