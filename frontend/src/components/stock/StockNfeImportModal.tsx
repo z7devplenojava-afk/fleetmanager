@@ -593,205 +593,219 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
                 </div>
               </div>
 
-              <div className="border border-gray-700 rounded-lg overflow-x-auto bg-seguranca-black/30">
-                <table className="w-full text-left text-xs sm:text-sm">
-                  <thead className="bg-gray-800/80 text-gray-300 text-xs uppercase font-medium border-b border-gray-700">
-                    <tr>
-                      <th className="p-3 w-10 text-center">Sel.</th>
-                      <th className="p-3 w-28 min-w-[110px]">Cód. Item</th>
-                      <th className="p-3 min-w-[220px]">Descrição do Produto</th>
-                      <th className="p-3 w-24 min-w-[95px] text-center">NCM</th>
-                      <th className="p-3 w-20 min-w-[75px] text-center">CFOP</th>
-                      <th className="p-3 min-w-[190px]">Ação no Estoque</th>
-                      <th className="p-3 min-w-[160px]">Categoria</th>
-                      <th className="p-3 w-20 min-w-[75px] text-center">Qtd</th>
-                      <th className="p-3 w-16 min-w-[55px] text-center">Un.</th>
-                      <th className="p-3 w-28 min-w-[105px] text-right">Vlr. Unitário</th>
-                      <th className="p-3 w-28 min-w-[105px] text-right">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-700/60">
-                    {itemsRows.map((row, index) => (
-                      <tr key={index} className={`hover:bg-gray-800/40 transition-colors ${row.selected ? '' : 'opacity-50'}`}>
-                        {/* Checkbox */}
-                        <td className="p-3 text-center">
+              {/* Lista Responsiva de Itens da NF-e (Sem scroll horizontal) */}
+              <div className="space-y-3">
+                {itemsRows.map((row, index) => (
+                  <div
+                    key={index}
+                    className={`p-3.5 sm:p-4 rounded-xl border transition-all duration-200 ${
+                      row.selected
+                        ? 'bg-seguranca-black/70 border-gray-700/80 shadow-md shadow-black/20 hover:border-gray-600'
+                        : 'bg-seguranca-black/30 border-gray-800/60 opacity-60'
+                    }`}
+                  >
+                    {/* Top Bar: Checkbox + Contador + Badges (Cód, NCM, CFOP, Tags) + Preço Total */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-gray-800">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
                           <input
                             type="checkbox"
-                            className="rounded border-gray-600 text-seguranca-red focus:ring-seguranca-red h-4 w-4"
+                            className="rounded border-gray-600 text-seguranca-red focus:ring-seguranca-red h-4 w-4 cursor-pointer"
                             checked={row.selected}
                             onChange={(e) => updateItemRow(index, { selected: e.target.checked })}
                           />
-                        </td>
+                          <Badge variant="outline" className="bg-gray-800/80 text-gray-200 text-xs font-bold border-gray-700">
+                            Item #{index + 1}
+                          </Badge>
+                        </label>
 
                         {/* Código do Item */}
-                        <td className="p-2.5">
-                          <Input
+                        <div className="flex items-center gap-1 bg-gray-900/90 px-2 py-0.5 rounded border border-gray-700">
+                          <span className="text-[10px] text-gray-400 font-medium">Cód:</span>
+                          <input
                             value={row.productCode}
                             onChange={(e) => updateItemRow(index, { productCode: e.target.value })}
                             placeholder="Cód."
-                            className="h-8 text-xs font-mono bg-gray-900/80 border-gray-700 text-gray-200"
+                            className="w-20 text-xs font-mono bg-transparent text-gray-200 focus:outline-none"
                           />
-                        </td>
-
-                        {/* Descrição do Produto */}
-                        <td className="p-2.5">
-                          <div className="flex flex-col gap-1">
-                            <Input
-                              value={row.name}
-                              onChange={(e) => updateItemRow(index, { name: e.target.value })}
-                              placeholder="Descrição do item"
-                              className="h-8 text-xs bg-gray-900/80 border-gray-700 text-white font-medium"
-                            />
-                            {(row.isBattery || row.isTire) && (
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                {row.isBattery && (
-                                  <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40 text-[10px] py-0 px-1.5 flex items-center gap-1">
-                                    <Zap className="h-2.5 w-2.5" /> Bateria Frota
-                                  </Badge>
-                                )}
-                                {row.isTire && (
-                                  <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/40 text-[10px] py-0 px-1.5 flex items-center gap-1">
-                                    <CircleDot className="h-2.5 w-2.5" /> Pneu Frota
-                                  </Badge>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </td>
+                        </div>
 
                         {/* NCM */}
-                        <td className="p-2.5">
-                          <Input
+                        <div className="flex items-center gap-1 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30">
+                          <span className="text-[10px] text-amber-400 font-medium">NCM:</span>
+                          <input
                             value={row.ncm || ''}
                             onChange={(e) => updateItemRow(index, { ncm: e.target.value.replace(/\D/g, '') })}
                             maxLength={10}
                             placeholder="NCM"
-                            className="h-8 text-xs font-mono text-center bg-gray-900/80 border-gray-700 text-amber-300 font-semibold"
+                            className="w-16 text-xs font-mono text-amber-300 font-semibold bg-transparent focus:outline-none text-center"
                           />
-                        </td>
+                        </div>
 
                         {/* CFOP */}
-                        <td className="p-2.5">
-                          <Input
+                        <div className="flex items-center gap-1 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/30">
+                          <span className="text-[10px] text-blue-400 font-medium">CFOP:</span>
+                          <input
                             value={row.cfop || ''}
                             onChange={(e) => updateItemRow(index, { cfop: e.target.value.replace(/\D/g, '') })}
                             maxLength={5}
                             placeholder="CFOP"
-                            className="h-8 text-xs font-mono text-center bg-gray-900/80 border-gray-700 text-blue-300 font-semibold"
+                            className="w-12 text-xs font-mono text-blue-300 font-semibold bg-transparent focus:outline-none text-center"
                           />
-                        </td>
+                        </div>
 
-                        {/* Ação: Criar Novo ou Vincular */}
-                        <td className="p-2.5 min-w-[190px]">
-                          <div className="space-y-1.5">
-                            <Select
-                              value={row.action}
-                              onValueChange={(val: any) => updateItemRow(index, { action: val })}
-                            >
-                              <SelectTrigger className="h-7 text-xs bg-gray-900 border-gray-700">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent className="bg-seguranca-graphite border-gray-700 text-white">
-                                <SelectItem value="CREATE_NEW">
-                                  <span className="flex items-center gap-1.5 text-green-400">
-                                    <PlusCircle className="h-3 w-3" /> Cadastrar como Novo
-                                  </span>
-                                </SelectItem>
-                                <SelectItem value="LINK_EXISTING">
-                                  <span className="flex items-center gap-1.5 text-blue-400">
-                                    <Link2 className="h-3 w-3" /> Vincular a Existente
-                                  </span>
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
+                        {/* Tags de Bateria ou Pneu */}
+                        {row.isBattery && (
+                          <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40 text-[10px] py-0 px-1.5 flex items-center gap-1">
+                            <Zap className="h-2.5 w-2.5" /> Bateria Frota
+                          </Badge>
+                        )}
+                        {row.isTire && (
+                          <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/40 text-[10px] py-0 px-1.5 flex items-center gap-1">
+                            <CircleDot className="h-2.5 w-2.5" /> Pneu Frota
+                          </Badge>
+                        )}
+                      </div>
 
-                            {row.action === 'LINK_EXISTING' && (
-                              <Select
-                                value={row.matchedStockItemId || ''}
-                                onValueChange={(val) => updateItemRow(index, { matchedStockItemId: val })}
-                              >
-                                <SelectTrigger className="h-7 text-xs bg-gray-900 border-blue-600/50 text-blue-200">
-                                  <SelectValue placeholder="Selecione o item..." />
-                                </SelectTrigger>
-                                <SelectContent className="bg-seguranca-graphite border-gray-700 text-white max-h-56">
-                                  {existingItems.map((ex) => (
-                                    <SelectItem key={ex.id} value={ex.id} className="text-xs">
-                                      {ex.code} - {ex.name} (Atual: {ex.currentQuantity})
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            )}
-                          </div>
-                        </td>
+                      {/* Total do Item */}
+                      <div className="flex items-center gap-1.5 bg-green-500/10 px-2.5 py-1 rounded-lg border border-green-500/20">
+                        <span className="text-[11px] text-gray-300">Total:</span>
+                        <span className="text-sm sm:text-base font-bold text-green-400 font-mono">
+                          R$ {row.totalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </div>
 
-                        {/* Categoria */}
-                        <td className="p-2.5 min-w-[160px]">
+                    {/* Descrição do Produto / Serviço (largura total) */}
+                    <div className="mt-2.5">
+                      <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">
+                        Descrição do Produto / Serviço
+                      </label>
+                      <Input
+                        value={row.name}
+                        onChange={(e) => updateItemRow(index, { name: e.target.value })}
+                        placeholder="Descrição do item"
+                        className="h-8 text-xs bg-gray-900/90 border-gray-700 text-white font-medium focus:border-seguranca-yellow"
+                      />
+                    </div>
+
+                    {/* Grid Adaptativo de Controles: 1 col em mobile, 2 em tablet, 4 em desktop */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 mt-2.5">
+                      {/* Ação no Estoque */}
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">
+                          Ação no Estoque
+                        </label>
+                        <div className="space-y-1">
                           <Select
-                            value={row.category}
-                            onValueChange={(val: any) => updateItemRow(index, { category: val })}
+                            value={row.action}
+                            onValueChange={(val: any) => updateItemRow(index, { action: val })}
                           >
                             <SelectTrigger className="h-8 text-xs bg-gray-900 border-gray-700">
                               <SelectValue />
                             </SelectTrigger>
-                            <SelectContent className="bg-seguranca-graphite border-gray-700 text-white max-h-56">
-                              <SelectItem value={StockCategory.PECAS_MECANICA}>Peças Mecânicas</SelectItem>
-                              <SelectItem value={StockCategory.PECAS_ELETRICA}>Elétrica e Baterias</SelectItem>
-                              <SelectItem value={StockCategory.PNEUS_RODAS}>Pneus, Câmaras e Rodas</SelectItem>
-                              <SelectItem value={StockCategory.SISTEMA_FREIOS}>Freios e Suspensão</SelectItem>
-                              <SelectItem value={StockCategory.LUBRIFICANTES_FLUIDOS}>Óleos e Fluidos</SelectItem>
-                              <SelectItem value={StockCategory.AR_CONDICIONADO}>Ar Condicionado</SelectItem>
-                              <SelectItem value={StockCategory.LIMPEZA_HIGIENIZACAO}>Limpeza de Frota</SelectItem>
-                              <SelectItem value={StockCategory.FERRAMENTAS}>Ferramentas</SelectItem>
-                              <SelectItem value={StockCategory.EPI}>EPIs e Uniformes</SelectItem>
-                              <SelectItem value={StockCategory.OUTROS}>Outros</SelectItem>
+                            <SelectContent className="bg-seguranca-graphite border-gray-700 text-white">
+                              <SelectItem value="CREATE_NEW">
+                                <span className="flex items-center gap-1.5 text-green-400">
+                                  <PlusCircle className="h-3 w-3" /> Cadastrar como Novo
+                                </span>
+                              </SelectItem>
+                              <SelectItem value="LINK_EXISTING">
+                                <span className="flex items-center gap-1.5 text-blue-400">
+                                  <Link2 className="h-3 w-3" /> Vincular a Existente
+                                </span>
+                              </SelectItem>
                             </SelectContent>
                           </Select>
-                        </td>
 
-                        {/* Qtd */}
-                        <td className="p-2.5">
+                          {row.action === 'LINK_EXISTING' && (
+                            <Select
+                              value={row.matchedStockItemId || ''}
+                              onValueChange={(val) => updateItemRow(index, { matchedStockItemId: val })}
+                            >
+                              <SelectTrigger className="h-7 text-xs bg-gray-900 border-blue-600/50 text-blue-200">
+                                <SelectValue placeholder="Selecione o item..." />
+                              </SelectTrigger>
+                              <SelectContent className="bg-seguranca-graphite border-gray-700 text-white max-h-56">
+                                {existingItems.map((ex) => (
+                                  <SelectItem key={ex.id} value={ex.id} className="text-xs">
+                                    {ex.code} - {ex.name} (Atual: {ex.currentQuantity})
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Categoria */}
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">
+                          Categoria
+                        </label>
+                        <Select
+                          value={row.category}
+                          onValueChange={(val: any) => updateItemRow(index, { category: val })}
+                        >
+                          <SelectTrigger className="h-8 text-xs bg-gray-900 border-gray-700">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-seguranca-graphite border-gray-700 text-white max-h-56">
+                            <SelectItem value={StockCategory.PECAS_MECANICA}>Peças Mecânicas</SelectItem>
+                            <SelectItem value={StockCategory.PECAS_ELETRICA}>Elétrica e Baterias</SelectItem>
+                            <SelectItem value={StockCategory.PNEUS_RODAS}>Pneus, Câmaras e Rodas</SelectItem>
+                            <SelectItem value={StockCategory.SISTEMA_FREIOS}>Freios e Suspensão</SelectItem>
+                            <SelectItem value={StockCategory.LUBRIFICANTES_FLUIDOS}>Óleos e Fluidos</SelectItem>
+                            <SelectItem value={StockCategory.AR_CONDICIONADO}>Ar Condicionado</SelectItem>
+                            <SelectItem value={StockCategory.LIMPEZA_HIGIENIZACAO}>Limpeza de Frota</SelectItem>
+                            <SelectItem value={StockCategory.FERRAMENTAS}>Ferramentas</SelectItem>
+                            <SelectItem value={StockCategory.EPI}>EPIs e Uniformes</SelectItem>
+                            <SelectItem value={StockCategory.OUTROS}>Outros</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Quantidade e Unidade */}
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">
+                          Qtd & Unidade
+                        </label>
+                        <div className="flex items-center gap-1.5">
                           <Input
                             type="number"
                             min="1"
                             step="1"
                             value={row.quantity}
                             onChange={(e) => handleQuantityChange(index, parseFloat(e.target.value))}
-                            className="h-8 text-xs text-center font-bold bg-gray-900/80 border-gray-700 text-white"
+                            className="h-8 text-xs text-center font-bold bg-gray-900 border-gray-700 text-white w-20"
                           />
-                        </td>
-
-                        {/* Unidade */}
-                        <td className="p-2.5">
                           <Input
                             value={row.unitOfMeasure || 'UN'}
                             onChange={(e) => updateItemRow(index, { unitOfMeasure: e.target.value.toUpperCase() })}
                             maxLength={6}
                             placeholder="UN"
-                            className="h-8 text-xs text-center font-mono uppercase bg-gray-900/80 border-gray-700 text-gray-300"
+                            className="h-8 text-xs text-center font-mono uppercase bg-gray-900 border-gray-700 text-gray-300 flex-1"
                           />
-                        </td>
+                        </div>
+                      </div>
 
-                        {/* Custo Unit */}
-                        <td className="p-2.5">
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={row.unitCost}
-                            onChange={(e) => handleUnitCostChange(index, parseFloat(e.target.value))}
-                            className="h-8 text-xs text-right font-mono bg-gray-900/80 border-gray-700 text-gray-200"
-                          />
-                        </td>
-
-                        {/* Total */}
-                        <td className="p-3 text-right font-semibold text-green-400 font-mono whitespace-nowrap">
-                          R$ {row.totalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                      {/* Custo Unitário */}
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">
+                          Custo Unitário (R$)
+                        </label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={row.unitCost}
+                          onChange={(e) => handleUnitCostChange(index, parseFloat(e.target.value))}
+                          className="h-8 text-xs text-right font-mono bg-gray-900 border-gray-700 text-gray-200"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
