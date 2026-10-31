@@ -47,6 +47,8 @@ import {
   resolveScheduleRecurrence,
   resolveScheduleStartTime,
   resolveScheduleEndTime,
+  generateScaleCode,
+  getScaleTheme,
 } from '@/services/scheduleService';
 import driverRouteCodeService, { DEFAULT_DRIVER_ROUTE_CODES, DriverRouteCode } from '@/services/driverRouteCodeService';
 import fleetService from '@/services/fleetService';
