@@ -866,10 +866,9 @@ public class ScheduleService {
     private Schedule convertEscalaOperacionalToSchedule(EscalaOperacional esc, Employee defaultEmployee) {
         Employee emp = defaultEmployee;
         if (emp == null && esc.getDriver() != null) {
-            emp = Employee.builder()
-                    .id(esc.getDriver().getId())
-                    .name(esc.getDriver().getName())
-                    .build();
+            emp = new Employee();
+            emp.setId(esc.getDriver().getId());
+            emp.setName(esc.getDriver().getName());
         }
 
         String routeTitle = esc.getRoute() != null ? esc.getRoute().getName() : "Rota Operacional";
@@ -897,7 +896,6 @@ public class ScheduleService {
                 .routeCode(routeTitle)
                 .clientName(clientTitle)
                 .vehicle(esc.getVehicle())
-                .vehiclePlate(esc.getVehicle() != null ? esc.getVehicle().getPlate() : null)
                 .status(status)
                 .legs(1)
                 .build();

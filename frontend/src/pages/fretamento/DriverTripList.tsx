@@ -176,6 +176,24 @@ const DriverTripList: React.FC = () => {
     queryFn: () => scheduleService.findMySchedules(filters),
   });
 
+  // Ajusta automaticamente a aba de exibição caso o modo atual não contenha escalas
+  useEffect(() => {
+    if (schedules && schedules.length > 0) {
+      const inCurrentMode = schedules.filter((s) => matchesScheduleModeFilter(s, selectedScheduleMode)).length;
+      if (inCurrentMode === 0) {
+        const weeklyCount = schedules.filter((s) => matchesScheduleModeFilter(s, 'WEEKLY_FIXED')).length;
+        const weekendCount = schedules.filter((s) => matchesScheduleModeFilter(s, 'WEEKEND')).length;
+        if (weeklyCount > 0 && selectedScheduleMode === 'WEEKEND') {
+          setSelectedScheduleMode('WEEKLY_FIXED');
+        } else if (weekendCount > 0 && selectedScheduleMode === 'WEEKLY_FIXED') {
+          setSelectedScheduleMode('WEEKEND');
+        } else {
+          setSelectedScheduleMode('ALL');
+        }
+      }
+    }
+  }, [schedules, selectedScheduleMode]);
+
   const getExecState = (schedule: Schedule): CardExecutionState => {
     const existing = execStates[schedule.id];
     if (existing) return existing;
