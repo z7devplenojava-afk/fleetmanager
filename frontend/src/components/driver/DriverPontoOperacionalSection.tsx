@@ -267,6 +267,12 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
   const requiresJustification = forgotPoint || isOutOfTolerance;
   const lastSyncedSignatureRef = React.useRef<string>('');
   const vehiclesLoadedRef = React.useRef<boolean>(false);
+  const selectedScheduleIdRef = React.useRef<string>(selectedScheduleId);
+  const isFormUserDirtyRef = React.useRef<boolean>(false);
+
+  useEffect(() => {
+    selectedScheduleIdRef.current = selectedScheduleId;
+  }, [selectedScheduleId]);
 
   const loadData = async () => {
     setLoadingSchedules(true);
@@ -309,9 +315,17 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
       setTodaySchedules(list);
 
       if (list.length > 0) {
-        const currentSelected = selectedScheduleId !== 'NEW' ? list.find((s) => s.id === selectedScheduleId) : null;
+        const activeId = selectedScheduleIdRef.current || localStorage.getItem('fluxbus_driver_active_schedule_id');
+        const currentSelected = activeId && activeId !== 'NEW' ? list.find((s) => s.id === activeId) : null;
         if (currentSelected) {
-          applyScheduleToForm(currentSelected);
+          setSelectedScheduleId(currentSelected.id);
+          selectedScheduleIdRef.current = currentSelected.id;
+          if (!isFormUserDirtyRef.current) {
+            applyScheduleToForm(currentSelected);
+          }
+        } else if (activeId === 'NEW') {
+          setSelectedScheduleId('NEW');
+          selectedScheduleIdRef.current = 'NEW';
         } else {
           const activeOrFirst =
             list.find((s) => (s.status === 'IN_PROGRESS' || s.initialKm != null) && s.finalKm == null) ||
@@ -319,6 +333,7 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
             list[0];
           if (activeOrFirst) {
             setSelectedScheduleId(activeOrFirst.id);
+            selectedScheduleIdRef.current = activeOrFirst.id;
             applyScheduleToForm(activeOrFirst);
           }
         }
@@ -389,15 +404,22 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
       })
       .catch(() => {});
 
-    const handleRealtimeUpdate = () => {
-      loadData();
+    const handleRealtimeUpdate = (e: StorageEvent) => {
+      if (e.key === 'fluxbus_last_driver_sync') {
+        // Ignora evento local da mesma aba
+        return;
+      }
     };
     window.addEventListener('storage', handleRealtimeUpdate);
     let bc: BroadcastChannel | null = null;
     try {
       if (typeof BroadcastChannel !== 'undefined') {
         bc = new BroadcastChannel('fluxbus_realtime_sync');
-        bc.onmessage = () => loadData();
+        bc.onmessage = (event) => {
+          if (event?.data?.type === 'MANAGER_UPDATED_SCHEDULE') {
+            loadData();
+          }
+        };
       }
     } catch {
       // ignore
@@ -410,8 +432,10 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
     };
   }, [todayStr, employeeId]);
 
-  // Sincronização em tempo real com a tabela de Escalas do Gestor conforme o motorista preenche KM, Passageiros ou Fotos
+  // Sincronização em tempo real com a tabela de Escalas do Gestor apenas quando o motorista altera campos
   useEffect(() => {
+    if (!isFormUserDirtyRef.current) return;
+
     const targetId =
       selectedScheduleId !== 'NEW'
         ? selectedScheduleId
@@ -423,10 +447,6 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
     const parsedPass =
       passengersCount !== '' && !Number.isNaN(Number(passengersCount)) ? Number(passengersCount) : undefined;
 
-    if (parsedIni == null && parsedFim == null && (parsedPass == null || parsedPass === 0) && existingPhotos.length === 0) {
-      return;
-    }
-
     const timer = setTimeout(() => {
       scheduleService.syncLiveExecutionOverlay(targetId, {
         ...(parsedIni != null ? { initialKm: parsedIni } : {}),
@@ -436,7 +456,7 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
         ...(startAddress ? { startAddress } : {}),
         ...(endAddress ? { endAddress } : {}),
       });
-    }, 450);
+    }, 600);
 
     return () => clearTimeout(timer);
   }, [initialKm, finalKm, passengersCount, existingPhotos, startAddress, endAddress, selectedScheduleId, todaySchedules]);
@@ -469,6 +489,8 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
   };
 
   const applyScheduleToForm = (sched: Schedule) => {
+    isFormUserDirtyRef.current = false;
+    selectedScheduleIdRef.current = sched.id;
     setSelectedScheduleId(sched.id);
     setStartTime(sched.startTime ? sched.startTime.substring(0, 5) : format(new Date(), 'HH:mm'));
     setEndTime(sched.endTime ? sched.endTime.substring(0, 5) : '');
@@ -1144,7 +1166,12 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
                   <button
                     key={s.id}
                     type="button"
-                    onClick={() => applyScheduleToForm(s)}
+                    onClick={() => {
+                      isFormUserDirtyRef.current = false;
+                      selectedScheduleIdRef.current = s.id;
+                      setSelectedScheduleId(s.id);
+                      applyScheduleToForm(s);
+                    }}
                     className={`relative p-3 rounded-xl border border-l-4 ${pegadaTheme.accentBorder} text-left transition-all flex flex-col justify-between gap-2.5 cursor-pointer ${
                       isSelected
                         ? 'bg-seguranca-yellow/15 border-seguranca-yellow ring-2 ring-seguranca-yellow/40 shadow-lg shadow-yellow-950/40'
@@ -1513,7 +1540,7 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
             <Input
               type="time"
               value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
+              onChange={(e) => { isFormUserDirtyRef.current = true; setStartTime(e.target.value); }}
               disabled={isTripCompleted}
               style={{ backgroundColor: '#090d16', color: '#ffffff', colorScheme: 'dark' }}
               className="!bg-[#090d16] !text-white border-gray-600 font-mono font-bold h-11 text-sm"
@@ -1529,7 +1556,7 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
             <Input
               type="time"
               value={endTime}
-              onChange={(e) => setEndTime(e.target.value)}
+              onChange={(e) => { isFormUserDirtyRef.current = true; setEndTime(e.target.value); }}
               disabled={!isTripStarted && !isFinishingMode}
               placeholder="--:--"
               style={{ backgroundColor: '#090d16', color: '#ffffff', colorScheme: 'dark' }}
@@ -1548,7 +1575,7 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
               inputMode="numeric"
               min={0}
               value={passengersCount}
-              onChange={(e) => setPassengersCount(e.target.value)}
+              onChange={(e) => { isFormUserDirtyRef.current = true; setPassengersCount(e.target.value); }}
               disabled={isTripCompleted}
               placeholder="Ex: 42 (Opcional)"
               style={{ backgroundColor: '#090d16', color: '#ffffff', colorScheme: 'dark' }}
