@@ -36,21 +36,61 @@ interface OpenMapInteractiveProps {
     provider?: 'OSRM' | 'GOOGLE_MAPS';
 }
 
-// Component to update view when points change or initial view is set
-const MapViewHandler: React.FC<{ points: MapPoint[]; initialViewState: any; routePolyline?: [number, number][] }> = ({ points, initialViewState, routePolyline }) => {
+// Component to update view without hijacking the user's manual zoom during editing
+const MapViewHandler: React.FC<{
+    points: MapPoint[];
+    initialViewState: any;
+    routePolyline?: [number, number][];
+    fitTrigger?: number;
+}> = ({ points, initialViewState, routePolyline, fitTrigger }) => {
     const map = useMap();
+    const hasInitialFittedRef = React.useRef(false);
+    const lastFitTriggerRef = React.useRef(fitTrigger);
 
+    // Ajusta o enquadramento APENAS uma vez na inicialização se houver pontos/rota carregados
     useEffect(() => {
-        if (routePolyline && routePolyline.length > 1) {
-            const bounds = L.latLngBounds(routePolyline);
-            map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
-        } else if (points.length > 0) {
-            const bounds = L.latLngBounds(points.map(p => [p.latitude, p.longitude]));
-            map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
-        } else if (initialViewState) {
-            map.setView([initialViewState.latitude, initialViewState.longitude], initialViewState.zoom);
+        if (!hasInitialFittedRef.current) {
+            if (routePolyline && routePolyline.length > 1) {
+                const bounds = L.latLngBounds(routePolyline);
+                if (bounds.isValid()) {
+                    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+                    hasInitialFittedRef.current = true;
+                }
+            } else if (points.length > 1) {
+                const bounds = L.latLngBounds(points.map(p => [p.latitude, p.longitude]));
+                if (bounds.isValid()) {
+                    map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+                    hasInitialFittedRef.current = true;
+                }
+            } else if (points.length === 1) {
+                map.setView([points[0].latitude, points[0].longitude], 14);
+                hasInitialFittedRef.current = true;
+            } else if (initialViewState) {
+                map.setView([initialViewState.latitude, initialViewState.longitude], initialViewState.zoom);
+                hasInitialFittedRef.current = true;
+            }
         }
-    }, [points, routePolyline, map, initialViewState]);
+    }, [initialViewState, map]);
+
+    // Enquadra a pedido do usuário (clique no botão 'Enquadrar Rota')
+    useEffect(() => {
+        if (fitTrigger !== undefined && fitTrigger !== lastFitTriggerRef.current) {
+            lastFitTriggerRef.current = fitTrigger;
+            if (routePolyline && routePolyline.length > 1) {
+                const bounds = L.latLngBounds(routePolyline);
+                if (bounds.isValid()) {
+                    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+                }
+            } else if (points.length > 1) {
+                const bounds = L.latLngBounds(points.map(p => [p.latitude, p.longitude]));
+                if (bounds.isValid()) {
+                    map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+                }
+            } else if (points.length === 1) {
+                map.setView([points[0].latitude, points[0].longitude], 14);
+            }
+        }
+    }, [fitTrigger, points, routePolyline, map]);
 
     return null;
 };
@@ -166,6 +206,8 @@ export const OpenMapInteractive: React.FC<OpenMapInteractiveProps> = ({
         });
     };
 
+    const [fitTrigger, setFitTrigger] = React.useState<number>(0);
+
     return (
         <div className="w-full h-full rounded-xl overflow-hidden border border-gray-700 shadow-md relative group z-0 bg-slate-950">
             <MapContainer
@@ -173,13 +215,19 @@ export const OpenMapInteractive: React.FC<OpenMapInteractiveProps> = ({
                 zoom={initialViewState.zoom}
                 style={{ width: '100%', height: '100%' }}
                 scrollWheelZoom={true}
+                doubleClickZoom={false}
             >
                 <TileLayer
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
 
-                <MapViewHandler points={points} initialViewState={initialViewState} routePolyline={routePolyline} />
+                <MapViewHandler
+                    points={points}
+                    initialViewState={initialViewState}
+                    routePolyline={routePolyline}
+                    fitTrigger={fitTrigger}
+                />
                 <MapClickHandler onMapClick={onMapClick} readOnly={readOnly} />
 
                 {/* Traçado Nítido da Rota Viária: linha de contorno brilhante + linha central sólida */}
@@ -244,6 +292,22 @@ export const OpenMapInteractive: React.FC<OpenMapInteractiveProps> = ({
                     <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
                     <span>Clique no mapa para marcar novo ponto de embarque</span>
                 </div>
+            )}
+
+            {/* Botão de Enquadrar Rota: permite ajustar o zoom manualmente sem forçar a cada clique */}
+            {points.length > 0 && (
+                <button
+                    type="button"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setFitTrigger((prev) => prev + 1);
+                    }}
+                    title="Ajustar visualização para enquadrar todos os pontos no mapa"
+                    className="absolute top-3 right-3 bg-slate-900/95 hover:bg-slate-800 text-slate-200 border border-slate-700 px-3 py-1.5 rounded-lg shadow-xl text-xs font-bold z-[1000] flex items-center gap-1.5 transition-all hover:scale-105 cursor-pointer"
+                >
+                    <span className="text-seguranca-yellow">🎯</span>
+                    <span>Enquadrar Rota</span>
+                </button>
             )}
 
             {/* Legenda Visual Inferior */}
