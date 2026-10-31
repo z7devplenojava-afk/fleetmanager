@@ -1826,21 +1826,189 @@ const RoutesAndPoints: React.FC = () => {
                                         </div>
                                     </div>
 
+                                    {/* Painel Organizado de Itinerário */}
+                                    <div className="pt-6 space-y-3">
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-gray-700">
+                                            <div>
+                                                <div className="flex items-center gap-2">
+                                                    <RouteIcon className="w-5 h-5 text-seguranca-yellow" />
+                                                    <Label className="text-white text-sm font-bold uppercase tracking-wider">
+                                                        Itinerário da Rota & Sequência de Paradas ({routePoints.length})
+                                                    </Label>
+                                                    <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-400 border-blue-500/30 font-bold">
+                                                        1º Embarque ➔ Paradas ➔ Destino
+                                                    </Badge>
+                                                </div>
+                                                <p className="text-xs text-gray-400 mt-0.5">
+                                                    O trajeto é percorrido nesta ordem exata. Adicione novos embarques clicando no mapa ou pelo botão ao lado.
+                                                </p>
+                                            </div>
+
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={handleOtimizarOrdem}
+                                                    disabled={tracingRoute || modalMode === 'view' || routePoints.length <= 3}
+                                                    className="border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 text-xs h-8 gap-1.5 font-bold shadow-sm"
+                                                    title="Calcula a sequência viária mais rápida/curta entre os embarques mantendo Origem e Destino fixos"
+                                                >
+                                                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                                                    Otimizar Ordem dos Pontos
+                                                </Button>
+                                                {modalMode !== 'view' && (
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={handleOpenCreatePoint}
+                                                        className="border-gray-600 text-gray-200 hover:bg-gray-800 text-xs h-8 gap-1.5"
+                                                    >
+                                                        <Plus className="w-3.5 h-3.5 text-seguranca-yellow" />
+                                                        + Adicionar Ponto
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Lista Sequencial de Pontos */}
+                                        <div className="space-y-2 max-h-[280px] overflow-y-auto pr-1">
+                                            {routePoints.length === 0 ? (
+                                                <div className="p-4 rounded-lg bg-seguranca-black/40 border border-dashed border-gray-700 text-center text-xs text-gray-400">
+                                                    Nenhum ponto traçado. Preencha o CEP de Origem e Destino acima ou clique no mapa para marcar os pontos de embarque.
+                                                </div>
+                                            ) : (
+                                                routePoints.map((point, idx) => {
+                                                    const isStart = point.type === 'START' || idx === 0;
+                                                    const isEnd = point.type === 'END' || (idx === routePoints.length - 1 && routePoints.length > 1);
+                                                    const isIntermediate = !isStart && !isEnd;
+
+                                                    return (
+                                                        <div
+                                                            key={point.id || idx}
+                                                            className={`flex items-center justify-between p-2.5 rounded-lg border transition-all ${
+                                                                isStart
+                                                                    ? 'bg-emerald-950/20 border-emerald-500/40 text-emerald-200'
+                                                                    : isEnd
+                                                                    ? 'bg-red-950/20 border-red-500/40 text-red-200'
+                                                                    : 'bg-slate-900/60 border-gray-700/80 text-gray-200 hover:border-gray-600'
+                                                            }`}
+                                                        >
+                                                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                                                                <span
+                                                                    className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${
+                                                                        isStart
+                                                                            ? 'bg-emerald-600 text-white'
+                                                                            : isEnd
+                                                                            ? 'bg-red-600 text-white'
+                                                                            : 'bg-sky-600 text-white'
+                                                                    }`}
+                                                                >
+                                                                    {isEnd ? '★' : idx + 1}
+                                                                </span>
+
+                                                                <div className="min-w-0 flex-1">
+                                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                                        <span className="font-bold text-xs text-white truncate max-w-[280px] sm:max-w-[420px]">
+                                                                            {point.name}
+                                                                        </span>
+                                                                        <Badge
+                                                                            variant="outline"
+                                                                            className={`text-[9px] px-1.5 py-0 font-bold shrink-0 ${
+                                                                                isStart
+                                                                                    ? 'border-emerald-500/40 text-emerald-300 bg-emerald-500/10'
+                                                                                    : isEnd
+                                                                                    ? 'border-red-500/40 text-red-300 bg-red-500/10'
+                                                                                    : 'border-sky-500/40 text-sky-300 bg-sky-500/10'
+                                                                            }`}
+                                                                        >
+                                                                            {isStart ? '1º Embarque (Origem)' : isEnd ? 'Destino Final (Desembarque)' : `Embarque #${idx + 1}`}
+                                                                        </Badge>
+                                                                        {point.radiusMeters && (
+                                                                            <span className="text-[10px] text-gray-400 font-mono">
+                                                                                Raio: {point.radiusMeters}m
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="text-[10px] text-gray-400 font-mono truncate mt-0.5">
+                                                                        Lat: {point.latitude?.toFixed(5)}, Lon: {point.longitude?.toFixed(5)}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            {modalMode !== 'view' && isIntermediate && (
+                                                                <div className="flex items-center gap-1 shrink-0 ml-2">
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        onClick={() => handleMovePoint(idx, 'up')}
+                                                                        disabled={idx <= 1}
+                                                                        title="Mover para cima no itinerário"
+                                                                        className="h-7 w-7 p-0 text-gray-400 hover:text-white hover:bg-gray-700"
+                                                                    >
+                                                                        <MoveUp className="w-3.5 h-3.5" />
+                                                                    </Button>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        onClick={() => handleMovePoint(idx, 'down')}
+                                                                        disabled={idx >= routePoints.length - 2}
+                                                                        title="Mover para baixo no itinerário"
+                                                                        className="h-7 w-7 p-0 text-gray-400 hover:text-white hover:bg-gray-700"
+                                                                    >
+                                                                        <MoveDown className="w-3.5 h-3.5" />
+                                                                    </Button>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        onClick={() => handleEditPoint(idx)}
+                                                                        title="Editar detalhes do ponto"
+                                                                        className="h-7 w-7 p-0 text-amber-400 hover:text-amber-300 hover:bg-amber-950/40"
+                                                                    >
+                                                                        <Edit className="w-3.5 h-3.5" />
+                                                                    </Button>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        onClick={() => handleDeletePoint(idx)}
+                                                                        title="Excluir ponto de embarque"
+                                                                        className="h-7 w-7 p-0 text-red-400 hover:text-red-300 hover:bg-red-950/40"
+                                                                    >
+                                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                                    </Button>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })
+                                            )}
+                                        </div>
+                                    </div>
+
                                     {/* Map Section */}
-                                    <div className="pt-6 relative">
-                                        <div className="flex items-center justify-between mb-4">
-                                            <Label className="text-gray-300 text-xs font-semibold uppercase tracking-wider">Traçar rota no mapa</Label>
+                                    <div className="pt-4 relative">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <div className="flex items-center gap-2">
+                                                <Label className="text-gray-300 text-xs font-semibold uppercase tracking-wider">Traçar rota no mapa</Label>
+                                                <span className="text-[11px] text-gray-400">• Clique no mapa para posicionar novos pontos de embarque</span>
+                                            </div>
                                             <Badge variant="outline" className="text-[10px] bg-seguranca-yellow/10 text-seguranca-yellow border-seguranca-yellow/30 uppercase tracking-tighter">
-                                                OpenMaps (Leaflet)
+                                                {routingProvider === 'GOOGLE_MAPS' ? 'Google Maps (Tráfego)' : 'OpenMaps (Leaflet / OSRM)'}
                                             </Badge>
                                         </div>
-                                        <div className="w-full h-[350px] rounded-lg border border-gray-700 overflow-hidden shadow-inner">
+                                        <div className="w-full h-[420px] rounded-lg border border-gray-700 overflow-hidden shadow-inner">
                                             <OpenMapInteractive
                                                 points={routePoints.map((p, i) => ({
-                                                    id: `point-${i}`,
+                                                    id: p.id || `point-${i}`,
                                                     latitude: p.latitude,
                                                     longitude: p.longitude,
-                                                    label: p.name
+                                                    label: p.name,
+                                                    type: p.type
                                                 }))}
                                                 routePolyline={routePolyline}
                                                 onMapClick={handleMapClick}
