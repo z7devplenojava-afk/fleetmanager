@@ -998,11 +998,13 @@ public class StockNfeService {
     private boolean isInvalidItemLine(String line) {
         if (line == null || line.isBlank()) return true;
         String upper = removeAccents(line.toUpperCase()).trim();
-        return upper.contains("TELEFONE:") || upper.contains("TELEFONE :") || upper.contains("FONE:") || upper.contains("CELULAR:")
-                || upper.contains("E-MAIL:") || upper.contains("EMAIL:") || upper.contains("@")
+        return upper.contains("TELEFONE") || upper.contains("FONE:") || upper.contains("CELULAR:")
+                || upper.contains("E-MAIL") || upper.contains("EMAIL") || upper.contains("@")
+                || upper.contains(".GOV.BR") || upper.contains(".COM.BR") || upper.contains("WWW.")
                 || upper.contains("AV.") || upper.contains("AVENIDA") || upper.contains("RUA ")
                 || upper.contains("RODOVIA") || upper.contains("ESTRADA") || upper.contains("BAIRRO")
-                || upper.contains("CENTRO CEP") || upper.contains("CEP:") || upper.contains("MUNICIPIO")
+                || upper.contains("CENTRO") || upper.contains("CEP:") || upper.contains("CEP ") || upper.matches(".*\\bCEP\\b.*")
+                || upper.contains("MUNICIPIO") || upper.contains("PREFEITURA") || upper.contains("SECRETARIA")
                 || upper.contains("INSCRICAO") || upper.contains("INSC.") || upper.contains("CNPJ")
                 || upper.contains("CPF") || upper.contains("OPTANTE SIMPLES") || upper.contains("ISSQN RETIDO")
                 || upper.contains("SUB-SERIE") || upper.contains("SITUACAO:") || upper.contains("EMITIDO POR:")
@@ -1388,7 +1390,21 @@ public class StockNfeService {
                         rowCandidate.unitPrice = BigDecimal.ZERO;
                     }
                 }
-                rows.add(rowCandidate);
+                // Descartar linhas que sejam informações de contato, telefone, endereço, cabeçalho da prefeitura ou e-mail
+                boolean isJunkContact = isInvalidItemLine(rowCandidate.description)
+                        || isAddressLine(rowCandidate.description)
+                        || isInvalidItemLine(rowCandidate.code)
+                        || (rowCandidate.description != null && (
+                            rowCandidate.description.contains("@")
+                            || rowCandidate.description.toLowerCase().contains("telefone")
+                            || rowCandidate.description.toLowerCase().contains("e-mail")
+                            || rowCandidate.description.toLowerCase().contains("email")
+                            || rowCandidate.description.toLowerCase().contains(".gov.br")
+                            || rowCandidate.description.toLowerCase().contains(".com.br")
+                        ));
+                if (!isJunkContact) {
+                    rows.add(rowCandidate);
+                }
                 pendingCode = null;
                 pendingDesc = null;
             } else {

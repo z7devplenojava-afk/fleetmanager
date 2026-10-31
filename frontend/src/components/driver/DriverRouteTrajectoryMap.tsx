@@ -215,16 +215,29 @@ export const DriverRouteTrajectoryMap: React.FC<DriverRouteTrajectoryMapProps> =
     };
 
     Promise.all(filteredLegs.map(drawLeg)).then(() => {
-      if (boundsPoints.length === 1) {
-        map.setView(boundsPoints[0], 14);
-      } else if (boundsPoints.length > 1) {
-        const bounds = L.latLngBounds(boundsPoints);
-        map.fitBounds(bounds, { padding: [36, 36], maxZoom: 15 });
+      if (!mapInstanceRef.current) return;
+      try {
+        const container = map.getContainer();
+        if (!container || !document.body.contains(container) || container.clientHeight === 0) return;
+        if (boundsPoints.length === 1) {
+          map.setView(boundsPoints[0], 14);
+        } else if (boundsPoints.length > 1) {
+          const bounds = L.latLngBounds(boundsPoints);
+          if (bounds.isValid()) {
+            map.fitBounds(bounds, { padding: [36, 36], maxZoom: 15 });
+          }
+        }
+      } catch (err) {
+        console.warn('DriverRouteTrajectoryMap fitBounds ignored:', err);
       }
     });
 
     setTimeout(() => {
-      map.invalidateSize();
+      try {
+        if (mapInstanceRef.current && map.getContainer() && document.body.contains(map.getContainer())) {
+          map.invalidateSize();
+        }
+      } catch {}
     }, 150);
   }, [filteredLegs, selectedScheduleId]);
 
