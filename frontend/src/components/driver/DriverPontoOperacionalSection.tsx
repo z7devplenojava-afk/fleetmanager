@@ -1129,13 +1129,15 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
                 const model = s.vehicle?.model || s.vehicleModel || '';
                 const dir = s.direction || inferDirectionFromRouteCode(routeTitle, idx);
                 const nightShift = calculateNightShiftFromTimes(todayStr, startT, endT);
+                const scaleCode = generateScaleCode(s);
+                const pegadaTheme = getScaleTheme(s, idx);
 
                 return (
                   <button
                     key={s.id}
                     type="button"
                     onClick={() => applyScheduleToForm(s)}
-                    className={`relative p-3 rounded-xl border text-left transition-all flex flex-col justify-between gap-2.5 cursor-pointer ${
+                    className={`relative p-3 rounded-xl border border-l-4 ${pegadaTheme.accentBorder} text-left transition-all flex flex-col justify-between gap-2.5 cursor-pointer ${
                       isSelected
                         ? 'bg-seguranca-yellow/15 border-seguranca-yellow ring-2 ring-seguranca-yellow/40 shadow-lg shadow-yellow-950/40'
                         : 'bg-[#090d16] border-gray-800 hover:border-gray-600 hover:bg-[#101726]'
@@ -1156,6 +1158,9 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
                         >
                           Pegada {legNumber}
                         </Badge>
+                        <span className={`text-[10px] font-mono font-bold px-1.5 py-0.2 rounded border shadow-sm ${pegadaTheme.badgeBg}`}>
+                          {scaleCode}
+                        </span>
                         <Badge
                           className={`text-[9px] font-bold px-1.5 py-0.2 ${
                             dir === 'IDA'
@@ -1270,7 +1275,8 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
               <span className="text-[10px] uppercase tracking-wider text-gray-400 font-bold block">
                 Rota / Percurso
               </span>
-              <span className="text-xs sm:text-sm font-bold text-seguranca-yellow truncate block mt-0.5">
+              <span className="text-xs sm:text-sm font-bold text-seguranca-yellow truncate block mt-0.5" title={selectedSchedule ? generateScaleCode(selectedSchedule) : ''}>
+                {selectedSchedule ? `[${generateScaleCode(selectedSchedule)}] ` : ''}
                 {selectedSchedule?.route?.name ||
                   selectedSchedule?.routeCode ||
                   selectedSchedule?.travelTrip?.name ||

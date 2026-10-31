@@ -398,6 +398,290 @@ export async function captureDriverGeolocationAndAddress(
   };
 }
 
+export interface ScaleCardTheme {
+  id: string;
+  name: string;
+  accentBorder: string;
+  cardBorder: string;
+  bgGradient: string;
+  badgeBg: string;
+  badgeText: string;
+  iconBg: string;
+  iconColor: string;
+  titleColor: string;
+  ringFocus: string;
+  hex: string;
+}
+
+export const SCALE_THEMES: ScaleCardTheme[] = [
+  {
+    id: 'emerald',
+    name: 'Esmeralda',
+    accentBorder: 'border-l-emerald-500',
+    cardBorder: 'border-emerald-500/40 hover:border-emerald-500/70',
+    bgGradient: 'bg-gradient-to-br from-emerald-950/25 via-card to-card',
+    badgeBg: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+    badgeText: 'text-emerald-300',
+    iconBg: 'bg-emerald-500/20 text-emerald-400',
+    iconColor: 'text-emerald-400',
+    titleColor: 'text-emerald-300',
+    ringFocus: 'focus:ring-emerald-500/40',
+    hex: '#10b981',
+  },
+  {
+    id: 'sky',
+    name: 'Ciano Oceano',
+    accentBorder: 'border-l-sky-500',
+    cardBorder: 'border-sky-500/40 hover:border-sky-500/70',
+    bgGradient: 'bg-gradient-to-br from-sky-950/25 via-card to-card',
+    badgeBg: 'bg-sky-500/20 text-sky-300 border-sky-500/40',
+    badgeText: 'text-sky-300',
+    iconBg: 'bg-sky-500/20 text-sky-400',
+    iconColor: 'text-sky-400',
+    titleColor: 'text-sky-300',
+    ringFocus: 'focus:ring-sky-500/40',
+    hex: '#0284c7',
+  },
+  {
+    id: 'amber',
+    name: 'Âmbar Dourado',
+    accentBorder: 'border-l-amber-500',
+    cardBorder: 'border-amber-500/40 hover:border-amber-500/70',
+    bgGradient: 'bg-gradient-to-br from-amber-950/25 via-card to-card',
+    badgeBg: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+    badgeText: 'text-amber-300',
+    iconBg: 'bg-amber-500/20 text-amber-400',
+    iconColor: 'text-amber-400',
+    titleColor: 'text-amber-300',
+    ringFocus: 'focus:ring-amber-500/40',
+    hex: '#f59e0b',
+  },
+  {
+    id: 'blue',
+    name: 'Azul Cobalto',
+    accentBorder: 'border-l-blue-500',
+    cardBorder: 'border-blue-500/40 hover:border-blue-500/70',
+    bgGradient: 'bg-gradient-to-br from-blue-950/25 via-card to-card',
+    badgeBg: 'bg-blue-500/20 text-blue-300 border-blue-500/40',
+    badgeText: 'text-blue-300',
+    iconBg: 'bg-blue-500/20 text-blue-400',
+    iconColor: 'text-blue-400',
+    titleColor: 'text-blue-300',
+    ringFocus: 'focus:ring-blue-500/40',
+    hex: '#3b82f6',
+  },
+  {
+    id: 'teal',
+    name: 'Teal Petróleo',
+    accentBorder: 'border-l-teal-500',
+    cardBorder: 'border-teal-500/40 hover:border-teal-500/70',
+    bgGradient: 'bg-gradient-to-br from-teal-950/25 via-card to-card',
+    badgeBg: 'bg-teal-500/20 text-teal-300 border-teal-500/40',
+    badgeText: 'text-teal-300',
+    iconBg: 'bg-teal-500/20 text-teal-400',
+    iconColor: 'text-teal-400',
+    titleColor: 'text-teal-300',
+    ringFocus: 'focus:ring-teal-500/40',
+    hex: '#14b8a6',
+  },
+  {
+    id: 'orange',
+    name: 'Laranja Solar',
+    accentBorder: 'border-l-orange-500',
+    cardBorder: 'border-orange-500/40 hover:border-orange-500/70',
+    bgGradient: 'bg-gradient-to-br from-orange-950/25 via-card to-card',
+    badgeBg: 'bg-orange-500/20 text-orange-300 border-orange-500/40',
+    badgeText: 'text-orange-300',
+    iconBg: 'bg-orange-500/20 text-orange-400',
+    iconColor: 'text-orange-400',
+    titleColor: 'text-orange-300',
+    ringFocus: 'focus:ring-orange-500/40',
+    hex: '#ea580c',
+  },
+  {
+    id: 'rose',
+    name: 'Rose Operacional',
+    accentBorder: 'border-l-rose-500',
+    cardBorder: 'border-rose-500/40 hover:border-rose-500/70',
+    bgGradient: 'bg-gradient-to-br from-rose-950/25 via-card to-card',
+    badgeBg: 'bg-rose-500/20 text-rose-300 border-rose-500/40',
+    badgeText: 'text-rose-300',
+    iconBg: 'bg-rose-500/20 text-rose-400',
+    iconColor: 'text-rose-400',
+    titleColor: 'text-rose-300',
+    ringFocus: 'focus:ring-rose-500/40',
+    hex: '#e11d48',
+  },
+];
+
+export function getScaleTheme(schedule?: Partial<Schedule> | null, index?: number): ScaleCardTheme {
+  if (typeof index === 'number' && index >= 0) {
+    return SCALE_THEMES[index % SCALE_THEMES.length];
+  }
+  const key = (schedule?.routeCode || schedule?.id || schedule?.route?.id || 'escala').toString();
+  let hash = 0;
+  for (let i = 0; i < key.length; i++) {
+    hash = (hash << 5) - hash + key.charCodeAt(i);
+    hash |= 0;
+  }
+  const idx = Math.abs(hash) % SCALE_THEMES.length;
+  return SCALE_THEMES[idx];
+}
+
+/**
+ * Gera automaticamente o código padronizado de identificação da Escala.
+ * Padrão: [BASE/GARAGEM]-[CLIENTE]-[LINHA]-[BAIRRO/DESTINO]
+ * Exemplo: IB-GERAIS-L004-CANAA
+ */
+export function generateScaleCode(schedule?: Partial<Schedule> | null): string {
+  if (!schedule) return 'IB-OPER-L001-BASE';
+
+  // Se já tiver código estruturado gravado
+  if (schedule.routeCode && schedule.routeCode.includes('-') && schedule.routeCode.length >= 8) {
+    const clean = schedule.routeCode.trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
+    if (clean.split('-').length >= 3) {
+      return clean;
+    }
+  }
+
+  // 1. Base / Garagem / Cidade (ex: IB para Ibirité)
+  let base = 'IB';
+  const baseSource = (
+    schedule.route?.garageName ||
+    schedule.route?.originAddress ||
+    schedule.location?.name ||
+    schedule.workPost?.name ||
+    schedule.travelTrip?.originAddress ||
+    ''
+  ).toUpperCase();
+
+  if (baseSource.includes('IBIRIT') || baseSource.includes('IB')) {
+    base = 'IB';
+  } else if (baseSource.includes('BELO HORIZONTE') || baseSource.includes('BH')) {
+    base = 'BH';
+  } else if (baseSource.includes('CONTAGEM')) {
+    base = 'CT';
+  } else if (baseSource.includes('BETIM')) {
+    base = 'BT';
+  } else if (baseSource.includes('SABAR')) {
+    base = 'SB';
+  } else if (baseSource.includes('NOVA LIMA')) {
+    base = 'NL';
+  } else if (baseSource.includes('SANTA LUZIA')) {
+    base = 'SL';
+  } else if (baseSource.trim().length >= 2) {
+    const letters = baseSource.replace(/[^A-Z]/g, '');
+    if (letters.length >= 2) base = letters.substring(0, 2);
+  }
+
+  // 2. Cliente (ex: GERAIS, CKTR, CCB)
+  let clientCode = 'OPER';
+  const rawClient = (
+    schedule.client?.name ||
+    schedule.clientName ||
+    schedule.route?.client?.name ||
+    schedule.travelTrip?.client?.name ||
+    ''
+  ).toUpperCase();
+
+  if (rawClient) {
+    if (rawClient.includes('CONSTRUTORA CENTRAL') || rawClient.includes('CENTRAL DO BRASIL') || rawClient.includes('CCB')) {
+      clientCode = 'CCB';
+    } else if (rawClient.includes('CKTR')) {
+      clientCode = 'CKTR';
+    } else if (rawClient.includes('GERAIS') || rawClient.includes('MINERACAO GERAIS') || rawClient.includes('MINERAÇÃO GERAIS')) {
+      clientCode = 'GERAIS';
+    } else if (rawClient.includes('ATERPA')) {
+      clientCode = 'ATERPA';
+    } else if (rawClient.includes('DIEFRA')) {
+      clientCode = 'DIEFRA';
+    } else if (rawClient.includes('FAGUNDES')) {
+      clientCode = 'FAGUNDES';
+    } else if (rawClient.includes('VALE')) {
+      clientCode = 'VALE';
+    } else if (rawClient.includes('USIMINAS')) {
+      clientCode = 'USIMINAS';
+    } else if (rawClient.includes('PAI ETERNO')) {
+      clientCode = 'PAIETERNO';
+    } else {
+      const cleaned = rawClient
+        .replace(/\b(DO|DA|DE|E|LTDA|S\.?A\.?|EPP|ME|SERVICOS|SERVIÇOS|CONSTRUTORA|MINERACAO|MINERAÇÃO|TRANSPORTES|BRASIL)\b/gi, ' ')
+        .trim();
+      const tokens = cleaned.split(/\s+/).filter((t) => t.length >= 2);
+      if (tokens.length > 0) {
+        clientCode = tokens[0].replace(/[^A-Z0-9]/g, '').substring(0, 8);
+      } else {
+        clientCode = rawClient.replace(/[^A-Z0-9]/g, '').substring(0, 6) || 'CLIENT';
+      }
+    }
+  }
+
+  // 3. Linha / Rota (ex: L004, L001)
+  let lineCode = 'L001';
+  const routeSource = (
+    schedule.route?.code ||
+    schedule.routeCode ||
+    schedule.route?.name ||
+    schedule.travelTrip?.code ||
+    schedule.travelTrip?.name ||
+    ''
+  );
+
+  const numMatch = routeSource.match(/(?:L|LINHA|ROTA)?\s*0*([0-9]{1,4})/i);
+  if (numMatch && numMatch[1]) {
+    const n = Number(numMatch[1]);
+    lineCode = `L${String(n).padStart(3, '0')}`;
+  } else if (schedule.id) {
+    const hashNum = Math.abs(schedule.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % 99 + 1;
+    lineCode = `L${String(hashNum).padStart(3, '0')}`;
+  }
+
+  // 4. Bairro / Destino / Percurso (ex: CANAA)
+  let destination = 'CANAA';
+  const destSource = (
+    schedule.route?.destinationAddress ||
+    schedule.travelTrip?.destinationAddress ||
+    schedule.route?.name ||
+    schedule.location?.name ||
+    schedule.workPost?.name ||
+    ''
+  ).toUpperCase();
+
+  if (destSource.includes('CANAA') || destSource.includes('CANAÃ')) {
+    destination = 'CANAA';
+  } else if (destSource.includes('CENTRO')) {
+    destination = 'CENTRO';
+  } else if (destSource.includes('MATRIZ')) {
+    destination = 'MATRIZ';
+  } else if (destSource.includes('GARAGEM')) {
+    destination = 'GARAGEM';
+  } else if (destSource.includes('FABRICA') || destSource.includes('FÁBRICA')) {
+    destination = 'FABRICA';
+  } else if (destSource.includes('PONTO')) {
+    destination = 'PONTO';
+  } else if (destSource.includes('BARREIRO')) {
+    destination = 'BARREIRO';
+  } else if (destSource.includes('ELDORADO')) {
+    destination = 'ELDORADO';
+  } else if (destSource.includes('INDUSTRIAL')) {
+    destination = 'INDUSTRIAL';
+  } else {
+    if (destSource.includes('/')) {
+      const parts = destSource.split('/').map((p) => p.trim());
+      if (parts.length > 1 && parts[1].length >= 3) {
+        destination = parts[1].replace(/[^A-Z]/g, '').substring(0, 8);
+      }
+    } else {
+      const words = destSource.replace(/[^A-Z\s]/g, '').split(/\s+/).filter((w) => w.length >= 3 && !['ROTA', 'LINHA', 'ESCALA', 'TRABALHO'].includes(w));
+      if (words.length > 0) {
+        destination = words[words.length - 1].substring(0, 8);
+      }
+    }
+  }
+
+  return `${base}-${clientCode}-${lineCode}-${destination}`;
+}
+
 let lastEmitTimestamp = 0;
 export function emitDriverRecordsUpdated(options?: { force?: boolean }) {
   if (typeof window !== 'undefined') {

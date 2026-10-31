@@ -393,12 +393,19 @@ const DriverTripList: React.FC = () => {
     }
   };
 
-  const scheduleTitle = (schedule: Schedule) =>
-    schedule.route?.name ||
-    schedule.travelTrip?.name ||
-    schedule.workPost?.name ||
-    schedule.location?.name ||
-    'Escala de trabalho';
+  const scheduleTitle = (schedule: Schedule) => {
+    const rawName =
+      schedule.route?.name ||
+      schedule.travelTrip?.name ||
+      schedule.workPost?.name ||
+      schedule.location?.name;
+
+    if (rawName && rawName !== 'Escala de trabalho' && rawName !== 'Rota') {
+      return rawName;
+    }
+    const lineCode = schedule.route?.code || schedule.routeCode || '01';
+    return lineCode.startsWith('L') ? `Linha ${lineCode}` : `Linha L${String(lineCode).padStart(3, '0')}`;
+  };
 
   return (
     <StandardLayout
@@ -594,11 +601,22 @@ const DriverTripList: React.FC = () => {
               <div className="space-y-5">
                 {schedules
                   .filter((s) => matchesScheduleModeFilter(s, selectedScheduleMode))
-                  .map((schedule) => {
+                  .map((schedule, idx) => {
                   const state = getExecState(schedule);
                   const startTime = resolveScheduleStartTime(schedule);
                   const endTime = resolveScheduleEndTime(schedule);
                   const tolerance = checkPointTolerance(schedule.scheduleDate, startTime);
+                  const scaleCode = generateScaleCode(schedule);
+                  const theme = getScaleTheme(schedule, idx);
+                  const lineTitle = scheduleTitle(schedule);
+                  const clientName =
+                    schedule.clientName ||
+                    schedule.client?.name ||
+                    schedule.route?.client?.name ||
+                    schedule.travelTrip?.client?.name ||
+                    schedule.workPost?.client?.name ||
+                    'Cliente Operacional';
+
                   const hasRegisteredPoint =
                     schedule.pointStatus === 'APPROVED' ||
                     schedule.pointStatus === 'PENDING_TRAFFIC_APPROVAL' ||
@@ -614,25 +632,35 @@ const DriverTripList: React.FC = () => {
                   return (
                     <div
                       key={schedule.id}
-                      className="p-4 sm:p-5 rounded-xl border bg-card space-y-4 shadow-sm"
+                      className={`p-4 sm:p-5 rounded-2xl border border-l-4 ${theme.accentBorder} ${theme.cardBorder} ${theme.bgGradient} space-y-4 shadow-md transition-all duration-200`}
                     >
-                      {/* Cabeçalho da Escala com Motorista, Rota, Veículo, Data e Horário */}
-                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-border">
+                      {/* Cabeçalho da Escala: Código Gerado, Rota, Linha, Badges e Ações */}
+                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-border/60">
                         <div className="flex items-start gap-3">
-                          <div className="flex-shrink-0 p-2.5 rounded-xl bg-blue-500/10 text-blue-500 mt-0.5">
+                          <div className={`flex-shrink-0 p-2.5 rounded-xl ${theme.iconBg} mt-0.5 shadow-sm`}>
                             <Bus className="h-5 w-5" />
                           </div>
                           <div className="space-y-1.5">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-bold text-base">
-                                Rota / Linha: {scheduleTitle(schedule)}
+                              {/* Código da Escala (ex: IB-GERAIS-L004-CANAA) */}
+                              <span
+                                title="Código de Identificação da Escala"
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-black tracking-wider uppercase font-mono shadow-sm border ${theme.badgeBg}`}
+                              >
+                                <Tag className="h-3.5 w-3.5" />
+                                {scaleCode}
                               </span>
+
+                              <span className={`font-black text-sm sm:text-base ${theme.titleColor}`}>
+                                {lineTitle}
+                              </span>
+
                               <Badge
                                 variant="outline"
                                 className={
                                   resolveScheduleRecurrence(schedule) === 'WEEKEND'
-                                    ? 'border-amber-500/40 text-amber-400 bg-amber-500/10'
-                                    : 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10'
+                                    ? 'border-amber-500/40 text-amber-400 bg-amber-500/10 text-xs'
+                                    : 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10 text-xs'
                                 }
                               >
                                 {resolveScheduleRecurrence(schedule) === 'WEEKEND'
@@ -643,30 +671,35 @@ const DriverTripList: React.FC = () => {
                               <Badge variant="outline">{shiftLabel(schedule.shift)}</Badge>
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                            {/* Detalhes: Motorista, Cliente, Veículo, Data e Horário */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-1.5 text-xs text-muted-foreground pt-0.5">
                               <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
                                 <User className="h-3.5 w-3.5 text-primary" />
                                 Motorista: {schedule.employee?.name || '-'}
                               </span>
+                              <span className="inline-flex items-center gap-1.5 font-medium text-foreground truncate" title={clientName}>
+                                <Building2 className="h-3.5 w-3.5 text-sky-400 shrink-0" />
+                                Cliente: <strong className="text-sky-300 font-semibold truncate">{clientName}</strong>
+                              </span>
                               <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
-                                <Car className="h-3.5 w-3.5 text-purple-400" />
+                                <Car className="h-3.5 w-3.5 text-emerald-400" />
                                 Veículo: {schedule.vehicle?.plate || schedule.vehiclePlate || 'Não definido'}
                               </span>
                               <span className="inline-flex items-center gap-1.5">
                                 <Calendar className="h-3.5 w-3.5 text-amber-400" />
                                 Data: {formatDate(schedule.scheduleDate)}
                               </span>
-                              <span className="inline-flex items-center gap-1.5 font-mono font-semibold text-foreground">
+                              <span className="inline-flex items-center gap-1.5 font-mono font-semibold text-foreground sm:col-span-2">
                                 <Clock className="h-3.5 w-3.5 text-emerald-400" />
                                 Horário: {startTime} às {endTime} (Tol. ±10m)
                               </span>
                             </div>
 
-                            {(schedule.workPost?.client?.name || schedule.location?.name) && (
+                            {(schedule.workPost?.client?.name || schedule.location?.name || schedule.route?.name) && (
                               <div className="text-xs text-muted-foreground flex items-center gap-1.5">
-                                <MapPin className="h-3.5 w-3.5" />
-                                Cliente / Local:{' '}
-                                {schedule.workPost?.client?.name ||
+                                <MapPin className="h-3.5 w-3.5 text-gray-400" />
+                                Itinerário / Percurso:{' '}
+                                {schedule.route?.name ||
                                   schedule.workPost?.name ||
                                   schedule.location?.name}
                               </div>
