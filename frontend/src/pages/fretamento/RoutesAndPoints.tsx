@@ -1862,7 +1862,7 @@ const RoutesAndPoints: React.FC = () => {
                                                         type="button"
                                                         variant="outline"
                                                         size="sm"
-                                                        onClick={handleOpenCreatePoint}
+                                                        onClick={handleAddPoint}
                                                         className="border-gray-600 text-gray-200 hover:bg-gray-800 text-xs h-8 gap-1.5"
                                                     >
                                                         <Plus className="w-3.5 h-3.5 text-seguranca-yellow" />
