@@ -2016,8 +2016,9 @@ const RoutesAndPoints: React.FC = () => {
                                                 <Label className="text-gray-300 text-xs font-semibold uppercase tracking-wider">Traçar rota no mapa</Label>
                                                 <span className="text-[11px] text-gray-400">• Clique no mapa para posicionar novos pontos de embarque</span>
                                             </div>
-                                            <Badge variant="outline" className="text-[10px] bg-seguranca-yellow/10 text-seguranca-yellow border-seguranca-yellow/30 uppercase tracking-tighter">
-                                                {routingProvider === 'GOOGLE_MAPS' ? 'Google Maps (Tráfego)' : 'OpenMaps (Leaflet / OSRM)'}
+                                            <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-300 border-emerald-500/30 uppercase tracking-tighter font-bold flex items-center gap-1">
+                                                <span>🗺️ Google Maps</span>
+                                                <span className="text-gray-400 font-normal">({routingProvider === 'GOOGLE_MAPS' ? 'Google Directions' : 'Roteirização Inteligente'})</span>
                                             </Badge>
                                         </div>
                                         <div className="w-full h-[420px] rounded-lg border border-gray-700 overflow-hidden shadow-inner">
