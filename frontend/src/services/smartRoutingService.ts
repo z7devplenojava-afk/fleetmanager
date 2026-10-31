@@ -166,6 +166,29 @@ export const smartRoutingService = {
 
         ordered.push(destination);
 
+        // Algoritmo de Grafo 2-Opt: elimina cruzamentos e laços viários desnecessários
+        let improved = true;
+        let iterations = 0;
+        while (improved && iterations < 50) {
+            improved = false;
+            iterations++;
+            for (let i = 1; i < ordered.length - 2; i++) {
+                for (let k = i + 1; k < ordered.length - 1; k++) {
+                    const currentCost =
+                        this.haversineDistance(ordered[i - 1].latitude, ordered[i - 1].longitude, ordered[i].latitude, ordered[i].longitude) +
+                        this.haversineDistance(ordered[k].latitude, ordered[k].longitude, ordered[k + 1].latitude, ordered[k + 1].longitude);
+                    const reversedCost =
+                        this.haversineDistance(ordered[i - 1].latitude, ordered[i - 1].longitude, ordered[k].latitude, ordered[k].longitude) +
+                        this.haversineDistance(ordered[i].latitude, ordered[i].longitude, ordered[k + 1].latitude, ordered[k + 1].longitude);
+                    if (reversedCost < currentCost - 0.0001) {
+                        const segment = ordered.slice(i, k + 1).reverse();
+                        ordered.splice(i, segment.length, ...segment);
+                        improved = true;
+                    }
+                }
+            }
+        }
+
         return ordered.map((p, idx) => ({
             ...p,
             order: idx
