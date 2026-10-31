@@ -200,7 +200,13 @@ const DriverChecklist: React.FC = () => {
         const day = new Date().getDay();
         return day === 0 || day === 6 ? 'WEEKEND' : 'WEEKLY_FIXED';
     });
-    const [selectedScheduleId, setSelectedScheduleId] = useState<string>('');
+    const [selectedScheduleId, setSelectedScheduleId] = useState<string>(() => {
+        try {
+            return localStorage.getItem('fluxbus_driver_active_schedule_id') || '';
+        } catch {
+            return '';
+        }
+    });
 
     const { data: rawDriverSchedules = [] } = useQuery({
         queryKey: ['driver-checklist-schedules', user?.id, user?.name],
@@ -1104,7 +1110,7 @@ const DriverChecklist: React.FC = () => {
                                         </div>
 
                                         <div className="flex items-start gap-2.5 p-2.5 rounded-lg bg-background/70 border border-border/60">
-                                            <Building2 className="h-5 w-5 text-purple-500 shrink-0 mt-0.5" />
+                                            <Building2 className="h-5 w-5 text-cyan-500 shrink-0 mt-0.5" />
                                             <div className="min-w-0">
                                                 <span className="text-[10px] uppercase font-bold text-muted-foreground block">Cliente / Empresa</span>
                                                 <span className="text-sm font-black text-foreground truncate block">

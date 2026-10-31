@@ -127,7 +127,7 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
   const [vehicleId, setVehicleId] = useState<string>('');
   const [initialKm, setInitialKm] = useState<string>('');
   const [finalKm, setFinalKm] = useState<string>('');
-  const [passengersCount, setPassengersCount] = useState<string>('0');
+  const [passengersCount, setPassengersCount] = useState<string>('');
   const [capturedFiles, setCapturedFiles] = useState<File[]>([]);
   const [existingPhotos, setExistingPhotos] = useState<string[]>([]);
   const [cameraResetKey, setCameraResetKey] = useState<number>(0);
@@ -510,7 +510,13 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
       }
     }
     setFinalKm(sched.finalKm != null ? String(sched.finalKm) : '');
-    setPassengersCount(sched.passengersCount != null ? String(sched.passengersCount) : '0');
+    setPassengersCount(sched.passengersCount != null && sched.passengersCount > 0 ? String(sched.passengersCount) : '');
+    try {
+      localStorage.setItem('fluxbus_driver_active_schedule_id', sched.id);
+      if (schedVehicleId) {
+        localStorage.setItem('fluxbus_driver_active_vehicle_id', schedVehicleId);
+      }
+    } catch {}
     setPointJustification(sched.pointJustification || '');
     setStartAddress(sched.startAddress || '');
     setStartCoords(
@@ -554,7 +560,7 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
       setInitialKm('');
       setSuggestedFromPrevTrip(null);
       setFinalKm('');
-      setPassengersCount('0');
+      setPassengersCount('');
       setCapturedFiles([]);
       setExistingPhotos([]);
       setForgotPoint(false);
@@ -1329,8 +1335,52 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
           )}
         </div>
 
-        {/* Grade de Veículo e Cliente informados no Ponto Eletrônico */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 p-3.5 sm:p-4 rounded-xl bg-slate-950/90 border border-gray-800">
+        {/* Grade de Veículo, Cliente e Código do Percurso informados no Ponto Eletrônico */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 p-3.5 sm:p-4 rounded-xl bg-slate-950/90 border border-gray-800">
+          {/* Código do Percurso */}
+          <div className="space-y-1.5 sm:col-span-1">
+            <Label className="text-xs font-semibold text-gray-300 flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-amber-400 font-bold">
+                <RouteIcon className="h-3.5 w-3.5 shrink-0" />
+                Código do Percurso *
+              </span>
+              <span className="text-[10px] text-gray-400 font-mono">
+                {selectedSchedule ? generateScaleCode(selectedSchedule) : ''}
+              </span>
+            </Label>
+            <div className="relative">
+              <Input
+                value={routeCode}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setRouteCode(val);
+                  if (selectedScheduleId && selectedScheduleId !== 'NEW') {
+                    scheduleService.saveExecutionOverlay(selectedScheduleId, {
+                      routeCode: val,
+                    });
+                    scheduleService.emitDriverRecordsUpdated();
+                  }
+                }}
+                disabled={isTripCompleted}
+                placeholder="Selecione ou digite o código..."
+                list="ponto-route-codes-list"
+                style={{ backgroundColor: '#090d16', color: '#ffffff', colorScheme: 'dark' }}
+                className="!bg-[#090d16] !text-white border-gray-600 placeholder:text-gray-500 font-bold h-11 text-xs sm:text-sm font-mono"
+              />
+              <datalist id="ponto-route-codes-list">
+                {routeCodeOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+                {routes.map((r) => (
+                  <option key={r.id} value={r.code || r.name}>
+                    {r.name}
+                  </option>
+                ))}
+              </datalist>
+            </div>
+          </div>
           {/* Veículo da Viagem */}
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold text-gray-300 flex items-center justify-between">
@@ -1484,11 +1534,11 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
             />
           </div>
 
-          {/* Quantidade de Passageiros */}
+          {/* Quantidade de Passageiros (NÃO OBRIGATÓRIO) */}
           <div className="space-y-1.5 col-span-2 sm:col-span-1">
             <Label className="text-xs font-semibold text-gray-300 flex items-center gap-1.5">
-              <Users className="h-3.5 w-3.5 text-purple-400 shrink-0" />
-              <span>Quantidade de Passageiros *</span>
+              <Users className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
+              <span>Quantidade de Passageiros (Opcional)</span>
             </Label>
             <Input
               type="number"
@@ -1497,7 +1547,7 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
               value={passengersCount}
               onChange={(e) => setPassengersCount(e.target.value)}
               disabled={isTripCompleted}
-              placeholder="Ex: 42"
+              placeholder="Ex: 42 (Opcional)"
               style={{ backgroundColor: '#090d16', color: '#ffffff', colorScheme: 'dark' }}
               className="!bg-[#090d16] !text-white border-gray-600 placeholder:text-gray-400 font-bold h-11"
             />
@@ -1752,6 +1802,89 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
             </div>
           </div>
 
+          {/* Seção Separada: Foto do Disco de Tacógrafo para o Gestor */}
+          <div className="p-3.5 sm:p-4 rounded-xl bg-amber-950/20 border border-amber-500/40 space-y-3">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-amber-400 shrink-0" />
+                <span className="text-xs sm:text-sm font-bold text-amber-300">
+                  Foto do Disco de Tacógrafo (Exibição Separada para o Gestor)
+                </span>
+              </div>
+              <Badge className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-bold">
+                Tacógrafo Diário
+              </Badge>
+            </div>
+            <p className="text-[11px] sm:text-xs text-amber-200/80">
+              Fotografe o disco de tacógrafo inserido ou substituído. Esta foto é auditada separadamente pelo Gestor de Tráfego no relatório diário.
+            </p>
+            <div className="flex items-center gap-3 flex-wrap">
+              <label className="cursor-pointer inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-amber-500 text-slate-950 hover:bg-amber-400 font-bold text-xs shadow-md transition-colors">
+                <Camera className="h-4 w-4" />
+                <span>Tirar Foto do Disco de Tacógrafo (Câmera do Celular)</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  disabled={isTripCompleted}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    try {
+                      const dataUrl = await fileToDataUrl(file);
+                      const taggedUrl = `tacografo:${dataUrl}`;
+                      const updatedPhotos = Array.from(new Set([...existingPhotos, taggedUrl]));
+                      setExistingPhotos(updatedPhotos);
+                      const targetId =
+                        selectedScheduleId !== 'NEW'
+                          ? selectedScheduleId
+                          : todaySchedules.find((s) => !s.id.startsWith('ponto-local-'))?.id;
+                      if (targetId) {
+                        scheduleService.syncLiveExecutionOverlay(targetId, {
+                          tripPhotosJson: JSON.stringify(updatedPhotos),
+                        });
+                        scheduleService.emitDriverRecordsUpdated();
+                      }
+                      toast({
+                        title: 'Foto do Tacógrafo Capturada!',
+                        description: 'O disco de tacógrafo foi salvo e separado para a auditoria do Gestor.',
+                      });
+                    } catch (err) {
+                      toast({
+                        title: 'Erro ao capturar foto',
+                        description: 'Não foi possível processar a imagem do tacógrafo.',
+                        variant: 'destructive',
+                      });
+                    }
+                  }}
+                />
+              </label>
+
+              {existingPhotos.some((s) => s.startsWith('tacografo:')) && (
+                <div className="flex items-center gap-2">
+                  {existingPhotos
+                    .filter((s) => s.startsWith('tacografo:'))
+                    .map((src, tIdx) => {
+                      const cleanSrc = src.replace(/^tacografo:/, '');
+                      return (
+                        <div key={tIdx} className="relative group">
+                          <img
+                            src={cleanSrc}
+                            alt="Disco de Tacógrafo"
+                            className="h-14 w-14 object-cover rounded-lg border-2 border-amber-400 shadow-md"
+                          />
+                          <Badge className="absolute -top-1.5 -right-1.5 bg-amber-400 text-black text-[9px] px-1 py-0 font-black">
+                            DISCO
+                          </Badge>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+            </div>
+          </div>
+
           <CameraCapture
             key={cameraResetKey}
             onPhotosChange={(files) => {
@@ -1773,7 +1906,7 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
             }}
             maxPhotos={10}
             disabled={isTripCompleted}
-            label="Abrir Câmera do Celular / Tirar Fotos no Ônibus (Até 10 fotos)"
+            label="Fotos Gerais da Viagem / Odômetro / Veículo (Até 10 fotos)"
           />
 
           {existingPhotos.length > 0 && (

@@ -124,7 +124,20 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
   const applyParsedData = (data: StockNfeParsedDTO) => {
     setParsedData(data);
     const excluded = new Set(excludeItemIndexes || []);
-    const rows: EditableItemRow[] = data.items
+    const isJunkContact = (it: any) => {
+      const text = ((it.description || '') + ' ' + (it.productCode || '')).toLowerCase();
+      return text.includes('@') ||
+        text.includes('telefone') ||
+        text.includes('e-mail') ||
+        text.includes('email') ||
+        text.includes('.gov.br') ||
+        text.includes('gov. valadares') ||
+        text.includes('tributos@') ||
+        (text.startsWith('av.') && text.includes('centro')) ||
+        (text.startsWith('rua') && text.includes('centro'));
+    };
+    const validItems = (data.items || []).filter((it) => !isJunkContact(it));
+    const rows: EditableItemRow[] = validItems
       .map((it, index) => ({ it, index }))
       .filter(({ index }) => !excluded.has(index))
       .map(({ it }) => {
