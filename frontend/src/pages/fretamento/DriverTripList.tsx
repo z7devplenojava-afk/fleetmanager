@@ -24,6 +24,8 @@ import {
   Flag,
   User,
   Car,
+  Tag,
+  Building2,
 } from 'lucide-react';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -45,6 +47,8 @@ import {
   checkPointTolerance,
   matchesScheduleModeFilter,
   resolveScheduleRecurrence,
+  generateScaleCode,
+  getScaleTheme,
 } from '@/services/scheduleService';
 import { CameraCapture } from '@/components/frota/CameraCapture';
 
