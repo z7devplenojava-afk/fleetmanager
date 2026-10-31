@@ -833,16 +833,21 @@ public class StockNfeService {
                 Optional<Supplier> existing = findExistingSupplier(info.cnpj, companyId);
                 if (existing.isPresent()) {
                     Supplier s = existing.get();
-                    info.name = s.getName();
-                    info.tradeName = s.getTradeName() != null ? s.getTradeName() : s.getName();
+                    boolean isPlaceholder = s.getName() != null && s.getName().matches("(?i)^(?:VENDA|CUPOM|PEDIDO|NF|DOC|IMPORT).*\\d+.*");
+                    if (!isPlaceholder && s.getName() != null && !s.getName().isBlank()) {
+                        info.name = s.getName();
+                        info.tradeName = s.getTradeName() != null ? s.getTradeName() : s.getName();
+                    }
                     info.address = s.getAddress() != null ? s.getAddress() : "";
                     info.city = s.getCity() != null ? s.getCity() : "";
                     info.state = s.getState() != null ? s.getState() : "";
                     info.zipCode = s.getZipCode() != null ? s.getZipCode() : "";
                     info.phone = s.getPhone() != null ? s.getPhone() : "";
                     info.email = s.getEmail() != null ? s.getEmail() : "";
-                    log.info("Fornecedor existente '{}' recuperado por CNPJ {}", info.name, info.cnpj);
-                    return info;
+                    if (!isPlaceholder && info.name != null && !info.name.isBlank()) {
+                        log.info("Fornecedor existente '{}' recuperado por CNPJ {}", info.name, info.cnpj);
+                        return info;
+                    }
                 }
             } catch (Exception ex) {
                 log.warn("Erro ao buscar fornecedor existente por CNPJ {}: {}", info.cnpj, ex.getMessage());
@@ -851,7 +856,7 @@ public class StockNfeService {
 
         // 3.5. Tentar padrão universal do canhoto DANFE: "RECEBEMOS DE <NOME> OS PRODUTOS..."
         String flatText = String.join(" | ", lines);
-        Matcher mRecebemos = Pattern.compile("(?i)RECEBEMOS\\s+DE\\s+([^|\\n]+?)\\s+(?:DATA|OS\\s+PRODUTOS|IDENTIFICACAO|IDENTIFICA[ÇC][ÃA]O|AS\\s+MERCADORIAS|CONSTANTES)").matcher(flatText);
+        Matcher mRecebemos = Pattern.compile("(?i)RECEBEMOS\\s+DE\\s+([^|\\r\n]+?)\\s+(?:DATA|OS\\s+PRODUTOS|IDENTIFICACAO|IDENTIFICA[ÇC][ÃA]O|AS\\s+MERCADORIAS|CONSTANTES)").matcher(flatText);
         if (mRecebemos.find()) {
             String recName = cleanSupplierCandidate(mRecebemos.group(1).trim());
             if (recName.length() >= 3 && containsLetters(recName) && !isDanfeLabel(recName) && !isDocumentTitle(recName)) {
@@ -862,7 +867,7 @@ public class StockNfeService {
 
         // 3.6. Tentar padrão NFS-e: "Prestador de Serviço ... Razão Social/Nome <NOME>"
         if (info.name == null || info.name.isBlank()) {
-            Matcher mNfsePrestador = Pattern.compile("(?i)(?:PRESTADOR\\s+DE\\s+SERVI[ÇC]O|EMITENTE)[^|\\n]*\\|[^|\\n]*(?:RAZ[ÃA]O\\s+SOCIAL(?:/NOME)?|NOME)\\s*[:.]?\\s*([^|\\n]+)").matcher(flatText);
+            Matcher mNfsePrestador = Pattern.compile("(?i)(?:PRESTADOR\\s+DE\\s+SERVI[ÇC]O|EMITENTE)[^|\\r\n]*\\|[^|\\r\n]*(?:RAZ[ÃA]O\\s+SOCIAL(?:/NOME)?|NOME)\\s*[:.]?\\s*([^|\\r\n]+)").matcher(flatText);
             if (mNfsePrestador.find()) {
                 String pName = cleanSupplierCandidate(mNfsePrestador.group(1).trim());
                 if (pName.length() >= 3 && containsLetters(pName) && !isDanfeLabel(pName)) {
@@ -957,6 +962,7 @@ public class StockNfeService {
         if (candidate == null) return "";
         return candidate
                 .replaceAll("(?i)^.*?RECEBEMOS\\s+DE\\s+", "")
+                .replaceAll("(?i)\\s*NOTA\\s+FISCAL.*$", "")
                 .replaceAll("(?i)^(?:NOME\\s+FANTASIA|RAZ[ÃA]O\\s+SOCIAL|NOME/RAZ[ÃA]O\\s+SOCIAL|PRESTADOR\\s+DE\\s+SERVI[ÇC]OS?)\\s*[:.]?\\s*", "")
                 .replaceAll("(?i)^.*?NATUREZA\\s+DE\\s+OPERA[ÇC][ÃA]O", "")
                 .replaceAll("(?i)DATA\\s+RECEBIMENTO.*$", "")
@@ -987,6 +993,29 @@ public class StockNfeService {
                 || upper.contains("EMISSAO:") || upper.contains("VALOR TOTAL:")
                 || upper.contains("ENTRADA") || upper.contains("SAIDA")
                 || upper.matches("^[0-9\\s.-]+$");
+    }
+
+    private boolean isInvalidItemLine(String line) {
+        if (line == null || line.isBlank()) return true;
+        String upper = removeAccents(line.toUpperCase()).trim();
+        return upper.contains("TELEFONE:") || upper.contains("TELEFONE :") || upper.contains("FONE:") || upper.contains("CELULAR:")
+                || upper.contains("E-MAIL:") || upper.contains("EMAIL:") || upper.contains("@")
+                || upper.contains("AV.") || upper.contains("AVENIDA") || upper.contains("RUA ")
+                || upper.contains("RODOVIA") || upper.contains("ESTRADA") || upper.contains("BAIRRO")
+                || upper.contains("CENTRO CEP") || upper.contains("CEP:") || upper.contains("MUNICIPIO")
+                || upper.contains("INSCRICAO") || upper.contains("INSC.") || upper.contains("CNPJ")
+                || upper.contains("CPF") || upper.contains("OPTANTE SIMPLES") || upper.contains("ISSQN RETIDO")
+                || upper.contains("SUB-SERIE") || upper.contains("SITUACAO:") || upper.contains("EMITIDO POR:")
+                || upper.contains("CODIGO DE CONTROLE") || upper.contains("TOMADOR") || upper.contains("DESTINATARIO")
+                || upper.contains("PRESTADOR") || upper.contains("EMITENTE") || upper.contains("COMPETENCIA:")
+                || upper.contains("FORMA DE PAGTO:") || upper.contains("BASE CALCULO") || upper.contains("VALOR DO ISSQN")
+                || upper.contains("VALOR BRUTO") || upper.contains("VALOR LIQUIDO") || upper.contains("VALOR DA NOTA")
+                || upper.contains("RECEBI(EMOS) DE") || upper.contains("ASSINATURA")
+                || upper.contains("E RESPONSABILIDADE DO TOMADOR")
+                || upper.contains("DISCRIMINACAO DO") || upper.contains("DISCRIMINACAO DOS")
+                || upper.contains("DADOS DO PRODUTO") || upper.contains("DADOS DOS PRODUTOS")
+                || upper.contains("DADOS ADICIONAIS") || upper.contains("INFORMACOES COMPLEMENTARES")
+                || upper.contains("CALCULO DO IMPOSTO") || upper.contains("TRANSPORTADOR / VOLUMES");
     }
 
     private boolean isDanfeLabel(String line) {
@@ -1062,38 +1091,83 @@ public class StockNfeService {
             SupplierInfo supplierInfo) {
         List<ParsedItemRow> rows = new ArrayList<>();
 
-        boolean isNfse = flat.toUpperCase().contains("NFS-E") 
-                || flat.toUpperCase().contains("NOTA FISCAL ELETRONICA DE SERVICO")
-                || (flat.toUpperCase().contains("PREFEITURA") && flat.toUpperCase().contains("SERVICO"));
+        String upperFlat = removeAccents(flat).toUpperCase();
+        boolean isNfse = upperFlat.contains("NFS-E")
+                || upperFlat.contains("NFSE")
+                || upperFlat.contains("NOTA FISCAL ELETRONICA DE SERVICO")
+                || upperFlat.contains("NOTA FISCAL DE SERVICO")
+                || upperFlat.contains("NOTA FISCAL DE SERVICOS")
+                || upperFlat.contains("DISCRIMINACAO DO(S) SERVICO(S)")
+                || upperFlat.contains("DISCRIMINACAO DOS SERVICOS")
+                || upperFlat.contains("DISCRIMINACAO DO SERVICO")
+                || (upperFlat.contains("TOMADOR") && (upperFlat.contains("ISSQN") || upperFlat.contains("SERVICO")))
+                || (upperFlat.contains("PREFEITURA") && upperFlat.contains("SERVICO"));
         if (isNfse) {
-            String servDesc = "";
+            int discStart = -1;
+            int discEnd = lines.size();
+
             for (int i = 0; i < lines.size(); i++) {
-                String lNorm = removeAccents(lines.get(i)).toUpperCase();
-                if (lNorm.contains("DISCRIMINACAO DO SERVICO") || lNorm.contains("DISCRIMINACAO DOS SERVICOS")) {
-                    for (int j = i + 1; j < Math.min(lines.size(), i + 6); j++) {
-                        String cand = lines.get(j).trim();
-                        if (!isDanfeLabel(cand) && cand.length() > 5 && containsLetters(cand) && !cand.toUpperCase().contains("CODIGO DO SERVICO")) {
-                            servDesc = cand;
-                            break;
-                        }
-                    }
+                String norm = removeAccents(lines.get(i)).toUpperCase();
+                if (discStart < 0 && (norm.contains("DISCRIMINACAO") || norm.contains("SERVICO PRESTADO") || norm.contains("DESCRICAO DOS SERVICOS"))) {
+                    discStart = i + 1;
+                    continue;
+                }
+                if (discStart >= 0 && (norm.contains("VALOR BRUTO") || norm.contains("VALOR LIQUIDO")
+                        || norm.contains("BASE CALCULO") || norm.contains("COMPETENCIA:") || norm.contains("FORMA DE PAGTO")
+                        || norm.contains("OBSERVACOES:") || norm.contains("DADOS ADICIONAIS") || norm.contains("CALCULO DO ISS"))) {
+                    discEnd = i;
                     break;
                 }
             }
-            if (servDesc.isBlank()) {
-                servDesc = "Serviço NFS-e " + (nNf != null && !nNf.isBlank() ? nNf : "");
+
+            List<String> rawServices = new ArrayList<>();
+            if (discStart >= 0) {
+                for (int i = discStart; i < discEnd; i++) {
+                    String line = lines.get(i).trim();
+                    if (line.isEmpty() || isInvalidItemLine(line)) continue;
+                    String cleaned = line.replaceAll("\\s+\\d{1,3}(?:[.,]\\d{2,4})?\\s+\\d{1,3}(?:[.,]\\d{2,4})?$", "").trim();
+                    if (cleaned.length() > 3 && containsLetters(cleaned)) {
+                        rawServices.add(cleaned);
+                    }
+                }
             }
-            BigDecimal servAmount = (totalInvoiceAmount != null && totalInvoiceAmount.compareTo(BigDecimal.ZERO) > 0)
+
+            BigDecimal totalAmount = (totalInvoiceAmount != null && totalInvoiceAmount.compareTo(BigDecimal.ZERO) > 0)
                     ? totalInvoiceAmount
                     : BigDecimal.ZERO;
-            ParsedItemRow servRow = new ParsedItemRow();
-            servRow.code = (nNf != null && !nNf.isBlank()) ? "SERV-" + nNf : "SERV-1";
-            servRow.description = servDesc;
-            servRow.unit = "SV";
-            servRow.qty = BigDecimal.ONE;
-            servRow.unitPrice = servAmount;
-            servRow.total = servAmount;
-            rows.add(servRow);
+
+            if (rawServices.isEmpty()) {
+                ParsedItemRow servRow = new ParsedItemRow();
+                servRow.code = (nNf != null && !nNf.isBlank()) ? "SERV-" + nNf : "SERV-1";
+                servRow.description = "Serviço NFS-e " + (nNf != null && !nNf.isBlank() ? nNf : "");
+                servRow.unit = "SV";
+                servRow.qty = BigDecimal.ONE;
+                servRow.unitPrice = totalAmount;
+                servRow.total = totalAmount;
+                rows.add(servRow);
+            } else {
+                int count = rawServices.size();
+                BigDecimal perItemPrice = count > 0 && totalAmount.compareTo(BigDecimal.ZERO) > 0
+                        ? totalAmount.divide(BigDecimal.valueOf(count), 2, RoundingMode.HALF_UP)
+                        : BigDecimal.ZERO;
+
+                for (int idx = 0; idx < count; idx++) {
+                    ParsedItemRow servRow = new ParsedItemRow();
+                    servRow.code = (nNf != null && !nNf.isBlank()) ? "SERV-" + nNf + "-" + (idx + 1) : "SERV-" + (idx + 1);
+                    servRow.description = rawServices.get(idx);
+                    servRow.unit = "SV";
+                    servRow.qty = BigDecimal.ONE;
+                    if (idx == count - 1) {
+                        BigDecimal previousTotal = perItemPrice.multiply(BigDecimal.valueOf(count - 1));
+                        servRow.unitPrice = totalAmount.subtract(previousTotal);
+                        servRow.total = servRow.unitPrice;
+                    } else {
+                        servRow.unitPrice = perItemPrice;
+                        servRow.total = perItemPrice;
+                    }
+                    rows.add(servRow);
+                }
+            }
         } else {
             // 1. Delimitar o bloco de itens (entre cabeçalho de produtos e início de cálculo de imposto/dados adicionais)
             int start = -1;
@@ -1132,7 +1206,7 @@ public class StockNfeService {
 
             for (int i = start; i < end; i++) {
                 String line = lines.get(i).trim();
-                if (line.isEmpty()) continue;
+                if (line.isEmpty() || isInvalidItemLine(line)) continue;
                 String norm = removeAccents(line).toUpperCase();
                 if (norm.contains("DADOS DO PRODUTO") || norm.contains("DADOS DOS PRODUTOS") || (norm.contains("CODIGO") && (norm.contains("DESCRICAO") || norm.contains("PRODUTO")))) {
                     String stripped = line.replaceFirst("(?i)^.*?DADOS\\s+(?:DOS\\s+)?PRODUTOS.*?CST\\s*", "");
@@ -1372,7 +1446,7 @@ public class StockNfeService {
             // 4. Procurar descrição candidata entre start e end
             for (int i = start; i < end; i++) {
                 String candidateLine = lines.get(i).trim();
-                if (containsLetters(candidateLine) && !isDanfeLabel(candidateLine) && !isDocumentTitle(candidateLine) && candidateLine.length() > 3) {
+                if (containsLetters(candidateLine) && !isDanfeLabel(candidateLine) && !isInvalidItemLine(candidateLine) && !isDocumentTitle(candidateLine) && candidateLine.length() > 3) {
                     extractedDesc = candidateLine;
                     break;
                 }

@@ -66,11 +66,13 @@ import {
     CloudUpload,
     Loader2,
     Users,
+    Sparkles,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { routeService, Route, RoutePoint } from '@/services/routeService';
 import clientService from '@/services/clientService';
 import { OpenMapInteractive } from '@/components/routes/OpenMapInteractive';
+import { smartRoutingService, RoutingPoint } from '@/services/smartRoutingService';
 import kmlParserService from '@/services/kmlParserService';
 
 interface Unit {
@@ -155,6 +157,7 @@ const RoutesAndPoints: React.FC = () => {
 
     // Route tracing state
     const [tracingRoute, setTracingRoute] = useState(false);
+    const [routingProvider, setRoutingProvider] = useState<'OSRM' | 'GOOGLE_MAPS'>('OSRM');
     const [routePolyline, setRoutePolyline] = useState<[number, number][]>([]);
 
     /**
@@ -462,32 +465,25 @@ const RoutesAndPoints: React.FC = () => {
                 return null;
             }
 
-            // 2. Buscar rota via OSRM (gratuito, segue estradas)
-            const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${origemCoords.lon},${origemCoords.lat};${destinoCoords.lon},${destinoCoords.lat}?overview=full&geometries=geojson`;
-            const routeResp = await fetch(osrmUrl);
-            const routeData = await routeResp.json();
+            // 2. Buscar rota viária inteligente via smartRoutingService (multi-paradas, respeita mãos e contramãos)
+            const intermediatePoints = routePoints.filter(p => p.type !== 'START' && p.type !== 'END');
+            const allRoutingPoints: RoutingPoint[] = [
+                { latitude: origemCoords.lat, longitude: origemCoords.lon, name: origAddress || 'Origem', type: 'START' },
+                ...intermediatePoints.map(p => ({
+                    latitude: p.latitude,
+                    longitude: p.longitude,
+                    name: p.name,
+                    type: p.type
+                })),
+                { latitude: destinoCoords.lat, longitude: destinoCoords.lon, name: destAddress || 'Destino', type: 'END' }
+            ];
 
-            if (routeData.code !== 'Ok' || !routeData.routes || routeData.routes.length === 0) {
-                if (showSuccessToast) {
-                    toast({
-                        title: 'Rota não encontrada',
-                        description: 'Não foi possível calcular uma rota entre os endereços informados.',
-                        variant: 'destructive',
-                    });
-                }
-                return null;
-            }
-
-            const route = routeData.routes[0];
-            const distanciaKm = parseFloat((route.distance / 1000).toFixed(1));
-            const duracaoMin = Math.round(route.duration / 60);
-
-            // 3. Extrair polyline da rota (GeoJSON: [lng, lat] → converter para [lat, lng])
-            const coords: [number, number][] = route.geometry.coordinates.map(
-                (c: [number, number]) => [c[1], c[0]] as [number, number]
-            );
+            const routeResult = await smartRoutingService.calculateRoute(allRoutingPoints);
+            setRoutingProvider(routeResult.provider);
+            const distanciaKm = routeResult.distanceKm;
+            const duracaoMin = routeResult.durationMinutes;
+            const coords = routeResult.polyline;
             setRoutePolyline(coords);
-
             // 4. Atualizar distância e duração no formulário
             setFormData(prev => ({
                 ...prev,
@@ -560,6 +556,46 @@ const RoutesAndPoints: React.FC = () => {
             setTracingRoute(false);
         }
         return null;
+    };
+
+    /** Otimiza a ordem das paradas intermediárias mantendo fixos Origem e Destino */
+    const handleOtimizarOrdem = async () => {
+        if (routePoints.length <= 3) {
+            toast({
+                title: 'Otimização de Trajeto',
+                description: 'Adicione pelo menos 2 paradas intermediárias de embarque para otimizar o percurso.',
+            });
+            return;
+        }
+
+        try {
+            setTracingRoute(true);
+            const optimized = smartRoutingService.optimizeWaypoints(routePoints as RoutingPoint[]);
+            setRoutePoints(optimized as RoutePoint[]);
+
+            const result = await smartRoutingService.calculateRoute(optimized as RoutingPoint[]);
+            setRoutePolyline(result.polyline);
+            setRoutingProvider(result.provider);
+            setFormData(prev => ({
+                ...prev,
+                distanceKm: result.distanceKm,
+                estimatedDuration: result.durationMinutes,
+            }));
+
+            toast({
+                title: 'Trajeto Otimizado!',
+                description: `Nova distância: ${result.distanceKm} km | Duração estimada: ${result.durationMinutes} min (${result.provider === 'GOOGLE_MAPS' ? 'Google Maps' : 'OSRM Sentido da Via'}).`,
+            });
+        } catch (err: any) {
+            console.error('Erro ao otimizar trajeto:', err);
+            toast({
+                title: 'Erro ao otimizar',
+                description: err.message || 'Não foi possível otimizar a ordem das paradas.',
+                variant: 'destructive',
+            });
+        } finally {
+            setTracingRoute(false);
+        }
     };
 
     const handleTracarRota = () => {
@@ -933,14 +969,35 @@ const RoutesAndPoints: React.FC = () => {
         };
 
         const newPoints = [...routePoints];
+        const endIdx = newPoints.findIndex(p => p.type === 'END');
+
         if (editingPointIndex !== null) {
             newPoints[editingPointIndex] = newPoint;
+        } else if (endIdx >= 0) {
+            // Insere a nova parada de embarque imediatamente antes do Destino Final
+            newPoints.splice(endIdx, 0, newPoint);
         } else {
             newPoints.push(newPoint);
         }
 
-        setRoutePoints(newPoints);
+        const reordered = newPoints.map((p, idx) => ({ ...p, order: idx }));
+        setRoutePoints(reordered);
         setPointModalOpen(false);
+
+        // Recalcula o trajeto viário completo automaticamente com a nova parada
+        if (reordered.length >= 2) {
+            smartRoutingService.calculateRoute(reordered as RoutingPoint[])
+                .then(res => {
+                    setRoutePolyline(res.polyline);
+                    setRoutingProvider(res.provider);
+                    setFormData(prev => ({
+                        ...prev,
+                        distanceKm: res.distanceKm,
+                        estimatedDuration: res.durationMinutes
+                    }));
+                })
+                .catch(e => console.warn('Atualização de rota em background:', e));
+        }
     };
 
     const handleDeletePoint = (index: number) => {
@@ -1788,6 +1845,7 @@ const RoutesAndPoints: React.FC = () => {
                                                 routePolyline={routePolyline}
                                                 onMapClick={handleMapClick}
                                                 readOnly={modalMode === 'view'}
+                                                provider={routingProvider}
                                             />
                                         </div>
                                     </div>
@@ -1809,6 +1867,16 @@ const RoutesAndPoints: React.FC = () => {
                                     <RouteIcon className="w-4 h-4" />
                                 )}
                                 {tracingRoute ? 'Calculando rota...' : 'Traçar rota no mapa'}
+                            </Button>
+                            <Button
+                                variant="outline"
+                                onClick={handleOtimizarOrdem}
+                                disabled={tracingRoute || modalMode === 'view' || routePoints.length <= 3}
+                                className="border-gray-600 text-amber-300 hover:text-amber-200 hover:bg-amber-950/30 gap-2 font-medium ml-2"
+                                title="Calcula a sequência viária mais rápida/curta entre os embarques mantendo Origem e Destino fixos"
+                            >
+                                <Sparkles className="w-4 h-4 text-amber-400" />
+                                Otimizar Ordem dos Pontos
                             </Button>
 
                             {modalMode !== 'view' && (
