@@ -1373,11 +1373,14 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
                     {opt.label}
                   </option>
                 ))}
-                {routes.map((r) => (
-                  <option key={r.id} value={r.code || r.name}>
-                    {r.name}
-                  </option>
-                ))}
+                {todaySchedules
+                  .map((s) => s.routeCode || s.route?.name)
+                  .filter((name): name is string => !!name)
+                  .map((name, idx) => (
+                    <option key={`sched-r-${idx}`} value={name}>
+                      {name}
+                    </option>
+                  ))}
               </datalist>
             </div>
           </div>
