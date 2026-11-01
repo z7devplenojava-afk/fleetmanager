@@ -28,5 +28,4 @@ CREATE INDEX IF NOT EXISTS idx_passengers_client_id ON passengers(client_id);
 CREATE INDEX IF NOT EXISTS idx_passengers_user_id ON passengers(user_id);
 CREATE INDEX IF NOT EXISTS idx_passengers_status ON passengers(status);
 CREATE INDEX IF NOT EXISTS idx_passengers_cpf ON passengers(cpf);
-CREATE INDEX IF NOT EXISTS idx_passengers_registration ON passengers(registration_number);
-
+CREATE INDEX IF NOT EXISTS idx_passengers_registration ON passengers(registration);
