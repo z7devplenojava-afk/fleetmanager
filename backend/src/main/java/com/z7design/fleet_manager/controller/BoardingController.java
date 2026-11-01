@@ -155,23 +155,44 @@ public class BoardingController {
         return ResponseEntity.ok(boardings);
     }
 
-    @GetMapping("/{id:[0-9a-fA-F\\-]{36}}")
+    @GetMapping("/{id}")
     @Operation(summary = "Buscar embarque por ID", description = "Retorna um registro de embarque pelo ID")
-    public ResponseEntity<BoardingDTO> getById(@PathVariable("id") UUID id) {
+    public ResponseEntity<BoardingDTO> getById(@PathVariable("id") String idStr) {
+        if ("filtered".equalsIgnoreCase(idStr) || "my-history".equalsIgnoreCase(idStr) || "report".equalsIgnoreCase(idStr)) {
+            return ResponseEntity.notFound().build();
+        }
+        UUID id;
+        try {
+            id = UUID.fromString(idStr);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
         BoardingDTO boarding = boardingService.getById(id);
         return ResponseEntity.ok(boarding);
     }
 
-    @PutMapping("/{id:[0-9a-fA-F\\-]{36}}")
+    @PutMapping("/{id}")
     @Operation(summary = "Atualizar embarque", description = "Atualiza um registro de embarque existente")
-    public ResponseEntity<BoardingDTO> update(@PathVariable("id") UUID id, @RequestBody BoardingDTO dto) {
+    public ResponseEntity<BoardingDTO> update(@PathVariable("id") String idStr, @RequestBody BoardingDTO dto) {
+        UUID id;
+        try {
+            id = UUID.fromString(idStr);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
         BoardingDTO updated = boardingService.update(id, dto);
         return ResponseEntity.ok(updated);
     }
 
-    @DeleteMapping("/{id:[0-9a-fA-F\\-]{36}}")
+    @DeleteMapping("/{id}")
     @Operation(summary = "Excluir embarque", description = "Exclui um registro de embarque")
-    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") String idStr) {
+        UUID id;
+        try {
+            id = UUID.fromString(idStr);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
         boardingService.delete(id);
         return ResponseEntity.noContent().build();
     }
