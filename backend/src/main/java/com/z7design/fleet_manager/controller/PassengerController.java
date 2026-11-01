@@ -26,38 +26,10 @@ public class PassengerController {
         return ResponseEntity.ok(created);
     }
 
-    @PutMapping("/{id}")
-    @Operation(summary = "Atualizar passageiro", description = "Atualiza um passageiro existente")
-    public ResponseEntity<PassengerDTO> update(@PathVariable("id") UUID id, @RequestBody PassengerDTO dto) {
-        PassengerDTO updated = passengerService.update(id, dto);
-        return ResponseEntity.ok(updated);
-    }
-
-    @DeleteMapping("/{id}")
-    @Operation(summary = "Excluir passageiro", description = "Exclui um passageiro")
-    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
-        passengerService.delete(id);
-        return ResponseEntity.noContent().build();
-    }
-
-    @GetMapping("/{id}")
-    @Operation(summary = "Buscar passageiro por ID", description = "Retorna um passageiro pelo ID")
-    public ResponseEntity<PassengerDTO> getById(@PathVariable("id") UUID id) {
-        PassengerDTO passenger = passengerService.getById(id);
-        return ResponseEntity.ok(passenger);
-    }
-
     @GetMapping("/company/{companyId}")
     @Operation(summary = "Listar passageiros por empresa", description = "Retorna todos os passageiros de uma empresa")
     public ResponseEntity<List<PassengerDTO>> getByCompanyId(@PathVariable("companyId") UUID companyId) {
         List<PassengerDTO> passengers = passengerService.getByCompanyId(companyId);
-        return ResponseEntity.ok(passengers);
-    }
-
-    @GetMapping("/route/{routeId}")
-    @Operation(summary = "Listar passageiros por rota", description = "Retorna todos os passageiros de uma rota")
-    public ResponseEntity<List<PassengerDTO>> getByRouteId(@PathVariable("routeId") UUID routeId) {
-        List<PassengerDTO> passengers = passengerService.getByRouteId(routeId);
         return ResponseEntity.ok(passengers);
     }
 
@@ -68,6 +40,13 @@ public class PassengerController {
         return ResponseEntity.ok(passengers);
     }
 
+    @GetMapping("/route/{routeId}")
+    @Operation(summary = "Listar passageiros por rota", description = "Retorna todos os passageiros de uma rota")
+    public ResponseEntity<List<PassengerDTO>> getByRouteId(@PathVariable("routeId") UUID routeId) {
+        List<PassengerDTO> passengers = passengerService.getByRouteId(routeId);
+        return ResponseEntity.ok(passengers);
+    }
+
     @GetMapping("/client/{clientId}")
     @Operation(summary = "Listar passageiros por cliente", description = "Retorna todos os colaboradores/passageiros de um cliente contratante")
     public ResponseEntity<List<PassengerDTO>> getByClientId(@PathVariable("clientId") UUID clientId) {
@@ -75,7 +54,28 @@ public class PassengerController {
         return ResponseEntity.ok(passengers);
     }
 
-    @PatchMapping("/{id}/toggle-multiple-routes")
+    @GetMapping("/{id:[0-9a-fA-F\\-]{36}}")
+    @Operation(summary = "Buscar passageiro por ID", description = "Retorna um passageiro pelo ID")
+    public ResponseEntity<PassengerDTO> getById(@PathVariable("id") UUID id) {
+        PassengerDTO passenger = passengerService.getById(id);
+        return ResponseEntity.ok(passenger);
+    }
+
+    @PutMapping("/{id:[0-9a-fA-F\\-]{36}}")
+    @Operation(summary = "Atualizar passageiro", description = "Atualiza um passageiro existente")
+    public ResponseEntity<PassengerDTO> update(@PathVariable("id") UUID id, @RequestBody PassengerDTO dto) {
+        PassengerDTO updated = passengerService.update(id, dto);
+        return ResponseEntity.ok(updated);
+    }
+
+    @DeleteMapping("/{id:[0-9a-fA-F\\-]{36}}")
+    @Operation(summary = "Excluir passageiro", description = "Exclui um passageiro")
+    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
+        passengerService.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id:[0-9a-fA-F\\-]{36}}/toggle-multiple-routes")
     @Operation(summary = "Habilitar/Desabilitar múltiplas linhas", description = "Permite alternar entre linha fixa (1 ida e 1 volta) ou múltiplas linhas")
     public ResponseEntity<PassengerDTO> toggleMultipleRoutes(
             @PathVariable("id") UUID id,
@@ -84,7 +84,7 @@ public class PassengerController {
         return ResponseEntity.ok(updated);
     }
 
-    @PatchMapping("/{id}/status")
+    @PatchMapping("/{id:[0-9a-fA-F\\-]{36}}/status")
     @Operation(summary = "Alterar status do passageiro", description = "Atualiza o status (ATIVO, BLOQUEADO, DEMITIDO). Demitido bloqueia login e embarque imediatamente.")
     public ResponseEntity<PassengerDTO> updateStatus(
             @PathVariable("id") UUID id,
