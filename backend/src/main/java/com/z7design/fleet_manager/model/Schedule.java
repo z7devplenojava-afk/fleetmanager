@@ -87,13 +87,13 @@ public class Schedule implements TenantAware {
 
         @ManyToOne
         @JoinColumn(name = "work_post_id")
-        @JsonIgnoreProperties({ "schedules", "hibernateLazyInitializer", "handler" })
+        @JsonIgnoreProperties({ "schedules", "hibernateLazyInitializer", "handler", "client", "contract", "responsible", "nrs", "epis", "trainings", "workSchedules" })
         private WorkPost workPost;
 
         /** Viagem associada (substitui Posto de Trabalho no módulo de tráfego) */
         @ManyToOne(fetch = FetchType.EAGER)
         @JoinColumn(name = "travel_trip_id")
-        @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
+        @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler", "route", "client" })
         private TravelTrip travelTrip;
 
         /** Número de pegadas (1 a 4) */
@@ -108,7 +108,7 @@ public class Schedule implements TenantAware {
         @ManyToOne(fetch = FetchType.EAGER)
         @JoinColumn(name = "route_id")
         @NotFound(action = NotFoundAction.IGNORE)
-        @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
+        @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler", "points", "unit", "location", "client", "company" })
         private Route route;
 
         @ManyToOne
@@ -120,7 +120,7 @@ public class Schedule implements TenantAware {
         @ManyToOne(fetch = FetchType.EAGER)
         @JoinColumn(name = "vehicle_id")
         @NotFound(action = NotFoundAction.IGNORE)
-        @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
+        @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler", "garage", "responsibleEmployee", "department", "workPost", "client", "company" })
         private Vehicle vehicle;
 
         @Column(name = "start_time", length = 10)
