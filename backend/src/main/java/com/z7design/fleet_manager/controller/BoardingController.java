@@ -98,7 +98,7 @@ public class BoardingController {
         return ResponseEntity.ok(history);
     }
 
-    @GetMapping({"", "/filtered"})
+    @GetMapping
     @Operation(summary = "Listar embarques com filtros", description = "Filtragem por cliente, passageiro e período para Gestão de Tráfego e RH")
     public ResponseEntity<List<BoardingDTO>> getFiltered(
             @RequestParam(name = "clientId", required = false) UUID clientId,
@@ -114,6 +114,17 @@ public class BoardingController {
         UUID companyId = currentUser != null ? currentUser.getCompanyId() : null;
         List<BoardingDTO> boardings = boardingService.getFilteredBoardings(companyId, clientId, passengerId, startDate, endDate);
         return ResponseEntity.ok(boardings);
+    }
+
+    @GetMapping("/filtered")
+    @Operation(summary = "Listar embarques com filtros (alias)", description = "Alias para listagem de embarques")
+    public ResponseEntity<List<BoardingDTO>> getFilteredAlias(
+            @RequestParam(name = "clientId", required = false) UUID clientId,
+            @RequestParam(name = "passengerId", required = false) UUID passengerId,
+            @RequestParam(name = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
+            @RequestParam(name = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
+            Authentication authentication) {
+        return getFiltered(clientId, passengerId, startDate, endDate, authentication);
     }
 
     @GetMapping("/report/pdf")
@@ -155,44 +166,23 @@ public class BoardingController {
         return ResponseEntity.ok(boardings);
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/{id:[0-9a-fA-F\\-]{36}}")
     @Operation(summary = "Buscar embarque por ID", description = "Retorna um registro de embarque pelo ID")
-    public ResponseEntity<BoardingDTO> getById(@PathVariable("id") String idStr) {
-        if ("filtered".equalsIgnoreCase(idStr) || "my-history".equalsIgnoreCase(idStr) || "report".equalsIgnoreCase(idStr)) {
-            return ResponseEntity.notFound().build();
-        }
-        UUID id;
-        try {
-            id = UUID.fromString(idStr);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
-        }
+    public ResponseEntity<BoardingDTO> getById(@PathVariable("id") UUID id) {
         BoardingDTO boarding = boardingService.getById(id);
         return ResponseEntity.ok(boarding);
     }
 
-    @PutMapping("/{id}")
+    @PutMapping("/{id:[0-9a-fA-F\\-]{36}}")
     @Operation(summary = "Atualizar embarque", description = "Atualiza um registro de embarque existente")
-    public ResponseEntity<BoardingDTO> update(@PathVariable("id") String idStr, @RequestBody BoardingDTO dto) {
-        UUID id;
-        try {
-            id = UUID.fromString(idStr);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
-        }
+    public ResponseEntity<BoardingDTO> update(@PathVariable("id") UUID id, @RequestBody BoardingDTO dto) {
         BoardingDTO updated = boardingService.update(id, dto);
         return ResponseEntity.ok(updated);
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/{id:[0-9a-fA-F\\-]{36}}")
     @Operation(summary = "Excluir embarque", description = "Exclui um registro de embarque")
-    public ResponseEntity<Void> delete(@PathVariable("id") String idStr) {
-        UUID id;
-        try {
-            id = UUID.fromString(idStr);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
-        }
+    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
         boardingService.delete(id);
         return ResponseEntity.noContent().build();
     }

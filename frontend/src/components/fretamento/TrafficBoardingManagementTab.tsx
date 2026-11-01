@@ -92,11 +92,21 @@ export const TrafficBoardingManagementTab: React.FC = () => {
             let res: any;
             try {
                 res = await api.get('/api/boardings', { params });
-            } catch {
-                res = await api.get('/api/boardings/filtered', { params }).catch(() => ({ data: [] }));
+            } catch (err: any) {
+                if (err?.response?.status === 404 || err?.response?.status === 405) {
+                    try {
+                        res = await api.get('/api/boardings/filtered', { params });
+                    } catch {
+                        res = { data: [] };
+                    }
+                } else {
+                    res = { data: [] };
+                }
             }
             if (res && res.data && Array.isArray(res.data)) {
                 setBoardings(res.data);
+            } else {
+                setBoardings([]);
             }
         } catch (e) {
             console.warn('Erro ao carregar embarques:', e);
