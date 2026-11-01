@@ -98,7 +98,7 @@ public class BoardingController {
         return ResponseEntity.ok(history);
     }
 
-    @GetMapping("/filtered")
+    @GetMapping({"", "/filtered"})
     @Operation(summary = "Listar embarques com filtros", description = "Filtragem por cliente, passageiro e período para Gestão de Tráfego e RH")
     public ResponseEntity<List<BoardingDTO>> getFiltered(
             @RequestParam(name = "clientId", required = false) UUID clientId,

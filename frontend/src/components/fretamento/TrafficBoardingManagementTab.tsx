@@ -89,8 +89,13 @@ export const TrafficBoardingManagementTab: React.FC = () => {
                 params.endDate = `${endDate}T23:59:59`;
             }
 
-            const res = await api.get('/api/boardings/filtered', { params });
-            if (res.data && Array.isArray(res.data)) {
+            let res: any;
+            try {
+                res = await api.get('/api/boardings', { params });
+            } catch {
+                res = await api.get('/api/boardings/filtered', { params }).catch(() => ({ data: [] }));
+            }
+            if (res && res.data && Array.isArray(res.data)) {
                 setBoardings(res.data);
             }
         } catch (e) {
