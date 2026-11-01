@@ -873,10 +873,27 @@ public class ScheduleService {
             emp.setName(esc.getDriver().getName());
         }
 
-        String routeTitle = esc.getRoute() != null ? esc.getRoute().getName() : "Rota Operacional";
-        String clientTitle = (esc.getRoute() != null && esc.getRoute().getClient() != null)
-                ? esc.getRoute().getClient().getName()
-                : null;
+        String routeTitle = "Rota Operacional";
+        try {
+            if (esc.getRoute() != null && esc.getRoute().getName() != null) {
+                routeTitle = esc.getRoute().getName();
+            }
+        } catch (Exception ignored) {
+        }
+        if (esc.getRouteName() != null && !esc.getRouteName().isBlank()) {
+            routeTitle = esc.getRouteName();
+        }
+
+        String clientTitle = null;
+        try {
+            if (esc.getRoute() != null && esc.getRoute().getClient() != null) {
+                clientTitle = esc.getRoute().getClient().getName();
+            }
+        } catch (Exception ignored) {
+        }
+        if (clientTitle == null && esc.getClientName() != null) {
+            clientTitle = esc.getClientName();
+        }
 
         com.z7design.fleet_manager.model.enums.ScheduleStatus status = com.z7design.fleet_manager.model.enums.ScheduleStatus.PENDING;
         if (EscalaOperacional.STATUS_CONCLUIDA.equalsIgnoreCase(esc.getStatus())) {
@@ -887,6 +904,33 @@ public class ScheduleService {
             status = com.z7design.fleet_manager.model.enums.ScheduleStatus.CONFIRMED;
         }
 
+        Route cleanRoute = null;
+        try {
+            if (esc.getRoute() != null) {
+                cleanRoute = Route.builder()
+                        .id(esc.getRoute().getId())
+                        .name(routeTitle)
+                        .build();
+            }
+        } catch (Exception ignored) {
+        }
+
+        Vehicle cleanVehicle = null;
+        String vehiclePlate = esc.getVehiclePlate();
+        try {
+            if (esc.getVehicle() != null) {
+                cleanVehicle = Vehicle.builder()
+                        .id(esc.getVehicle().getId())
+                        .plate(esc.getVehicle().getPlate())
+                        .model(esc.getVehicle().getModel())
+                        .build();
+                if (cleanVehicle.getPlate() != null) {
+                    vehiclePlate = cleanVehicle.getPlate();
+                }
+            }
+        } catch (Exception ignored) {
+        }
+
         return Schedule.builder()
                 .id(esc.getId())
                 .employee(emp)
@@ -894,10 +938,11 @@ public class ScheduleService {
                 .shift(com.z7design.fleet_manager.model.enums.Shift.DAY)
                 .startTime(esc.getDepartureTime() != null ? esc.getDepartureTime().toString().substring(0, 5) : "08:00")
                 .endTime("17:00")
-                .route(esc.getRoute())
+                .route(cleanRoute)
                 .routeCode(routeTitle)
                 .clientName(clientTitle)
-                .vehicle(esc.getVehicle())
+                .vehicle(cleanVehicle)
+                .vehiclePlate(vehiclePlate)
                 .status(status)
                 .legs(1)
                 .build();

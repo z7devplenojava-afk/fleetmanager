@@ -329,6 +329,13 @@ const PontoEletronico: React.FC = () => {
     }
   };
 
+  const handleTriggerOfficialPoint = useCallback(
+    async (tipo?: 'ENTRADA' | 'SAIDA_ALMOCO' | 'RETORNO_ALMOCO' | 'SAIDA') => {
+      await registrarPonto(tipo || proximoRegistro);
+    },
+    [proximoRegistro]
+  );
+
   const registrarPonto = async (tipo?: 'ENTRADA' | 'SAIDA_ALMOCO' | 'RETORNO_ALMOCO' | 'SAIDA') => {
     const tipoRegistro = tipo || proximoRegistro;
     let resolvedLocation = 'Sem localização';
@@ -1095,9 +1102,7 @@ const PontoEletronico: React.FC = () => {
           <DriverPontoOperacionalSection
             employeeId={activeEmployeeId || user?.id}
             employeeName={user?.name || 'Motorista'}
-            onTriggerOfficialPoint={async (tipo) => {
-              await registrarPonto(tipo || proximoRegistro);
-            }}
+            onTriggerOfficialPoint={handleTriggerOfficialPoint}
           />
         )}
 

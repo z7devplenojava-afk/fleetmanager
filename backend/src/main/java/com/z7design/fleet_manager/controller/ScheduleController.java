@@ -191,7 +191,7 @@ public class ScheduleController {
         }
 
         @Operation(summary = "Busca uma escala de trabalho pelo ID")
-        @GetMapping("/{id}")
+        @GetMapping("/{id:[0-9a-fA-F\\-]{36}}")
         public ResponseEntity<Schedule> findById(@PathVariable("id") UUID id) {
                 return ResponseEntity.ok(scheduleService.findById(id));
         }

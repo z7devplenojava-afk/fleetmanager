@@ -95,7 +95,7 @@ const fileToDataUrl = (file: File): Promise<string> =>
     reader.readAsDataURL(file);
   });
 
-export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSectionProps> = ({
+export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSectionProps> = React.memo(({
   employeeId,
   employeeName,
   onTriggerOfficialPoint,
@@ -178,7 +178,7 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
   }, [todaySchedules, selectedScheduleMode]);
 
   const selectedSchedule = useMemo(
-    () => todaySchedules.find((s) => s.id === selectedScheduleId) || null,
+    () => todaySchedules.find((s) => String(s.id).toLowerCase() === String(selectedScheduleId).toLowerCase()) || null,
     [todaySchedules, selectedScheduleId]
   );
 
@@ -268,6 +268,8 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
   const lastSyncedSignatureRef = React.useRef<string>('');
   const vehiclesLoadedRef = React.useRef<boolean>(false);
   const selectedScheduleIdRef = React.useRef<string>(selectedScheduleId);
+  const userExplicitSelectedIdRef = React.useRef<string | null>(null);
+  const loadingRef = React.useRef<boolean>(false);
   const isFormUserDirtyRef = React.useRef<boolean>(false);
 
   useEffect(() => {
@@ -275,6 +277,8 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
   }, [selectedScheduleId]);
 
   const loadData = async () => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
     setLoadingSchedules(true);
     try {
       const [mySchedules, codesList, fleetList, clientList] = await Promise.all([
@@ -315,30 +319,39 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
       setTodaySchedules(list);
 
       if (list.length > 0) {
-        const activeId = selectedScheduleIdRef.current || localStorage.getItem('fluxbus_driver_active_schedule_id');
-        const currentSelected = activeId && activeId !== 'NEW' ? list.find((s) => s.id === activeId) : null;
+        const activeId =
+          userExplicitSelectedIdRef.current ||
+          selectedScheduleIdRef.current ||
+          localStorage.getItem('fluxbus_driver_active_schedule_id');
+        const currentSelected =
+          activeId && activeId !== 'NEW'
+            ? list.find((s) => String(s.id).toLowerCase() === String(activeId).toLowerCase())
+            : null;
         if (currentSelected) {
-          setSelectedScheduleId(currentSelected.id);
-          selectedScheduleIdRef.current = currentSelected.id;
+          const idStr = String(currentSelected.id);
+          setSelectedScheduleId(idStr);
+          selectedScheduleIdRef.current = idStr;
           if (!isFormUserDirtyRef.current) {
             applyScheduleToForm(currentSelected);
           }
         } else if (activeId === 'NEW') {
           setSelectedScheduleId('NEW');
           selectedScheduleIdRef.current = 'NEW';
-        } else {
+        } else if (!userExplicitSelectedIdRef.current) {
           const activeOrFirst =
             list.find((s) => (s.status === 'IN_PROGRESS' || s.initialKm != null) && s.finalKm == null) ||
             list.find((s) => s.status === 'CONFIRMED' || s.status === 'PENDING') ||
             list[0];
           if (activeOrFirst) {
-            setSelectedScheduleId(activeOrFirst.id);
-            selectedScheduleIdRef.current = activeOrFirst.id;
+            const idStr = String(activeOrFirst.id);
+            setSelectedScheduleId(idStr);
+            selectedScheduleIdRef.current = idStr;
             applyScheduleToForm(activeOrFirst);
           }
         }
       }
     } finally {
+      loadingRef.current = false;
       setLoadingSchedules(false);
     }
   };
@@ -489,9 +502,10 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
   };
 
   const applyScheduleToForm = (sched: Schedule) => {
+    const idStr = String(sched.id);
     isFormUserDirtyRef.current = false;
-    selectedScheduleIdRef.current = sched.id;
-    setSelectedScheduleId(sched.id);
+    selectedScheduleIdRef.current = idStr;
+    setSelectedScheduleId(idStr);
     setStartTime(sched.startTime ? sched.startTime.substring(0, 5) : format(new Date(), 'HH:mm'));
     setEndTime(sched.endTime ? sched.endTime.substring(0, 5) : '');
     setClientName(
@@ -1142,7 +1156,7 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
               {sortedDailySchedules.map((s, idx) => {
-                const isSelected = s.id === selectedScheduleId;
+                const isSelected = String(s.id).toLowerCase() === String(selectedScheduleId).toLowerCase();
                 const isCompleted = s.finalKm != null || s.status === 'COMPLETED';
                 const isInProgress = (s.initialKm != null || s.status === 'IN_PROGRESS') && !isCompleted;
                 const legNumber = idx + 1;
@@ -1168,8 +1182,10 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
                     type="button"
                     onClick={() => {
                       isFormUserDirtyRef.current = false;
-                      selectedScheduleIdRef.current = s.id;
-                      setSelectedScheduleId(s.id);
+                      const idStr = String(s.id);
+                      userExplicitSelectedIdRef.current = idStr;
+                      selectedScheduleIdRef.current = idStr;
+                      setSelectedScheduleId(idStr);
                       applyScheduleToForm(s);
                     }}
                     className={`relative p-3 rounded-xl border border-l-4 ${pegadaTheme.accentBorder} text-left transition-all flex flex-col justify-between gap-2.5 cursor-pointer ${
@@ -2075,5 +2091,5 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
       </CardContent>
     </Card>
   );
-};
+});
 

@@ -1310,17 +1310,20 @@ export const scheduleService = {
       const drvId = s.employee?.id || s.employeeId || '';
       const drvName = s.employee?.name || '';
 
-      // 1. Absorve registros criados como ponto-local-* para o mesmo motorista
+      // 1. Absorve registros criados como ponto-local-* apenas para a escala correspondente
       for (const localPonto of localPontoList) {
         if (!localPonto || !localPonto.id || overlayMap[localPonto.id]?.deleted) continue;
-        if (
-          isSameDriverMatch(
-            drvId,
-            drvName,
-            localPonto.employee?.id || localPonto.employeeId,
-            localPonto.employee?.name
-          )
-        ) {
+        const isSameDriver = isSameDriverMatch(
+          drvId,
+          drvName,
+          localPonto.employee?.id || localPonto.employeeId,
+          localPonto.employee?.name
+        );
+        const isSameScheduleOrRoute =
+          String(localPonto.id).toLowerCase() === String(s.id).toLowerCase() ||
+          (localPonto.routeCode && s.routeCode && localPonto.routeCode.trim().toLowerCase() === s.routeCode.trim().toLowerCase());
+
+        if (isSameDriver && isSameScheduleOrRoute) {
           absorbedLocalIds.add(localPonto.id);
           const hasPhotos = Boolean(localPonto.tripPhotosJson && localPonto.tripPhotosJson !== '[]');
           const patchFromLocal: ScheduleOverlayData = {
@@ -1355,8 +1358,8 @@ export const scheduleService = {
         if (!isSameDriverMatch(drvId, drvName, sheet.driverId, sheet.driverName)) continue;
         const rows = Array.isArray(sheet.rows) ? sheet.rows : [];
         const matchedRow =
-          rows.find((r) => r.scheduleId === s.id) ||
-          rows.find((r) => r.startKm || r.endKm || Number(r.passengers) > 0);
+          rows.find((r) => r.scheduleId && String(r.scheduleId).toLowerCase() === String(s.id).toLowerCase()) ||
+          rows.find((r) => r.routeCode && s.routeCode && r.routeCode.trim().toLowerCase() === s.routeCode.trim().toLowerCase());
         if (matchedRow) {
           const rStartKm =
             matchedRow.startKm !== undefined && matchedRow.startKm !== '' && !Number.isNaN(Number(matchedRow.startKm))
@@ -2534,13 +2537,7 @@ export const scheduleService = {
 
     // 2. Consulta geral em /api/schedules com correspondência resiliente de motorista
     try {
-      const allSchedules = await this.findAll().catch(async () => {
-        const rawRes = await api.get('/api/schedules', { silentErrorLog: true } as any);
-        const data = rawRes?.data;
-        if (Array.isArray(data)) return data;
-        if (data && Array.isArray(data.content)) return data.content;
-        return [];
-      });
+      const allSchedules = await this.findAll().catch(() => []);
 
       if (Array.isArray(allSchedules)) {
         for (const s of allSchedules) {
