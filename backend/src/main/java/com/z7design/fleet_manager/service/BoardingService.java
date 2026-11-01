@@ -194,7 +194,7 @@ public class BoardingService {
                 UUID sid = UUID.fromString(req.get("scheduleId").toString());
                 schedule = scheduleRepository.findById(sid).orElse(null);
                 if (schedule != null && trip == null) {
-                    List<Trip> trips = tripRepository.findByScheduleId(sid);
+                    List<Trip> trips = tripRepository.findByEscalaId(sid);
                     if (!trips.isEmpty()) {
                         trip = trips.get(0);
                     }

@@ -880,9 +880,6 @@ public class ScheduleService {
             }
         } catch (Exception ignored) {
         }
-        if (esc.getRouteName() != null && !esc.getRouteName().isBlank()) {
-            routeTitle = esc.getRouteName();
-        }
 
         String clientTitle = null;
         try {
@@ -890,9 +887,6 @@ public class ScheduleService {
                 clientTitle = esc.getRoute().getClient().getName();
             }
         } catch (Exception ignored) {
-        }
-        if (clientTitle == null && esc.getClientName() != null) {
-            clientTitle = esc.getClientName();
         }
 
         com.z7design.fleet_manager.model.enums.ScheduleStatus status = com.z7design.fleet_manager.model.enums.ScheduleStatus.PENDING;
@@ -907,26 +901,20 @@ public class ScheduleService {
         Route cleanRoute = null;
         try {
             if (esc.getRoute() != null) {
-                cleanRoute = Route.builder()
-                        .id(esc.getRoute().getId())
-                        .name(routeTitle)
-                        .build();
+                cleanRoute = new Route();
+                cleanRoute.setId(esc.getRoute().getId());
+                cleanRoute.setName(routeTitle);
             }
         } catch (Exception ignored) {
         }
 
         Vehicle cleanVehicle = null;
-        String vehiclePlate = esc.getVehiclePlate();
         try {
             if (esc.getVehicle() != null) {
-                cleanVehicle = Vehicle.builder()
-                        .id(esc.getVehicle().getId())
-                        .plate(esc.getVehicle().getPlate())
-                        .model(esc.getVehicle().getModel())
-                        .build();
-                if (cleanVehicle.getPlate() != null) {
-                    vehiclePlate = cleanVehicle.getPlate();
-                }
+                cleanVehicle = new Vehicle();
+                cleanVehicle.setId(esc.getVehicle().getId());
+                cleanVehicle.setPlate(esc.getVehicle().getPlate());
+                cleanVehicle.setModel(esc.getVehicle().getModel());
             }
         } catch (Exception ignored) {
         }
@@ -942,7 +930,6 @@ public class ScheduleService {
                 .routeCode(routeTitle)
                 .clientName(clientTitle)
                 .vehicle(cleanVehicle)
-                .vehiclePlate(vehiclePlate)
                 .status(status)
                 .legs(1)
                 .build();

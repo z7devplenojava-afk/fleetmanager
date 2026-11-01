@@ -599,5 +599,50 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .clientName(clientName)
                 .build();
     }
-}
 
+    private User createOrLinkPassengerUser(Passenger pass, String rawPassword) {
+        String cleanCpf = pass.getCpf() != null ? pass.getCpf().replaceAll("\\D", "") : null;
+        String username = (cleanCpf != null && !cleanCpf.isBlank()) ? cleanCpf : (pass.getRegistration() != null ? pass.getRegistration().trim() : "pass_" + pass.getId().toString().substring(0, 8));
+        String email = (pass.getEmail() != null && !pass.getEmail().isBlank()) ? pass.getEmail() : (username + "@passageiro.local");
+
+        User user = userRepository.findByUsernameOrEmailIgnoreCase(username)
+                .or(() -> userRepository.findByUsername(username))
+                .or(() -> userRepository.findByEmail(email))
+                .orElse(null);
+
+        if (user == null) {
+            Role passRole = roleRepository.findByName("PASSAGEIRO")
+                    .or(() -> roleRepository.findByName("COLABORADOR"))
+                    .orElse(null);
+            java.util.Set<Role> roles = passRole != null ? java.util.Set.of(passRole) : java.util.Collections.emptySet();
+
+            String rawPass = rawPassword != null && !rawPassword.isBlank()
+                    ? rawPassword
+                    : (cleanCpf != null && cleanCpf.length() >= 6 ? cleanCpf.substring(0, 6) : "123456");
+
+            user = User.builder()
+                    .username(username)
+                    .name(pass.getName() != null ? pass.getName() : "Passageiro")
+                    .email(email)
+                    .cpf(cleanCpf)
+                    .password(passwordEncoder.encode(rawPass))
+                    .roles(roles)
+                    .status(UserStatus.ACTIVE)
+                    .active(true)
+                    .companyId(pass.getCompanyId())
+                    .clientId(pass.getClientId())
+                    .requirePasswordChange(true)
+                    .firstAccessCompleted(false)
+                    .build();
+
+            user = userRepository.save(user);
+        }
+
+        if (pass.getUserId() == null) {
+            pass.setUserId(user.getId());
+            passengerRepository.save(pass);
+        }
+
+        return user;
+    }
+}
