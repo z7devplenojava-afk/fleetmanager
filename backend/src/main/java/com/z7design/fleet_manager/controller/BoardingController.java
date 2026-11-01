@@ -17,6 +17,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -85,7 +86,14 @@ public class BoardingController {
     @GetMapping("/my-history")
     @Operation(summary = "Meu histórico de embarques", description = "Retorna histórico de embarques do passageiro autenticado")
     public ResponseEntity<List<BoardingDTO>> getMyHistory(Authentication authentication) {
-        User currentUser = authenticationService.getCurrentUser(authentication);
+        User currentUser = null;
+        try {
+            currentUser = authenticationService.getCurrentUser(authentication);
+        } catch (Exception ignored) {}
+
+        if (currentUser == null) {
+            return ResponseEntity.ok(Collections.emptyList());
+        }
         List<BoardingDTO> history = boardingService.getMyHistory(currentUser.getId());
         return ResponseEntity.ok(history);
     }
@@ -98,8 +106,12 @@ public class BoardingController {
             @RequestParam(name = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
             @RequestParam(name = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
             Authentication authentication) {
-        User currentUser = authenticationService.getCurrentUser(authentication);
-        UUID companyId = currentUser.getCompanyId();
+        User currentUser = null;
+        try {
+            currentUser = authenticationService.getCurrentUser(authentication);
+        } catch (Exception ignored) {}
+
+        UUID companyId = currentUser != null ? currentUser.getCompanyId() : null;
         List<BoardingDTO> boardings = boardingService.getFilteredBoardings(companyId, clientId, passengerId, startDate, endDate);
         return ResponseEntity.ok(boardings);
     }
@@ -112,8 +124,12 @@ public class BoardingController {
             @RequestParam(name = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
             @RequestParam(name = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
             Authentication authentication) {
-        User currentUser = authenticationService.getCurrentUser(authentication);
-        UUID companyId = currentUser.getCompanyId();
+        User currentUser = null;
+        try {
+            currentUser = authenticationService.getCurrentUser(authentication);
+        } catch (Exception ignored) {}
+
+        UUID companyId = currentUser != null ? currentUser.getCompanyId() : null;
         byte[] pdfBytes = boardingService.generatePdfReport(companyId, clientId, passengerId, startDate, endDate);
         ByteArrayResource resource = new ByteArrayResource(pdfBytes);
 

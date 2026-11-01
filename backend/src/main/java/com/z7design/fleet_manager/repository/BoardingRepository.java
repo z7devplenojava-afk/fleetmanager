@@ -17,11 +17,11 @@ public interface BoardingRepository extends JpaRepository<Boarding, UUID> {
     List<Boarding> findByPassengerIdOrderByBoardingTimeDesc(UUID passengerId);
     List<Boarding> findByCompanyIdOrderByBoardingTimeDesc(UUID companyId);
 
-    @Query("SELECT b FROM Boarding b WHERE b.companyId = :companyId " +
+    @Query("SELECT b FROM Boarding b WHERE (:companyId IS NULL OR b.companyId = :companyId) " +
            "AND (:clientId IS NULL OR b.clientId = :clientId) " +
            "AND (:passengerId IS NULL OR b.passenger.id = :passengerId) " +
-           "AND (cast(:startDate as timestamp) IS NULL OR b.boardingTime >= :startDate) " +
-           "AND (cast(:endDate as timestamp) IS NULL OR b.boardingTime <= :endDate) " +
+           "AND (:startDate IS NULL OR b.boardingTime >= :startDate) " +
+           "AND (:endDate IS NULL OR b.boardingTime <= :endDate) " +
            "ORDER BY b.boardingTime DESC")
     List<Boarding> findFiltered(
             @Param("companyId") UUID companyId,

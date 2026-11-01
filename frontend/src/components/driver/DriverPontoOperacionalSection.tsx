@@ -267,8 +267,12 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
   const requiresJustification = forgotPoint || isOutOfTolerance;
   const lastSyncedSignatureRef = React.useRef<string>('');
   const vehiclesLoadedRef = React.useRef<boolean>(false);
+  const vehiclesCacheRef = React.useRef<Array<{ id: string; plate: string; model?: string }> | null>(null);
+  const clientsCacheRef = React.useRef<Array<{ id: string; name: string }> | null>(null);
   const selectedScheduleIdRef = React.useRef<string>(selectedScheduleId);
   const userExplicitSelectedIdRef = React.useRef<string | null>(null);
+  const userExplicitSelectedLegIdxRef = React.useRef<number | null>(null);
+  const userExplicitScaleCodeRef = React.useRef<string | null>(null);
   const loadingRef = React.useRef<boolean>(false);
   const isFormUserDirtyRef = React.useRef<boolean>(false);
 
@@ -281,6 +285,33 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
     loadingRef.current = true;
     setLoadingSchedules(true);
     try {
+      const fleetPromise = vehiclesCacheRef.current
+        ? Promise.resolve(vehiclesCacheRef.current)
+        : fleetService.getVehicles().then((raw) => {
+            const mapped = Array.isArray(raw)
+              ? raw.map((v: any) => ({
+                  id: String(v.id),
+                  plate: v.plate || v.licensePlate || 'SEM-PLACA',
+                  model: v.model || v.brand || '',
+                }))
+              : [];
+            vehiclesCacheRef.current = mapped;
+            return mapped;
+          }).catch(() => []);
+
+      const clientPromise = clientsCacheRef.current
+        ? Promise.resolve(clientsCacheRef.current)
+        : clientService.getAllClients().then((raw) => {
+            const mapped = Array.isArray(raw)
+              ? raw.map((c: any) => ({
+                  id: String(c.id),
+                  name: c.name || c.companyName || c.razaoSocial || '',
+                }))
+              : [];
+            clientsCacheRef.current = mapped;
+            return mapped;
+          }).catch(() => []);
+
       const [mySchedules, codesList, fleetList, clientList] = await Promise.all([
         scheduleService.findMySchedules({
           startDate: todayStr,
@@ -290,45 +321,49 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
           targetDate: todayStr,
         }).catch(() => []),
         driverRouteCodeService.getAll().catch(() => DEFAULT_DRIVER_ROUTE_CODES),
-        fleetService.getVehicles().catch(() => []),
-        clientService.getAllClients().catch(() => []),
+        fleetPromise,
+        clientPromise,
       ]);
 
       setRouteCodes(Array.isArray(codesList) && codesList.length > 0 ? codesList : DEFAULT_DRIVER_ROUTE_CODES);
 
       if (Array.isArray(fleetList)) {
-        setVehicles(
-          fleetList.map((v: any) => ({
-            id: String(v.id),
-            plate: v.plate || v.licensePlate || 'SEM-PLACA',
-            model: v.model || v.brand || '',
-          }))
-        );
+        setVehicles(fleetList);
       }
 
       if (Array.isArray(clientList)) {
-        setClients(
-          clientList.map((c: any) => ({
-            id: String(c.id),
-            name: c.name || c.companyName || c.razaoSocial || '',
-          }))
-        );
+        setClients(clientList);
       }
 
       const list = Array.isArray(mySchedules) ? mySchedules : [];
       setTodaySchedules(list);
 
       if (list.length > 0) {
+        let currentSelected: Schedule | null = null;
         const activeId =
           userExplicitSelectedIdRef.current ||
           selectedScheduleIdRef.current ||
           localStorage.getItem('fluxbus_driver_active_schedule_id');
-        const currentSelected =
-          activeId && activeId !== 'NEW'
-            ? list.find((s) => String(s.id).toLowerCase() === String(activeId).toLowerCase())
-            : null;
+
+        // 1. Tenta achar prioritariamente pelo ID selecionado pelo usuário
+        if (activeId && activeId !== 'NEW') {
+          currentSelected = list.find((s) => String(s.id).toLowerCase() === String(activeId).toLowerCase()) || null;
+        }
+
+        // 2. Se o usuário clicou explicitamente numa pegada e o ID mudou sutilmente, preserva por ScaleCode ou pelo índice da Pegada
+        if (!currentSelected && userExplicitScaleCodeRef.current) {
+          currentSelected = list.find((s) => generateScaleCode(s) === userExplicitScaleCodeRef.current) || null;
+        }
+        if (!currentSelected && userExplicitSelectedLegIdxRef.current != null) {
+          const idx = userExplicitSelectedLegIdxRef.current;
+          if (idx >= 0 && idx < list.length) {
+            currentSelected = list[idx];
+          }
+        }
+
         if (currentSelected) {
           const idStr = String(currentSelected.id);
+          userExplicitSelectedIdRef.current = idStr;
           setSelectedScheduleId(idStr);
           selectedScheduleIdRef.current = idStr;
           if (!isFormUserDirtyRef.current) {
@@ -337,7 +372,8 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
         } else if (activeId === 'NEW') {
           setSelectedScheduleId('NEW');
           selectedScheduleIdRef.current = 'NEW';
-        } else if (!userExplicitSelectedIdRef.current) {
+        } else {
+          // Fallback para primeira pegada apenas se o usuário não escolheu nenhuma
           const activeOrFirst =
             list.find((s) => (s.status === 'IN_PROGRESS' || s.initialKm != null) && s.finalKm == null) ||
             list.find((s) => s.status === 'CONFIRMED' || s.status === 'PENDING') ||
@@ -1184,6 +1220,8 @@ export const DriverPontoOperacionalSection: React.FC<DriverPontoOperacionalSecti
                       isFormUserDirtyRef.current = false;
                       const idStr = String(s.id);
                       userExplicitSelectedIdRef.current = idStr;
+                      userExplicitSelectedLegIdxRef.current = idx;
+                      userExplicitScaleCodeRef.current = scaleCode;
                       selectedScheduleIdRef.current = idStr;
                       setSelectedScheduleId(idStr);
                       applyScheduleToForm(s);

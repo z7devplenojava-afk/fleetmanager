@@ -1455,7 +1455,14 @@ export const scheduleService = {
           }
         }
 
-        if (pdKmIni != null || pdKmFim != null || pdPass != null) {
+        const isMatchedSchedule =
+          (latestPd.scheduleId && String(latestPd.scheduleId).toLowerCase() === String(s.id).toLowerCase()) ||
+          (latestPd.routeCode && s.routeCode && latestPd.routeCode.trim().toLowerCase() === s.routeCode.trim().toLowerCase()) ||
+          (latestPd.vehiclePlate && (s.vehiclePlate || s.vehicle?.plate) &&
+            String(latestPd.vehiclePlate).replace(/[^A-Za-z0-9]/g, '').toUpperCase() ===
+            String(s.vehiclePlate || s.vehicle?.plate).replace(/[^A-Za-z0-9]/g, '').toUpperCase());
+
+        if (isMatchedSchedule && (pdKmIni != null || pdKmFim != null || pdPass != null)) {
           saveExecutionOverlay(s.id, {
             initialKm: s.initialKm ?? pdKmIni,
             finalKm: s.finalKm ?? pdKmFim,
@@ -1488,7 +1495,14 @@ export const scheduleService = {
           chkPhotosJson = JSON.stringify(chkPhotos);
         }
 
-        if (chkKmIni != null || chkKmFim != null || chkPhotosJson) {
+        const isMatchedVehicle =
+          (outChk?.vehiclePlate && (s.vehiclePlate || s.vehicle?.plate) &&
+            String(outChk.vehiclePlate).replace(/[^A-Za-z0-9]/g, '').toUpperCase() ===
+            String(s.vehiclePlate || s.vehicle?.plate).replace(/[^A-Za-z0-9]/g, '').toUpperCase()) ||
+          (outChk?.vehicleId && (s.vehicleId || s.vehicle?.id) &&
+            String(outChk.vehicleId) === String(s.vehicleId || s.vehicle?.id));
+
+        if (isMatchedVehicle && (chkKmIni != null || chkKmFim != null || chkPhotosJson)) {
           saveExecutionOverlay(s.id, {
             initialKm: s.initialKm ?? chkKmIni,
             finalKm: s.finalKm ?? chkKmFim,

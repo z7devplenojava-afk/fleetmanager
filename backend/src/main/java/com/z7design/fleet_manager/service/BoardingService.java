@@ -325,7 +325,7 @@ public class BoardingService {
     public byte[] generatePdfReport(UUID companyId, UUID clientId, UUID passengerId, LocalDateTime start, LocalDateTime end) {
         try {
             List<Boarding> boardings = boardingRepository.findFiltered(companyId, clientId, passengerId, start, end);
-            Company company = companyRepository.findById(companyId).orElse(null);
+            Company company = companyId != null ? companyRepository.findById(companyId).orElse(null) : null;
             Client client = clientId != null ? clientRepository.findById(clientId).orElse(null) : null;
 
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
