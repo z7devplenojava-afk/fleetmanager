@@ -21,4 +21,9 @@ public class UserResponse {
     private String position;
     private String department;
     private Boolean isDriver;
+    private Boolean requirePasswordChange;
+    private Boolean firstAccessCompleted;
+    private java.util.UUID passengerId;
+    private java.util.UUID clientId;
+    private String clientName;
 } 

@@ -26,11 +26,17 @@ public class Boarding {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
     @NotFound(action = NotFoundAction.IGNORE)
-    @JoinColumn(name = "trip_id", nullable = false)
+    @JoinColumn(name = "trip_id", nullable = true)
     @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
     private Trip trip; // Viagem associada
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @NotFound(action = NotFoundAction.IGNORE)
+    @JoinColumn(name = "schedule_id", nullable = true)
+    @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
+    private Schedule schedule; // Escala associada
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @NotFound(action = NotFoundAction.IGNORE)
@@ -62,6 +68,21 @@ public class Boarding {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private BoardingStatus status; // Status: EMBARCADO, AUSENTE, JUSTIFICADO
+
+    @Column(name = "company_id")
+    private UUID companyId;
+
+    @Column(name = "client_id")
+    private UUID clientId;
+
+    @Column(name = "direction", length = 20)
+    private String direction = "IDA";
+
+    @Column(name = "validation_mode", length = 30)
+    private String validationMode = "QR_PASSAGEIRO";
+
+    @Column(name = "is_synced_offline")
+    private Boolean isSyncedOffline = false;
 
     @CreationTimestamp
     private LocalDateTime createdAt;

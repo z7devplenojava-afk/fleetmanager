@@ -41,6 +41,20 @@ public class PassengerDTO {
     @JsonFormat(pattern = "HH:mm")
     private java.time.LocalTime preferredTime;
     private Boolean notificationsEnabled;
+    @JsonDeserialize(using = BlankStringToNullUuidDeserializer.class)
+    private UUID clientId;
+    private String clientName;
+    @JsonDeserialize(using = BlankStringToNullUuidDeserializer.class)
+    private UUID userId;
+    private String status;
+    private Boolean multipleRoutesAllowed;
+    @JsonDeserialize(using = BlankStringToNullUuidDeserializer.class)
+    private UUID returnRouteId;
+    private String returnRouteName;
+    @JsonDeserialize(using = BlankStringToNullUuidDeserializer.class)
+    private UUID returnBoardingPointId;
+    private String returnBoardingPointName;
+    private String qrCodeToken;
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime createdAt;
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")

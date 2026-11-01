@@ -25,6 +25,8 @@ import { StandardLayout } from '@/components/StandardLayout';
 import { PlanningTab } from '@/components/fretamento/PlanningTab';
 import ScheduleCalendarTab from '@/components/fretamento/ScheduleCalendarTab';
 import { HistoryTab } from '@/components/fretamento/HistoryTab';
+import { TrafficBoardingManagementTab } from '@/components/fretamento/TrafficBoardingManagementTab';
+import { QrCode } from 'lucide-react';
 import { OperacaoDoDiaDashboard } from '@/components/operacao/OperacaoDoDiaDashboard';
 import { DriverActivityInspectorModal } from '@/components/driver/DriverActivityInspectorModal';
 import { trafficDashboardService, type TrafficDashboardStats } from '@/services/trafficDashboardService';
@@ -293,6 +295,12 @@ const TrafficManagementDashboard: React.FC = () => {
                                 className="data-[state=active]:bg-seguranca-red data-[state=active]:text-white flex items-center gap-1.5 text-xs sm:text-sm"
                             >
                                 <Calendar size={16} /> Calendário
+                            </TabsTrigger>
+                            <TabsTrigger
+                                value="embarques"
+                                className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white flex items-center gap-1.5 text-xs sm:text-sm"
+                            >
+                                <QrCode size={16} /> Gestão de Embarques
                             </TabsTrigger>
                             <TabsTrigger
                                 value="history"
@@ -719,6 +727,10 @@ const TrafficManagementDashboard: React.FC = () => {
 
                     <TabsContent value="calendar" className="mt-4">
                         <ScheduleCalendarTab />
+                    </TabsContent>
+
+                    <TabsContent value="embarques" className="mt-4">
+                        <TrafficBoardingManagementTab />
                     </TabsContent>
 
                     <TabsContent value="history" className="mt-4">

@@ -97,17 +97,20 @@ public interface UserRepository extends JpaRepository<User, UUID> {
         */
        @Query(value = "SELECT u.* FROM users u " +
                      "LEFT JOIN employees e ON e.user_id = u.id " +
+                     "LEFT JOIN passengers p ON p.user_id = u.id " +
                      "WHERE LOWER(u.username) = LOWER(:identifier) " +
                      "   OR LOWER(u.email) = LOWER(:identifier) " +
                      "   OR (LENGTH(:cleanDigits) >= 11 AND (" +
                      "         REGEXP_REPLACE(COALESCE(u.username, ''), '[^0-9]', '', 'g') = :cleanDigits " +
                      "      OR REGEXP_REPLACE(COALESCE(u.cpf, ''), '[^0-9]', '', 'g') = :cleanDigits " +
-                     "      OR REGEXP_REPLACE(COALESCE(e.document, ''), '[^0-9]', '', 'g') = :cleanDigits" +
+                     "      OR REGEXP_REPLACE(COALESCE(e.document, ''), '[^0-9]', '', 'g') = :cleanDigits " +
+                     "      OR REGEXP_REPLACE(COALESCE(p.cpf, ''), '[^0-9]', '', 'g') = :cleanDigits" +
                      "   )) " +
                      "   OR (LENGTH(TRIM(:identifier)) >= 2 AND (" +
                      "         LOWER(TRIM(COALESCE(u.employee_code, ''))) = LOWER(TRIM(:identifier)) " +
                      "      OR LOWER(TRIM(COALESCE(e.registration_number, ''))) = LOWER(TRIM(:identifier)) " +
-                     "      OR LOWER(TRIM(COALESCE(e.matricula_esocial, ''))) = LOWER(TRIM(:identifier))" +
+                     "      OR LOWER(TRIM(COALESCE(e.matricula_esocial, ''))) = LOWER(TRIM(:identifier)) " +
+                     "      OR LOWER(TRIM(COALESCE(p.registration, ''))) = LOWER(TRIM(:identifier))" +
                      "   )) " +
                      "LIMIT 1", nativeQuery = true)
        Optional<User> findByIdentifierNative(@Param("identifier") String identifier, @Param("cleanDigits") String cleanDigits);

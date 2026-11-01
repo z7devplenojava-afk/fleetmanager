@@ -96,6 +96,47 @@ public class Passenger implements TenantAware {
     @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
     private RoutePoint disembarkPoint; // Ponto de desembarque autorizado
 
+    @Column(name = "client_id")
+    private UUID clientId;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @NotFound(action = NotFoundAction.IGNORE)
+    @JoinColumn(name = "client_id", insertable = false, updatable = false)
+    @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler", "company" })
+    private Client client;
+
+    @Column(name = "user_id")
+    private UUID userId;
+
+    @OneToOne(fetch = FetchType.LAZY, optional = true)
+    @NotFound(action = NotFoundAction.IGNORE)
+    @JoinColumn(name = "user_id", insertable = false, updatable = false)
+    @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler", "password" })
+    private User user;
+
+    /** Status do passageiro: ATIVO, BLOQUEADO, DEMITIDO, INATIVO */
+    @Column(name = "status", length = 30)
+    private String status = "ATIVO";
+
+    /** Permite embarcar em múltiplas linhas do cliente */
+    @Column(name = "multiple_routes_allowed")
+    private Boolean multipleRoutesAllowed = false;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @NotFound(action = NotFoundAction.IGNORE)
+    @JoinColumn(name = "return_route_id")
+    @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
+    private Route returnRoute;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @NotFound(action = NotFoundAction.IGNORE)
+    @JoinColumn(name = "return_boarding_point_id")
+    @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
+    private RoutePoint returnBoardingPoint;
+
+    @Column(name = "qr_code_token", length = 255)
+    private String qrCodeToken;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 

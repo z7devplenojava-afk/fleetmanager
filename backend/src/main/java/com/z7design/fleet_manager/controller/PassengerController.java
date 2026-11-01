@@ -67,4 +67,30 @@ public class PassengerController {
         List<PassengerDTO> passengers = passengerService.getActiveByCompanyId(companyId);
         return ResponseEntity.ok(passengers);
     }
+
+    @GetMapping("/client/{clientId}")
+    @Operation(summary = "Listar passageiros por cliente", description = "Retorna todos os colaboradores/passageiros de um cliente contratante")
+    public ResponseEntity<List<PassengerDTO>> getByClientId(@PathVariable("clientId") UUID clientId) {
+        List<PassengerDTO> passengers = passengerService.getByClientId(clientId);
+        return ResponseEntity.ok(passengers);
+    }
+
+    @PatchMapping("/{id}/toggle-multiple-routes")
+    @Operation(summary = "Habilitar/Desabilitar múltiplas linhas", description = "Permite alternar entre linha fixa (1 ida e 1 volta) ou múltiplas linhas")
+    public ResponseEntity<PassengerDTO> toggleMultipleRoutes(
+            @PathVariable("id") UUID id,
+            @RequestParam("allowed") boolean allowed) {
+        PassengerDTO updated = passengerService.toggleMultipleRoutes(id, allowed);
+        return ResponseEntity.ok(updated);
+    }
+
+    @PatchMapping("/{id}/status")
+    @Operation(summary = "Alterar status do passageiro", description = "Atualiza o status (ATIVO, BLOQUEADO, DEMITIDO). Demitido bloqueia login e embarque imediatamente.")
+    public ResponseEntity<PassengerDTO> updateStatus(
+            @PathVariable("id") UUID id,
+            @RequestParam("status") String status) {
+        PassengerDTO dto = PassengerDTO.builder().status(status).build();
+        PassengerDTO updated = passengerService.update(id, dto);
+        return ResponseEntity.ok(updated);
+    }
 }

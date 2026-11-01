@@ -139,6 +139,10 @@ export const getDashboardRouteForRole = (
     case 'CLIENT_USER':
       return '/portal-cliente';
 
+    case 'PASSAGEIRO':
+    case 'PASSENGER':
+      return '/passageiro';
+
     case 'ADMIN':
     case 'COMPANY_ADMIN':
     case 'FLEX_ADMIN':

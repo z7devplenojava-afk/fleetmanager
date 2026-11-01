@@ -10,6 +10,7 @@ export interface FretamentoCheckinRecord {
   lineName: string;
   vehiclePlate: string;
   driverName?: string;
+  direction?: 'IDA' | 'RETORNO';
   checkinType: 'QR_SCAN_BY_PASSENGER' | 'QR_SCAN_BY_DRIVER' | 'MANUAL_CPF' | 'MANUAL_MATRICULA';
   latitude: number;
   longitude: number;
@@ -89,6 +90,8 @@ export const fretamentoCheckinService = {
     latitude?: number;
     longitude?: number;
     address?: string;
+    tripId?: string;
+    scheduleId?: string;
   }): Promise<FretamentoCheckinRecord> {
     let lat = data.latitude;
     let lng = data.longitude;
@@ -111,8 +114,35 @@ export const fretamentoCheckinService = {
       longitude: lng,
       address: addr,
       timestamp: new Date().toISOString(),
-      synced: navigator.onLine,
+      synced: false,
     };
+
+    // Tentar validação e registro no backend
+    if (navigator.onLine) {
+      try {
+        const payload = {
+          passengerId: data.passengerId,
+          cpf: data.cpf,
+          matricula: data.matricula,
+          tripId: data.tripId,
+          scheduleId: data.scheduleId,
+          latitude: lat,
+          longitude: lng,
+          validationMode: data.checkinType,
+          direction: data.direction || 'IDA',
+          isSyncedOffline: false
+        };
+        await api.post('/api/boardings/validate-qr', payload);
+        record.synced = true;
+      } catch (err: any) {
+        const msg = err?.response?.data?.message || err?.message;
+        // Se foi erro de validação (demitido, bloqueado ou rota não autorizada), lançar erro para feedback visual vermelho
+        if (msg && (msg.includes('RECUSADO') || msg.includes('DEMITIDO') || msg.includes('BLOQUEADO') || msg.includes('não autorizado'))) {
+          throw new Error(msg);
+        }
+        console.warn('Backend indisponível para check-in instantâneo; mantido na fila offline:', err);
+      }
+    }
 
     // Salvar localmente
     const list = this.getHistory();
@@ -123,16 +153,41 @@ export const fretamentoCheckinService = {
       console.error('Erro ao gravar check-in no localStorage:', e);
     }
 
-    // Tentar envio ao backend
-    if (navigator.onLine) {
-      try {
-        await api.post('/fretamento/checkins', record);
-      } catch (err) {
-        console.warn('Backend /fretamento/checkins indisponível; mantido offline:', err);
-      }
-    }
-
     return record;
+  },
+
+  /**
+   * Sincroniza todos os registros acumulados na fila offline
+   */
+  async syncOfflineQueue(): Promise<number> {
+    if (!navigator.onLine) return 0;
+    const list = this.getHistory();
+    const unsynced = list.filter((i) => !i.synced);
+    if (unsynced.length === 0) return 0;
+
+    try {
+      const dtos = unsynced.map((item) => ({
+        passengerId: item.passengerId,
+        passengerName: item.passengerName,
+        passengerCpf: item.cpf,
+        passengerRegistration: item.matricula,
+        boardingLatitude: item.latitude,
+        boardingLongitude: item.longitude,
+        direction: item.direction || 'IDA',
+        validationMode: item.checkinType,
+        isSyncedOffline: true,
+        boardingTime: item.timestamp,
+      }));
+
+      await api.post('/api/boardings/batch-sync', dtos);
+
+      const updated = list.map((i) => ({ ...i, synced: true }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      return unsynced.length;
+    } catch (e) {
+      console.warn('Erro ao sincronizar fila offline de embarques:', e);
+      return 0;
+    }
   },
 
   /**
@@ -157,44 +212,50 @@ export const fretamentoCheckinService = {
       console.error('Erro ao obter histórico de check-ins:', e);
     }
 
-    // Mock inicial enriquecido com dados de exemplo da Viação São Silvestre
-    return [
-      {
-        id: 'chk_mock_1',
-        passengerId: 'p-1',
-        passengerName: 'Carlos Henrique Silva',
-        cpf: '123.456.789-00',
-        matricula: 'FUN-1002',
-        companyName: 'Mineração Vale Verde',
-        lineName: 'Linha Rosa - Serra Verde (Fretado)',
-        vehiclePlate: 'SHZ-3A40',
-        driverName: 'Marcos Oliveira',
-        checkinType: 'QR_SCAN_BY_PASSENGER',
-        latitude: -19.9231,
-        longitude: -43.9458,
-        address: 'Av. Amazonas, 1200 - Centro, Belo Horizonte - MG',
-        timestamp: new Date(Date.now() - 3600000 * 3).toISOString(),
-        synced: true,
-      },
-      {
-        id: 'chk_mock_2',
-        passengerId: 'p-1',
-        passengerName: 'Carlos Henrique Silva',
-        cpf: '123.456.789-00',
-        matricula: 'FUN-1002',
-        companyName: 'Mineração Vale Verde',
-        lineName: 'Linha Rosa - Serra Verde (Fretado)',
-        vehiclePlate: 'SHZ-3A40',
-        driverName: 'Marcos Oliveira',
-        checkinType: 'QR_SCAN_BY_DRIVER',
-        latitude: -19.8214,
-        longitude: -43.9512,
-        address: 'Portaria 1 - Complexo Industrial Serra Verde, MG',
-        timestamp: new Date(Date.now() - 3600000 * 27).toISOString(),
-        synced: true,
-      },
-    ];
+    return [];
   },
+
+  /**
+   * Busca histórico de embarques do passageiro diretamente do backend
+   */
+  async fetchRemoteHistory(): Promise<FretamentoCheckinRecord[]> {
+    try {
+      const res = await api.get('/api/boardings/my-history');
+      if (res.data && Array.isArray(res.data)) {
+        return res.data.map((b: any) => ({
+          id: b.id,
+          passengerId: b.passengerId,
+          passengerName: b.passengerName || 'Passageiro',
+          cpf: b.passengerCpf || '',
+          matricula: b.passengerRegistration || '',
+          companyName: b.clientName || 'Cliente Contratante',
+          lineName: b.routeName || 'Linha Corporativa',
+          vehiclePlate: b.vehiclePlate || 'Veículo Executivo',
+          direction: b.direction || 'IDA',
+          checkinType: (b.validationMode as any) || 'QR_SCAN_BY_PASSENGER',
+          latitude: b.boardingLatitude || -19.9227,
+          longitude: b.boardingLongitude || -43.9451,
+          address: 'Ponto de Embarque Confirmado',
+          timestamp: b.boardingTime || b.createdAt,
+          synced: true,
+        }));
+      }
+    } catch (e) {
+      console.warn('Não foi possível carregar histórico remoto de embarques:', e);
+    }
+    return this.getHistory();
+  }
 };
+
+// Sincronização automática em background ao recuperar conexão
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => {
+    fretamentoCheckinService.syncOfflineQueue().then((count) => {
+      if (count > 0) {
+        console.log(`📡 Sincronizados ${count} embarques offline com o servidor.`);
+      }
+    });
+  });
+}
 
 export default fretamentoCheckinService;

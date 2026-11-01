@@ -22,6 +22,8 @@ public class BoardingDTO {
     @JsonDeserialize(using = BlankStringToNullUuidDeserializer.class)
     private UUID tripId;
     @JsonDeserialize(using = BlankStringToNullUuidDeserializer.class)
+    private UUID scheduleId;
+    @JsonDeserialize(using = BlankStringToNullUuidDeserializer.class)
     private UUID passengerId;
     @JsonDeserialize(using = BlankStringToNullUuidDeserializer.class)
     private UUID vehicleId;
@@ -32,6 +34,20 @@ public class BoardingDTO {
     @JsonDeserialize(using = BlankStringToNullUuidDeserializer.class)
     private UUID boardingPointId;
     private BoardingStatus status;
+    @JsonDeserialize(using = BlankStringToNullUuidDeserializer.class)
+    private UUID companyId;
+    @JsonDeserialize(using = BlankStringToNullUuidDeserializer.class)
+    private UUID clientId;
+    private String clientName;
+    private String passengerName;
+    private String passengerRegistration;
+    private String passengerCpf;
+    private String routeName;
+    private String vehiclePlate;
+    private String driverName;
+    private String direction;
+    private String validationMode;
+    private Boolean isSyncedOffline;
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime createdAt;
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")

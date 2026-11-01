@@ -18,6 +18,21 @@ export const passengerService = {
     return response.data;
   },
 
+  getPassengersByClient: async (clientId: string): Promise<Passenger[]> => {
+    const response = await api.get(`/passengers/client/${clientId}`);
+    return response.data;
+  },
+
+  toggleMultipleRoutes: async (id: string, allowed: boolean): Promise<Passenger> => {
+    const response = await api.patch(`/passengers/${id}/toggle-multiple-routes?allowed=${allowed}`);
+    return response.data;
+  },
+
+  updateStatus: async (id: string, status: string): Promise<Passenger> => {
+    const response = await api.patch(`/passengers/${id}/status?status=${status}`);
+    return response.data;
+  },
+
   getPassengerById: async (id: string): Promise<Passenger> => {
     const response = await api.get(`/passengers/${id}`);
     return response.data;
@@ -72,7 +87,7 @@ export const passengerService = {
     try {
       const response = await api.get(`/disembarkings/boarding/${boardingId}`);
       return response.data;
-    } catch (error) {
+    } catch {
       return null;
     }
   },

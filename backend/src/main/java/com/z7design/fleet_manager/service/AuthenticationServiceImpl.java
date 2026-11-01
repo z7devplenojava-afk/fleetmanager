@@ -30,6 +30,8 @@ import com.z7design.fleet_manager.repository.UserRepository;
 import com.z7design.fleet_manager.repository.RoleRepository;
 import com.z7design.fleet_manager.repository.EmployeeRepository;
 import com.z7design.fleet_manager.repository.CompanyRepository;
+import com.z7design.fleet_manager.repository.PassengerRepository;
+import com.z7design.fleet_manager.model.Passenger;
 import com.z7design.fleet_manager.security.JwtService;
 
 import lombok.RequiredArgsConstructor;
@@ -43,6 +45,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final EmployeeRepository employeeRepository;
+    private final PassengerRepository passengerRepository;
     private final CompanyRepository companyRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
@@ -148,8 +151,20 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                     .orElse(null);
 
             if (user == null) {
-                // Verificar se é funcionário cadastrado no RH sem usuário/senha criada
-                if (cleanDigits.length() >= 11) {
+                // 1. Verificar se é passageiro (colaborador de cliente contratante)
+                var passOpt = (cleanDigits.length() >= 11 ? passengerRepository.findByCleanCpfNative(cleanDigits) : java.util.Optional.<Passenger>empty())
+                        .or(() -> passengerRepository.findByRegistrationIgnoreCase(target));
+                if (passOpt.isPresent()) {
+                    Passenger pass = passOpt.get();
+                    if ("DEMITIDO".equalsIgnoreCase(pass.getStatus()) || "BLOQUEADO".equalsIgnoreCase(pass.getStatus()) || Boolean.FALSE.equals(pass.getActive())) {
+                        throw new org.springframework.security.authentication.LockedException(
+                                "Acesso bloqueado: o cadastro do passageiro " + pass.getName() + " está " + (pass.getStatus() != null ? pass.getStatus() : "INATIVO") + " no sistema.");
+                    }
+                    user = createOrLinkPassengerUser(pass, request.getPassword());
+                }
+
+                // 2. Verificar se é funcionário da transportadora cadastrado no RH sem usuário/senha criada
+                if (user == null && cleanDigits.length() >= 11) {
                     var empOpt = employeeRepository.findByCpf(cleanDigits);
                     if (empOpt.isPresent()) {
                         var emp = empOpt.get();
@@ -158,7 +173,10 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                                 "Colaborador " + emp.getName() + " cadastrado, mas sua senha de acesso ainda não foi configurada. Por favor, realize o Primeiro Acesso para definir sua senha.") {};
                     }
                 }
-                throw new org.springframework.security.core.userdetails.UsernameNotFoundException("Usuário não encontrado: " + target);
+
+                if (user == null) {
+                    throw new org.springframework.security.core.userdetails.UsernameNotFoundException("Usuário não encontrado: " + target);
+                }
             }
 
             // Usar o username canônico do User no authenticationManager
@@ -537,6 +555,32 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             effectiveRoles.add("MOTORISTA");
         }
 
+        UUID passengerId = null;
+        UUID clientId = null;
+        String clientName = null;
+        try {
+            var passOpt = passengerRepository.findByUserIdNative(user.getId());
+            if (passOpt.isEmpty() && user.getCpf() != null) {
+                String clean = user.getCpf().replaceAll("\\D", "");
+                if (!clean.isEmpty()) {
+                    passOpt = passengerRepository.findByCleanCpfNative(clean);
+                }
+            }
+            if (passOpt.isPresent()) {
+                Passenger p = passOpt.get();
+                passengerId = p.getId();
+                clientId = p.getClientId();
+                if (p.getClient() != null) {
+                    clientName = p.getClient().getName();
+                }
+                if (!effectiveRoles.contains("PASSAGEIRO")) {
+                    effectiveRoles.add("PASSAGEIRO");
+                }
+            }
+        } catch (Exception ex) {
+            log.warn("⚠️ Erro ao resolver vínculo de passageiro para UserResponse: {}", ex.getMessage());
+        }
+
         return UserResponse.builder()
                 .id(user.getId() != null ? user.getId().toString() : null)
                 .username(user.getUsername())
@@ -548,6 +592,11 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .position(position)
                 .department(department)
                 .isDriver(isDriver)
+                .requirePasswordChange(user.getRequirePasswordChange())
+                .firstAccessCompleted(user.getFirstAccessCompleted())
+                .passengerId(passengerId)
+                .clientId(clientId)
+                .clientName(clientName)
                 .build();
     }
 }

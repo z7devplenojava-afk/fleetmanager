@@ -246,68 +246,87 @@ const DriverTripExecution: React.FC = () => {
         const geo = await getCurrentGeoPosition();
         const address = await reverseGeocode(geo.latitude, geo.longitude);
 
-        if (target) {
-            setPassengers(prev => prev.map(p => 
-                p.id === target.id 
-                    ? { ...p, boarded: true, time: nowTime, address, direction: tripDirection, synced: isOnline } 
-                    : p
-            ));
+        try {
+            if (target) {
+                // Tenta registrar e validar no backend
+                await fretamentoCheckinService.registerCheckin({
+                    passengerId: target.id,
+                    passengerName: target.name,
+                    cpf: target.cpf || '000.000.000-00',
+                    matricula: target.matricula || 'MAT-000',
+                    companyName: target.company || 'Empresa Contratante',
+                    lineName: routeName,
+                    vehiclePlate,
+                    driverName: 'Motorista VSS',
+                    direction: tripDirection,
+                    checkinType: type,
+                    latitude: geo.latitude,
+                    longitude: geo.longitude,
+                    address,
+                    scheduleId,
+                });
 
-            // Grava no serviço global de check-ins
-            await fretamentoCheckinService.registerCheckin({
-                passengerId: target.id,
-                passengerName: target.name,
-                cpf: target.cpf || '000.000.000-00',
-                matricula: target.matricula || 'MAT-000',
-                companyName: target.company || 'Empresa Contratante',
-                lineName: routeName,
-                vehiclePlate,
-                driverName: 'Motorista VSS',
-                checkinType: type,
-                latitude: geo.latitude,
-                longitude: geo.longitude,
-                address,
-            });
+                setPassengers(prev => prev.map(p => 
+                    p.id === target.id 
+                        ? { ...p, boarded: true, time: nowTime, address, direction: tripDirection, synced: isOnline } 
+                        : p
+                ));
 
+                toast({
+                    title: '✅ Check-in Confirmado!',
+                    description: `${target.name} embarcou às ${nowTime}. Local: ${address}`,
+                });
+            } else {
+                // Embarque avulso / Validação direta de QR
+                const displayName = passengerName || (cleanRaw.length === 11 ? `CPF: ${raw}` : `Matrícula: ${raw}`);
+
+                await fretamentoCheckinService.registerCheckin({
+                    passengerId: matchedId || `guest-${Date.now()}`,
+                    passengerName: displayName,
+                    cpf: cleanRaw.length === 11 ? raw : '000.000.000-00',
+                    matricula: cleanRaw.length !== 11 ? raw : 'MAT-AVULSO',
+                    companyName: 'Cliente Fretamento',
+                    lineName: routeName,
+                    vehiclePlate,
+                    driverName: 'Motorista VSS',
+                    direction: tripDirection,
+                    checkinType: type,
+                    latitude: geo.latitude,
+                    longitude: geo.longitude,
+                    address,
+                    scheduleId,
+                });
+
+                const newPassenger: PassengerBoardingItem = {
+                    id: matchedId || `guest-${Date.now()}`,
+                    name: displayName,
+                    company: 'Embarque Confirmado',
+                    boarded: true,
+                    time: nowTime,
+                    address,
+                    pointName: 'Embarque Validado pelo Motorista',
+                    direction: tripDirection,
+                    synced: isOnline,
+                };
+                setPassengers(prev => [newPassenger, ...prev]);
+
+                toast({
+                    title: '⚡ Embarque Validado!',
+                    description: `${displayName} registrado às ${nowTime} em: ${address}`,
+                });
+            }
+        } catch (err: any) {
+            const errorMsg = err.message || 'Falha ao registrar embarque.';
+            console.error('Embarque bloqueado:', errorMsg);
             toast({
-                title: '✅ Check-in Confirmado!',
-                description: `${target.name} embarcou às ${nowTime}. Local: ${address}`,
+                title: '🚫 EMBARQUE RECUSADO',
+                description: errorMsg,
+                variant: 'destructive',
             });
-        } else {
-            // Embarque avulso
-            const displayName = passengerName || (cleanRaw.length === 11 ? `CPF: ${raw}` : `Matrícula: ${raw}`);
-            const newPassenger: PassengerBoardingItem = {
-                id: `guest-${Date.now()}`,
-                name: displayName,
-                company: 'Embarque Confirmado',
-                boarded: true,
-                time: nowTime,
-                address,
-                pointName: 'Embarque Validado pelo Motorista',
-                direction: tripDirection,
-                synced: isOnline,
-            };
-            setPassengers(prev => [newPassenger, ...prev]);
-
-            await fretamentoCheckinService.registerCheckin({
-                passengerId: newPassenger.id,
-                passengerName: displayName,
-                cpf: cleanRaw.length === 11 ? raw : '000.000.000-00',
-                matricula: cleanRaw.length !== 11 ? raw : 'MAT-AVULSO',
-                companyName: 'Cliente Fretamento',
-                lineName: routeName,
-                vehiclePlate,
-                driverName: 'Motorista VSS',
-                checkinType: type,
-                latitude: geo.latitude,
-                longitude: geo.longitude,
-                address,
-            });
-
-            toast({
-                title: '⚡ Embarque Validado!',
-                description: `${displayName} registrado às ${nowTime} em: ${address}`,
-            });
+            // Alerta sonoro / vibração de bloqueio no dispositivo do motorista
+            if (navigator.vibrate) {
+                navigator.vibrate([200, 100, 200, 100, 400]);
+            }
         }
 
         setIsScannerOpen(false);

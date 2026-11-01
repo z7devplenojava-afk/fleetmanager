@@ -46,5 +46,10 @@ public enum UserRole {
     ASSISTENTE_LIMPEZA, // 🧹 Assistente de Limpeza
     LAVADOR, // 🚿 Lavador
     ASSISTENTE_FINANCEIRO, // 💰 Assistente Financeiro
-    CLIENT_MANAGER // 📱 Gestor de Contrato (Cliente Final)
+    CLIENT_MANAGER, // 📱 Gestor de Contrato (Cliente Final)
+    PASSAGEIRO, // 🎟️ Passageiro / Funcionário do Cliente
+    PASSENGER, // 🎟️ Alias Passageiro
+    GESTOR_RH, // 👥 Gestor de RH
+    ASSISTENTE_RH, // 👥 Assistente de RH
+    ASSISTENTE_DP // 📄 Assistente de Departamento Pessoal
 }

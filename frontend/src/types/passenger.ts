@@ -4,11 +4,21 @@ export interface Passenger {
   name: string;
   employeeId?: string;
   companyId?: string;
+  clientId?: string;
+  clientName?: string;
+  userId?: string;
   routeId?: string;
+  routeName?: string;
   boardingPointId?: string;
-  disembarkPointId?: string;
+  boardingPointName?: string;
+  returnRouteId?: string;
+  returnRouteName?: string;
+  returnBoardingPointId?: string;
+  returnBoardingPointName?: string;
   shift?: string;
   active: boolean;
+  status?: string; // 'ATIVO' | 'BLOQUEADO' | 'DEMITIDO' | 'INATIVO'
+  multipleRoutesAllowed?: boolean;
   costCenter?: string;
   cpf?: string;
   phone?: string;
@@ -18,6 +28,7 @@ export interface Passenger {
   /** HH:mm:ss */
   preferredTime?: string;
   notificationsEnabled?: boolean;
+  qrCodeToken?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -34,6 +45,9 @@ export interface Boarding {
   boardingLongitude?: number;
   boardingPointId?: string;
   status: BoardingStatus;
+  direction?: string;
+  validationMode?: string;
+  isSyncedOffline?: boolean;
   createdAt: string;
   updatedAt: string;
 }
