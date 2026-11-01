@@ -16,6 +16,8 @@ import com.z7design.fleet_manager.model.enums.BoardingStatus;
 import com.z7design.fleet_manager.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.jpa.domain.Specification;
+import jakarta.persistence.criteria.Predicate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -311,11 +313,37 @@ public class BoardingService {
         return list.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
+    private Specification<Boarding> buildFilterSpecification(UUID companyId, UUID clientId, UUID passengerId, LocalDateTime start, LocalDateTime end) {
+        return (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (companyId != null) {
+                predicates.add(cb.equal(root.get("companyId"), companyId));
+            }
+            if (clientId != null) {
+                predicates.add(cb.equal(root.get("clientId"), clientId));
+            }
+            if (passengerId != null) {
+                predicates.add(cb.equal(root.get("passenger").get("id"), passengerId));
+            }
+            if (start != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("boardingTime"), start));
+            }
+            if (end != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("boardingTime"), end));
+            }
+
+            query.orderBy(cb.desc(root.get("boardingTime")));
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+    }
+
     /**
      * Listagem filtrada para a Gestão de Embarques do Gestor de Tráfego e RH
      */
     public List<BoardingDTO> getFilteredBoardings(UUID companyId, UUID clientId, UUID passengerId, LocalDateTime start, LocalDateTime end) {
-        List<Boarding> list = boardingRepository.findFiltered(companyId, clientId, passengerId, start, end);
+        Specification<Boarding> spec = buildFilterSpecification(companyId, clientId, passengerId, start, end);
+        List<Boarding> list = boardingRepository.findAll(spec);
         return list.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
@@ -324,7 +352,8 @@ public class BoardingService {
      */
     public byte[] generatePdfReport(UUID companyId, UUID clientId, UUID passengerId, LocalDateTime start, LocalDateTime end) {
         try {
-            List<Boarding> boardings = boardingRepository.findFiltered(companyId, clientId, passengerId, start, end);
+            Specification<Boarding> spec = buildFilterSpecification(companyId, clientId, passengerId, start, end);
+            List<Boarding> boardings = boardingRepository.findAll(spec);
             Company company = companyId != null ? companyRepository.findById(companyId).orElse(null) : null;
             Client client = clientId != null ? clientRepository.findById(clientId).orElse(null) : null;
 
