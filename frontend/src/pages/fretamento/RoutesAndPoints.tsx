@@ -650,8 +650,22 @@ const RoutesAndPoints: React.FC = () => {
         const fetchPassengers = async () => {
             try {
                 setLoadingPassengers(true);
-                const res = await api.get(`/api/passengers/client/${formData.clientId}`);
-                const data: any[] = res.data || [];
+                let data: any[] = [];
+                try {
+                    const res = await api.get(`/passengers/client/${formData.clientId}`);
+                    data = res.data || [];
+                } catch (e: any) {
+                    // Fallback gracioso caso o backend Spring Boot ainda não tenha sido reiniciado com o novo endpoint
+                    if (e?.response?.status === 404) {
+                        try {
+                            const resAll = await api.get('/passengers');
+                            const all = Array.isArray(resAll.data) ? resAll.data : [];
+                            data = all.filter((p: any) => p.clientId === formData.clientId);
+                        } catch {
+                            data = [];
+                        }
+                    }
+                }
                 setClientPassengers(data);
                 if (selectedRoute?.id) {
                     const assigned = data
