@@ -86,7 +86,7 @@ const DriverTripExecution: React.FC = () => {
 
     // Fases da viagem
     const [tripPhase, setTripPhase] = useState<TripPhase>('PREPARATION');
-    const [isRouteValidated, setIsRouteValidated] = useState(false);
+    const [isRouteValidated, setIsRouteValidated] = useState(true);
     const [isRouteValidationModalOpen, setIsRouteValidationModalOpen] = useState(false);
 
     // Dados da Rota e Veículo
@@ -183,16 +183,6 @@ const DriverTripExecution: React.FC = () => {
 
     // Início da viagem comercial
     const handleStartTrip = () => {
-        if (!isRouteValidated) {
-            toast({
-                title: 'Validação da Rota Obrigatória',
-                description: 'Por favor, clique em "Validar Rota" antes de iniciar a viagem.',
-                variant: 'destructive',
-            });
-            setIsRouteValidationModalOpen(true);
-            return;
-        }
-
         if (!kmStart || kmStart <= 0) {
             toast({
                 title: 'KM Inicial Obrigatório',
@@ -453,7 +443,7 @@ const DriverTripExecution: React.FC = () => {
                                     }`}
                                 >
                                     <Eye className="h-3.5 w-3.5 mr-1" />
-                                    {isRouteValidated ? 'Rever Rota' : 'Validar Rota'}
+                                    'Visualizar Rota'
                                 </Button>
                             </div>
                         </div>
@@ -483,7 +473,7 @@ const DriverTripExecution: React.FC = () => {
                     <div className="space-y-2">
                         <Button
                             size="lg"
-                            disabled={!isRouteValidated}
+                            
                             onClick={handleStartTrip}
                             className={`w-full text-white font-black py-4 rounded-2xl shadow-xl text-base uppercase tracking-wider transition-all ${
                                 isRouteValidated
@@ -492,7 +482,7 @@ const DriverTripExecution: React.FC = () => {
                             }`}
                         >
                             <Play className="h-5 w-5 mr-2 fill-current" />
-                            {isRouteValidated ? 'Iniciar Viagem' : 'Valide a Rota para Iniciar'}
+                            'Iniciar Viagem'
                         </Button>
                         {!isRouteValidated && (
                             <p className="text-center text-xs text-amber-400/90 font-medium flex items-center justify-center gap-1.5">

@@ -55,6 +55,9 @@ public class RouteDTO {
     private Double garageLatitude;
     private Double garageLongitude;
     private String garageName;
+    private String direction;
+    private String checkinType;
+    private Boolean returnSamePassengers;
 
     private List<BoardingPointDTO> points;
 
@@ -135,6 +138,9 @@ public class RouteDTO {
                 .garageLatitude(r.getGarageLatitude())
                 .garageLongitude(r.getGarageLongitude())
                 .garageName(r.getGarageName())
+                .direction(r.getDirection())
+                .checkinType(r.getCheckinType())
+                .returnSamePassengers(r.getReturnSamePassengers())
                 .points(pointsList)
                 .createdAt(r.getCreatedAt())
                 .updatedAt(r.getUpdatedAt())

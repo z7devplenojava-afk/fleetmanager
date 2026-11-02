@@ -882,15 +882,31 @@ public class StockNfeService {
             }
         }
 
-        // 4. Razão social / Nome do emitente a partir do texto
+                // 4. Razão social / Nome do emitente a partir do texto
         if ((info.name == null || info.name.isBlank()) && cnpjIdx >= 0) {
             // Linhas acima do CNPJ, ignorando títulos, labels e endereços
-            for (int i = cnpjIdx - 1; i >= 0 && i >= cnpjIdx - 5; i--) {
+            for (int i = cnpjIdx - 1; i >= 0; i--) {
                 String candidate = lines.get(i);
                 if (isDanfeLabel(candidate) || isDocumentTitle(candidate) || isAddressLine(candidate)) {
                     if (isAddressLine(candidate) && info.address.isEmpty()) {
                         info.address = candidate;
                     }
+                    continue;
+                }
+                String cleaned = cleanSupplierCandidate(candidate);
+                if (!cleaned.isEmpty() && containsLetters(cleaned) && cleaned.length() >= 3) {
+                    info.name = cleaned;
+                    info.tradeName = cleaned;
+                    break;
+                }
+            }
+        }
+
+        // 4.1 Se ainda não identificou, busca nas primeiras linhas do cabeçalho da DANFE
+        if ((info.name == null || info.name.isBlank()) && !lines.isEmpty()) {
+            for (int i = 0; i < Math.min(lines.size(), 10); i++) {
+                String candidate = lines.get(i);
+                if (isDanfeLabel(candidate) || isDocumentTitle(candidate) || isAddressLine(candidate) || candidate.matches("^[\\d./\\s-]+$")) {
                     continue;
                 }
                 String cleaned = cleanSupplierCandidate(candidate);
@@ -1037,7 +1053,7 @@ public class StockNfeService {
                 "CNPJ", "CPF", "INSC EST", "INSCRICAO ESTADUAL", "FONE",
                 "DADOS DO PRODUTO", "DADOS DOS PRODUTOS", "DADOS DOS SERVICOS",
                 "CALCULO DO IMPOSTO", "TRANSPORTADOR", "DADOS ADICIONAIS",
-                "VALOR TOTAL", "BASE DE CALCULO", "PAGAMENTO", "FOLHA"
+                "VALOR TOTAL", "BASE DE CALCULO", "PAGAMENTO", "FOLHA", "NATUREZA DA OPERACAO", "NATUREZA DE OPERACAO", "VENDA", "REMESSA", "COMPRA", "DEVOLUCAO"
         );
         return upper.isEmpty() || labels.contains(upper);
     }

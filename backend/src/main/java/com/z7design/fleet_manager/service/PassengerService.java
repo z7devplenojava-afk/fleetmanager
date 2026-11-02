@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Set;
+import java.util.LinkedHashSet;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -160,14 +162,62 @@ public class PassengerService {
         return passengers.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
-    public List<PassengerDTO> getByRouteId(UUID routeId) {
-        List<Passenger> passengers = passengerRepository.findByRouteId(routeId);
-        return passengers.stream().map(this::toDTO).collect(Collectors.toList());
+        public List<PassengerDTO> getByRouteId(UUID routeId) {
+        return getByRouteIdAndDirection(routeId, null);
+    }
+
+    public List<PassengerDTO> getByRouteIdAndDirection(UUID routeId, String direction) {
+        List<Passenger> ida = passengerRepository.findByRouteId(routeId);
+        List<Passenger> volta = passengerRepository.findByReturnRouteId(routeId);
+        
+        Set<Passenger> set = new LinkedHashSet<>();
+        if (direction != null && direction.equalsIgnoreCase("RETORNO")) {
+            set.addAll(volta);
+            if (set.isEmpty()) {
+                set.addAll(ida);
+            }
+        } else if (direction != null && direction.equalsIgnoreCase("IDA")) {
+            set.addAll(ida);
+        } else {
+            set.addAll(ida);
+            set.addAll(volta);
+        }
+
+        return set.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
     public List<PassengerDTO> getActiveByCompanyId(UUID companyId) {
         List<Passenger> passengers = passengerRepository.findByActiveTrueAndCompanyId(companyId);
         return passengers.stream().map(this::toDTO).collect(Collectors.toList());
+    }
+
+    @Transactional
+    public int assignPassengersToRoute(UUID routeId, List<UUID> passengerIds, String direction, Boolean returnSame) {
+        if (routeId == null || passengerIds == null || passengerIds.isEmpty()) {
+            return 0;
+        }
+        Route route = routeRepository.findById(routeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Rota não encontrada"));
+        List<Passenger> passengers = passengerRepository.findAllById(passengerIds);
+        boolean applyReturn = returnSame == null || Boolean.TRUE.equals(returnSame);
+
+        for (Passenger p : passengers) {
+            if ("RETORNO".equalsIgnoreCase(direction)) {
+                p.setReturnRoute(route);
+            } else if ("AMBOS".equalsIgnoreCase(direction)) {
+                p.setRoute(route);
+                if (applyReturn) {
+                    p.setReturnRoute(route);
+                }
+            } else {
+                p.setRoute(route);
+                if (applyReturn) {
+                    p.setReturnRoute(route);
+                }
+            }
+        }
+        passengerRepository.saveAll(passengers);
+        return passengers.size();
     }
 
     public List<PassengerDTO> getByClientId(UUID clientId) {

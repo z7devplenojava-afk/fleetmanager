@@ -136,7 +136,7 @@ export const DriverRouteTrajectoryMap: React.FC<DriverRouteTrajectoryMapProps> =
 
     const drawLeg = async (leg: TrajectoryLeg) => {
       const isIda = leg.direction === 'IDA';
-      const primaryColor = isIda ? '#10b981' : '#f59e0b'; // Verde Esmeralda para IDA, Âmbar/Laranja para RETORNO
+      const primaryColor = isIda ? '#15803d' : '#7e22ce'; // Verde Bandeira para IDA, Roxa para RETORNO // Verde Esmeralda para IDA, Âmbar/Laranja para RETORNO
 
       const startIcon = L.divIcon({
         className: 'custom-driver-pin',
@@ -295,8 +295,8 @@ export const DriverRouteTrajectoryMap: React.FC<DriverRouteTrajectoryMapProps> =
             onClick={() => setDirectionFilter('RETORNO')}
             className={`min-h-[40px] px-2.5 py-1.5 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1.5 text-center leading-tight ${
               directionFilter === 'RETORNO'
-                ? 'bg-amber-500 text-slate-950 shadow-sm'
-                : 'text-amber-400 hover:bg-amber-500/10'
+                ? 'bg-purple-600 text-white shadow-sm'
+                : 'text-purple-400 hover:bg-purple-500/10'
             }`}
           >
             <span className="w-2 h-2 rounded-full bg-current shrink-0" />
@@ -331,14 +331,14 @@ export const DriverRouteTrajectoryMap: React.FC<DriverRouteTrajectoryMapProps> =
                 className={`rounded-xl p-3 border text-xs space-y-2 ${
                   isIda
                     ? 'bg-emerald-950/20 border-emerald-500/30'
-                    : 'bg-amber-950/20 border-amber-500/30'
+                    : 'bg-purple-950/30 border-purple-500/40'
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 font-bold text-white truncate">
                     <span
                       className={`px-2 py-0.5 rounded text-[10px] font-black ${
-                        isIda ? 'bg-emerald-500 text-slate-950' : 'bg-amber-500 text-slate-950'
+                        isIda ? 'bg-emerald-500 text-slate-950' : 'bg-purple-600 text-white'
                       }`}
                     >
                       SENTIDO {leg.direction}

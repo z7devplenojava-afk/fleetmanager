@@ -16,7 +16,8 @@ import {
     Download,
     Eye,
     Wrench,
-    FileText
+    FileText,
+    QrCode
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -36,6 +37,7 @@ import {
 } from '@/services/scheduleService';
 import { ParteDiariaModal } from '@/components/financeiro/ParteDiariaModal';
 import { DriverDailyScheduleBoard } from '@/components/driver/DriverDailyScheduleBoard';
+import { DriverBoardingPanelModal } from '@/components/driver/DriverBoardingPanelModal';
 import api from '@/lib/axios';
 import { format, parseISO, startOfMonth, endOfMonth, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -71,6 +73,13 @@ const DriverDashboard: React.FC = () => {
     const [schedulesError, setSchedulesError] = useState<string | null>(null);
     const [pdfLoading, setPdfLoading] = useState<'view' | 'download' | null>(null);
     const [isParteDiariaModalOpen, setIsParteDiariaModalOpen] = useState(false);
+    const [isBoardingModalOpen, setIsBoardingModalOpen] = useState(false);
+    const [selectedScheduleForBoarding, setSelectedScheduleForBoarding] = useState<Schedule | null>(null);
+
+    const handleOpenBoardingPanel = (sched: Schedule) => {
+        setSelectedScheduleForBoarding(sched);
+        setIsBoardingModalOpen(true);
+    };
 
     useEffect(() => {
         loadDriverFines();
@@ -587,7 +596,16 @@ const DriverDashboard: React.FC = () => {
                                                             )}
                                                         </p>
                                                     </div>
-                                                    <div className="grid grid-cols-2 sm:flex items-center gap-2 w-full sm:w-auto shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/50">
+                                                    <div className="grid grid-cols-1 sm:flex items-center gap-2 w-full sm:w-auto shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/50">
+                                                        <Button
+                                                            size="sm"
+                                                            onClick={() => handleOpenBoardingPanel(schedule)}
+                                                            className="w-full sm:w-auto h-9 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white text-xs font-bold justify-center flex items-center gap-1.5 shadow-md shadow-emerald-950/20"
+                                                            title="Confirmar embarque através de leitura de QR Code do passageiro"
+                                                        >
+                                                            <QrCode className="h-4 w-4" />
+                                                            <span>Confirmar Embarque (QR Code)</span>
+                                                        </Button>
                                                         <Button
                                                             size="sm"
                                                             onClick={() => navigate('/rh/ponto-eletronico')}
@@ -653,6 +671,12 @@ const DriverDashboard: React.FC = () => {
                 }}
                 initialDriverName={user?.name}
                 initialDriverId={user?.id}
+            />
+                    <DriverBoardingPanelModal
+                open={isBoardingModalOpen}
+                onOpenChange={setIsBoardingModalOpen}
+                schedule={selectedScheduleForBoarding}
+                driverName={user?.name}
             />
         </StandardLayout>
     );

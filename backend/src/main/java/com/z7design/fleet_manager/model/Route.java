@@ -83,6 +83,18 @@ public class Route implements TenantAware {
     @Column(name = "default_radius_meters")
     private Integer defaultRadiusMeters = 50;
 
+    /** Sentido da rota: IDA, RETORNO ou AMBOS */
+    @Column(name = "direction", length = 20)
+    private String direction = "IDA";
+
+    /** Tipo de check-in: CHECKIN_LIVRE ou LISTA_FECHADA */
+    @Column(name = "checkin_type", length = 30)
+    private String checkinType = "CHECKIN_LIVRE";
+
+    /** Se bidirecional com lista fechada, se a lista do retorno e a mesma da ida */
+    @Column(name = "return_same_passengers")
+    private Boolean returnSamePassengers = true;
+
     // Campos estendidos para CEP, endereço, turno, etc.
     @Column(name = "origin_cep", length = 10)
     private String originCep;

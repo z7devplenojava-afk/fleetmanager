@@ -69,6 +69,7 @@ import {
     Sparkles,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import api from '@/lib/axios';
 import { routeService, Route, RoutePoint } from '@/services/routeService';
 import clientService from '@/services/clientService';
 import { OpenMapInteractive } from '@/components/routes/OpenMapInteractive';
@@ -133,7 +134,15 @@ const RoutesAndPoints: React.FC = () => {
         color: '',
         status: 'ATIVA',
         capacity: 0,
+        direction: 'IDA' as 'IDA' | 'RETORNO' | 'AMBOS',
+        checkinType: 'CHECKIN_LIVRE' as 'CHECKIN_LIVRE' | 'LISTA_FECHADA',
+        returnSamePassengers: true,
     });
+
+    const [clientPassengers, setClientPassengers] = useState<any[]>([]);
+    const [selectedPassengerIds, setSelectedPassengerIds] = useState<string[]>([]);
+    const [loadingPassengers, setLoadingPassengers] = useState(false);
+    const [passengerFilter, setPassengerFilter] = useState('');
 
     // Points management
     const [routePoints, setRoutePoints] = useState<RoutePoint[]>([]);
@@ -632,6 +641,33 @@ const RoutesAndPoints: React.FC = () => {
         loadData();
     }, []);
 
+    useEffect(() => {
+        if (!formData.clientId) {
+            setClientPassengers([]);
+            setSelectedPassengerIds([]);
+            return;
+        }
+        const fetchPassengers = async () => {
+            try {
+                setLoadingPassengers(true);
+                const res = await api.get(/api/passengers/client/ + formData.clientId);
+                const data: any[] = res.data || [];
+                setClientPassengers(data);
+                if (selectedRoute?.id) {
+                    const assigned = data
+                        .filter(p => p.routeId === selectedRoute.id || p.returnRouteId === selectedRoute.id)
+                        .map(p => p.id);
+                    setSelectedPassengerIds(assigned);
+                }
+            } catch (err) {
+                console.warn('Erro ao carregar colaboradores do cliente:', err);
+            } finally {
+                setLoadingPassengers(false);
+            }
+        };
+        fetchPassengers();
+    }, [formData.clientId, selectedRoute?.id]);
+
     // Apply filters
     useEffect(() => {
         applyFilters();
@@ -709,10 +745,14 @@ const RoutesAndPoints: React.FC = () => {
             checkpointsRequired: false,
             geofenceEnabled: false,
             defaultRadiusMeters: 50,
-            color: '',
+            color: '#15803d',
             status: 'ATIVA',
             capacity: 0,
+            direction: 'IDA',
+            checkinType: 'CHECKIN_LIVRE',
+            returnSamePassengers: true,
         });
+        setSelectedPassengerIds([]);
         setRoutePoints([]);
         setActiveTab('form');
     };
@@ -739,9 +779,12 @@ const RoutesAndPoints: React.FC = () => {
             checkpointsRequired: route.checkpointsRequired,
             geofenceEnabled: route.geofenceEnabled,
             defaultRadiusMeters: route.defaultRadiusMeters || 50,
-            color: r.color || '',
+            color: r.color || (r.direction === 'RETORNO' ? '#7e22ce' : '#15803d'),
             status: r.status || 'ATIVA',
             capacity: r.capacity || 0,
+            direction: (r.direction as any) || 'IDA',
+            checkinType: (r.checkinType as any) || 'CHECKIN_LIVRE',
+            returnSamePassengers: r.returnSamePassengers !== false,
         });
         setRoutePoints(route.points || []);
         setActiveTab('form');
@@ -769,9 +812,12 @@ const RoutesAndPoints: React.FC = () => {
             checkpointsRequired: route.checkpointsRequired,
             geofenceEnabled: route.geofenceEnabled,
             defaultRadiusMeters: route.defaultRadiusMeters || 50,
-            color: r.color || '',
+            color: r.color || (r.direction === 'RETORNO' ? '#7e22ce' : '#15803d'),
             status: r.status || 'ATIVA',
             capacity: r.capacity || 0,
+            direction: (r.direction as any) || 'IDA',
+            checkinType: (r.checkinType as any) || 'CHECKIN_LIVRE',
+            returnSamePassengers: r.returnSamePassengers !== false,
         });
         setRoutePoints(route.points || []);
         setActiveTab('form');
@@ -877,9 +923,12 @@ const RoutesAndPoints: React.FC = () => {
                 checkpointsRequired: formData.checkpointsRequired,
                 geofenceEnabled: formData.geofenceEnabled,
                 defaultRadiusMeters: formData.defaultRadiusMeters,
-                color: formData.color || null,
+                color: formData.color || (formData.direction === 'RETORNO' ? '#7e22ce' : '#15803d'),
                 status: formData.status || 'ATIVA',
                 capacity: formData.capacity > 0 ? formData.capacity : null,
+                direction: formData.direction || 'IDA',
+                checkinType: formData.checkinType || 'CHECKIN_LIVRE',
+                returnSamePassengers: formData.returnSamePassengers ?? true,
                 points: routePoints.map((p, idx) => ({
                     ...p,
                     order: idx,
@@ -889,8 +938,10 @@ const RoutesAndPoints: React.FC = () => {
             // Enviar client se selecionado (clientId é um UUID real vindo do backend)
             if (formData.clientId) data.client = { id: formData.clientId };
 
+            let savedRouteId = selectedRoute?.id;
             if (modalMode === 'create') {
-                await routeService.createRoute(data);
+                const created: any = await routeService.createRoute(data);
+                savedRouteId = created?.id;
                 toast({
                     title: 'Sucesso',
                     description: 'Rota criada com sucesso',
@@ -901,6 +952,19 @@ const RoutesAndPoints: React.FC = () => {
                     title: 'Sucesso',
                     description: 'Rota atualizada com sucesso',
                 });
+            }
+
+            if (savedRouteId && formData.checkinType === 'LISTA_FECHADA' && selectedPassengerIds.length > 0) {
+                try {
+                    await api.post('/api/passengers/assign-route', {
+                        routeId: savedRouteId,
+                        passengerIds: selectedPassengerIds,
+                        direction: formData.direction || 'IDA',
+                        returnSame: formData.returnSamePassengers
+                    });
+                } catch (assignErr) {
+                    console.warn('Falha ao vincular colaboradores à rota:', assignErr);
+                }
             }
 
             setActiveTab('list');
@@ -1843,6 +1907,173 @@ const RoutesAndPoints: React.FC = () => {
                                                 </SelectContent>
                                             </Select>
                                         </div>
+
+                                        {/* Row 9: Sentido da Rota & Modalidade de Check-in */}
+                                        <div className="space-y-2">
+                                            <Label className="text-gray-300 text-xs font-semibold uppercase tracking-wider flex items-center justify-between">
+                                                <span>Sentido da Rota</span>
+                                                <Badge variant="outline" className={formData.direction === 'RETORNO' ? 'border-purple-500/50 text-purple-400 text-[10px]' : 'border-emerald-500/50 text-emerald-400 text-[10px]'}>
+                                                    {formData.direction === 'RETORNO' ? 'Roxo (#7e22ce)' : formData.direction === 'AMBOS' ? 'Ida & Volta' : 'Verde Bandeira (#15803d)'}
+                                                </Badge>
+                                            </Label>
+                                            <Select
+                                                value={formData.direction || 'IDA'}
+                                                onValueChange={(v: 'IDA' | 'RETORNO' | 'AMBOS') => {
+                                                    const newColor = v === 'RETORNO' ? '#7e22ce' : '#15803d';
+                                                    setFormData({ ...formData, direction: v, color: formData.color ? formData.color : newColor });
+                                                }}
+                                                disabled={modalMode === 'view'}
+                                            >
+                                                <SelectTrigger className="bg-seguranca-black border-gray-600 text-gray-200 h-11">
+                                                    <SelectValue placeholder="Selecione o sentido" />
+                                                </SelectTrigger>
+                                                <SelectContent className="bg-seguranca-graphite border-gray-600">
+                                                    <SelectItem value="IDA">🟢 Sentido IDA (Verde Bandeira)</SelectItem>
+                                                    <SelectItem value="RETORNO">🟣 Sentido RETORNO (Roxo)</SelectItem>
+                                                    <SelectItem value="AMBOS">🔄 Bidirecional (Atende IDA e RETORNO)</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label className="text-gray-300 text-xs font-semibold uppercase tracking-wider">
+                                                Modalidade de Embarque / Check-in
+                                            </Label>
+                                            <Select
+                                                value={formData.checkinType || 'CHECKIN_LIVRE'}
+                                                onValueChange={(v: 'CHECKIN_LIVRE' | 'LISTA_FECHADA') => setFormData({ ...formData, checkinType: v })}
+                                                disabled={modalMode === 'view'}
+                                            >
+                                                <SelectTrigger className="bg-seguranca-black border-gray-600 text-gray-200 h-11">
+                                                    <SelectValue placeholder="Selecione o tipo de embarque" />
+                                                </SelectTrigger>
+                                                <SelectContent className="bg-seguranca-graphite border-gray-600">
+                                                    <SelectItem value="CHECKIN_LIVRE">⚡ Check-in Livre (Transporte Público / Linha Aberta)</SelectItem>
+                                                    <SelectItem value="LISTA_FECHADA">🔒 Lista Fechada (Fretamento Exclusivo - Apenas vinculados)</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+
+                                        {/* Opção se retorno usa a mesma lista de colaboradores da ida */}
+                                        {formData.direction === 'AMBOS' && formData.checkinType === 'LISTA_FECHADA' && (
+                                            <div className="col-span-1 md:col-span-2 bg-purple-950/20 p-4 rounded-lg border border-purple-500/30">
+                                                <div className="flex items-start space-x-3">
+                                                    <Checkbox
+                                                        id="return-same-passengers-toggle"
+                                                        checked={formData.returnSamePassengers}
+                                                        onCheckedChange={(checked) => setFormData({ ...formData, returnSamePassengers: checked as boolean })}
+                                                        disabled={modalMode === 'view'}
+                                                        className="mt-1"
+                                                    />
+                                                    <div className="space-y-1 leading-none">
+                                                        <label htmlFor="return-same-passengers-toggle" className="text-sm font-bold text-purple-200 cursor-pointer">
+                                                            Lista de Retorno idêntica à da Ida
+                                                        </label>
+                                                        <p className="text-xs text-purple-300/80 max-w-2xl">
+                                                            Se ativado, os colaboradores vinculados à ida poderão realizar embarque no sentido retorno na mesma escala.
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Painel de Atribuir Colaboradores na Rota */}
+                                        {formData.checkinType === 'LISTA_FECHADA' && (
+                                            <div className="col-span-1 md:col-span-2 bg-seguranca-black/30 p-4 rounded-xl border border-gray-700/60 space-y-3">
+                                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-gray-700/50">
+                                                    <div className="flex items-center gap-2">
+                                                        <Users className="h-4 w-4 text-seguranca-yellow" />
+                                                        <h4 className="text-sm font-bold text-white uppercase tracking-wider">
+                                                            Atribuir Colaboradores na Rota (Lista Fechada)
+                                                        </h4>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <Badge variant="outline" className="border-seguranca-yellow/50 text-seguranca-yellow text-xs font-mono">
+                                                            {selectedPassengerIds.length} selecionado(s)
+                                                        </Badge>
+                                                        {clientPassengers.length > 0 && (
+                                                            <Button
+                                                                type="button"
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="text-xs h-7 text-gray-400 hover:text-white"
+                                                                onClick={() => {
+                                                                    if (selectedPassengerIds.length === clientPassengers.length) {
+                                                                        setSelectedPassengerIds([]);
+                                                                    } else {
+                                                                        setSelectedPassengerIds(clientPassengers.map(p => p.id));
+                                                                    }
+                                                                }}
+                                                            >
+                                                                {selectedPassengerIds.length === clientPassengers.length ? 'Desmarcar Todos' : 'Selecionar Todos'}
+                                                            </Button>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {!formData.clientId ? (
+                                                    <p className="text-xs text-amber-400/90 py-2">
+                                                        ⚠️ Selecione um <strong>Cliente</strong> acima para carregar e atribuir os colaboradores à rota.
+                                                    </p>
+                                                ) : loadingPassengers ? (
+                                                    <div className="py-4 flex items-center justify-center gap-2 text-xs text-gray-400">
+                                                        <Loader2 className="h-4 w-4 animate-spin text-seguranca-yellow" />
+                                                        <span>Carregando colaboradores do cliente...</span>
+                                                    </div>
+                                                ) : clientPassengers.length === 0 ? (
+                                                    <p className="text-xs text-gray-400 py-2">
+                                                        Nenhum colaborador encontrado para este cliente. Cadastre colaboradores em Passageiros / Colaboradores.
+                                                    </p>
+                                                ) : (
+                                                    <div className="space-y-2">
+                                                        <Input
+                                                            placeholder="Filtrar colaborador por nome ou matrícula..."
+                                                            value={passengerFilter}
+                                                            onChange={(e) => setPassengerFilter(e.target.value)}
+                                                            className="bg-seguranca-black/60 border-gray-700 text-xs h-8"
+                                                        />
+                                                        <div className="max-h-52 overflow-y-auto divide-y divide-gray-800 rounded-lg border border-gray-800 bg-seguranca-black/40">
+                                                            {clientPassengers
+                                                                .filter(p => !passengerFilter || (p.name && p.name.toLowerCase().includes(passengerFilter.toLowerCase())) || (p.registration && p.registration.includes(passengerFilter)))
+                                                                .map((p) => {
+                                                                    const isSelected = selectedPassengerIds.includes(p.id);
+                                                                    return (
+                                                                        <label
+                                                                            key={p.id}
+                                                                            className="flex items-center justify-between p-2.5 hover:bg-white/5 cursor-pointer transition-colors text-xs"
+                                                                        >
+                                                                            <div className="flex items-center gap-2.5 min-w-0">
+                                                                                <Checkbox
+                                                                                    checked={isSelected}
+                                                                                    onCheckedChange={(checked) => {
+                                                                                        if (checked) {
+                                                                                            setSelectedPassengerIds(prev => [...prev, p.id]);
+                                                                                        } else {
+                                                                                            setSelectedPassengerIds(prev => prev.filter(id => id !== p.id));
+                                                                                        }
+                                                                                    }}
+                                                                                    disabled={modalMode === 'view'}
+                                                                                />
+                                                                                <div className="truncate">
+                                                                                    <p className="font-semibold text-white truncate">{p.name}</p>
+                                                                                    <p className="text-[11px] text-gray-400 font-mono">
+                                                                                        {p.registration ? Matrícula:  + p.registration : ''} {p.cpf ? • CPF:  + p.cpf : ''}
+                                                                                    </p>
+                                                                                </div>
+                                                                            </div>
+                                                                            {isSelected && (
+                                                                                <Badge className="bg-emerald-950/80 text-emerald-400 border border-emerald-500/40 text-[10px] shrink-0">
+                                                                                    Vinculado
+                                                                                </Badge>
+                                                                            )}
+                                                                        </label>
+                                                                    );
+                                                                })}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* Painel Organizado de Itinerário */}

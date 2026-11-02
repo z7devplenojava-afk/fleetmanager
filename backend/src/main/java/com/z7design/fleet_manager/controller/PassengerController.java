@@ -9,6 +9,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
+import java.util.ArrayList;
 import java.util.UUID;
 
 @RestController
@@ -40,10 +42,12 @@ public class PassengerController {
         return ResponseEntity.ok(passengers);
     }
 
-    @GetMapping("/route/{routeId}")
+        @GetMapping("/route/{routeId}")
     @Operation(summary = "Listar passageiros por rota", description = "Retorna todos os passageiros de uma rota")
-    public ResponseEntity<List<PassengerDTO>> getByRouteId(@PathVariable("routeId") UUID routeId) {
-        List<PassengerDTO> passengers = passengerService.getByRouteId(routeId);
+    public ResponseEntity<List<PassengerDTO>> getByRouteId(
+            @PathVariable("routeId") UUID routeId,
+            @RequestParam(value = "direction", required = false) String direction) {
+        List<PassengerDTO> passengers = passengerService.getByRouteIdAndDirection(routeId, direction);
         return ResponseEntity.ok(passengers);
     }
 
@@ -52,6 +56,23 @@ public class PassengerController {
     public ResponseEntity<List<PassengerDTO>> getByClientId(@PathVariable("clientId") UUID clientId) {
         List<PassengerDTO> passengers = passengerService.getByClientId(clientId);
         return ResponseEntity.ok(passengers);
+    }
+
+    @PostMapping("/assign-route")
+    @Operation(summary = "Atribuir colaboradores a uma rota", description = "Vincula em lote os colaboradores selecionados à rota (ida e/ou retorno)")
+    public ResponseEntity<Map<String, Object>> assignPassengersToRoute(@RequestBody Map<String, Object> payload) {
+        UUID routeId = UUID.fromString((String) payload.get("routeId"));
+        List<?> rawIds = (List<?>) payload.get("passengerIds");
+        List<UUID> passengerIds = new ArrayList<>();
+        if (rawIds != null) {
+            for (Object obj : rawIds) {
+                passengerIds.add(UUID.fromString(obj.toString()));
+            }
+        }
+        String direction = (String) payload.get("direction");
+        Boolean returnSame = payload.get("returnSame") != null ? Boolean.parseBoolean(payload.get("returnSame").toString()) : true;
+        int count = passengerService.assignPassengersToRoute(routeId, passengerIds, direction, returnSame);
+        return ResponseEntity.ok(Map.of("success", true, "assignedCount", count));
     }
 
     @GetMapping("/{id:[0-9a-fA-F\\-]{36}}")

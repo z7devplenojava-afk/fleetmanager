@@ -204,25 +204,41 @@ public class BoardingService {
             } catch (Exception ignored) {}
         }
 
-        // 4. Validação de Rotas: Regra de Linha Fixa vs Múltiplas Linhas
+                // 4. Coordenadas, Sentido e Modo de Validação
+        Double lat = req.get("latitude") != null ? Double.parseDouble(req.get("latitude").toString()) : null;
+        Double lng = req.get("longitude") != null ? Double.parseDouble(req.get("longitude").toString()) : null;
+        String mode = req.get("validationMode") != null ? req.get("validationMode").toString() : "QR_PASSAGEIRO";
+        String direction = req.get("direction") != null ? req.get("direction").toString().toUpperCase() : "IDA";
+
+        // 5. Regra de Limite: Máximo 2 check-ins no dia (1 de IDA e 1 de RETORNO)
+        LocalDateTime startOfDay = java.time.LocalDate.now().atStartOfDay();
+        LocalDateTime endOfDay = java.time.LocalDate.now().atTime(java.time.LocalTime.MAX);
+        List<Boarding> existingBoardingsToday = boardingRepository.findByPassengerAndDirectionInDay(
+                passenger.getId(), direction, startOfDay, endOfDay);
+        if (!existingBoardingsToday.isEmpty()) {
+            Boarding firstToday = existingBoardingsToday.get(0);
+            String timeStr = firstToday.getBoardingTime() != null ?
+                    firstToday.getBoardingTime().format(DateTimeFormatter.ofPattern("HH:mm")) : "";
+            throw new IllegalStateException("LIMITE DIÁRIO ATINGIDO: O passageiro " + passenger.getName() +
+                    " já realizou embarque de " + direction + " hoje às " + timeStr +
+                    ". É permitido apenas 1 embarque no sentido IDA e 1 no sentido RETORNO por dia.");
+        }
+
+        // 6. Validação de Rotas: Regra de Check-in Livre vs Lista Fechada
         Route tripRoute = (trip != null) ? trip.getRoute() : (schedule != null ? schedule.getRoute() : null);
-        if (tripRoute != null && !Boolean.TRUE.equals(passenger.getMultipleRoutesAllowed())) {
+        boolean isFreeCheckin = tripRoute != null && "CHECKIN_LIVRE".equalsIgnoreCase(tripRoute.getCheckinType());
+
+        if (tripRoute != null && !isFreeCheckin && !Boolean.TRUE.equals(passenger.getMultipleRoutesAllowed())) {
             UUID routeId = tripRoute.getId();
             boolean isAllowedRoute = (passenger.getRoute() != null && passenger.getRoute().getId().equals(routeId))
                     || (passenger.getReturnRoute() != null && passenger.getReturnRoute().getId().equals(routeId));
 
             if (!isAllowedRoute) {
                 String allowedName = passenger.getRoute() != null ? passenger.getRoute().getName() : "Rota não cadastrada";
-                throw new IllegalStateException("EMBARQUE RECUSADO: Colaborador " + passenger.getName() +
+                throw new IllegalStateException("EMBARQUE RECUSADO: Rota com Lista Fechada. O colaborador " + passenger.getName() +
                         " não está autorizado para a linha '" + tripRoute.getName() + "'. Linha permitida: '" + allowedName + "'.");
             }
         }
-
-        // 5. Coordenadas e Modo de Validação
-        Double lat = req.get("latitude") != null ? Double.parseDouble(req.get("latitude").toString()) : null;
-        Double lng = req.get("longitude") != null ? Double.parseDouble(req.get("longitude").toString()) : null;
-        String mode = req.get("validationMode") != null ? req.get("validationMode").toString() : "QR_PASSAGEIRO";
-        String direction = req.get("direction") != null ? req.get("direction").toString() : "IDA";
 
         Vehicle vehicle = null;
         if (trip != null && trip.getVehicle() != null) {

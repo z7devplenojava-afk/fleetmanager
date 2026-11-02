@@ -134,6 +134,9 @@ public class RouteService {
         route.setGarageLatitude(routeDetails.getGarageLatitude());
         route.setGarageLongitude(routeDetails.getGarageLongitude());
         route.setGarageName(routeDetails.getGarageName());
+        if (routeDetails.getDirection() != null) route.setDirection(routeDetails.getDirection());
+        if (routeDetails.getCheckinType() != null) route.setCheckinType(routeDetails.getCheckinType());
+        if (routeDetails.getReturnSamePassengers() != null) route.setReturnSamePassengers(routeDetails.getReturnSamePassengers());
 
         if (routeDetails.getPoints() != null) {
             if (route.getPoints() == null) {

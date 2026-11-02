@@ -1105,10 +1105,16 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
                 <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-seguranca-red">
                   <Sparkles className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
                   <span className="font-medium">Campos obrigatórios:</span>
-                  <div className="flex flex-wrap gap-1">
-                    <Badge variant="destructive" className="text-xs px-2 py-1">Código</Badge>
-                    <Badge variant="destructive" className="text-xs px-2 py-1">Nome</Badge>
-                    <Badge variant="destructive" className="text-xs px-2 py-1">Categoria</Badge>
+                  <div className="flex flex-wrap items-center gap-1">
+                    <Badge variant="destructive" className="text-xs px-2 py-0.5">CÓDIGO</Badge>
+                    <Badge variant="destructive" className="text-xs px-2 py-0.5">DESCRIÇÃO</Badge>
+                    <Badge variant="destructive" className="text-xs px-2 py-0.5">CATEGORIA</Badge>
+                    <Badge variant="secondary" className="text-xs px-2 py-0.5 bg-blue-900/60 text-blue-200 border border-blue-500/30">NCM/SH</Badge>
+                    <Badge variant="secondary" className="text-xs px-2 py-0.5 bg-blue-900/60 text-blue-200 border border-blue-500/30">CST</Badge>
+                    <Badge variant="secondary" className="text-xs px-2 py-0.5 bg-blue-900/60 text-blue-200 border border-blue-500/30">CFOP</Badge>
+                    <Badge variant="secondary" className="text-xs px-2 py-0.5 bg-blue-900/60 text-blue-200 border border-blue-500/30">UN</Badge>
+                    <Badge variant="secondary" className="text-xs px-2 py-0.5 bg-emerald-900/60 text-emerald-200 border border-emerald-500/30">QTDE</Badge>
+                    <Badge variant="secondary" className="text-xs px-2 py-0.5 bg-emerald-900/60 text-emerald-200 border border-emerald-500/30">VALOR</Badge>
                   </div>
                 </div>
 
@@ -1133,6 +1139,20 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
             </Card>
           </DialogHeader>
 
+                    {formData.invoiceNumber && (
+            <div className="mt-3 p-3 rounded-xl bg-blue-950/40 border border-blue-500/50 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div className="flex items-center gap-2 text-blue-300 font-semibold">
+                <FileCheck className="h-4 w-4 text-blue-400" />
+                <span>NF-e Identificada: <strong>Nº {formData.invoiceNumber}</strong> {invoiceData.series ? • Série  : ''}</span>
+              </div>
+              {invoiceData.accessKey && (
+                <span className="font-mono text-[11px] text-gray-400 bg-seguranca-black/60 px-2 py-0.5 rounded border border-gray-700">
+                  Chave: {invoiceData.accessKey.slice(0, 4)}...{invoiceData.accessKey.slice(-8)}
+                </span>
+              )}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6 mt-4">
             {/* Informações Básicas */}
             <div className="space-y-3 sm:space-y-4">
@@ -1143,9 +1163,9 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="name" className="text-gray-300 flex items-center gap-2 text-sm sm:text-base">
+                    <Label htmlFor="name" className="text-gray-300 flex items-center gap-2 text-sm sm:text-base font-bold">
                       <Package className="h-3 w-3 sm:h-4 sm:w-4 text-seguranca-red flex-shrink-0" />
-                      Nome do Item *
+                      <span>DESCRIÇÃO DO PRODUTO/SERVIÇO *</span>
                     </Label>
                     {distinctItemNames.length > 0 && (
                       <span className="text-[10px] text-gray-400">
@@ -1197,9 +1217,9 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="code" className="text-gray-300 flex items-center gap-2 text-sm sm:text-base">
+                    <Label htmlFor="code" className="text-gray-300 flex items-center gap-2 text-sm sm:text-base font-bold">
                       <Hash className="h-3 w-3 sm:h-4 sm:w-4 text-seguranca-red flex-shrink-0" />
-                      Código *
+                      <span>CÓDIGO *</span>
                     </Label>
                     <Button
                       type="button"
@@ -1324,7 +1344,7 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
                   {/* CST / CSOSN */}
                   <div className="space-y-1">
                     <Label htmlFor="cst" className="text-gray-300 text-xs font-medium flex items-center gap-1">
-                      CST / CSOSN
+                      CST
                     </Label>
                     <Input
                       id="cst"
@@ -1354,7 +1374,7 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
                   {/* UN - Unidade de Medida */}
                   <div className="space-y-1">
                     <Label htmlFor="unitMeasure" className="text-gray-300 text-xs font-medium flex items-center gap-1">
-                      UN (Unidade)
+                      UN
                     </Label>
                     <Input
                       id="unitMeasure"
@@ -1450,8 +1470,8 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="currentQuantity" className="text-gray-300 text-sm sm:text-base">
-                    Quantidade Atual
+                  <Label htmlFor="currentQuantity" className="text-gray-300 text-sm sm:text-base font-bold">
+                    QTDE (Quantidade) *
                   </Label>
                   <Input
                     id="currentQuantity"
@@ -1487,8 +1507,8 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="unitCost" className="text-gray-300 text-sm sm:text-base font-medium">
-                    Vr. Unitário (R$)
+                  <Label htmlFor="unitCost" className="text-gray-300 text-sm sm:text-base font-bold">
+                    VALOR (Unitário R$)
                   </Label>
                   <Input
                     id="unitCost"

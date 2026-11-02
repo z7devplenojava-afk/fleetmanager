@@ -137,7 +137,7 @@ export const fretamentoCheckinService = {
       } catch (err: any) {
         const msg = err?.response?.data?.message || err?.message;
         // Se foi erro de validação (demitido, bloqueado ou rota não autorizada), lançar erro para feedback visual vermelho
-        if (msg && (msg.includes('RECUSADO') || msg.includes('DEMITIDO') || msg.includes('BLOQUEADO') || msg.includes('não autorizado'))) {
+        if (msg && (msg.includes('RECUSADO') || msg.includes('DEMITIDO') || msg.includes('BLOQUEADO') || msg.includes('não autorizado') || msg.includes('LIMITE') || msg.includes('já realizou'))) {
           throw new Error(msg);
         }
         console.warn('Backend indisponível para check-in instantâneo; mantido na fila offline:', err);

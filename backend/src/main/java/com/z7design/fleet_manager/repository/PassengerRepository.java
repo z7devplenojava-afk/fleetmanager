@@ -11,6 +11,7 @@ import java.util.UUID;
 public interface PassengerRepository extends JpaRepository<Passenger, UUID> {
     List<Passenger> findByCompanyId(UUID companyId);
     List<Passenger> findByRouteId(UUID routeId);
+    List<Passenger> findByReturnRouteId(UUID returnRouteId);
     List<Passenger> findByActiveTrueAndCompanyId(UUID companyId);
     List<Passenger> findByClientId(UUID clientId);
     List<Passenger> findByClientIdAndActiveTrue(UUID clientId);
