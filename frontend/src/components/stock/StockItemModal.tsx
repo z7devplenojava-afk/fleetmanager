@@ -1101,14 +1101,34 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
             </div>
             
             <Card className="bg-gradient-to-r from-seguranca-red/10 to-seguranca-darkred/10 border-seguranca-red/20 p-3 sm:p-4">
-              <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-seguranca-red">
-                <Sparkles className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
-                <span className="font-medium">Campos obrigatórios:</span>
-                <div className="flex flex-wrap gap-1">
-                  <Badge variant="destructive" className="text-xs px-2 py-1">Código</Badge>
-                  <Badge variant="destructive" className="text-xs px-2 py-1">Nome</Badge>
-                  <Badge variant="destructive" className="text-xs px-2 py-1">Categoria</Badge>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-seguranca-red">
+                  <Sparkles className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                  <span className="font-medium">Campos obrigatórios:</span>
+                  <div className="flex flex-wrap gap-1">
+                    <Badge variant="destructive" className="text-xs px-2 py-1">Código</Badge>
+                    <Badge variant="destructive" className="text-xs px-2 py-1">Nome</Badge>
+                    <Badge variant="destructive" className="text-xs px-2 py-1">Categoria</Badge>
+                  </div>
                 </div>
+
+                {!item && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => xmlInputRef.current?.click()}
+                    disabled={loadingXml}
+                    className="h-8 text-xs font-semibold bg-blue-950/40 border-blue-500/50 text-blue-300 hover:text-white hover:bg-blue-600/30 flex items-center gap-1.5 shadow-sm"
+                  >
+                    {loadingXml ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-400" />
+                    ) : (
+                      <Upload className="h-3.5 w-3.5 text-blue-400" />
+                    )}
+                    <span>Importar da NF-e (XML / PDF DANFE)</span>
+                  </Button>
+                )}
               </div>
             </Card>
           </DialogHeader>
