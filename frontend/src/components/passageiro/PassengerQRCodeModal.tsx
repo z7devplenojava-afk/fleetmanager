@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { QrCode, Camera, CheckCircle2, User, Sparkles, X, Bus, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { generateQrCodeSvgUri, generateQrCodeDataPayload } from '@/utils/qrCodeHelper';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import { useToast } from '@/hooks/use-toast';
 
 interface PassengerQRCodeModalProps {
@@ -16,43 +16,58 @@ interface PassengerQRCodeModalProps {
     passengerCpf?: string;
 }
 
-// Subcomponente isolado para garantir montagem correta do DOM do leitor de câmera
+// Subcomponente de câmera com Html5Qrcode nativo para abertura imediata
 const PassengerCameraScanner: React.FC<{
     onSuccess: (decoded: string) => void;
 }> = ({ onSuccess }) => {
     const readerId = useRef(`qr-reader-${Math.random().toString(36).substring(2, 9)}`).current;
+    const [isLoading, setIsLoading] = useState(true);
+    const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
     useEffect(() => {
-        let scanner: Html5QrcodeScanner | null = null;
+        let scanner: Html5Qrcode | null = null;
         let isMounted = true;
 
-        const timer = setTimeout(() => {
+        const timer = setTimeout(async () => {
             const container = document.getElementById(readerId);
             if (!container || !isMounted) return;
 
             try {
-                scanner = new Html5QrcodeScanner(readerId, { fps: 10, qrbox: 240 }, false);
-                scanner.render(
+                scanner = new Html5Qrcode(readerId);
+                await scanner.start(
+                    { facingMode: 'environment' },
+                    { fps: 15, qrbox: 240, aspectRatio: 1.0 },
                     (decodedText) => {
                         if (isMounted) {
                             onSuccess(decodedText);
-                            if (scanner) {
-                                try { scanner.clear(); } catch { /* ignore */ }
+                            if (scanner && scanner.isScanning) {
+                                scanner.stop().catch(() => {}).finally(() => scanner?.clear());
                             }
                         }
                     },
-                    () => { /* ignore frame errors */ }
+                    () => {}
                 );
-            } catch (e) {
-                console.warn('Erro ao inicializar scanner:', e);
+                if (isMounted) {
+                    setIsLoading(false);
+                }
+            } catch (e: any) {
+                console.warn('Erro ao inicializar scanner de passageiro:', e);
+                if (isMounted) {
+                    setIsLoading(false);
+                    setErrorMsg('Não foi possível acessar a câmera. Verifique as permissões.');
+                }
             }
-        }, 150);
+        }, 120);
 
         return () => {
             isMounted = false;
             clearTimeout(timer);
             if (scanner) {
-                try { scanner.clear(); } catch { /* ignore */ }
+                if (scanner.isScanning) {
+                    scanner.stop().catch(() => {}).finally(() => scanner?.clear());
+                } else {
+                    scanner.clear();
+                }
             }
         };
     }, [readerId, onSuccess]);
@@ -60,10 +75,21 @@ const PassengerCameraScanner: React.FC<{
     return (
         <div className="space-y-3">
             <div className="relative aspect-square w-full rounded-2xl overflow-hidden border border-slate-700 bg-black flex items-center justify-center">
-                <div id={readerId} className="w-full h-full"></div>
+                <div id={readerId} className="w-full h-full [&_video]:w-full [&_video]:h-full [&_video]:object-cover"></div>
+                {isLoading && (
+                    <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center gap-2 text-pink-400">
+                        <RefreshCw className="h-6 w-6 animate-spin" />
+                        <span className="text-xs">Abrindo câmera...</span>
+                    </div>
+                )}
+                {errorMsg && (
+                    <div className="absolute inset-0 bg-black/90 p-4 flex flex-col items-center justify-center text-center text-xs text-rose-400">
+                        {errorMsg}
+                    </div>
+                )}
             </div>
             <p className="text-xs text-center text-slate-400">
-                Aponte sua câmera para o QR Code exibido pelo motorista ou fixado no ônibus.
+                Aponte sua câmera para o QR Code exibido pelo motorista ou fixado no veículo.
             </p>
         </div>
     );

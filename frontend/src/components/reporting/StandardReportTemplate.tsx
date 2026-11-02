@@ -1,5 +1,6 @@
 import React from 'react';
 import { Company } from '@/types/company';
+import { resolveCompanyLogoUrl } from '@/utils/logoUtils';
 
 interface StandardReportTemplateProps {
     company?: Company | null;
@@ -21,15 +22,15 @@ export const StandardReportTemplate: React.FC<StandardReportTemplateProps> = ({
     const companyAddress = company?.address
         ? company.address
         : `${company?.enderecoRua || ''}, ${company?.enderecoNumero || ''} - ${company?.city || ''}/${company?.state || ''}`;
+    const resolvedLogo = resolveCompanyLogoUrl(company?.logoUrl);
 
     return (
         <div className="w-full bg-white text-black p-8" id="report-template-container">
             {/* Header */}
             <div className="border-b-2 border-gray-800 pb-4 mb-6 flex flex-col items-center justify-center text-center">
-                {company?.logoUrl && (
-                    <img src={company.logoUrl} alt="Logo" className="h-16 mb-2 object-contain" />
-                )}
-                {!company?.logoUrl && (
+                {resolvedLogo ? (
+                    <img src={resolvedLogo} alt="Logo" className="h-16 mb-2 object-contain" />
+                ) : (
                     <h1 className="text-xl font-bold uppercase tracking-wide text-gray-900">{companyName}</h1>
                 )}
 

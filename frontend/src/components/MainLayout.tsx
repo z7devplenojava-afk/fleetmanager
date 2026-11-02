@@ -19,11 +19,13 @@ import { useSidebar } from '@/hooks/useSidebar';
 import { Breadcrumb } from './Breadcrumb';
 import { NotificationBell } from './NotificationBell';
 import UserProfileModal from './UserProfileModal';
+import { LogoutConfirmModal } from './LogoutConfirmModal';
 import { BottomNav } from './BottomNav';
 import ThemeToggle from './ThemeToggle';
 import Logo from './Logo';
 import WelcomeModal from './WelcomeModal';
 import HelpModal from './HelpModal';
+import { BiliFluxAssistant } from './BiliFluxAssistant';
 import chatIntegrationService from '@/services/chatIntegrationService';
 
 interface MainLayoutProps {
@@ -42,6 +44,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   const { user, logout, empresa } = useAuth();
   const { collapsed, isMobile, toggleSidebar } = useSidebar();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
   const [unreadChats, setUnreadChats] = useState(0);
@@ -122,7 +125,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     return raw.includes('VSS') || raw.includes('SILVESTRE') || raw.includes('SAO SILVESTRE') || raw.includes('SÃO SILVESTRE');
   }, [empresa, user]);
 
-  const companyName = empresa?.nome || (user as any)?.company?.name || (user as any)?.companyName || '';
+  const hasSelectedCompany = Boolean(empresa?.id || (user as any)?.companyId || (user as any)?.company?.id);
+  const companyName = hasSelectedCompany ? (empresa?.nome || (user as any)?.company?.name || (user as any)?.companyName || '') : '';
 
   return (
     <div className="flex min-h-screen bg-background text-foreground transition-colors duration-300 relative">
@@ -140,8 +144,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         {/* Header Interativo e Moderno */}
         <header className="bg-background/95 backdrop-blur-md border-b border-border sticky top-0 z-40 h-[64px] transition-all">
           <div className="flex items-center justify-between px-4 sm:px-6 h-full gap-2 sm:gap-4">
-            {/* Lado esquerdo: Toggle + Logo Dinâmica + Título */}
-            <div className="flex items-center space-x-3 min-w-0">
+            {/* Lado esquerdo: Toggle + Navegação Voltar/Avançar + Logo Dinâmica + Título */}
+            <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
               <Button
                 variant="ghost"
                 size="icon"
@@ -156,6 +160,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                 <Logo
                   showText={false}
                   size="sm"
+                  forceDefault={!hasSelectedCompany}
                   className="transition-transform hover:scale-105"
                   iconClassName="h-7 w-7 text-primary"
                 />
@@ -185,6 +190,12 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
             {/* Lado direito: Ações, Perfil e Notificações */}
             <div className="flex items-center space-x-1 sm:space-x-2">
+              {/* Assistente Virtual BiliFlux */}
+              <BiliFluxAssistant
+                userName={user.name}
+                onOpenHelp={() => setIsHelpModalOpen(true)}
+              />
+
               {actions && (
                 <div className="hidden lg:block">
                   {actions}
@@ -196,7 +207,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsHelpModalOpen(true)}
-                className="text-muted-foreground hover:text-foreground hover:bg-accent h-8 px-2 sm:px-2.5 rounded-lg text-xs gap-1.5 transition-all"
+                className="text-muted-foreground hover:text-foreground hover:bg-accent h-8 px-2 sm:px-2.5 rounded-lg text-xs gap-1.5 transition-all hidden sm:flex"
                 title="Central de Ajuda e Suporte"
               >
                 <HelpCircle className="h-4 w-4 text-primary" />
@@ -208,7 +219,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                 variant="ghost"
                 size="sm"
                 onClick={() => navigate('/chat-interno')}
-                className="text-muted-foreground hover:text-foreground hover:bg-accent h-8 px-2 sm:px-2.5 rounded-lg text-xs gap-1.5 transition-all relative"
+                className="text-muted-foreground hover:text-foreground hover:bg-accent h-8 px-2 sm:px-2.5 rounded-lg text-xs gap-1.5 transition-all relative hidden sm:flex"
                 title="Chat e Mensagens Internas"
               >
                 <Headphones className="h-4 w-4 text-primary" />
@@ -222,50 +233,39 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
               {/* Perfil do Usuário */}
               <div
-                className="flex items-center space-x-2 cursor-pointer p-1 rounded-lg hover:bg-accent/60 transition-all"
+                className="flex items-center space-x-2.5 cursor-pointer py-1 px-2 rounded-lg hover:bg-muted/70 border border-transparent hover:border-border/60 transition-all shrink-0"
                 onClick={handleProfileClick}
                 title="Ver meu perfil"
               >
                 <div className="hidden sm:block text-right">
-                  <p className="text-xs font-semibold text-foreground leading-none mb-0.5 truncate max-w-[130px]">
+                  <p className="text-xs font-semibold text-foreground leading-none mb-1 truncate max-w-[130px]">
                     {user.name}
                   </p>
                   <div className="flex items-center justify-end gap-1">
                     {companyName && (
-                      <span className="text-[9px] text-muted-foreground font-medium truncate max-w-[80px]">
+                      <span className="text-[10px] text-muted-foreground font-medium truncate max-w-[80px]">
                         {companyName}
                       </span>
                     )}
-                    <Badge className="bg-primary/15 text-primary text-[8px] h-3.5 font-bold uppercase border-none rounded-sm px-1 italic">
+                    <Badge className="bg-primary/10 text-primary border border-primary/20 text-[9px] font-semibold uppercase rounded-sm px-1.5 py-0">
                       {getRoleDisplayName(user.role)}
                     </Badge>
                   </div>
                 </div>
-                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-600 to-yellow-400 flex items-center justify-center shadow-md">
-                  <User className="h-4 w-4 text-black font-bold" />
+                <div className="w-8 h-8 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center shadow-xs shrink-0">
+                  <User className="h-4 w-4" />
                 </div>
               </div>
 
               <NotificationBell />
 
               <ThemeToggle />
-
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={logout}
-                className="text-muted-foreground hover:text-foreground hover:bg-accent h-8 px-2 sm:px-3 rounded-lg text-xs border border-border transition-all"
-                title="Encerrar Sessão"
-              >
-                <LogOut className="h-3.5 w-3.5 sm:mr-1.5" />
-                <span className="hidden sm:inline">Sair</span>
-              </Button>
             </div>
           </div>
         </header>
 
         {/* Conteúdo da página */}
-        <main className="flex-1 p-2 sm:p-3 md:p-4 overflow-visible bg-background relative z-10">
+        <main className="flex-1 p-2 sm:p-3 md:p-4 pb-24 md:pb-6 overflow-visible bg-background relative z-10">
           {/* Fundo Personalizado VSS (Viação São Silvestre) */}
           {isVss && (
             <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden select-none">
@@ -336,6 +336,13 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         isOpen={isHelpModalOpen}
         onClose={() => setIsHelpModalOpen(false)}
         onOpenWelcomeTour={() => setIsWelcomeModalOpen(true)}
+      />
+
+      {/* Modal de Confirmação de Saída */}
+      <LogoutConfirmModal
+        isOpen={isLogoutModalOpen}
+        onClose={() => setIsLogoutModalOpen(false)}
+        onConfirm={logout}
       />
     </div>
   );

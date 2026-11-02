@@ -39,10 +39,10 @@
     -webkit-tap-highlight-color: transparent;
   }
   
-  /* Botões maiores para touch */
-  button {
-    min-height: 44px !important;
-    min-width: 44px !important;
+  /* Botões maiores para touch, exceto checkboxes, switches e seletores inline */
+  button:not([role="checkbox"]):not([role="switch"]):not([data-radix-collection-item]):not([role="tab"]):not(.no-min-size) {
+    min-height: 44px;
+    min-width: 44px;
   }
   
   /* Cards mais compactos */
@@ -240,16 +240,16 @@
     animation-duration: 0.2s !important;
     transition-duration: 0.2s !important;
   }
+}
+
+/* Remover hover effects em touch devices */
+@media (hover: none) {
+  .hover\:scale-105:hover {
+    transform: none !important;
+  }
   
-  /* Remover hover effects em touch devices */
-  @media (hover: none) {
-    .hover\:scale-105:hover {
-      transform: none !important;
-    }
-    
-    .hover\:shadow-lg:hover {
-      box-shadow: inherit !important;
-    }
+  .hover\:shadow-lg:hover {
+    box-shadow: inherit !important;
   }
 }
 

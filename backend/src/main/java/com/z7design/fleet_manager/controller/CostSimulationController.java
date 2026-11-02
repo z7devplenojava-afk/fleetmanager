@@ -38,19 +38,19 @@ public class CostSimulationController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Buscar simulação por ID")
-    public ResponseEntity<CostSimulationDTO> getById(@PathVariable UUID id) {
+    public ResponseEntity<CostSimulationDTO> getById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(costSimulationService.getById(id));
     }
 
     @GetMapping("/client/{clientId}")
     @Operation(summary = "Listar simulações por cliente")
-    public ResponseEntity<List<CostSimulationDTO>> getByClient(@PathVariable UUID clientId) {
+    public ResponseEntity<List<CostSimulationDTO>> getByClient(@PathVariable("clientId") UUID clientId) {
         return ResponseEntity.ok(costSimulationService.getByClient(clientId));
     }
 
     @GetMapping("/status/{status}")
     @Operation(summary = "Listar simulações por status")
-    public ResponseEntity<List<CostSimulationDTO>> getByStatus(@PathVariable CostSimulationStatus status) {
+    public ResponseEntity<List<CostSimulationDTO>> getByStatus(@PathVariable("status") CostSimulationStatus status) {
         return ResponseEntity.ok(costSimulationService.getByStatus(status));
     }
 
@@ -70,13 +70,13 @@ public class CostSimulationController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Atualizar e recalcular simulação")
-    public ResponseEntity<CostSimulationDTO> update(@PathVariable UUID id, @Valid @RequestBody CostSimulationDTO dto) {
+    public ResponseEntity<CostSimulationDTO> update(@PathVariable("id") UUID id, @Valid @RequestBody CostSimulationDTO dto) {
         return ResponseEntity.ok(costSimulationService.update(id, dto));
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Excluir simulação")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
         costSimulationService.delete(id);
         return ResponseEntity.noContent().build();
     }
@@ -86,14 +86,14 @@ public class CostSimulationController {
      */
     @PostMapping("/{id}/submit")
     @Operation(summary = "Enviar para aprovação da Diretoria")
-    public ResponseEntity<CostSimulationDTO> submitForApproval(@PathVariable UUID id) {
+    public ResponseEntity<CostSimulationDTO> submitForApproval(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(costSimulationService.submitForApproval(id));
     }
 
     @PostMapping("/{id}/approve")
     @Operation(summary = "Aprovar simulação (Diretoria)")
     public ResponseEntity<CostSimulationDTO> approve(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @RequestBody(required = false) Map<String, String> body) {
         String approvedBy = body != null ? body.get("approvedBy") : null;
         String notes = body != null ? body.get("notes") : null;
@@ -103,7 +103,7 @@ public class CostSimulationController {
     @PostMapping("/{id}/reject")
     @Operation(summary = "Reprovar simulação (Diretoria)")
     public ResponseEntity<CostSimulationDTO> reject(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @RequestBody(required = false) Map<String, String> body) {
         String approvedBy = body != null ? body.get("approvedBy") : null;
         String notes = body != null ? body.get("notes") : null;

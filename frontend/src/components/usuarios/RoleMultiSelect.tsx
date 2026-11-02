@@ -61,9 +61,9 @@ export const RoleMultiSelect: React.FC<RoleMultiSelectProps> = ({
 
     return ROLE_CATEGORIES.map(category => {
       const allowedRoles = category.roles.filter(role => {
-        // Regra de segurança: apenas SuperAdmin ou FlexAdmin podem conceder SUPER_ADMIN, FLEX_ADMIN e TI_SUPORTE
+        // Regra de segurança: apenas SUPER_ADMIN pode conceder perfis administrativos
         if (!isSuperAdmin) {
-          if (role === 'FLEX_ADMIN' || role === 'SUPER_ADMIN' || role === 'TI_SUPORTE') {
+          if (role === 'SUPER_ADMIN' || role === 'FLEX_ADMIN' || role === 'COMPANY_ADMIN' || role === 'ADMIN' || role === 'TI_SUPORTE') {
             return false;
           }
         }

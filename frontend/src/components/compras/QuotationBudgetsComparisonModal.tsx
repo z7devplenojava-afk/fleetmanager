@@ -280,7 +280,15 @@ export const QuotationBudgetsComparisonModal: React.FC<QuotationBudgetsCompariso
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto bg-zinc-950 border-gray-800 text-white p-6 shadow-2xl rounded-2xl">
+      <DialogContent 
+        className="max-w-5xl max-h-[92vh] overflow-y-auto bg-zinc-950 border-gray-800 text-white p-6 shadow-2xl rounded-2xl"
+        onPointerDownOutside={(e) => {
+          const target = e.target as HTMLElement | null;
+          if (target?.closest('[data-radix-popper-content-wrapper], [role="listbox"], [role="option"], [data-sonner-toast], .toast, [role="alert"], [role="status"]')) {
+            e.preventDefault();
+          }
+        }}
+      >
         <DialogHeader className="border-b border-gray-800 pb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">

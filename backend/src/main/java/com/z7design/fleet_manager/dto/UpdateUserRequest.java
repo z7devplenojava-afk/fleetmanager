@@ -42,6 +42,16 @@ public class UpdateUserRequest {
     @Pattern(regexp = "^\\d{9,20}$|^$", message = "WhatsApp deve conter apenas dÃ­gitos (9-20 caracteres)")
     private String whatsapp;
 
+    private String cpf;
+
+    public String getCpf() {
+        return cpf;
+    }
+
+    public void setCpf(String cpf) {
+        this.cpf = cpf;
+    }
+
     private List<String> roles; // Array de Strings com nomes dos roles
 
     private Boolean active;
@@ -68,6 +78,22 @@ public class UpdateUserRequest {
     private String address;
 
     private UUID companyId;
+
+    /**
+     * Se true (apenas SUPER_ADMIN), remove o vínculo da empresa do usuário.
+     * Permite que SUPER_ADMIN tenha acesso global a todas as empresas.
+     */
+    private Boolean removeCompany;
+
+    /**
+     * ID do funcionário a ser vinculado ao usuário
+     */
+    private UUID employeeId;
+
+    /**
+     * Se true, desvincula qualquer funcionário atualmente vinculado ao usuário
+     */
+    private Boolean removeEmployee;
 
     // Getters and Setters explicitos para resolver problemas de compilaÃ§Ã£o com
     // Lombok
@@ -190,4 +216,29 @@ public class UpdateUserRequest {
     public void setAddress(String address) {
         this.address = address;
     }
+
+    public Boolean getRemoveCompany() {
+        return removeCompany;
+    }
+
+    public void setRemoveCompany(Boolean removeCompany) {
+        this.removeCompany = removeCompany;
+    }
+
+    public UUID getEmployeeId() {
+        return employeeId;
+    }
+
+    public void setEmployeeId(UUID employeeId) {
+        this.employeeId = employeeId;
+    }
+
+    public Boolean getRemoveEmployee() {
+        return removeEmployee;
+    }
+
+    public void setRemoveEmployee(Boolean removeEmployee) {
+        this.removeEmployee = removeEmployee;
+    }
 }
+

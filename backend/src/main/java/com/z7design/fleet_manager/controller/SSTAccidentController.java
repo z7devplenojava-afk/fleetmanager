@@ -32,7 +32,7 @@ public class SSTAccidentController {
 
     @GetMapping
     @Operation(summary = "Listar acidentes", description = "Retorna todos os acidentes registrados")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<List<AccidentRecordDTO>> getAllAccidents() {
         List<AccidentRecord> accidents = accidentService.getAllAccidents();
         List<AccidentRecordDTO> dtos = accidents.stream()
@@ -72,7 +72,7 @@ public class SSTAccidentController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Buscar acidente por ID", description = "Retorna um acidente especÃ­fico")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<AccidentRecord> getAccidentById(@PathVariable("id") UUID id) {
         AccidentRecord accident = accidentService.getAccidentById(id);
         if (accident == null) {
@@ -83,7 +83,7 @@ public class SSTAccidentController {
 
     @GetMapping("/employee/{employeeId}")
     @Operation(summary = "Listar acidentes por funcionÃ¡rio", description = "Retorna acidentes de um funcionÃ¡rio especÃ­fico")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<List<AccidentRecord>> getAccidentsByEmployee(@PathVariable("employeeId") UUID employeeId) {
         List<AccidentRecord> accidents = accidentService.getAccidentsByEmployee(employeeId);
         return ResponseEntity.ok(accidents);
@@ -91,7 +91,7 @@ public class SSTAccidentController {
 
     @GetMapping("/period")
     @Operation(summary = "Listar acidentes por perÃ­odo", description = "Retorna acidentes em um perÃ­odo especÃ­fico")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<List<AccidentRecord>> getAccidentsByPeriod(
             @RequestParam(value = "startDate") LocalDate startDate, 
             @RequestParam(value = "endDate") LocalDate endDate) {
@@ -101,7 +101,7 @@ public class SSTAccidentController {
 
     @PostMapping
     @Operation(summary = "Registrar acidente", description = "Registra um novo acidente")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<AccidentRecord> createAccident(@RequestBody AccidentRecordDTO dto) {
         // Converter DTO para modelo
         AccidentRecord accident = AccidentRecord.builder()
@@ -133,7 +133,7 @@ public class SSTAccidentController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Atualizar acidente", description = "Atualiza um acidente existente")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<AccidentRecord> updateAccident(@PathVariable("id") UUID id, @RequestBody AccidentRecord accident) {
         AccidentRecord updated = accidentService.updateAccident(id, accident);
         if (updated == null) {
@@ -144,7 +144,7 @@ public class SSTAccidentController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Excluir acidente", description = "Exclui um acidente")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<Void> deleteAccident(@PathVariable("id") UUID id) {
         accidentService.deleteAccident(id);
         return ResponseEntity.noContent().build();
@@ -154,7 +154,7 @@ public class SSTAccidentController {
 
     @GetMapping("/near-misses")
     @Operation(summary = "Listar quase-acidentes", description = "Retorna todos os quase-acidentes registrados")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<List<NearMissRecord>> getAllNearMisses() {
         List<NearMissRecord> nearMisses = accidentService.getAllNearMisses();
         return ResponseEntity.ok(nearMisses);
@@ -162,7 +162,7 @@ public class SSTAccidentController {
 
     @GetMapping("/near-misses/{id}")
     @Operation(summary = "Buscar quase-acidente por ID", description = "Retorna um quase-acidente especÃ­fico")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<NearMissRecord> getNearMissById(@PathVariable("id") UUID id) {
         NearMissRecord nearMiss = accidentService.getNearMissById(id);
         if (nearMiss == null) {
@@ -173,7 +173,7 @@ public class SSTAccidentController {
 
     @GetMapping("/near-misses/employee/{employeeId}")
     @Operation(summary = "Listar quase-acidentes por funcionÃ¡rio", description = "Retorna quase-acidentes de um funcionÃ¡rio especÃ­fico")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<List<NearMissRecord>> getNearMissesByEmployee(@PathVariable("employeeId") UUID employeeId) {
         List<NearMissRecord> nearMisses = accidentService.getNearMissesByEmployee(employeeId);
         return ResponseEntity.ok(nearMisses);
@@ -181,7 +181,7 @@ public class SSTAccidentController {
 
     @PostMapping("/near-misses")
     @Operation(summary = "Registrar quase-acidente", description = "Registra um novo quase-acidente")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<NearMissRecord> createNearMiss(@RequestBody NearMissRecord nearMiss) {
         NearMissRecord created = accidentService.createNearMiss(nearMiss);
         return ResponseEntity.ok(created);
@@ -189,7 +189,7 @@ public class SSTAccidentController {
 
     @PutMapping("/near-misses/{id}")
     @Operation(summary = "Atualizar quase-acidente", description = "Atualiza um quase-acidente existente")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<NearMissRecord> updateNearMiss(@PathVariable("id") UUID id, @RequestBody NearMissRecord nearMiss) {
         NearMissRecord updated = accidentService.updateNearMiss(id, nearMiss);
         if (updated == null) {
@@ -200,7 +200,7 @@ public class SSTAccidentController {
 
     @DeleteMapping("/near-misses/{id}")
     @Operation(summary = "Excluir quase-acidente", description = "Exclui um quase-acidente")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<Void> deleteNearMiss(@PathVariable("id") UUID id) {
         accidentService.deleteNearMiss(id);
         return ResponseEntity.noContent().build();
@@ -210,7 +210,7 @@ public class SSTAccidentController {
 
     @GetMapping("/statistics/monthly")
     @Operation(summary = "EstatÃ­sticas mensais de acidentes", description = "Retorna estatÃ­sticas de acidentes por mÃªs")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<SSTAccidentService.AccidentStatistics> getMonthlyStatistics(@RequestParam(value = "year") int year) {
         SSTAccidentService.AccidentStatistics statistics = accidentService.getMonthlyStatistics(year);
         return ResponseEntity.ok(statistics);
@@ -218,7 +218,7 @@ public class SSTAccidentController {
 
     @GetMapping("/statistics/employee/{employeeId}")
     @Operation(summary = "EstatÃ­sticas de acidentes por funcionÃ¡rio", description = "Retorna estatÃ­sticas de acidentes de um funcionÃ¡rio")
-    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN')")
     public ResponseEntity<SSTAccidentService.EmployeeAccidentStatistics> getEmployeeStatistics(@PathVariable("employeeId") UUID employeeId) {
         SSTAccidentService.EmployeeAccidentStatistics statistics = accidentService.getEmployeeStatistics(employeeId);
         return ResponseEntity.ok(statistics);

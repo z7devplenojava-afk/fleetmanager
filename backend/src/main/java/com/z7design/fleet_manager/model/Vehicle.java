@@ -88,6 +88,7 @@ public class Vehicle implements TenantAware {
     /** Entidade da garagem (leitura; gravado via garageId). */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "garage_id", insertable = false, updatable = false)
+    @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
     private Garage garage;
 
     public UUID getGarageId() {
@@ -135,6 +136,7 @@ public class Vehicle implements TenantAware {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "responsible_employee_id", insertable = false, updatable = false)
+    @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
     private Employee responsibleEmployee;
 
     @Column

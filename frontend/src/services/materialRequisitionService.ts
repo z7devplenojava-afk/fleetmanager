@@ -199,14 +199,19 @@ export const materialRequisitionService = {
   },
 
   listByWorkOrder: async (workOrderId: string): Promise<MaterialRequisition[]> => {
+    if (!workOrderId) return [];
     return withSilentFallback(
       async () => {
         try {
           const response = await api.get(`/api/material-requisitions/by-work-order/${workOrderId}`, silentErrorLog());
           if (Array.isArray(response.data)) return response.data;
         } catch (_) {}
-        const fallback = await api.get(`/api/material-requisitions?workOrderId=${workOrderId}`, silentErrorLog());
-        return Array.isArray(fallback.data) ? fallback.data : [];
+        try {
+          const fallback = await api.get(`/api/material-requisitions?workOrderId=${workOrderId}`, silentErrorLog());
+          return Array.isArray(fallback.data) ? fallback.data : [];
+        } catch (_) {
+          return [];
+        }
       },
       [],
       {

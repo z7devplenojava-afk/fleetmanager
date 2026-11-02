@@ -39,10 +39,11 @@ import {
 import { TripleQuoteComparisonModal } from '@/components/almoxarifado/TripleQuoteComparisonModal';
 import { PurchaseOrderModal } from '@/components/financeiro/PurchaseOrderModal';
 import { InvoiceEntryModal } from '@/components/almoxarifado/InvoiceEntryModal';
+import ModuloDespesasPanel from '@/components/financeiro/ModuloDespesasPanel';
 
 export const AlmoxarifadoRequisicoesPage: React.FC = () => {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<'requisitions' | 'orders' | 'invoices'>('requisitions');
+  const [activeTab, setActiveTab] = useState<'requisitions' | 'orders' | 'invoices' | 'despesas'>('requisitions');
   const [loading, setLoading] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
@@ -199,6 +200,13 @@ export const AlmoxarifadoRequisicoesPage: React.FC = () => {
               >
                 <Receipt className="w-4 h-4" />
                 Entradas por NF-e & SLA ({invoiceEntries.length})
+              </TabsTrigger>
+              <TabsTrigger
+                value="despesas"
+                className="data-[state=active]:bg-amber-600 data-[state=active]:text-white flex items-center gap-2 text-xs font-medium"
+              >
+                <DollarSign className="w-4 h-4 text-amber-400" />
+                Despesas Almoxarifado
               </TabsTrigger>
             </TabsList>
 
@@ -552,6 +560,11 @@ export const AlmoxarifadoRequisicoesPage: React.FC = () => {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* ABA DESPESAS ALMOXARIFADO */}
+          <TabsContent value="despesas" className="space-y-4">
+            <ModuloDespesasPanel modulo="ALMOXARIFADO" hideHeaderTitle={false} />
           </TabsContent>
         </Tabs>
       </div>

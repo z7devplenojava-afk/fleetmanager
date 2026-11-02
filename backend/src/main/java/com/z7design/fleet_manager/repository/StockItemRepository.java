@@ -16,14 +16,22 @@ import java.util.UUID;
 @Repository
 public interface StockItemRepository extends JpaRepository<StockItem, UUID> {
 
-    // Buscar por código
-    Optional<StockItem> findByCode(String code);
+    // Buscar por código (com LIMIT 1 para proteger contra duplicatas entre empresas)
+    @Query(value = "SELECT * FROM stock_items WHERE code = :code LIMIT 1", nativeQuery = true)
+    Optional<StockItem> findByCode(@Param("code") String code);
+
+    // Buscar primeiro por código (limita a 1 resultado para evitar NonUniqueResultException em ambientes multi-empresa)
+    Optional<StockItem> findFirstByCode(String code);
 
     // Buscar por nome contendo (case insensitive)
     List<StockItem> findByNameContainingIgnoreCase(String name);
 
-    // Buscar por empresa e código
-    Optional<StockItem> findByCompanyIdAndCode(UUID companyId, String code);
+    // Buscar por empresa e código (com LIMIT 1)
+    @Query(value = "SELECT * FROM stock_items WHERE company_id = :companyId AND code = :code LIMIT 1", nativeQuery = true)
+    Optional<StockItem> findByCompanyIdAndCode(@Param("companyId") UUID companyId, @Param("code") String code);
+
+    // Buscar primeiro por empresa e código (limita a 1 resultado)
+    Optional<StockItem> findFirstByCompanyIdAndCode(UUID companyId, String code);
 
     // Buscar por código sem empresa (legado/admin)
     Optional<StockItem> findByCodeAndCompanyIdIsNull(String code);
@@ -39,6 +47,9 @@ public interface StockItemRepository extends JpaRepository<StockItem, UUID> {
 
     // Buscar ativos
     List<StockItem> findByActiveTrue();
+
+    // Buscar itens pelo número da nota fiscal de entrada
+    List<StockItem> findByInvoiceNumber(String invoiceNumber);
 
     // Buscar por categoria e ativos
     List<StockItem> findByCategoryAndActiveTrue(StockCategory category);
@@ -104,6 +115,6 @@ public interface StockItemRepository extends JpaRepository<StockItem, UUID> {
     boolean existsByCode(String code);
 
     // Verificar se código existe para a empresa via query nativa (ignora filtro tenant)
-    @Query(value = "SELECT COUNT(*) > 0 FROM stock_items WHERE (:companyId IS NULL OR company_id = :companyId) AND code = :code", nativeQuery = true)
+    @Query(value = "SELECT CASE WHEN COUNT(*) > 0 THEN TRUE ELSE FALSE END FROM stock_items WHERE (CAST(:companyId AS uuid) IS NULL OR company_id = CAST(:companyId AS uuid)) AND code = :code", nativeQuery = true)
     boolean existsByCompanyIdAndCodeNative(@Param("companyId") UUID companyId, @Param("code") String code);
 }

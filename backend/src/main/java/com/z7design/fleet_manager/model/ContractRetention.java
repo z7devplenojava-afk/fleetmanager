@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import org.hibernate.annotations.Filter;
 
 @Entity
 @Table(name = "contract_retentions")
@@ -16,6 +17,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Filter(name = "tenantFilter", condition = "company_id = :companyId")
 public class ContractRetention {
 
     @Id

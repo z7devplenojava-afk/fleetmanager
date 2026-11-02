@@ -110,6 +110,14 @@ public class NotificationController {
         notificationService.delete(id);
         return ResponseEntity.noContent().build();
     }
+
+    @DeleteMapping("/panel/{id}")
+    public ResponseEntity<Void> deletePanelNotification(@PathVariable("id") UUID id) {
+        try {
+            notificationService.delete(id);
+        } catch (Exception ignored) {}
+        return ResponseEntity.noContent().build();
+    }
     
     @Operation(summary = "Busca uma notificaÃ§Ã£o pelo ID",
                description = "Retorna as informaÃ§Ãµes de uma notificaÃ§Ã£o especÃ­fica. Requer o papel de ADMIN, GESTOR, SUPERVISOR ou VIGILANTE (se for sua prÃ³pria notificaÃ§Ã£o).")

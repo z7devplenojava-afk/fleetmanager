@@ -23,9 +23,13 @@ export const costCenterService = {
     return data;
   },
   
-  async listActive() {
-    const { data } = await api.get('/api/cost-centers/active');
-    return data;
+  async listActive(): Promise<CostCenterDTO[]> {
+    try {
+      const { data } = await api.get('/api/cost-centers/active', { silentErrorLog: true } as any);
+      return Array.isArray(data) ? data : [];
+    } catch {
+      return [];
+    }
   },
   
   async create(dto: CostCenterDTO) {

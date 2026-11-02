@@ -190,6 +190,7 @@ const Frota: React.FC = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState('veiculos');
   const [vehicleTypeFilter, setVehicleTypeFilter] = useState<string>('ALL');
   const [maintenanceAlertFilter, setMaintenanceAlertFilter] = useState<string>('ALL');
   const [isVeiculoModalOpen, setIsVeiculoModalOpen] = useState(false);
@@ -208,15 +209,6 @@ const Frota: React.FC = () => {
   const [isMultaModalOpen, setIsMultaModalOpen] = useState(false);
   const [isAgregadoModalOpen, setIsAgregadoModalOpen] = useState(false);
   const [selectedAgregado, setSelectedAgregado] = useState<Vehicle | null>(null);
-
-  // Debug: Monitorar mudanças nos estados dos modais
-  useEffect(() => {
-    console.log('🔍 Estado isVehicleReportModalOpen:', isVehicleReportModalOpen);
-  }, [isVehicleReportModalOpen]);
-
-  useEffect(() => {
-    console.log('🔍 Estado isVeiculoModalOpen:', isVeiculoModalOpen);
-  }, [isVeiculoModalOpen]);
   const [isMultaViewModalOpen, setIsMultaViewModalOpen] = useState(false);
   const [isMultaDeleteDialogOpen, setIsMultaDeleteDialogOpen] = useState(false);
   const [isDriverModalOpen, setIsDriverModalOpen] = useState(false);
@@ -266,37 +258,10 @@ const Frota: React.FC = () => {
     refetch: refetchVehicles
   } = useQuery({
     queryKey: ['vehicles'],
-    queryFn: async () => {
-      try {
-        console.log('🔍 Iniciando busca de veículos...');
-
-        // Debug authentication
-        const token = localStorage.getItem('token');
-        const user = localStorage.getItem('user');
-        console.log('🔍 Debug Auth - Token exists:', !!token);
-        console.log('🔍 Debug Auth - User exists:', !!user);
-        if (user) {
-          const userData = JSON.parse(user);
-          console.log('🔍 Debug Auth - User role:', userData.role);
-          console.log('🔍 Debug Auth - User permissions:', userData.permissions);
-        }
-
-        const data = await fleetService.getVehicles();
-        console.log('✅ Veículos carregados:', data);
-        return data;
-      } catch (error) {
-        console.error('❌ Erro ao carregar veículos:', error);
-        console.error('❌ Detalhes do erro:', {
-          message: error.message,
-          status: error.response?.status,
-          statusText: error.response?.statusText,
-          data: error.response?.data
-        });
-        throw error;
-      }
-    },
-    retry: 2,
-    retryDelay: 1000
+    queryFn: () => fleetService.getVehicles(),
+    staleTime: 60 * 1000,
+    refetchOnWindowFocus: false,
+    retry: 1
   });
 
   // Buscar registros de abastecimento
@@ -307,7 +272,10 @@ const Frota: React.FC = () => {
     refetch: refetchFuelRecords
   } = useQuery({
     queryKey: ['fuelRecords'],
-    queryFn: () => fleetService.getFuelRecords()
+    queryFn: () => fleetService.getFuelRecords(),
+    staleTime: 60 * 1000,
+    refetchOnWindowFocus: false,
+    retry: 1
   });
 
   // Buscar multas
@@ -319,18 +287,9 @@ const Frota: React.FC = () => {
   } = useQuery({
     queryKey: ['fines'],
     queryFn: () => fleetService.getFines(),
-    retry: 2,
-    retryDelay: 1000,
-    staleTime: 0, // Sempre considerar dados stale para forçar refetch
-    refetchOnWindowFocus: true, // Refetch quando a janela recebe foco
-    refetchOnMount: 'always', // Sempre refetch ao montar o componente
-    onSuccess: (data) => {
-      console.log('✅ React Query: Multas carregadas com sucesso:', data);
-      console.log('📊 React Query: Total de multas:', data?.length || 0);
-    },
-    onError: (error) => {
-      console.error('❌ React Query: Erro ao carregar multas:', error);
-    }
+    staleTime: 60 * 1000,
+    refetchOnWindowFocus: false,
+    retry: 1
   });
 
   // Buscar lista de motoristas
@@ -341,9 +300,10 @@ const Frota: React.FC = () => {
     refetch: refetchDrivers
   } = useQuery({
     queryKey: ['drivers'],
-    queryFn: driverService.getDrivers,
-    retry: 2,
-    retryDelay: 1000
+    queryFn: () => driverService.getDrivers(),
+    staleTime: 120 * 1000,
+    refetchOnWindowFocus: false,
+    retry: 1
   });
 
   // Buscar funcionários com CNH para compor a aba Motoristas
@@ -358,8 +318,9 @@ const Frota: React.FC = () => {
         (emp) => emp?.cnhNumber && String(emp.cnhNumber).trim() !== ''
       );
     },
-    retry: 2,
-    retryDelay: 1000
+    staleTime: 120 * 1000,
+    refetchOnWindowFocus: false,
+    retry: 1
   });
 
   // Motoristas = cadastro de motoristas + funcionários com CNH (dedup por CNH)
@@ -419,12 +380,10 @@ const Frota: React.FC = () => {
   } = useQuery({
     queryKey: ['maintenances'],
     queryFn: () => maintenanceService.getAllMaintenances(),
-    retry: 3,
-    retryDelay: 1000
+    staleTime: 60 * 1000,
+    refetchOnWindowFocus: false,
+    retry: 1
   });
-
-  // Log para depurar a quantidade de manutenções carregadas
-  console.log('🔍 Frota.tsx - Manutenções carregadas:', maintenances?.length, maintenances);
 
   // Buscar controle de km
   const {
@@ -434,89 +393,71 @@ const Frota: React.FC = () => {
     refetch: refetchKmControls
   } = useQuery({
     queryKey: ['kmControls'],
-    queryFn: () => {
-      console.log('🔄 React Query: Executando queryFn para kmControls');
-      return kmControlService.getKmControls();
-    },
-    retry: 2,
-    retryDelay: 1000,
-    onSuccess: (data) => {
-      console.log('✅ React Query: kmControls carregados com sucesso:', data);
-      console.log('📊 React Query: Total de registros kmControls:', data?.length || 0);
-    },
-    onError: (error) => {
-      console.error('❌ React Query: Erro ao carregar kmControls:', error);
-    }
+    queryFn: () => kmControlService.getKmControls(),
+    staleTime: 60 * 1000,
+    refetchOnWindowFocus: false,
+    retry: 1
   });
 
-  // Função de mapeamento de multas (dentro do componente para ter acesso aos dados)
-  const mapFineToComponent = (fine: Fine): MultaComponent => {
-    console.log('🔍 Mapeando multa:', fine);
-    console.log('🔍 Dados do motorista na multa:', {
-      driverId: fine.driverId,
-      driverName: fine.driverName,
-      driverLicenseNumber: fine.driverLicenseNumber
+  // Mapa de veículos para busca rápida O(1)
+  const vehicleMap = React.useMemo(() => {
+    const map = new Map<number | string, any>();
+    vehicles?.forEach(v => {
+      if (v?.id != null) {
+        map.set(v.id, v);
+        map.set(String(v.id), v);
+      }
     });
+    return map;
+  }, [vehicles]);
 
-    // Encontrar o veículo correspondente
-    const vehicle = vehicles?.find(v => v.id === fine.vehicleId);
-    console.log('🚗 Veículo encontrado para multa:', vehicle);
+  // Mapear dados para componentes (memoizado para evitar re-renderizações desnecessárias)
+  const veiculosFiltrados = React.useMemo(() => {
+    return vehicles?.filter(v => {
+      const temId = v && v.id;
+      const temPlate = v && v.plate;
+      const temModel = v && v.model;
+      const temBrand = v && v.brand;
 
-    const mappedMulta = {
-      id: (fine?.id != null ? fine.id.toString() : ''),
-      veiculo_id: (fine?.vehicleId != null ? fine.vehicleId.toString() : ''),
-      placa: fine.vehiclePlate || '',
-      marca: vehicle?.brand || '',
-      modelo: vehicle?.model || '',
-      motorista_id: fine.driverId || undefined,
-      motorista_nome: fine.driverName || undefined,
-      motorista_cnh: fine.driverLicenseNumber || undefined,
-      data_infracao: fine.date,
-      data_vencimento: fine.dueDate || fine.date,
-      valor: fine.amount,
-      pontos: fine.points || 0,
-      tipo_infracao: fine.description,
-      local_infracao: fine.location,
-      status: fine.status === 'PAID' ? 'paga' : fine.status === 'PENDING' ? 'pendente' : 'vencida',
-      observacoes: undefined,
-      driverPhone: fine.driverPhone || undefined,
-      created_at: fine.createdAt,
-      updated_at: fine.createdAt
-    };
+      return temId && temPlate && temModel && temBrand;
+    }) || [];
+  }, [vehicles]);
 
-    console.log('✅ Multa mapeada:', mappedMulta);
-    console.log('✅ Dados do motorista mapeados:', {
-      motorista_id: mappedMulta.motorista_id,
-      motorista_nome: mappedMulta.motorista_nome,
-      motorista_cnh: mappedMulta.motorista_cnh
+  const veiculosComponent = React.useMemo(() => {
+    return veiculosFiltrados.map(mapVehicleToComponent);
+  }, [veiculosFiltrados]);
+
+  const abastecimentosComponent = React.useMemo(() => {
+    return fuelRecords?.map(mapFuelRecordToComponent) || [];
+  }, [fuelRecords]);
+
+  const multasComponent = React.useMemo(() => {
+    if (!fines) return [];
+    return fines.map((fine): MultaComponent => {
+      const vehicle = fine.vehicleId != null ? vehicleMap.get(fine.vehicleId) : undefined;
+      return {
+        id: (fine?.id != null ? fine.id.toString() : ''),
+        veiculo_id: (fine?.vehicleId != null ? fine.vehicleId.toString() : ''),
+        placa: fine.vehiclePlate || vehicle?.plate || '',
+        marca: vehicle?.brand || '',
+        modelo: vehicle?.model || '',
+        motorista_id: fine.driverId || undefined,
+        motorista_nome: fine.driverName || undefined,
+        motorista_cnh: fine.driverLicenseNumber || undefined,
+        data_infracao: fine.date,
+        data_vencimento: fine.dueDate || fine.date,
+        valor: fine.amount,
+        pontos: fine.points || 0,
+        tipo_infracao: fine.description,
+        local_infracao: fine.location,
+        status: fine.status === 'PAID' ? 'paga' : fine.status === 'PENDING' ? 'pendente' : 'vencida',
+        observacoes: undefined,
+        driverPhone: fine.driverPhone || undefined,
+        created_at: fine.createdAt,
+        updated_at: fine.createdAt
+      };
     });
-    return mappedMulta;
-  };
-
-  // Mapear dados para componentes
-  const veiculosFiltrados = vehicles?.filter(v => {
-    const temId = v && v.id;
-    const temPlate = v && v.plate;
-    const temModel = v && v.model;
-    const temBrand = v && v.brand;
-
-    return temId && temPlate && temModel && temBrand;
-  });
-
-  const veiculosComponent = veiculosFiltrados?.map(mapVehicleToComponent) || [];
-  const abastecimentosComponent = fuelRecords?.map(mapFuelRecordToComponent) || [];
-  const multasComponent = fines?.map(mapFineToComponent) || [];
-
-  // Log para debug das multas
-  console.log('🔍 Debug Multas:');
-  console.log('  - fines (dados brutos):', fines);
-  console.log('  - multasComponent (mapeadas):', multasComponent);
-  console.log('  - Quantidade de multas:', multasComponent.length);
-
-  // Error handling
-  if (vehiclesError) {
-    console.error('❌ Erro ao carregar veículos:', vehiclesError);
-  }
+  }, [fines, vehicleMap]);
 
   // Calcular estatísticas
   const vehiclesActive = vehicles?.filter(v => v.status === 'ACTIVE').length || 0;
@@ -528,22 +469,26 @@ const Frota: React.FC = () => {
   const aggregatedVehicles = vehicles?.filter(v => (v as any).isAggregated === true).length || 0;
 
   // Calcular multas próximas do vencimento (7 dias)
-  const finesNearDue = multasComponent.filter(multa => {
-    if (multa.status === 'paga') return false;
-    const dueDate = new Date(multa.data_vencimento);
+  const finesNearDue = React.useMemo(() => {
     const today = new Date();
-    const diffTime = dueDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays <= 7 && diffDays >= 0;
-  });
+    return multasComponent.filter(multa => {
+      if (multa.status === 'paga') return false;
+      const dueDate = new Date(multa.data_vencimento);
+      const diffTime = dueDate.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays <= 7 && diffDays >= 0;
+    });
+  }, [multasComponent]);
 
   // Calcular multas vencidas
-  const overdueFines = multasComponent.filter(multa => {
-    if (multa.status === 'paga') return false;
-    const dueDate = new Date(multa.data_vencimento);
+  const overdueFines = React.useMemo(() => {
     const today = new Date();
-    return dueDate < today;
-  });
+    return multasComponent.filter(multa => {
+      if (multa.status === 'paga') return false;
+      const dueDate = new Date(multa.data_vencimento);
+      return dueDate < today;
+    });
+  }, [multasComponent]);
 
   const handleVeiculoSuccess = () => {
     refetchVehicles();
@@ -889,61 +834,6 @@ const Frota: React.FC = () => {
     }
   };
 
-  // Loading state
-  if (vehiclesLoading || fuelRecordsLoading || finesLoading || driversLoading || maintenancesLoading || kmControlsLoading) {
-    return (
-      <StandardLayout>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-seguranca-yellow" />
-          <span className="ml-2 text-seguranca-lightgray">Carregando dados da frota...</span>
-        </div>
-      </StandardLayout>
-    );
-  }
-
-  // Error state para veículos
-  if (vehiclesError) {
-    return (
-      <StandardLayout>
-        <div className="flex flex-col items-center justify-center h-64 space-y-4">
-          <AlertTriangle className="h-12 w-12 text-red-500" />
-          <div className="text-center">
-            <h3 className="text-lg font-semibold text-red-500 mb-2">Erro ao carregar veículos</h3>
-            <p className="text-gray-400 mb-4">Não foi possível carregar a lista de veículos.</p>
-            <Button onClick={() => refetchVehicles()} className="bg-seguranca-red hover:bg-seguranca-darkred">
-              Tentar Novamente
-            </Button>
-          </div>
-        </div>
-      </StandardLayout>
-    );
-  }
-
-  // Error state
-  if (fuelRecordsError || finesError || driversError || maintenancesError || kmControlsError) {
-    return (
-      <StandardLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <AlertTriangle className="h-8 w-8 text-seguranca-red mx-auto mb-2" />
-            <p className="text-seguranca-lightgray">Erro ao carregar dados da frota</p>
-            <Button
-              onClick={() => {
-                refetchVehicles();
-                refetchFuelRecords();
-                refetchFines();
-                refetchMaintenances();
-                refetchKmControls();
-              }}
-              className="mt-2 bg-seguranca-red hover:bg-seguranca-darkred"
-            >
-              Tentar novamente
-            </Button>
-          </div>
-        </div>
-      </StandardLayout>
-    );
-  }
 
   // Função para gerar HTML do relatório
   const generateHTMLReport = (finesData: any[]) => {
@@ -1368,17 +1258,19 @@ const Frota: React.FC = () => {
 
   return (
     <StandardLayout title="Gestão de Frota" subtitle="Controle completo da frota de veículos">
-      <div className="space-y-6">
+      <div className="space-y-6 pb-32 sm:pb-8">
 
         {/* Cards de Resumo */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-6">
           <Card className="bg-seguranca-graphite border-gray-600">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-seguranca-lightgray">Veículos Ativos</CardTitle>
               <Car className="h-4 w-4 text-seguranca-yellow" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-seguranca-lightgray">{vehiclesActive}</div>
+              <div className="text-2xl font-bold text-seguranca-lightgray">
+                {vehiclesLoading ? '...' : vehiclesActive}
+              </div>
             </CardContent>
           </Card>
 
@@ -1388,8 +1280,12 @@ const Frota: React.FC = () => {
               <Fuel className="h-4 w-4 text-seguranca-yellow" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-seguranca-lightgray">{totalFuelRecords}</div>
-              <p className="text-xs text-gray-400">R$ {totalFuelCost.toFixed(2)}</p>
+              <div className="text-2xl font-bold text-seguranca-lightgray">
+                {fuelRecordsLoading ? '...' : totalFuelRecords}
+              </div>
+              <p className="text-xs text-gray-400">
+                {fuelRecordsLoading ? 'Calculando...' : `R$ ${totalFuelCost.toFixed(2)}`}
+              </p>
             </CardContent>
           </Card>
 
@@ -1399,7 +1295,9 @@ const Frota: React.FC = () => {
               <AlertTriangle className="h-4 w-4 text-seguranca-yellow" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-seguranca-lightgray">{pendingFines}</div>
+              <div className="text-2xl font-bold text-seguranca-lightgray">
+                {finesLoading ? '...' : pendingFines}
+              </div>
             </CardContent>
           </Card>
 
@@ -1409,7 +1307,9 @@ const Frota: React.FC = () => {
               <AlertTriangle className="h-4 w-4 text-seguranca-yellow" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-seguranca-lightgray">R$ {totalFinesAmount.toFixed(2)}</div>
+              <div className="text-2xl font-bold text-seguranca-lightgray">
+                {finesLoading ? '...' : `R$ ${totalFinesAmount.toFixed(2)}`}
+              </div>
             </CardContent>
           </Card>
 
@@ -1419,14 +1319,16 @@ const Frota: React.FC = () => {
               <Users className="h-4 w-4 text-orange-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-orange-400">{aggregatedVehicles}</div>
+              <div className="text-2xl font-bold text-orange-400">
+                {vehiclesLoading ? '...' : aggregatedVehicles}
+              </div>
               <p className="text-xs text-gray-400">Veículos de terceiros</p>
             </CardContent>
           </Card>
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="veiculos" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="flex items-center justify-start h-auto w-full bg-seguranca-graphite border-gray-600 overflow-x-auto overflow-y-hidden p-1 gap-1">
             <TabsTrigger value="veiculos" className="flex-shrink-0 min-w-max px-4 py-2 data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow">
               Veículos
@@ -1467,98 +1369,117 @@ const Frota: React.FC = () => {
           </TabsList>
 
           <TabsContent value="veiculos" className="mt-6 space-y-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-seguranca-graphite border border-gray-600 rounded-lg p-4">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 flex-1 w-full sm:w-auto">
-                <div className="relative flex-1 max-w-sm w-full">
-                  <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-                  <Input
-                    placeholder="Buscar por placa, marca ou modelo..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-8 bg-seguranca-black border-gray-600 text-seguranca-lightgray"
-                  />
+            <div className="bg-seguranca-graphite border border-gray-600 rounded-lg p-3 sm:p-4 space-y-3">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2 flex-1">
+                  <div className="relative flex-1 max-w-full md:max-w-xs">
+                    <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+                    <Input
+                      placeholder="Placa, marca ou modelo..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-9 bg-seguranca-black border-gray-600 text-seguranca-lightgray h-10 text-sm"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <select
+                      value={vehicleTypeFilter}
+                      onChange={(e) => setVehicleTypeFilter(e.target.value)}
+                      className="flex-1 md:flex-none bg-seguranca-black border border-gray-600 text-seguranca-lightgray rounded-md px-3 py-2 text-xs focus:border-seguranca-yellow focus:ring-1 focus:ring-seguranca-yellow h-10"
+                    >
+                      <option value="ALL">🚌 Todos Tipos</option>
+                      <option value="BUS_ROAD">🚌 Rodoviário</option>
+                      <option value="BUS_LUXURY_TOURISM">🚌✨ Turismo</option>
+                      <option value="BUS_URBAN">🏙️ Urbano</option>
+                      <option value="MINIBUS">🚐 Micro</option>
+                      <option value="VAN">🚐 Van</option>
+                      <option value="CAR_UTILITY">🚗 Utilitário</option>
+                      <option value="CAR">🚗 Carro</option>
+                      <option value="TRUCK">🚛 Caminhão</option>
+                      <option value="MOTORCYCLE">🏍️ Moto</option>
+                      <option value="PICKUP">🛻 Pickup</option>
+                      <option value="SUV">🚙 SUV</option>
+                    </select>
+                    <select
+                      value={maintenanceAlertFilter}
+                      onChange={(e) => setMaintenanceAlertFilter(e.target.value)}
+                      className="flex-1 md:flex-none bg-seguranca-black border border-gray-600 text-seguranca-lightgray rounded-md px-3 py-2 text-xs focus:border-seguranca-yellow focus:ring-1 focus:ring-seguranca-yellow h-10"
+                    >
+                      <option value="ALL">🔧 Manut: Todas</option>
+                      <option value="OVERDUE">🔴 Vencida</option>
+                      <option value="UPCOMING">🟡 Próxima</option>
+                      <option value="OK">🟢 Em Dia</option>
+                      <option value="NO_SCHEDULE">⚪ Sem Plano</option>
+                    </select>
+                  </div>
                 </div>
-                <select
-                  value={vehicleTypeFilter}
-                  onChange={(e) => setVehicleTypeFilter(e.target.value)}
-                  className="bg-seguranca-black border border-gray-600 text-seguranca-lightgray rounded-md px-3 py-2 text-sm focus:border-seguranca-yellow focus:ring-1 focus:ring-seguranca-yellow"
-                >
-                  <option value="ALL">🚌 Todos os Tipos</option>
-                  <option value="BUS_ROAD">🚌 Ônibus Rodoviário</option>
-                  <option value="BUS_LUXURY_TOURISM">🚌✨ Ônibus Luxo Turismo</option>
-                  <option value="BUS_URBAN">🏙️ Ônibus Urbano</option>
-                  <option value="MINIBUS">🚐 Micro-ônibus</option>
-                  <option value="VAN">🚐 Van</option>
-                  <option value="CAR_UTILITY">🚗 Carro Utilitário</option>
-                  <option value="CAR">🚗 Carro</option>
-                  <option value="TRUCK">🚛 Caminhão</option>
-                  <option value="MOTORCYCLE">🏍️ Motocicleta</option>
-                  <option value="PICKUP">🛻 Pickup</option>
-                  <option value="SUV">🚙 SUV</option>
-                  <option value="OTHER">❓ Outro</option>
-                </select>
-                <select
-                  value={maintenanceAlertFilter}
-                  onChange={(e) => setMaintenanceAlertFilter(e.target.value)}
-                  className="bg-seguranca-black border border-gray-600 text-seguranca-lightgray rounded-md px-3 py-2 text-sm focus:border-seguranca-yellow focus:ring-1 focus:ring-seguranca-yellow"
-                >
-                  <option value="ALL">🔧 Manutenção: Todas</option>
-                  <option value="OVERDUE">🔴 Vencida</option>
-                  <option value="UPCOMING">🟡 Próxima</option>
-                  <option value="OK">🟢 Em Dia</option>
-                  <option value="NO_SCHEDULE">⚪ Sem Plano</option>
-                </select>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => setIsCrlvModalOpen(true)}
-                  variant="outline"
-                  className="border-blue-500 text-blue-400 hover:bg-blue-600 hover:text-white font-semibold"
-                >
-                  <FileCheck size={16} className="mr-2" />
-                  Importar CRLV (PDF)
-                </Button>
-                <Button
-                  onClick={() => setIsVehicleImportModalOpen(true)}
-                  variant="outline"
-                  className="border-seguranca-yellow text-seguranca-yellow hover:bg-seguranca-yellow hover:text-black font-semibold"
-                >
-                  <FileSpreadsheet size={16} className="mr-2" />
-                  Importar Excel
-                </Button>
-                <Button
-                  onClick={() => setIsVehicleReportModalOpen(true)}
-                  variant="outline"
-                  className="border-green-500 text-green-500 hover:bg-green-500 hover:text-white"
-                >
-                  <FileText size={16} className="mr-2" />
-                  Relatório
-                </Button>
-                <Button
-                  onClick={() => setIsVeiculoModalOpen(true)}
-                  className="bg-seguranca-red hover:bg-seguranca-darkred"
-                >
-                  <Plus size={16} className="mr-2" />
-                  Novo Veículo
-                </Button>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    onClick={() => setIsCrlvModalOpen(true)}
+                    variant="outline"
+                    className="flex-1 sm:flex-none border-blue-500/60 text-blue-400 hover:bg-blue-600 hover:text-white font-bold text-[11px] sm:text-xs h-9"
+                  >
+                    <FileCheck size={14} className="mr-1.5" />
+                    CRLV
+                  </Button>
+                  <Button
+                    onClick={() => setIsVehicleImportModalOpen(true)}
+                    variant="outline"
+                    className="flex-1 sm:flex-none border-seguranca-yellow/60 text-seguranca-yellow hover:bg-seguranca-yellow hover:text-black font-bold text-[11px] sm:text-xs h-9"
+                  >
+                    <FileSpreadsheet size={14} className="mr-1.5" />
+                    Excel
+                  </Button>
+                  <Button
+                    onClick={() => setIsVehicleReportModalOpen(true)}
+                    variant="outline"
+                    className="flex-1 sm:flex-none border-green-500/60 text-green-500 hover:bg-green-500 hover:text-white font-bold text-[11px] sm:text-xs h-9"
+                  >
+                    <FileText size={14} className="mr-1.5" />
+                    PDF
+                  </Button>
+                  <Button
+                    onClick={() => setIsVeiculoModalOpen(true)}
+                    className="flex-1 sm:flex-none bg-seguranca-red hover:bg-seguranca-darkred font-bold text-[11px] sm:text-xs h-9"
+                  >
+                    <Plus size={14} className="mr-1.5" />
+                    Novo
+                  </Button>
+                </div>
               </div>
             </div>
 
-            <VeiculosTable
-              veiculos={vehicles ? vehicles.map(mapVehicleToComponent) : []}
-              searchTerm={searchTerm}
-              vehicleTypeFilter={vehicleTypeFilter}
-              maintenanceAlertFilter={maintenanceAlertFilter}
-              maintenances={maintenances}
-              onRefresh={refetchVehicles}
-              onEdit={handleVeiculoEdit}
-              onDelete={handleDeleteVeiculo}
-              onView={handleViewVeiculo}
-              onViewMaintenance={(maintenance) => {
-                setSelectedManutencao(maintenance);
-                setIsManutencaoViewModalOpen(true);
-              }}
-            />
+            {vehiclesLoading ? (
+              <div className="flex items-center justify-center h-48 bg-seguranca-graphite border border-gray-600 rounded-lg">
+                <Loader2 className="h-6 w-6 animate-spin text-seguranca-yellow mr-2" />
+                <span className="text-sm text-seguranca-lightgray">Carregando lista de veículos...</span>
+              </div>
+            ) : vehiclesError ? (
+              <div className="flex flex-col items-center justify-center h-48 bg-seguranca-graphite border border-gray-600 rounded-lg p-4 space-y-3">
+                <AlertTriangle className="h-8 w-8 text-red-500" />
+                <p className="text-sm text-red-400">Erro ao carregar veículos.</p>
+                <Button size="sm" onClick={() => refetchVehicles()} className="bg-seguranca-red hover:bg-seguranca-darkred">
+                  Tentar Novamente
+                </Button>
+              </div>
+            ) : (
+              <VeiculosTable
+                veiculos={veiculosComponent}
+                searchTerm={searchTerm}
+                vehicleTypeFilter={vehicleTypeFilter}
+                maintenanceAlertFilter={maintenanceAlertFilter}
+                maintenances={maintenances}
+                onRefresh={refetchVehicles}
+                onEdit={handleVeiculoEdit}
+                onDelete={handleDeleteVeiculo}
+                onView={handleViewVeiculo}
+                onViewMaintenance={(maintenance) => {
+                  setSelectedManutencao(maintenance);
+                  setIsManutencaoViewModalOpen(true);
+                }}
+              />
+            )}
           </TabsContent>
 
           <TabsContent value="abastecimentos" className="mt-6 space-y-4">
@@ -1963,21 +1884,23 @@ const Frota: React.FC = () => {
               )}
 
               {/* Tabela de Multas */}
-              <div className="flex justify-between items-center bg-seguranca-graphite border border-gray-600 rounded-lg p-4">
-                <div className="flex items-center space-x-3">
-                  <h3 className="text-seguranca-lightgray font-semibold flex items-center gap-2">
-                    <AlertTriangle className="h-5 w-5 text-red-500" />
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 bg-seguranca-graphite border border-gray-600 rounded-lg p-3 sm:p-4">
+                <div className="flex items-center justify-between sm:justify-start gap-3">
+                  <h3 className="text-seguranca-lightgray font-semibold flex items-center gap-2 text-base sm:text-lg">
+                    <AlertTriangle className="h-5 w-5 text-red-500 shrink-0" />
                     Gestão de Multas
                   </h3>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setShowMultaSelection(!showMultaSelection)}
-                    className={showMultaSelection ? "bg-blue-600 hover:bg-blue-700 text-white" : "border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black"}
+                    className={`text-xs h-8 ${showMultaSelection ? "bg-blue-600 hover:bg-blue-700 text-white" : "border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black"}`}
                   >
                     {showMultaSelection ? 'Desativar Seleção' : 'Ativar Seleção'}
                   </Button>
                 </div>
+
+                <div className="flex items-center flex-col sm:flex-row gap-2">
                   <Button
                     onClick={() => {
                       setFineQueryPlate('');
@@ -1985,19 +1908,20 @@ const Frota: React.FC = () => {
                       setFineQueryUf('MG');
                       setIsFineQueryModalOpen(true);
                     }}
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-medium flex items-center gap-1.5 shadow-sm"
+                    className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-medium flex items-center justify-center gap-1.5 shadow-sm h-9 text-xs sm:text-sm"
                   >
                     <Search size={16} />
-                    Consultar Multas & Restrições (Governo/Brokers)
+                    Consultar Multas (Governo/Brokers)
                   </Button>
                   <Button
                     onClick={() => setIsMultaModalOpen(true)}
-                    className="bg-seguranca-red hover:bg-seguranca-darkred"
+                    className="w-full sm:w-auto bg-seguranca-red hover:bg-seguranca-darkred text-white flex items-center justify-center gap-1.5 h-9 text-xs sm:text-sm"
                   >
-                    <Plus size={16} className="mr-2" />
+                    <Plus size={16} />
                     Nova Multa
                   </Button>
                 </div>
+              </div>
 
               <div className="bg-seguranca-black border border-gray-600 rounded-lg overflow-hidden">
                 <MultasTable
@@ -2094,12 +2018,12 @@ const Frota: React.FC = () => {
           veiculos={vehicles || []}
           manutencao={selectedManutencao}
         />
-        {console.log("🔍 Frota.tsx - Estado ManutencaoFormModal:", { isOpen: isManutencaoModalOpen, selectedManutencao: selectedManutencao })}
 
         <ManutencaoViewModal
           isOpen={isManutencaoViewModalOpen}
           onClose={() => {
             setIsManutencaoViewModalOpen(false);
+            setSelectedManutencao(null);
           }}
           maintenance={selectedManutencao}
           onEdit={handleEditManutencao}

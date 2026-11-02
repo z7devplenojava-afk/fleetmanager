@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Camera, X, Loader2, Upload, Image as ImageIcon } from 'lucide-react';
+import { Camera, X, Loader2, Upload, RotateCcw } from 'lucide-react';
 
 interface CameraCaptureProps {
   onPhotosChange: (photos: File[]) => void;
@@ -19,45 +19,108 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
   className = '',
   label = 'Fotos do veículo (câmera)',
 }) => {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const [capturedPhotos, setCapturedPhotos] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const nativeCameraInputRef = useRef<HTMLInputElement>(null);
 
   const stopStream = useCallback(() => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
     setIsStreaming(false);
   }, []);
 
-  const startCamera = useCallback(async () => {
-    setError(null);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: false,
+  const attachStreamToVideo = useCallback((stream: MediaStream) => {
+    if (videoRef.current) {
+      videoRef.current.srcObject = stream;
+      videoRef.current.play().catch((err) => {
+        console.warn('Erro ao reproduzir stream da câmera:', err);
       });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-      setIsStreaming(true);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Erro ao acessar câmera';
-      setError(msg.includes('Permission') ? 'Permissão de câmera negada.' : 'Não foi possível acessar a câmera. Você também pode fazer upload de fotos abaixo.');
     }
   }, []);
+
+  // Callback ref: garante que o stream seja anexado assim que o <video> for montado
+  const setVideoRef = useCallback((node: HTMLVideoElement | null) => {
+    videoRef.current = node;
+    if (node && streamRef.current) {
+      node.srcObject = streamRef.current;
+      node.play().catch((err) => {
+        console.warn('Erro ao inicializar vídeo no callback ref:', err);
+      });
+    }
+  }, []);
+
+  const startCamera = useCallback(async (targetFacing: 'environment' | 'user' = 'environment') => {
+    setError(null);
+    stopStream();
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setError('Seu navegador não suporta captura direta de vídeo. Use o botão "Tirar Foto" para abrir a câmera nativa do aparelho.');
+      return;
+    }
+
+    try {
+      let stream: MediaStream;
+      try {
+        // Prioriza câmera traseira (environment)
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: targetFacing },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+          },
+          audio: false,
+        });
+      } catch (errFirst) {
+        // Fallback básico caso constraints rígidas não sejam aceitas pelo aparelho
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: targetFacing },
+          audio: false,
+        });
+      }
+
+      streamRef.current = stream;
+      setFacingMode(targetFacing);
+      setIsStreaming(true);
+      attachStreamToVideo(stream);
+    } catch (err: any) {
+      console.error('Erro ao acessar câmera:', err);
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('Permission') || msg.includes('NotAllowedError')) {
+        setError('Permissão de câmera negada. Habilite a permissão no navegador ou use o botão "Tirar Foto (Câmera Traseira)".');
+      } else {
+        setError('Não foi possível iniciar a visualização ao vivo. Use o botão "Tirar Foto (Câmera Traseira)" para abrir o aplicativo de câmera do celular.');
+      }
+    }
+  }, [stopStream, attachStreamToVideo]);
+
+  const toggleFacingMode = useCallback(() => {
+    const nextMode = facingMode === 'environment' ? 'user' : 'environment';
+    startCamera(nextMode);
+  }, [facingMode, startCamera]);
 
   useEffect(() => {
     return () => stopStream();
   }, [stopStream]);
+
+  // Se o componente re-renderizar mantendo o streaming, garante que o stream continue ativo no vídeo
+  useEffect(() => {
+    if (isStreaming && streamRef.current && videoRef.current) {
+      attachStreamToVideo(streamRef.current);
+    }
+  }, [isStreaming, attachStreamToVideo]);
 
   const capturePhoto = useCallback(() => {
     const video = videoRef.current;
@@ -70,26 +133,33 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
       setIsCapturing(false);
       return;
     }
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    ctx.drawImage(video, 0, 0);
+
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
     canvas.toBlob(
       (blob) => {
         if (!blob) {
           setIsCapturing(false);
           return;
         }
-        const prefix = maxPhotos === 1 ? 'odometer' : 'vehicle';
+        const prefix = maxPhotos === 1 ? 'odometro' : 'veiculo';
         const file = new File([blob], `${prefix}_${Date.now()}.jpg`, { type: 'image/jpeg' });
         const next = [...capturedPhotos, file];
         setCapturedPhotos(next);
         onPhotosChange(next);
         setIsCapturing(false);
+
+        // Se o limite era 1 foto (ex: odômetro), desliga o stream automaticamente após capturar
+        if (maxPhotos === 1) {
+          stopStream();
+        }
       },
       'image/jpeg',
-      0.9
+      0.92
     );
-  }, [capturedPhotos, maxPhotos, onPhotosChange]);
+  }, [capturedPhotos, maxPhotos, onPhotosChange, stopStream]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -107,9 +177,8 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
     onPhotosChange(next);
     setError(null);
 
-    // Limpar o valor do input para permitir selecionar o mesmo arquivo se necessário
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+    if (e.target) {
+      e.target.value = '';
     }
   };
 
@@ -124,19 +193,30 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
 
   return (
     <div className={`space-y-3 ${className}`}>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <span className="text-sm font-medium text-seguranca-lightgray flex items-center gap-2">
-          <Camera className="h-4 w-4 text-seguranca-yellow" />
-          {label}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <span className="text-xs sm:text-sm font-medium text-seguranca-lightgray flex items-start sm:items-center gap-2 leading-snug">
+          <Camera className="h-4 w-4 text-seguranca-yellow shrink-0 mt-0.5 sm:mt-0" />
+          <span>{label}</span>
           {capturedPhotos.length > 0 && (
-            <span className="text-xs bg-zinc-800 text-yellow-400 border border-yellow-500/30 px-2 py-0.5 rounded-full font-mono font-bold">
+            <span className="text-xs bg-zinc-800 text-yellow-400 border border-yellow-500/30 px-2 py-0.5 rounded-full font-mono font-bold shrink-0">
               {capturedPhotos.length}/{maxPhotos}
             </span>
           )}
         </span>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Input oculto para Upload de Arquivos */}
+        <div className="grid grid-cols-2 sm:flex items-center gap-2.5 w-full sm:w-auto">
+          {/* Input para Câmera Traseira Nativa (Abre o app de câmera do celular direto) */}
+          <input
+            ref={nativeCameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            disabled={disabled || capturedPhotos.length >= maxPhotos}
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+
+          {/* Input para Galeria/Upload comum */}
           <input
             ref={fileInputRef}
             type="file"
@@ -147,42 +227,55 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
             className="hidden"
           />
 
+          {/* Botão Principal: Tirar Foto usando a câmera traseira do celular (Largura total no mobile para máxima visibilidade) */}
           <Button
             type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => fileInputRef.current?.click()}
+            variant="default"
+            onClick={() => nativeCameraInputRef.current?.click()}
             disabled={disabled || capturedPhotos.length >= maxPhotos}
-            className="border-gray-600 bg-seguranca-black hover:bg-zinc-800 text-zinc-200 text-xs h-8 px-3"
-            title="Selecionar fotos do dispositivo"
+            className="col-span-2 sm:w-auto bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm h-12 sm:h-10 px-4 rounded-xl shadow-md justify-center gap-2"
+            title="Abrir câmera traseira do dispositivo para tirar foto"
           >
-            <Upload className="h-3.5 w-3.5 mr-1.5 text-emerald-400" />
-            Upload de Foto{maxPhotos > 1 ? 's' : ''}
+            <Camera className="h-5 w-5 shrink-0" />
+            <span>Tirar Foto (Câmera do Celular)</span>
           </Button>
 
+          {/* Botão de Ver Câmera na Tela (Stream ao vivo) */}
           {isStreaming ? (
             <Button
               type="button"
               variant="outline"
-              size="sm"
               onClick={stopStream}
-              className="border-gray-600 bg-red-950/40 text-red-300 hover:bg-red-900/50 text-xs h-8 px-3"
+              className="w-full sm:w-auto border-red-500/40 bg-red-950/40 text-red-300 hover:bg-red-900/50 text-xs sm:text-sm font-bold h-11 sm:h-10 px-3.5 rounded-xl justify-center gap-1.5"
             >
-              Desligar câmera
+              <span>Fechar Câmera</span>
             </Button>
           ) : (
             <Button
               type="button"
               variant="outline"
-              size="sm"
-              onClick={startCamera}
+              onClick={() => startCamera('environment')}
               disabled={disabled || capturedPhotos.length >= maxPhotos}
-              className="border-gray-600 bg-seguranca-black hover:bg-zinc-800 text-zinc-200 text-xs h-8 px-3"
+              className="w-full sm:w-auto border-gray-600 bg-seguranca-black hover:bg-zinc-800 text-zinc-100 text-xs sm:text-sm font-bold h-11 sm:h-10 px-3.5 rounded-xl justify-center gap-1.5"
+              title="Abrir câmera ao vivo na tela"
             >
-              <Camera className="h-3.5 w-3.5 mr-1.5 text-yellow-400" />
-              Ativar câmera
+              <Camera className="h-4 w-4 text-yellow-400 shrink-0" />
+              <span>Câmera na Tela</span>
             </Button>
           )}
+
+          {/* Botão de Upload da Galeria */}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={disabled || capturedPhotos.length >= maxPhotos}
+            className="w-full sm:w-auto border-gray-600 bg-seguranca-black hover:bg-zinc-800 text-zinc-100 text-xs sm:text-sm font-bold h-11 sm:h-10 px-3.5 rounded-xl justify-center gap-1.5"
+            title="Selecionar fotos existentes na galeria"
+          >
+            <Upload className="h-4 w-4 text-zinc-300 shrink-0" />
+            <span>Galeria</span>
+          </Button>
         </div>
       </div>
 
@@ -190,15 +283,29 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
         <p className="text-xs text-amber-400 bg-amber-950/30 border border-amber-800/60 p-2 rounded-lg">{error}</p>
       )}
 
+      {/* Visualizador de Câmera ao Vivo */}
       {isStreaming && (
         <div className="relative rounded-lg overflow-hidden bg-black border border-gray-700 shadow-md">
           <video
-            ref={videoRef}
+            ref={setVideoRef}
             autoPlay
             playsInline
             muted
-            className="w-full max-h-[280px] object-cover"
+            className="w-full max-h-[320px] object-cover bg-black"
           />
+          <div className="absolute top-2 right-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              onClick={toggleFacingMode}
+              className="h-7 px-2 text-xs bg-black/60 text-white hover:bg-black/80 backdrop-blur-sm border border-white/20"
+              title="Alternar entre câmera traseira e frontal"
+            >
+              <RotateCcw className="h-3 w-3 mr-1" />
+              {facingMode === 'environment' ? 'Traseira' : 'Frontal'}
+            </Button>
+          </div>
           <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-2">
             <Button
               type="button"
@@ -208,13 +315,11 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
               className="bg-seguranca-yellow text-black hover:bg-seguranca-yellow/90 font-bold shadow-lg"
             >
               {isCapturing ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
               ) : (
-                <>
-                  <Camera className="h-4 w-4 mr-2" />
-                  Capturar ({capturedPhotos.length}/{maxPhotos})
-                </>
+                <Camera className="h-4 w-4 mr-1.5" />
               )}
+              Capturar Foto ({capturedPhotos.length}/{maxPhotos})
             </Button>
           </div>
         </div>

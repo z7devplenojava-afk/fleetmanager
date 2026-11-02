@@ -32,6 +32,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -117,8 +118,22 @@ public class FleetWorkOrderPdfService {
         data.put("vehicleBrand", order.getVehicle() != null ? order.getVehicle().getBrand() : null);
         data.put("planoManutencao", (order.getPlan() != null && order.getPlan().getTaskName() != null)
                 ? order.getPlan().getTaskName() : null);
-        data.put("mechanicName", order.getMechanicName());
-        data.put("mecanicoAssinatura", order.getMechanicName());
+        String resolvedMechanic = order.getMechanicName();
+        if (resolvedMechanic == null || resolvedMechanic.isBlank()) {
+            String extracted = com.z7design.fleet_manager.dto.FleetWorkOrderDTO.extractDriverFromText(order.getNotes(), order.getAnomaliesDescription(), order.getStopReason());
+            if (extracted != null && !extracted.isBlank()) {
+                resolvedMechanic = extracted;
+            }
+            if ((resolvedMechanic == null || resolvedMechanic.isBlank()) && order.getVehicle() != null) {
+                if (order.getVehicle().getResponsibleEmployee() != null) {
+                    resolvedMechanic = order.getVehicle().getResponsibleEmployee().getName();
+                } else if (order.getVehicle().getAssignedDriver() != null && !order.getVehicle().getAssignedDriver().isBlank()) {
+                    resolvedMechanic = order.getVehicle().getAssignedDriver() + " (Motorista)";
+                }
+            }
+        }
+        data.put("mechanicName", resolvedMechanic);
+        data.put("mecanicoAssinatura", resolvedMechanic);
         data.put("laborType", formatLaborType(order.getLaborType()));
         data.put("status", formatStatus(order.getStatus()));
         data.put("prioridade", formatPriority(order.getPriority()));
@@ -154,6 +169,12 @@ public class FleetWorkOrderPdfService {
         data.put("odometerOut", order.getOdometerOut() != null ? formatKm(order.getOdometerOut()) : null);
         data.put("tempoParado", formatDowntime(order.getDowntimeHours(), order.getDowntimeDays()));
 
+        // Tempo de Execução do Serviço
+        data.put("executionStartDate", order.getExecutionStartDate() != null ? order.getExecutionStartDate().format(DATETIME_FMT) : null);
+        data.put("executionEndDate", order.getExecutionEndDate() != null ? order.getExecutionEndDate().format(DATETIME_FMT) : null);
+        data.put("tempoExecucao", formatExecutionDuration(order.getExecutionDurationMinutes()));
+        data.put("executionStartJustification", order.getExecutionStartJustification());
+
         // Descrições PRD
         data.put("anomaliesDescription", order.getAnomaliesDescription());
         data.put("otherDescription", order.getOtherDescription());
@@ -187,7 +208,16 @@ public class FleetWorkOrderPdfService {
                     checklistData.add(cMap);
                 }
             } else if (order.getMaintenanceType() == com.z7design.fleet_manager.model.FleetWorkOrder.MaintenanceType.PREVENTIVA && checklistItemRepository != null) {
-                var masterItems = checklistItemRepository.findByAtivoTrueOrderByOrdemAsc();
+                String vType = "";
+                if (order.getVehicle() != null) {
+                    if (order.getVehicle().getVehicleType() != null) vType += order.getVehicle().getVehicleType().name();
+                    if (order.getVehicle().getModel() != null) vType += " " + order.getVehicle().getModel();
+                }
+                String vtUpper = vType.toUpperCase();
+                boolean isVan = vtUpper.contains("VAN") || vtUpper.contains("SPRINTER") || vtUpper.contains("DUCATO") || vtUpper.contains("MASTER") || vtUpper.contains("TRANSIT");
+                boolean isMicro = vtUpper.contains("MINIBUS") || vtUpper.contains("MICRO") || vtUpper.contains("VOLARE") || vtUpper.contains("SENIOR");
+                List<String> targetTypes = isVan ? List.of("VAN", "ALL") : (isMicro ? List.of("MINIBUS", "MICRO", "BUS", "ALL") : List.of("BUS", "ALL"));
+                var masterItems = checklistItemRepository.findByVehicleTypeApplicableInAndAtivoTrueOrderByOrdemAsc(targetTypes);
                 for (var m : masterItems) {
                     Map<String, Object> cMap = new HashMap<>();
                     cMap.put("itemDescricao", m.getDescricao() != null ? m.getDescricao() : "");
@@ -203,7 +233,15 @@ public class FleetWorkOrderPdfService {
         }
         data.put("checklistItems", checklistData);
 
-        // Divide o checklist em 2 colunas equilibradas para caber exatamente em 1 página
+        // Agrupamento ordenado do checklist por Grupo/Categoria oficial (1 a 18)
+        Map<String, List<Map<String, Object>>> checklistByGroup = new LinkedHashMap<>();
+        for (Map<String, Object> cMap : checklistData) {
+            String cat = (String) cMap.getOrDefault("categoria", "GERAL");
+            checklistByGroup.computeIfAbsent(cat, k -> new ArrayList<>()).add(cMap);
+        }
+        data.put("checklistByGroup", checklistByGroup);
+
+        // Divide o checklist em 2 colunas equilibradas para templates compactos
         List<Map<String, Object>> checklistCol1 = new ArrayList<>();
         List<Map<String, Object>> checklistCol2 = new ArrayList<>();
         if (!checklistData.isEmpty()) {
@@ -280,8 +318,9 @@ public class FleetWorkOrderPdfService {
         data.put("photoRows", photoRows);
 
         // Empresa (nome/logo para o cabeçalho do PDF)
+        Company company = null;
         try {
-            Company company = resolveCompany(order);
+            company = resolveCompany(order);
             if (company != null) {
                 data.put("companyName", company.getName());
                 data.put("companyCnpj", CompanyDataFormatter.formatCnpjForHeader(company));
@@ -291,6 +330,32 @@ public class FleetWorkOrderPdfService {
         } catch (Exception e) {
             log.warn("Aviso ao resolver dados de empresa para PDF da OS {}: {}", order.getId(), e.getMessage());
         }
+
+        // Local de Execução da Manutenção (Opção A: Garagem / Unidade com fallback para Empresa)
+        String localManutencao = null;
+        try {
+            if (order.getGarage() != null) {
+                localManutencao = order.getGarage().getName();
+                if (order.getGarage().getAddress() != null && !order.getGarage().getAddress().isBlank()) {
+                    localManutencao += " — " + order.getGarage().getAddress();
+                }
+            } else if (order.getVehicle() != null && order.getVehicle().getGarage() != null) {
+                localManutencao = order.getVehicle().getGarage().getName();
+                if (order.getVehicle().getGarage().getAddress() != null && !order.getVehicle().getGarage().getAddress().isBlank()) {
+                    localManutencao += " — " + order.getVehicle().getGarage().getAddress();
+                }
+            } else if (order.getWorkPost() != null) {
+                localManutencao = order.getWorkPost().getName();
+                if (order.getWorkPost().getAddress() != null && !order.getWorkPost().getAddress().isBlank()) {
+                    localManutencao += " — " + order.getWorkPost().getAddress();
+                }
+            } else if (company != null && company.getAddress() != null) {
+                localManutencao = CompanyDataFormatter.formatFullAddress(company);
+            }
+        } catch (Exception e) {
+            log.warn("Aviso ao resolver local de manutenção da OS {}: {}", order.getId(), e.getMessage());
+        }
+        data.put("manutencaoRealizadaEm", localManutencao);
 
         return data;
     }
@@ -523,5 +588,19 @@ public class FleetWorkOrderPdfService {
     private String formatLaborType(FleetWorkOrder.LaborType laborType) {
         if (laborType == null) return null;
         return laborType == FleetWorkOrder.LaborType.INTERNAL ? "Oficina Interna" : "Externa (Terceiros)";
+    }
+
+    private String formatExecutionDuration(Long totalMinutes) {
+        if (totalMinutes == null || totalMinutes < 0) return null;
+        if (totalMinutes == 0) return "Menos de 1 min";
+        long days = totalMinutes / 1440;
+        long hours = (totalMinutes % 1440) / 60;
+        long minutes = totalMinutes % 60;
+
+        List<String> parts = new ArrayList<>();
+        if (days > 0) parts.add(days + (days == 1 ? " dia" : " dias"));
+        if (hours > 0) parts.add(hours + (hours == 1 ? " hora" : " horas"));
+        if (minutes > 0 || parts.isEmpty()) parts.add(minutes + (minutes == 1 ? " minuto" : " minutos"));
+        return String.join(", ", parts);
     }
 }

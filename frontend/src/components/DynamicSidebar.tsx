@@ -56,7 +56,8 @@ import {
   Droplets,
   Ruler,
   Warehouse,
-  ShieldCheck
+  ShieldCheck,
+  LogOut
 } from 'lucide-react';
 import {
   Sidebar,
@@ -72,6 +73,7 @@ import {
 } from '@/components/ui/sidebar';
 import { useAuth } from '@/contexts/AuthContext';
 import { getApiUrl } from '@/config/environment';
+import { resolveCompanyLogoUrl } from '@/utils/logoUtils';
 import { hasPermission as checkPermission } from '@/utils/permissions';
 import { UserRole } from '@/types/user';
 
@@ -98,10 +100,11 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'dashboard',
     'holerites',
     'meus-holerites',
+    'driver-dashboard',
+    'driver-checklist',
+    'ponto-eletronico',
     'mensagens',
     'chat-interno',
-    'rh-escalas',
-    'rh-controle-horas',
   ]),
   MECANICO: new Set([
     'dashboard',
@@ -164,6 +167,13 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'ticketing-booking',
     'ticketing-templates',
     'ticketing-trips',
+    'manutencao-despesas',
+    'frota-despesas',
+    'operacional-despesas',
+    'rh-despesas',
+    'dp-despesas',
+    'rh-sst-despesas',
+    'almoxarifado-despesas',
   ]),
   FLEX_ADMIN: new Set([
     'dashboard',
@@ -204,6 +214,13 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'ticketing-booking',
     'ticketing-templates',
     'ticketing-trips',
+    'manutencao-despesas',
+    'frota-despesas',
+    'operacional-despesas',
+    'rh-despesas',
+    'dp-despesas',
+    'rh-sst-despesas',
+    'almoxarifado-despesas',
   ]),
   COMPANY_ADMIN: new Set([
     'dashboard',
@@ -244,6 +261,13 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'ticketing-booking',
     'ticketing-templates',
     'ticketing-trips',
+    'manutencao-despesas',
+    'frota-despesas',
+    'operacional-despesas',
+    'rh-despesas',
+    'dp-despesas',
+    'rh-sst-despesas',
+    'almoxarifado-despesas',
   ]),
   ADMIN: new Set([
     'dashboard',
@@ -288,6 +312,13 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'ticketing-booking',
     'ticketing-templates',
     'ticketing-trips',
+    'manutencao-despesas',
+    'frota-despesas',
+    'operacional-despesas',
+    'rh-despesas',
+    'dp-despesas',
+    'rh-sst-despesas',
+    'almoxarifado-despesas',
   ]),
   SUPERVISOR: new Set([
     'dashboard',
@@ -319,6 +350,10 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'ticketing-booking',
     'ticketing-templates',
     'ticketing-trips',
+    'operacional-despesas',
+    'manutencao-despesas',
+    'frota-despesas',
+    'rh-sst-despesas',
   ]),
   GESTOR: new Set([
     'dashboard',
@@ -345,6 +380,11 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'ticketing-booking',
     'ticketing-templates',
     'ticketing-trips',
+    'operacional-despesas',
+    'manutencao-despesas',
+    'frota-despesas',
+    'rh-sst-despesas',
+    'almoxarifado-despesas',
   ]),
   RH: new Set([
     'dashboard',
@@ -386,10 +426,10 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'mensagens',
     'gestao-mensagens-grupos',
     'gestao-mensagens-notificacoes',
-    'ticketing-booking',
-    'ticketing-templates',
-    'ticketing-trips',
     'mobilizacao-transportes',
+    'rh-despesas',
+    'dp-despesas',
+    'rh-sst-despesas',
   ]),
   DEPARTAMENTO_PESSOAL: new Set([
     'dashboard',
@@ -431,10 +471,108 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'mensagens',
     'gestao-mensagens-grupos',
     'gestao-mensagens-notificacoes',
+    'mobilizacao-transportes',
+    'rh-despesas',
+    'dp-despesas',
+    'rh-sst-despesas',
+  ]),
+  SST: new Set([
+    'dashboard',
+    'holerites',
+    'filiais',
+    'configuracoes',
+    'rh',
+    'rh-funcionarios',
+    'rh-postos',
+    'rh-vagas',
+    'rh-beneficios',
+    'rh-treinamentos',
+    'rh-relatorios',
+    'rh-controle-horas',
+    'rh-sst',
+    'rh-sst-exames',
+    'rh-sst-epis',
+    'rh-sst-acidentes',
+    'rh-sst-treinamentos',
+    'rh-sst-cipa',
+    'rh-sst-relatorios',
+    'dp-funcionarios',
+    'dp-funcionarios-importar-bancarios',
+    'dp-admissao-demissao',
+    'dp-remanejamentos',
+    'dp-ferias',
+    'dp-ponto-eletronico',
+    'rh-fechamento-horas',
+    'dp-controle-horas',
+    'dp-ocorrencias',
+    'dp-beneficios',
+    'dp-funcoes',
+    'dp-cargos',
+    'dp-postos',
+    'dp-epis',
+    'dp-documentos',
+    'dp-ordens-servico',
+    'dp-vagas',
+    'chat-interno',
+    'mensagens',
+    'gestao-mensagens-grupos',
+    'gestao-mensagens-notificacoes',
     'ticketing-booking',
     'ticketing-templates',
     'ticketing-trips',
     'mobilizacao-transportes',
+    'rh-despesas',
+    'dp-despesas',
+    'rh-sst-despesas',
+  ]),
+  SEGURANCA_DO_TRABALHO: new Set([
+    'dashboard',
+    'holerites',
+    'filiais',
+    'configuracoes',
+    'rh',
+    'rh-funcionarios',
+    'rh-postos',
+    'rh-vagas',
+    'rh-beneficios',
+    'rh-treinamentos',
+    'rh-relatorios',
+    'rh-controle-horas',
+    'rh-sst',
+    'rh-sst-exames',
+    'rh-sst-epis',
+    'rh-sst-acidentes',
+    'rh-sst-treinamentos',
+    'rh-sst-cipa',
+    'rh-sst-relatorios',
+    'dp-funcionarios',
+    'dp-funcionarios-importar-bancarios',
+    'dp-admissao-demissao',
+    'dp-remanejamentos',
+    'dp-ferias',
+    'dp-ponto-eletronico',
+    'rh-fechamento-horas',
+    'dp-controle-horas',
+    'dp-ocorrencias',
+    'dp-beneficios',
+    'dp-funcoes',
+    'dp-cargos',
+    'dp-postos',
+    'dp-epis',
+    'dp-documentos',
+    'dp-ordens-servico',
+    'dp-vagas',
+    'chat-interno',
+    'mensagens',
+    'gestao-mensagens-grupos',
+    'gestao-mensagens-notificacoes',
+    'ticketing-booking',
+    'ticketing-templates',
+    'ticketing-trips',
+    'mobilizacao-transportes',
+    'rh-despesas',
+    'dp-despesas',
+    'rh-sst-despesas',
   ]),
   COMERCIAL: new Set([
     'dashboard',
@@ -493,6 +631,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'supervisao',
     'chat-interno',
     'mensagens',
+    'operacional-despesas',
   ]),
   GESTOR_OPERACIONAL: new Set([
     'dashboard',
@@ -514,6 +653,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'supervisao',
     'chat-interno',
     'mensagens',
+    'operacional-despesas',
   ]),
   VIGILANTE: new Set([
     'dashboard',
@@ -538,6 +678,8 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'gestao-certificacoes-cfme',
     'chat-interno',
     'mensagens',
+    'manutencao-despesas',
+    'frota-despesas',
   ]),
   GESTOR_DE_MANUTENCAO: new Set([
     'dashboard',
@@ -555,6 +697,46 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'gestao-certificacoes-cfme',
     'chat-interno',
     'mensagens',
+    'manutencao-despesas',
+    'frota-despesas',
+  ]),
+  ANALISTA_DE_FROTA: new Set([
+    'dashboard',
+    'manutencao',
+    'frota',
+    'garagens',
+    'manutencao-v2',
+    'mechanic-dashboard',
+    'frota-os',
+    'abastecimento',
+    'pneus',
+    'gestao-portaria',
+    'gestao-checklist-cliente',
+    'gestao-checklist-veiculo',
+    'gestao-certificacoes-cfme',
+    'chat-interno',
+    'mensagens',
+    'manutencao-despesas',
+    'frota-despesas',
+  ]),
+  ANALISTA_FROTA: new Set([
+    'dashboard',
+    'manutencao',
+    'frota',
+    'garagens',
+    'manutencao-v2',
+    'mechanic-dashboard',
+    'frota-os',
+    'abastecimento',
+    'pneus',
+    'gestao-portaria',
+    'gestao-checklist-cliente',
+    'gestao-checklist-veiculo',
+    'gestao-certificacoes-cfme',
+    'chat-interno',
+    'mensagens',
+    'manutencao-despesas',
+    'frota-despesas',
   ]),
   ENCARREGADO_DE_MANUTENCAO: new Set([
     'dashboard',
@@ -570,6 +752,8 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'gestao-certificacoes-cfme',
     'chat-interno',
     'mensagens',
+    'manutencao-despesas',
+    'frota-despesas',
   ]),
   ALMOXARIFADO: new Set([
     'dashboard',
@@ -581,6 +765,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'compras-solicitacoes',
     'chat-interno',
     'mensagens',
+    'almoxarifado-despesas',
   ]),
   COMPRAS: new Set([
     'dashboard',
@@ -592,6 +777,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'estoque-fornecedores',
     'chat-interno',
     'mensagens',
+    'almoxarifado-despesas',
   ]),
   GESTOR_DE_COMPRAS: new Set([
     'dashboard',
@@ -603,9 +789,11 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'estoque-fornecedores',
     'chat-interno',
     'mensagens',
+    'almoxarifado-despesas',
   ]),
   GESTOR_TRAFEGO: new Set([
     'dashboard',
+    'painel-transporte-operacional',
     'trafego-dashboard',
     'trafego-rotas',
     'trafego-viagens',
@@ -613,14 +801,50 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'trafego-atribuicoes',
     'driver-trips',
     'passenger-qrcode',
+    'manutencao',
+    'manutencao-despesas',
     'frota',
     'garagens',
+    'manutencao-v2',
+    'mechanic-dashboard',
+    'frota-os',
+    'abastecimento',
+    'pneus',
+    'gestao-portaria',
+    'gestao-checklist-cliente',
+    'gestao-checklist-veiculo',
+    'gestao-limpeza',
+    'lavajato',
+    'gestao-certificacoes-cfme',
     'mobilizacao-transportes',
+    'operacional-dashboard',
+    'operacional-despesas',
+    'operacional-servicos',
+    'operacional-equipamentos',
+    'operacional-controle-visitas',
+    'operacional-escalas',
+    'operacional-notificacoes',
+    'operacional-ocorrencias',
+    'operacional-atividades',
+    'operacional-troca-plantao',
+    'operacional-parte-diaria',
+    'controle-rondas',
+    'operacional-guia-transporte',
+    'operacional-rateio-servicos',
+    'operacional-gestao',
+    'operacional-medicao',
+    'estoque-simplificado',
+    'almoxarifado-requisicoes',
+    'almoxarifado-despesas',
+    'estoque-relatorios',
+    'estoque-alertas',
+    'estoque-fornecedores',
     'chat-interno',
     'mensagens',
   ]),
   GESTOR_DE_TRAFEGO: new Set([
     'dashboard',
+    'painel-transporte-operacional',
     'trafego-dashboard',
     'trafego-rotas',
     'trafego-viagens',
@@ -628,9 +852,224 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'trafego-atribuicoes',
     'driver-trips',
     'passenger-qrcode',
+    'manutencao',
+    'manutencao-despesas',
     'frota',
     'garagens',
+    'manutencao-v2',
+    'mechanic-dashboard',
+    'frota-os',
+    'abastecimento',
+    'pneus',
+    'gestao-portaria',
+    'gestao-checklist-cliente',
+    'gestao-checklist-veiculo',
+    'gestao-limpeza',
+    'lavajato',
+    'gestao-certificacoes-cfme',
     'mobilizacao-transportes',
+    'operacional-dashboard',
+    'operacional-despesas',
+    'operacional-servicos',
+    'operacional-equipamentos',
+    'operacional-controle-visitas',
+    'operacional-escalas',
+    'operacional-notificacoes',
+    'operacional-ocorrencias',
+    'operacional-atividades',
+    'operacional-troca-plantao',
+    'operacional-parte-diaria',
+    'controle-rondas',
+    'operacional-guia-transporte',
+    'operacional-rateio-servicos',
+    'operacional-gestao',
+    'operacional-medicao',
+    'estoque-simplificado',
+    'almoxarifado-requisicoes',
+    'almoxarifado-despesas',
+    'estoque-relatorios',
+    'estoque-alertas',
+    'estoque-fornecedores',
+    'chat-interno',
+    'mensagens',
+  ]),
+  ENCARREGADO_DE_TRANSPORTES: new Set([
+    'dashboard',
+    'painel-transporte-operacional',
+    'trafego-dashboard',
+    'trafego-rotas',
+    'trafego-viagens',
+    'trafego-turnos',
+    'trafego-atribuicoes',
+    'driver-trips',
+    'passenger-qrcode',
+    'manutencao',
+    'manutencao-despesas',
+    'frota',
+    'garagens',
+    'manutencao-v2',
+    'mechanic-dashboard',
+    'frota-os',
+    'abastecimento',
+    'pneus',
+    'gestao-portaria',
+    'gestao-checklist-cliente',
+    'gestao-checklist-veiculo',
+    'gestao-limpeza',
+    'lavajato',
+    'gestao-certificacoes-cfme',
+    'mobilizacao-transportes',
+    'operacional-dashboard',
+    'operacional-despesas',
+    'operacional-servicos',
+    'operacional-equipamentos',
+    'operacional-controle-visitas',
+    'operacional-escalas',
+    'operacional-notificacoes',
+    'operacional-ocorrencias',
+    'operacional-atividades',
+    'operacional-troca-plantao',
+    'operacional-parte-diaria',
+    'controle-rondas',
+    'operacional-guia-transporte',
+    'operacional-rateio-servicos',
+    'operacional-gestao',
+    'operacional-medicao',
+    'chat-interno',
+    'mensagens',
+  ]),
+  ENCARREGADO_TRANSPORTES: new Set([
+    'dashboard',
+    'painel-transporte-operacional',
+    'trafego-dashboard',
+    'trafego-rotas',
+    'trafego-viagens',
+    'trafego-turnos',
+    'trafego-atribuicoes',
+    'driver-trips',
+    'passenger-qrcode',
+    'manutencao',
+    'manutencao-despesas',
+    'frota',
+    'garagens',
+    'manutencao-v2',
+    'mechanic-dashboard',
+    'frota-os',
+    'abastecimento',
+    'pneus',
+    'gestao-portaria',
+    'gestao-checklist-cliente',
+    'gestao-checklist-veiculo',
+    'gestao-limpeza',
+    'lavajato',
+    'gestao-certificacoes-cfme',
+    'mobilizacao-transportes',
+    'operacional-dashboard',
+    'operacional-despesas',
+    'operacional-servicos',
+    'operacional-equipamentos',
+    'operacional-controle-visitas',
+    'operacional-escalas',
+    'operacional-notificacoes',
+    'operacional-ocorrencias',
+    'operacional-atividades',
+    'operacional-troca-plantao',
+    'operacional-parte-diaria',
+    'controle-rondas',
+    'operacional-guia-transporte',
+    'operacional-rateio-servicos',
+    'operacional-gestao',
+    'operacional-medicao',
+    'chat-interno',
+    'mensagens',
+  ]),
+  ENCARREGADO_DE_TRAFEGO: new Set([
+    'dashboard',
+    'painel-transporte-operacional',
+    'trafego-dashboard',
+    'trafego-rotas',
+    'trafego-viagens',
+    'trafego-turnos',
+    'trafego-atribuicoes',
+    'driver-trips',
+    'passenger-qrcode',
+    'manutencao',
+    'manutencao-despesas',
+    'frota',
+    'garagens',
+    'manutencao-v2',
+    'mechanic-dashboard',
+    'frota-os',
+    'abastecimento',
+    'pneus',
+    'gestao-portaria',
+    'gestao-checklist-cliente',
+    'gestao-checklist-veiculo',
+    'gestao-limpeza',
+    'lavajato',
+    'gestao-certificacoes-cfme',
+    'mobilizacao-transportes',
+    'operacional-dashboard',
+    'operacional-despesas',
+    'operacional-servicos',
+    'operacional-equipamentos',
+    'operacional-controle-visitas',
+    'operacional-escalas',
+    'operacional-notificacoes',
+    'operacional-ocorrencias',
+    'operacional-atividades',
+    'operacional-troca-plantao',
+    'operacional-parte-diaria',
+    'controle-rondas',
+    'operacional-guia-transporte',
+    'operacional-rateio-servicos',
+    'operacional-gestao',
+    'operacional-medicao',
+    'chat-interno',
+    'mensagens',
+  ]),
+  ENCARREGADO_TRAFEGO: new Set([
+    'dashboard',
+    'painel-transporte-operacional',
+    'trafego-dashboard',
+    'trafego-rotas',
+    'trafego-viagens',
+    'trafego-turnos',
+    'trafego-atribuicoes',
+    'driver-trips',
+    'passenger-qrcode',
+    'manutencao',
+    'manutencao-despesas',
+    'frota',
+    'garagens',
+    'manutencao-v2',
+    'mechanic-dashboard',
+    'frota-os',
+    'abastecimento',
+    'pneus',
+    'gestao-portaria',
+    'gestao-checklist-cliente',
+    'gestao-checklist-veiculo',
+    'gestao-limpeza',
+    'lavajato',
+    'gestao-certificacoes-cfme',
+    'mobilizacao-transportes',
+    'operacional-dashboard',
+    'operacional-despesas',
+    'operacional-servicos',
+    'operacional-equipamentos',
+    'operacional-controle-visitas',
+    'operacional-escalas',
+    'operacional-notificacoes',
+    'operacional-ocorrencias',
+    'operacional-atividades',
+    'operacional-troca-plantao',
+    'operacional-parte-diaria',
+    'controle-rondas',
+    'operacional-guia-transporte',
+    'operacional-rateio-servicos',
+    'operacional-gestao',
+    'operacional-medicao',
     'chat-interno',
     'mensagens',
   ]),
@@ -649,6 +1088,13 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'mobilizacao-transportes',
     'chat-interno',
     'mensagens',
+    'manutencao-despesas',
+    'frota-despesas',
+    'operacional-despesas',
+    'rh-despesas',
+    'dp-despesas',
+    'rh-sst-despesas',
+    'almoxarifado-despesas',
   ]),
   GESTOR_FINANCEIRO: new Set([
     'dashboard',
@@ -665,6 +1111,13 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'mobilizacao-transportes',
     'chat-interno',
     'mensagens',
+    'manutencao-despesas',
+    'frota-despesas',
+    'operacional-despesas',
+    'rh-despesas',
+    'dp-despesas',
+    'rh-sst-despesas',
+    'almoxarifado-despesas',
   ]),
   ASSISTENTE_FINANCEIRO: new Set([
     'dashboard',
@@ -676,6 +1129,13 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'gestao-financeira-movimentacoes',
     'chat-interno',
     'mensagens',
+    'manutencao-despesas',
+    'frota-despesas',
+    'operacional-despesas',
+    'rh-despesas',
+    'dp-despesas',
+    'rh-sst-despesas',
+    'almoxarifado-despesas',
   ]),
   CLIENTE: new Set([
     'dashboard',
@@ -689,12 +1149,75 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'chat-interno',
     'mensagens',
   ]),
+  AUXILIAR_ADMINISTRATIVO: new Set([
+    'dashboard',
+    'operacional',
+    'operacional-parte-diaria',
+    'vss-parte-diaria',
+    'guia-transporte',
+    'postos',
+    'frota',
+    'garagens',
+    'manutencao',
+    'manutencao-v2',
+    'frota-os',
+    'abastecimento',
+    'pneus',
+    'modulo-financeiro',
+    'gestao-financeira-dashboard',
+    'gestao-financeira-contas-pagar',
+    'gestao-financeira-movimentacoes',
+    'gestao-portaria',
+    'gestao-limpeza',
+    'lavajato',
+    'chat-interno',
+    'mensagens',
+    'operacional-despesas',
+    'manutencao-despesas',
+    'frota-despesas',
+    'rh-despesas',
+    'dp-despesas',
+    'rh-sst-despesas',
+    'almoxarifado-despesas',
+  ]),
+  AUXI_ADMINISTRATIVO: new Set([
+    'dashboard',
+    'operacional',
+    'operacional-parte-diaria',
+    'vss-parte-diaria',
+    'guia-transporte',
+    'postos',
+    'frota',
+    'garagens',
+    'manutencao',
+    'manutencao-v2',
+    'frota-os',
+    'abastecimento',
+    'pneus',
+    'modulo-financeiro',
+    'gestao-financeira-dashboard',
+    'gestao-financeira-contas-pagar',
+    'gestao-financeira-movimentacoes',
+    'gestao-portaria',
+    'gestao-limpeza',
+    'lavajato',
+    'chat-interno',
+    'mensagens',
+    'operacional-despesas',
+    'manutencao-despesas',
+    'frota-despesas',
+    'rh-despesas',
+    'dp-despesas',
+    'rh-sst-despesas',
+    'almoxarifado-despesas',
+  ]),
 };
 
 export function DynamicSidebar() {
   const location = useLocation();
-  const { user, empresa } = useAuth();
+  const { user, empresa, signOut } = useAuth();
   const { forceScrollToTop } = useScrollPreservation();
+  const [sidebarLogoError, setSidebarLogoError] = React.useState(false);
 
   console.log('🔍 DynamicSidebar - Iniciando componente');
   console.log('🔍 DynamicSidebar - Usuário:', user);
@@ -719,6 +1242,13 @@ export function DynamicSidebar() {
       text: 'Operacional',
       to: '/operacional',
       id: 'operacional',
+      requiredPermission: 'EMPLOYEES_READ'
+    },
+    {
+      icon: DollarSign,
+      text: 'Despesas Operacionais',
+      to: '/operacional/despesas',
+      id: 'operacional-despesas',
       requiredPermission: 'EMPLOYEES_READ'
     },
     {
@@ -811,6 +1341,14 @@ export function DynamicSidebar() {
       text: 'Medição',
       to: '/operacional/medicao',
       id: 'operacional-medicao',
+      requiredPermission: 'CONTRACTS_READ',
+      color: 'text-seguranca-yellow'
+    },
+    {
+      icon: Activity,
+      text: 'Parte Diária',
+      to: '/operacional?tab=parte-diaria',
+      id: 'operacional-parte-diaria',
       requiredPermission: 'CONTRACTS_READ',
       color: 'text-seguranca-yellow'
     },
@@ -962,6 +1500,20 @@ export function DynamicSidebar() {
       id: 'payrolls',
       requiredPermission: 'PAYSLIPS_READ'
     },
+    {
+      icon: DollarSign,
+      text: 'Despesas RH',
+      to: '/rh/despesas',
+      id: 'rh-despesas',
+      requiredPermission: 'EMPLOYEES_READ'
+    },
+    {
+      icon: Receipt,
+      text: 'Despesas DP',
+      to: '/dp/despesas',
+      id: 'dp-despesas',
+      requiredPermission: 'PAYSLIPS_READ'
+    },
 
     // ===== MÓDULO SST - SAÚDE E SEGURANÇA DO TRABALHO =====
     {
@@ -999,13 +1551,6 @@ export function DynamicSidebar() {
       id: 'rh-sst-treinamentos',
       requiredPermission: 'EMPLOYEES_READ'
     },
-    // {
-    //   icon: FileCheck,
-    //   text: 'Inspeções',
-    //   to: '/rh/sst/inspecoes', // TODO: Implementar
-    //   id: 'rh-sst-inspecoes',
-    //   requiredPermission: 'EMPLOYEES_READ'
-    // },
     {
       icon: Users,
       text: 'CIPA',
@@ -1018,6 +1563,13 @@ export function DynamicSidebar() {
       text: 'Relatórios SST',
       to: '/rh/sst/relatorios',
       id: 'rh-sst-relatorios',
+      requiredPermission: 'EMPLOYEES_READ'
+    },
+    {
+      icon: DollarSign,
+      text: 'Despesas SST',
+      to: '/rh/sst/despesas',
+      id: 'rh-sst-despesas',
       requiredPermission: 'EMPLOYEES_READ'
     },
     {
@@ -1039,6 +1591,21 @@ export function DynamicSidebar() {
       text: 'Dashboard Manutenção',
       to: '/manutencao',
       id: 'manutencao',
+      requiredPermission: 'EQUIPMENTS_READ'
+    },
+    {
+      icon: DollarSign,
+      text: 'Despesas com Manutenção',
+      to: '/manutencao?tab=despesas',
+      id: 'manutencao-despesas',
+      requiredPermission: 'EQUIPMENTS_READ',
+      color: 'text-amber-400'
+    },
+    {
+      icon: Truck,
+      text: 'Despesas da Frota',
+      to: '/frota/despesas',
+      id: 'frota-despesas',
       requiredPermission: 'EQUIPMENTS_READ'
     },
     {
@@ -1343,6 +1910,13 @@ export function DynamicSidebar() {
       id: 'compras-relatorios',
       requiredPermission: 'REPORTS_READ'
     },
+    {
+      icon: DollarSign,
+      text: 'Despesas Almoxarifado',
+      to: '/almoxarifado/despesas',
+      id: 'almoxarifado-despesas',
+      requiredPermission: 'EQUIPMENTS_READ'
+    },
     // ===== PLATAFORMA FLUXBUS (SaaS) =====
     {
       icon: Building2,
@@ -1377,7 +1951,7 @@ export function DynamicSidebar() {
     if (user) {
       const allowedSet = ROLE_ALLOWED_ITEM_IDS[user.role as UserRole];
       if (allowedSet) {
-        filteredItems = filteredItems.filter((item) => allowedSet.has(item.id));
+        filteredItems = filteredItems.filter((item) => item.id === 'ponto-eletronico' || allowedSet.has(item.id));
       }
     }
 
@@ -1475,6 +2049,10 @@ export function DynamicSidebar() {
     const allowedSet = ROLE_ALLOWED_ITEM_IDS[normalizedRole];
 
     const filtered = allMenuItems.filter(item => {
+      if (item.id === 'ponto-eletronico') {
+        const isExternalClient = normalizedRole === 'CLIENTE' || normalizedRole === 'CLIENT_USER';
+        if (!isExternalClient) return true;
+      }
       if (allowedSet && !allowedSet.has(item.id)) {
         console.log(`⚠️ ${normalizedRole} - removendo item não permitido: ${item.id}`);
         return false;
@@ -1571,14 +2149,15 @@ export function DynamicSidebar() {
   return (
     <Sidebar className="bg-seguranca-graphite border-r border-gray-700">
       <SidebarHeader className="p-4 border-b border-gray-700">
-        {empresa?.logoUrl ? (
+        {(!sidebarLogoError && resolveCompanyLogoUrl(empresa?.logoUrl)) ? (
           <div className="flex items-center gap-3">
             <img
-              src={empresa.logoUrl.startsWith('http') ? empresa.logoUrl : `${getApiUrl().replace(/\/api\/?$/, '')}${empresa.logoUrl.startsWith('/') ? '' : '/'}${empresa.logoUrl}`}
-              alt={empresa.nome}
+              src={resolveCompanyLogoUrl(empresa?.logoUrl)!}
+              alt={empresa?.nome || 'Empresa'}
+              onError={() => setSidebarLogoError(true)}
               className="h-10 w-10 object-contain rounded"
             />
-            <span className="font-bold text-white truncate">{empresa.nome}</span>
+            <span className="font-bold text-white truncate">{empresa?.nome}</span>
           </div>
         ) : empresa?.nome ? (
           <div className="flex items-center gap-2">
@@ -2345,21 +2924,34 @@ export function DynamicSidebar() {
 
       </SidebarContent>
 
-      <SidebarFooter className="p-4 border-t border-gray-700">
-        <div className="flex items-center">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 ${user?.role === 'SUPER_ADMIN' ? 'bg-red-500' : 'bg-seguranca-red'
-            }`}>
-            {user?.name?.charAt(0) || 'A'}
-          </div>
-          <div className="ml-3 min-w-0">
-            <div className="text-sm font-medium text-seguranca-lightgray truncate">
-              {user?.name || 'Usuário'}
+      <SidebarFooter className="p-3 sm:p-4 border-t border-gray-700 bg-seguranca-graphite/80 backdrop-blur-sm">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center min-w-0 flex-1">
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 ${user?.role === 'SUPER_ADMIN' ? 'bg-red-500' : 'bg-seguranca-red'
+              }`}>
+              {user?.name?.charAt(0) || 'A'}
             </div>
-            <div className="text-xs text-gray-400 truncate">
-              {getRoleDisplayName(user?.role || '')}
-              {user?.role === 'SUPER_ADMIN' && ' 🟥'}
+            <div className="ml-2.5 min-w-0 flex-1">
+              <div className="text-xs sm:text-sm font-medium text-seguranca-lightgray truncate">
+                {user?.name || 'Usuário'}
+              </div>
+              <div className="text-[11px] text-gray-400 truncate">
+                {getRoleDisplayName(user?.role || '')}
+                {user?.role === 'SUPER_ADMIN' && ' 🟥'}
+              </div>
             </div>
           </div>
+
+          {/* Botão Sair na Sidebar */}
+          <button
+            onClick={() => signOut()}
+            title="Sair do sistema"
+            aria-label="Sair do sistema"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600/90 hover:bg-red-600 text-white rounded-lg text-xs font-bold transition-all active:scale-95 shadow-sm shadow-red-600/30 flex-shrink-0"
+          >
+            <LogOut size={14} />
+            <span>Sair</span>
+          </button>
         </div>
       </SidebarFooter>
     </Sidebar>

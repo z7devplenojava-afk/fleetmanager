@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import org.hibernate.annotations.Filter;
 
 /**
  * Entidade que representa uma Ficha de Entrega de EPI completa
@@ -28,6 +29,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+@Filter(name = "tenantFilter", condition = "company_id = :companyId")
 public class EPIDeliveryForm {
 
     @Id

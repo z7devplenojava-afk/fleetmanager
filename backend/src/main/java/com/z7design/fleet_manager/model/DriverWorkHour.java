@@ -8,6 +8,9 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import com.z7design.fleet_manager.tenant.TenantAware;
+import org.hibernate.annotations.Filter;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -18,7 +21,8 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class DriverWorkHour {
+@Filter(name = "tenantFilter", condition = "company_id = :companyId")
+public class DriverWorkHour implements TenantAware {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -50,10 +54,53 @@ public class DriverWorkHour {
     @Column(name = "overtime_minutes")
     private Integer overtimeMinutes;
 
+    // Pegadas do Motorista (1ª a 4ª com Início e Fim)
+    @Column(name = "pegada1_start")
+    private LocalDateTime pegada1Start;
+
+    @Column(name = "pegada1_end")
+    private LocalDateTime pegada1End;
+
+    @Column(name = "pegada2_start")
+    private LocalDateTime pegada2Start;
+
+    @Column(name = "pegada2_end")
+    private LocalDateTime pegada2End;
+
+    @Column(name = "pegada3_start")
+    private LocalDateTime pegada3Start;
+
+    @Column(name = "pegada3_end")
+    private LocalDateTime pegada3End;
+
+    @Column(name = "pegada4_start")
+    private LocalDateTime pegada4Start;
+
+    @Column(name = "pegada4_end")
+    private LocalDateTime pegada4End;
+
+    // Hora Noturna Reduzida CLT (fator 52m30s = 1.142857)
+    @Column(name = "night_reduced_minutes")
+    @Builder.Default
+    private Integer nightReducedMinutes = 0;
+
+    // Carga horária prevista no contrato de trabalho (padrão 480 min = 8h)
+    @Column(name = "contract_daily_minutes")
+    @Builder.Default
+    private Integer contractDailyMinutes = 480;
+
+    @Column(name = "source", length = 50)
+    @Builder.Default
+    private String source = "MANUAL"; // PONTO, PARTE_DIARIA, HIBRIDO, MANUAL
+
+    @Column(name = "company_id")
+    private UUID companyId;
+
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 
     @Column(name = "is_closed")
+    @Builder.Default
     private Boolean isClosed = false;
 
     @CreationTimestamp

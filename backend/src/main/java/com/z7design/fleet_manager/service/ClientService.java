@@ -19,8 +19,10 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import com.z7design.fleet_manager.model.WorkPost;
+import com.z7design.fleet_manager.model.AccountsReceivable;
 import com.z7design.fleet_manager.repository.WorkPostRepository;
 import com.z7design.fleet_manager.repository.VehicleRepository;
+import com.z7design.fleet_manager.repository.AccountsReceivableRepository;
 
 @Service
 @Transactional
@@ -35,6 +37,9 @@ public class ClientService {
 
     @Autowired
     private VehicleRepository vehicleRepository;
+
+    @Autowired
+    private AccountsReceivableRepository accountsReceivableRepository;
 
     @Autowired
     private UserCompanyResolver userCompanyResolver;
@@ -215,7 +220,20 @@ public class ClientService {
         
         log.info("🗑️ Excluindo cliente {} ({})", client.getName(), id);
 
-        // 1. Desvincular veículos alocados às obras/postos deste cliente ou com nome deste cliente
+        // 1. Verificar registros financeiros em Contas a Receber
+        try {
+            List<AccountsReceivable> receivables = accountsReceivableRepository.findByClientId(id);
+            if (receivables != null && !receivables.isEmpty()) {
+                throw new BusinessException("Não é possível excluir o cliente '" + client.getName() + 
+                        "' porque ele possui " + receivables.size() + " lançamento(s) em Contas a Receber. Para manter a integridade fiscal e contábil, altere o status do cliente para INATIVO.");
+            }
+        } catch (BusinessException be) {
+            throw be;
+        } catch (Exception e) {
+            log.warn("Aviso ao verificar contas a receber do cliente {}: {}", id, e.getMessage());
+        }
+
+        // 2. Desvincular veículos alocados às obras/postos deste cliente ou com nome deste cliente
         try {
             List<WorkPost> workPosts = workPostRepository.findByClientId(id);
             if (!workPosts.isEmpty()) {
@@ -229,17 +247,18 @@ public class ClientService {
             log.warn("Aviso ao desvincular veículos do cliente {}: {}", id, e.getMessage());
         }
 
-        // 2. Excluir postos de trabalho (obras) do cliente
+        // 3. Excluir postos de trabalho (obras) do cliente
         try {
             List<WorkPost> workPosts = workPostRepository.findByClientId(id);
             if (!workPosts.isEmpty()) {
                 workPostRepository.deleteAll(workPosts);
+                workPostRepository.flush();
             }
         } catch (Exception e) {
             log.warn("Aviso ao excluir postos do cliente {}: {}", id, e.getMessage());
         }
 
-        // 3. Limpar unidades e contratos do cliente (serão removidos via orphanRemoval)
+        // 4. Limpar unidades e contratos do cliente (serão removidos via orphanRemoval)
         try {
             if (client.getUnits() != null) {
                 client.getUnits().clear();
@@ -251,14 +270,19 @@ public class ClientService {
             log.warn("Aviso ao limpar unidades e contratos do cliente {}: {}", id, e.getMessage());
         }
 
-        // 4. Excluir o registro do cliente
+        // 5. Excluir o registro do cliente com flush imediato
         try {
             clientRepository.delete(client);
+            clientRepository.flush();
             log.info("✅ Cliente {} ({}) excluído com sucesso!", client.getName(), id);
         } catch (org.springframework.dao.DataIntegrityViolationException e) {
             log.error("Erro de integridade ao excluir cliente {}: {}", client.getName(), e.getMessage());
             throw new BusinessException("Não é possível excluir o cliente '" + client.getName() + 
-                    "' porque ele possui registros vinculados (faturas, contas a receber, ordens de serviço ou partes diárias).");
+                    "' porque ele possui registros vinculados no sistema (faturas, ordens de serviço ou partes diárias). Altere seu status para INATIVO.");
+        } catch (Exception e) {
+            log.error("Erro ao excluir cliente {}: {}", client.getName(), e.getMessage());
+            throw new BusinessException("Não é possível excluir o cliente '" + client.getName() + 
+                    "'. Motivo: " + e.getMessage());
         }
     }
     

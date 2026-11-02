@@ -34,7 +34,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { stockService } from '@/services/stockService';
-import { StockItem, StockMovement, StockAlert, StockReport, StockCategoryLabels } from '@/types/stock';
+import { StockItem, StockMovement, StockAlert, StockReport, StockCategoryLabels, MovementType } from '@/types/stock';
 import StockItemsTable from '@/components/stock/StockItemsTable';
 import StockMovementsTable from '@/components/stock/StockMovementsTable';
 import StockAlertsPanel from '@/components/stock/StockAlertsPanel';
@@ -68,6 +68,7 @@ const EstoqueSimplificado: React.FC = () => {
   // Estados para modais
   const [showItemModal, setShowItemModal] = useState(false);
   const [showMovementModal, setShowMovementModal] = useState(false);
+  const [movementTypeToOpen, setMovementTypeToOpen] = useState<MovementType>(MovementType.SAIDA);
   const [showQrScanner, setShowQrScanner] = useState(false);
   const [selectedItem, setSelectedItem] = useState<StockItem | null>(null);
   const [showGlobalLabelModal, setShowGlobalLabelModal] = useState(false);
@@ -135,8 +136,14 @@ const EstoqueSimplificado: React.FC = () => {
     setShowItemModal(true);
   };
 
-  const handleCreateMovement = (item?: StockItem) => {
+  const handleCreateMovement = (item?: StockItem, type: MovementType = MovementType.SAIDA) => {
+    if (type === MovementType.ENTRADA) {
+      setSelectedItem(item || null);
+      setShowItemModal(true);
+      return;
+    }
     setSelectedItem(item || null);
+    setMovementTypeToOpen(type);
     setShowMovementModal(true);
   };
 
@@ -331,7 +338,7 @@ const EstoqueSimplificado: React.FC = () => {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => handleCreateMovement()}
+            onClick={() => handleCreateMovement(undefined, MovementType.ENTRADA)}
             className="border-emerald-600/60 text-emerald-400 hover:bg-emerald-500/10 text-xs h-8 px-3"
           >
             <ArrowUpRight className="h-3.5 w-3.5 mr-1.5 text-emerald-400" />
@@ -340,7 +347,7 @@ const EstoqueSimplificado: React.FC = () => {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => handleCreateMovement()}
+            onClick={() => handleCreateMovement(undefined, MovementType.SAIDA)}
             className="border-red-600/60 text-red-400 hover:bg-red-500/10 text-xs h-8 px-3"
           >
             <ArrowDownRight className="h-3.5 w-3.5 mr-1.5 text-red-400" />
@@ -429,7 +436,7 @@ const EstoqueSimplificado: React.FC = () => {
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => handleCreateMovement(matchingItem)}
+                            onClick={() => handleCreateMovement(matchingItem, MovementType.ENTRADA)}
                             className="h-7 px-2 text-xs text-seguranca-yellow hover:bg-yellow-500/10"
                             title="Dar entrada neste item"
                           >
@@ -800,7 +807,13 @@ const EstoqueSimplificado: React.FC = () => {
           open={showMovementModal}
           onOpenChange={setShowMovementModal}
           item={selectedItem}
+          initialMovementType={movementTypeToOpen}
           onSave={handleRefresh}
+          onOpenNewItem={(itemToOpen) => {
+            setShowMovementModal(false);
+            setSelectedItem(itemToOpen || null);
+            setShowItemModal(true);
+          }}
         />
 
         <QrCodeScanner

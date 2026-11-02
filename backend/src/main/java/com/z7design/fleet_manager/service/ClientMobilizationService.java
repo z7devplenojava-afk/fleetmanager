@@ -212,7 +212,7 @@ public class ClientMobilizationService {
             String r = role.getName().toUpperCase();
 
             if (r.contains("OPERACIONAL")) return "OPERACIONAL";
-            if (r.contains("MANUTENCAO") || r.contains("MECANICO")) return "MANUTENCAO";
+            if (r.contains("MANUTENCAO") || r.contains("MECANICO") || r.contains("FROTA")) return "MANUTENCAO";
             if (r.contains("SST") || r.contains("SEGURANCA")) return "SST";
             if (r.contains("ALMOXARIFADO") || r.contains("ESTOQUE")) return "ALMOXARIFADO";
             if (r.contains("FINANCEIRO") || r.contains("CONTABILIDADE")) return "FINANCEIRO";

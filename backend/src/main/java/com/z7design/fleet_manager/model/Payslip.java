@@ -10,6 +10,7 @@ import lombok.Builder;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
+import org.hibernate.annotations.Filter;
 
 @Entity
 @Table(name = "payslips")
@@ -17,6 +18,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Filter(name = "tenantFilter", condition = "company_id = :companyId")
 public class Payslip {
     
     @Id

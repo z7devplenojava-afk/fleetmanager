@@ -23,6 +23,7 @@ import com.z7design.fleet_manager.repository.PositionRepository;
 import com.z7design.fleet_manager.repository.UnitRepository;
 import com.z7design.fleet_manager.dto.EmployeeDTO;
 import com.z7design.fleet_manager.dto.SimpleEmployeeDTO;
+import com.z7design.fleet_manager.tenant.TenantContext;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -241,9 +242,63 @@ public class EmployeeService {
             }
             
             // Atualizar entidades relacionais se fornecidas
-            if (dto.getUser() != null && dto.getUser().getId() != null) {
-                existingEmployee.setUser(userRepository.findById(dto.getUser().getId())
-                    .orElseThrow(() -> new RuntimeException("UsuÃ¡rio nÃ£o encontrado para o id informado.")));
+            if (Boolean.TRUE.equals(dto.getRemoveUser()) || (dto.getUser() != null && dto.getUser().getId() == null)) {
+                existingEmployee.setUser(null);
+                log.info("Desvinculado usuário do funcionário {}", existingEmployee.getName());
+            } else if (dto.getUser() != null && dto.getUser().getId() != null) {
+                UUID newUserId = dto.getUser().getId();
+                // Se esse usuário já estiver vinculado a outro funcionário, transfere o vínculo desvinculando o outro
+                employeeRepository.findByUserIdGlobal(newUserId).ifPresent(otherEmp -> {
+                    if (!otherEmp.getId().equals(existingEmployee.getId())) {
+                        otherEmp.setUser(null);
+                        employeeRepository.save(otherEmp);
+                        log.info("Vínculo de usuário transferido: desvinculado do funcionário anterior {}", otherEmp.getName());
+                    }
+                });
+                User targetUser = userRepository.findByIdNative(newUserId)
+                    .or(() -> userRepository.findById(newUserId))
+                    .orElse(null);
+
+                if (targetUser != null) {
+                    UUID empCompanyId = existingEmployee.getCompany() != null ? existingEmployee.getCompany().getId() : null;
+                    // REGRA: Um funcionário só pode ser vinculado a um usuário da mesma empresa
+                    if (empCompanyId != null && (targetUser.getCompanyId() == null || !empCompanyId.equals(targetUser.getCompanyId()))) {
+                        throw new IllegalArgumentException("Um funcionário só pode ser vinculado a um usuário da mesma empresa.");
+                    }
+                }
+                existingEmployee.setUser(targetUser);
+
+                // Sincronizar dados faltantes se aplicável
+                if (targetUser != null) {
+                    boolean userChanged = false;
+                    if ((targetUser.getWhatsapp() == null || targetUser.getWhatsapp().isBlank()) && existingEmployee.getPhone() != null && !existingEmployee.getPhone().isBlank()) {
+                        targetUser.setWhatsapp(existingEmployee.getPhone().replaceAll("\\D", ""));
+                        userChanged = true;
+                    }
+                    if ((targetUser.getEmail() == null || targetUser.getEmail().isBlank()) && existingEmployee.getEmail() != null && !existingEmployee.getEmail().isBlank()) {
+                        targetUser.setEmail(existingEmployee.getEmail().trim());
+                        userChanged = true;
+                    }
+                    if (userChanged) {
+                        userRepository.save(targetUser);
+                    }
+                }
+            } else if (existingEmployee.getUser() == null) {
+                String cleanCpf = existingEmployee.getDocument() != null ? existingEmployee.getDocument().replaceAll("\\D", "") : "";
+                User matched = null;
+                if (cleanCpf.length() >= 11) {
+                    matched = userRepository.findByIdentifierNative(cleanCpf, cleanCpf).orElse(null);
+                }
+                if (matched == null && existingEmployee.getEmail() != null && !existingEmployee.getEmail().isBlank()) {
+                    matched = userRepository.findByEmailNative(existingEmployee.getEmail().trim()).orElse(null);
+                }
+                if (matched != null) {
+                    UUID empCompanyId = existingEmployee.getCompany() != null ? existingEmployee.getCompany().getId() : null;
+                    // REGRA: Só vincula automaticamente se for da mesma empresa
+                    if (empCompanyId != null && empCompanyId.equals(matched.getCompanyId())) {
+                        existingEmployee.setUser(matched);
+                    }
+                }
             }
             if (dto.getPosition() != null && dto.getPosition().getId() != null) {
                 existingEmployee.setPosition(positionRepository.findById(dto.getPosition().getId())
@@ -253,6 +308,7 @@ public class EmployeeService {
                 existingEmployee.setUnit(unitRepository.findById(dto.getUnit().getId()).orElse(null));
             }
             if (dto.getCompany() != null && dto.getCompany().getId() != null) {
+                existingEmployee.setCompanyId(dto.getCompany().getId());
                 existingEmployee.setCompany(companyRepository.findById(dto.getCompany().getId()).orElse(null));
             }
             
@@ -262,7 +318,7 @@ public class EmployeeService {
                     UUID workPostId = UUID.fromString(dto.getWorkPostId());
                     existingEmployee.setWorkPost(workPostRepository.findById(workPostId).orElse(null));
                 } catch (IllegalArgumentException e) {
-                    System.err.println("[WARNING] WorkPostId invÃ¡lido: " + dto.getWorkPostId());
+                    System.err.println("[WARNING] WorkPostId inválido: " + dto.getWorkPostId());
                 }
             } else {
                 existingEmployee.setWorkPost(null);
@@ -274,13 +330,13 @@ public class EmployeeService {
                     UUID departmentId = UUID.fromString(dto.getDepartmentId());
                     existingEmployee.setDepartment(departmentRepository.findById(departmentId).orElse(null));
                 } catch (IllegalArgumentException e) {
-                    System.err.println("[WARNING] DepartmentId invÃ¡lido: " + dto.getDepartmentId());
+                    System.err.println("[WARNING] DepartmentId inválido: " + dto.getDepartmentId());
                 }
             } else {
                 existingEmployee.setDepartment(null);
             }
             
-            // Atualizar dados do exame mÃ©dico (ASO)
+            // Atualizar dados do exame médico (ASO)
             if (dto.getExameMedicoData() != null) {
                 existingEmployee.setExameMedicoData(dto.getExameMedicoData());
             }
@@ -295,6 +351,38 @@ public class EmployeeService {
                 existingEmployee.setNextLaudoPsicologico(dto.getNextLaudoPsicologico() != null
                         ? dto.getNextLaudoPsicologico()
                         : dto.getLaudoPsicologicoData().plusYears(1));
+            }
+            if (dto.getLaudoPsicologicoStatus() != null) {
+                existingEmployee.setLaudoPsicologicoStatus(dto.getLaudoPsicologicoStatus());
+            }
+            if (dto.getLaudoPsicologicoProfissional() != null) {
+                existingEmployee.setLaudoPsicologicoProfissional(dto.getLaudoPsicologicoProfissional());
+            }
+            if (dto.getLaudoPsicologicoObservacoes() != null) {
+                existingEmployee.setLaudoPsicologicoObservacoes(dto.getLaudoPsicologicoObservacoes());
+            }
+            
+            // Atualizar Processo Judicial
+            if (dto.getProcessoJudicialPossui() != null) {
+                existingEmployee.setProcessoJudicialPossui(dto.getProcessoJudicialPossui());
+            }
+            if (dto.getProcessoJudicialNumero() != null) {
+                existingEmployee.setProcessoJudicialNumero(dto.getProcessoJudicialNumero());
+            }
+            if (dto.getProcessoJudicialVara() != null) {
+                existingEmployee.setProcessoJudicialVara(dto.getProcessoJudicialVara());
+            }
+            if (dto.getProcessoJudicialTipoAcao() != null) {
+                existingEmployee.setProcessoJudicialTipoAcao(dto.getProcessoJudicialTipoAcao());
+            }
+            if (dto.getProcessoJudicialStatus() != null) {
+                existingEmployee.setProcessoJudicialStatus(dto.getProcessoJudicialStatus());
+            }
+            if (dto.getProcessoJudicialDataDistribuicao() != null) {
+                existingEmployee.setProcessoJudicialDataDistribuicao(dto.getProcessoJudicialDataDistribuicao());
+            }
+            if (dto.getProcessoJudicialObservacoes() != null) {
+                existingEmployee.setProcessoJudicialObservacoes(dto.getProcessoJudicialObservacoes());
             }
             if (dto.getExameMedicoTipo() != null) {
                 existingEmployee.setExameMedicoTipo(dto.getExameMedicoTipo());
@@ -504,6 +592,9 @@ public class EmployeeService {
             }
             if (employee.getDepartment() != null) {
                 org.hibernate.Hibernate.initialize(employee.getDepartment());
+            }
+            if (employee.getExameMedicoDoctor() != null) {
+                org.hibernate.Hibernate.initialize(employee.getExameMedicoDoctor());
             }
         } catch (Exception e) {
             System.err.println("[WARNING] Erro ao inicializar relacionamentos LAZY: " + e.getMessage());
@@ -966,23 +1057,58 @@ public class EmployeeService {
             e.setAssinaturaFuncionario(dto.getAssinaturaFuncionario());
             e.setDataRescisao(dto.getDataRescisao());
             
+            UUID effectiveCompanyId = null;
+            if (dto.getCompany() != null && dto.getCompany().getId() != null) {
+                effectiveCompanyId = dto.getCompany().getId();
+            } else if (TenantContext.get() != null) {
+                effectiveCompanyId = TenantContext.get();
+            }
+            if (effectiveCompanyId != null) {
+                e.setCompanyId(effectiveCompanyId);
+                e.setCompany(companyRepository.findById(effectiveCompanyId).orElse(null));
+            }
+
             // Setar entidades relacionais (agora opcionais)
             if (dto.getUser() != null && dto.getUser().getId() != null) {
-                e.setUser(userRepository.findById(dto.getUser().getId())
-                    .orElseThrow(() -> new RuntimeException("UsuÃ¡rio nÃ£o encontrado para o id informado.")));
+                UUID newUserId = dto.getUser().getId();
+                // Desvincular de outro funcionário para manter 1:1
+                employeeRepository.findByUserIdGlobal(newUserId).ifPresent(otherEmp -> {
+                    otherEmp.setUser(null);
+                    employeeRepository.save(otherEmp);
+                    log.info("Vínculo de usuário transferido no create: desvinculado do funcionário anterior {}", otherEmp.getName());
+                });
+
+                User targetUser = userRepository.findByIdNative(newUserId)
+                    .or(() -> userRepository.findById(newUserId))
+                    .orElse(null);
+
+                if (targetUser != null) {
+                    if (effectiveCompanyId != null && (targetUser.getCompanyId() == null || !effectiveCompanyId.equals(targetUser.getCompanyId()))) {
+                        throw new IllegalArgumentException("Um funcionário só pode ser vinculado a um usuário da mesma empresa.");
+                    }
+                }
+                e.setUser(targetUser);
+            } else if (e.getUser() == null) {
+                String cleanCpf = dto.getCpf() != null ? dto.getCpf().replaceAll("\\D", "") : "";
+                User matched = null;
+                if (cleanCpf.length() >= 11) {
+                    matched = userRepository.findByIdentifierNative(cleanCpf, cleanCpf).orElse(null);
+                }
+                if (matched == null && dto.getEmail() != null && !dto.getEmail().isBlank()) {
+                    matched = userRepository.findByEmailNative(dto.getEmail().trim()).orElse(null);
+                }
+                if (matched != null && effectiveCompanyId != null && effectiveCompanyId.equals(matched.getCompanyId())) {
+                    e.setUser(matched);
+                }
             }
                 
             if (dto.getPosition() != null && dto.getPosition().getId() != null) {
                 e.setPosition(positionRepository.findById(dto.getPosition().getId())
-                    .orElseThrow(() -> new RuntimeException("Cargo nÃ£o encontrado para o id informado.")));
+                    .orElseThrow(() -> new RuntimeException("Cargo não encontrado para o id informado.")));
             }
                 
             if (dto.getUnit() != null && dto.getUnit().getId() != null) {
                 e.setUnit(unitRepository.findById(dto.getUnit().getId()).orElse(null));
-            }
-            
-            if (dto.getCompany() != null && dto.getCompany().getId() != null) {
-                e.setCompany(companyRepository.findById(dto.getCompany().getId()).orElse(null));
             }
             
             // Mapear WorkPost se fornecido
@@ -991,7 +1117,7 @@ public class EmployeeService {
                     UUID workPostId = UUID.fromString(dto.getWorkPostId());
                     e.setWorkPost(workPostRepository.findById(workPostId).orElse(null));
                 } catch (IllegalArgumentException ex) {
-                    System.err.println("[WARNING] WorkPostId invÃ¡lido: " + dto.getWorkPostId());
+                    System.err.println("[WARNING] WorkPostId inválido: " + dto.getWorkPostId());
                 }
             }
             
@@ -1001,11 +1127,11 @@ public class EmployeeService {
                     UUID departmentId = UUID.fromString(dto.getDepartmentId());
                     e.setDepartment(departmentRepository.findById(departmentId).orElse(null));
                 } catch (IllegalArgumentException ex) {
-                    System.err.println("[WARNING] DepartmentId invÃ¡lido: " + dto.getDepartmentId());
+                    System.err.println("[WARNING] DepartmentId inválido: " + dto.getDepartmentId());
                 }
             }
             
-            // Mapear dados do exame mÃ©dico (ASO)
+            // Mapear dados do exame médico (ASO)
             if (dto.getExameMedicoData() != null) {
                 e.setExameMedicoData(dto.getExameMedicoData());
             }
@@ -1020,6 +1146,38 @@ public class EmployeeService {
                 e.setNextLaudoPsicologico(dto.getNextLaudoPsicologico() != null
                         ? dto.getNextLaudoPsicologico()
                         : dto.getLaudoPsicologicoData().plusYears(1));
+            }
+            if (dto.getLaudoPsicologicoStatus() != null) {
+                e.setLaudoPsicologicoStatus(dto.getLaudoPsicologicoStatus());
+            }
+            if (dto.getLaudoPsicologicoProfissional() != null) {
+                e.setLaudoPsicologicoProfissional(dto.getLaudoPsicologicoProfissional());
+            }
+            if (dto.getLaudoPsicologicoObservacoes() != null) {
+                e.setLaudoPsicologicoObservacoes(dto.getLaudoPsicologicoObservacoes());
+            }
+            
+            // Mapear Processo Judicial
+            if (dto.getProcessoJudicialPossui() != null) {
+                e.setProcessoJudicialPossui(dto.getProcessoJudicialPossui());
+            }
+            if (dto.getProcessoJudicialNumero() != null) {
+                e.setProcessoJudicialNumero(dto.getProcessoJudicialNumero());
+            }
+            if (dto.getProcessoJudicialVara() != null) {
+                e.setProcessoJudicialVara(dto.getProcessoJudicialVara());
+            }
+            if (dto.getProcessoJudicialTipoAcao() != null) {
+                e.setProcessoJudicialTipoAcao(dto.getProcessoJudicialTipoAcao());
+            }
+            if (dto.getProcessoJudicialStatus() != null) {
+                e.setProcessoJudicialStatus(dto.getProcessoJudicialStatus());
+            }
+            if (dto.getProcessoJudicialDataDistribuicao() != null) {
+                e.setProcessoJudicialDataDistribuicao(dto.getProcessoJudicialDataDistribuicao());
+            }
+            if (dto.getProcessoJudicialObservacoes() != null) {
+                e.setProcessoJudicialObservacoes(dto.getProcessoJudicialObservacoes());
             }
             if (dto.getExameMedicoTipo() != null) {
                 e.setExameMedicoTipo(dto.getExameMedicoTipo());
@@ -1256,7 +1414,7 @@ public class EmployeeService {
                 dto.setDepartmentId(e.getDepartment().getId().toString());
             }
             
-            // Mapear entidades relacionais com verificaÃ§Ã£o de null
+            // Mapear entidades relacionais com verificação de null
             if (e.getUser() != null) {
                 try {
                     EmployeeDTO.IdOnlyDTO userDTO = new EmployeeDTO.IdOnlyDTO();
@@ -1268,6 +1426,42 @@ public class EmployeeService {
                 } catch (Exception userEx) {
                     System.err.println("[WARNING] Erro ao mapear user: " + userEx.getMessage());
                     dto.setUser(null);
+                }
+            } else {
+                try {
+                    String cleanDoc = e.getDocument() != null ? e.getDocument().replaceAll("\\D", "") : "";
+                    User matched = null;
+                    if (cleanDoc.length() >= 11) {
+                        matched = userRepository.findByCpfNative(cleanDoc).orElse(null);
+                        if (matched == null) {
+                            matched = userRepository.findByIdentifierNative(cleanDoc, cleanDoc).orElse(null);
+                        }
+                    }
+                    if (matched == null && e.getEmail() != null && !e.getEmail().isBlank()) {
+                        matched = userRepository.findByEmailNative(e.getEmail().trim()).orElse(null);
+                    }
+                    if (matched == null && e.getName() != null && !e.getName().isBlank()) {
+                        List<User> list = userRepository.searchUsers(e.getName().trim());
+                        if (list != null && list.size() == 1) {
+                            matched = list.get(0);
+                        }
+                    }
+                    if (matched != null) {
+                        UUID empCompId = e.getCompany() != null ? e.getCompany().getId() : e.getCompanyId();
+                        if (empCompId == null || matched.getCompanyId() == null || empCompId.equals(matched.getCompanyId())) {
+                            e.setUser(matched);
+                            employeeRepository.save(e);
+                            EmployeeDTO.IdOnlyDTO userDTO = new EmployeeDTO.IdOnlyDTO();
+                            userDTO.setId(matched.getId());
+                            userDTO.setName(matched.getName());
+                            userDTO.setUsername(matched.getUsername());
+                            userDTO.setEmail(matched.getEmail());
+                            dto.setUser(userDTO);
+                            log.info("🔗 Auto-vinculado na consulta: Funcionário {} ({}) ao Usuário @{}", e.getName(), e.getId(), matched.getUsername());
+                        }
+                    }
+                } catch (Exception matchEx) {
+                    System.err.println("[WARNING] Erro ao auto-vincular user: " + matchEx.getMessage());
                 }
             }
             
@@ -1290,7 +1484,55 @@ public class EmployeeService {
                     dto.setPosition(null);
                 }
             }
-            
+
+            // Cargo (descriÃ§Ã£o textual plana para o frontend)
+            if (e.getPosition() != null && e.getPosition().getName() != null) {
+                try {
+                    dto.setPositionDescription(e.getPosition().getName());
+                } catch (Exception positionDescEx) {
+                    System.err.println("[WARNING] Erro ao mapear positionDescription: " + positionDescEx.getMessage());
+                    dto.setPositionDescription(null);
+                }
+            }
+
+            // Dependentes (mapeados de forma plana; nunca lanÃ§a exceÃ§Ã£o)
+            try {
+                if (e.getDependents() != null && !e.getDependents().isEmpty()) {
+                    java.util.List<com.z7design.fleet_manager.dto.DependentDTO> dependentDTOs = new java.util.ArrayList<>();
+                    for (com.z7design.fleet_manager.model.Dependent dependent : e.getDependents()) {
+                        com.z7design.fleet_manager.dto.DependentDTO dependentDTO =
+                                com.z7design.fleet_manager.dto.DependentDTO.builder()
+                                        .id(dependent.getId())
+                                        .employeeId(e.getId())
+                                        .employeeName(e.getName())
+                                        .name(dependent.getName())
+                                        .relationship(dependent.getRelationship())
+                                        .birthDate(dependent.getBirthDate())
+                                        .cpf(dependent.getCpf())
+                                        .rg(dependent.getRg())
+                                        .gender(dependent.getGender())
+                                        .phone(dependent.getPhone())
+                                        .email(dependent.getEmail())
+                                        .address(dependent.getAddress())
+                                        .city(dependent.getCity())
+                                        .state(dependent.getState())
+                                        .zipCode(dependent.getZipCode())
+                                        .isStudent(dependent.getIsStudent())
+                                        .schoolName(dependent.getSchoolName())
+                                        .isBeneficiary(dependent.getIsBeneficiary())
+                                        .notes(dependent.getNotes())
+                                        .createdAt(dependent.getCreatedAt())
+                                        .updatedAt(dependent.getUpdatedAt())
+                                        .build();
+                        dependentDTOs.add(dependentDTO);
+                    }
+                    dto.setDependents(dependentDTOs);
+                }
+            } catch (Exception dependentsEx) {
+                System.err.println("[WARNING] Erro ao mapear dependents: " + dependentsEx.getMessage());
+                dto.setDependents(null);
+            }
+
             if (e.getUnit() != null) {
                 try {
                     // ForÃ§ar inicializaÃ§Ã£o do unit (LAZY loading)
@@ -1316,26 +1558,62 @@ public class EmployeeService {
                 try {
                     EmployeeDTO.IdOnlyDTO companyDTO = new EmployeeDTO.IdOnlyDTO();
                     companyDTO.setId(e.getCompany().getId());
+                    companyDTO.setName(e.getCompany().getName());
                     dto.setCompany(companyDTO);
                 } catch (Exception companyEx) {
                     System.err.println("[WARNING] Erro ao mapear company: " + companyEx.getMessage());
                     dto.setCompany(null);
                 }
+            } else if (e.getCompanyId() != null) {
+                EmployeeDTO.IdOnlyDTO companyDTO = new EmployeeDTO.IdOnlyDTO();
+                companyDTO.setId(e.getCompanyId());
+                companyRepository.findById(e.getCompanyId()).ifPresent(c -> companyDTO.setName(c.getName()));
+                dto.setCompany(companyDTO);
             }
             
             // Dados de exames (ASO, Laudo Psicológico e próximos vencimentos)
             dto.setExameMedicoData(e.getExameMedicoData());
             dto.setNextExameMedico(e.getNextExameMedico());
+            dto.setExameMedicoTipo(e.getExameMedicoTipo());
+            if (e.getExameMedicoDoctor() != null) {
+                try {
+                    EmployeeDTO.IdOnlyDTO doctorDTO = new EmployeeDTO.IdOnlyDTO();
+                    doctorDTO.setId(e.getExameMedicoDoctor().getId());
+                    doctorDTO.setName(e.getExameMedicoDoctor().getName());
+                    dto.setExameMedicoDoctor(doctorDTO);
+                } catch (Exception doctorEx) {
+                    System.err.println("[WARNING] Erro ao mapear exameMedicoDoctor: " + doctorEx.getMessage());
+                    dto.setExameMedicoDoctor(null);
+                }
+            }
+            dto.setExameMedicoHorario(e.getExameMedicoHorario());
+            dto.setExameMedicoIntervalosRefeicao(e.getExameMedicoIntervalosRefeicao());
+            dto.setExameMedicoObservacoes(e.getExameMedicoObservacoes());
+            dto.setExameMedicoPrimeiroEmprego(e.getExameMedicoPrimeiroEmprego());
+            dto.setExameMedicoContribuicaoSindicalPaga(e.getExameMedicoContribuicaoSindicalPaga());
+
             dto.setLaudoPsicologicoData(e.getLaudoPsicologicoData());
             dto.setNextLaudoPsicologico(e.getNextLaudoPsicologico());
+            dto.setLaudoPsicologicoStatus(e.getLaudoPsicologicoStatus());
+            dto.setLaudoPsicologicoProfissional(e.getLaudoPsicologicoProfissional());
+            dto.setLaudoPsicologicoObservacoes(e.getLaudoPsicologicoObservacoes());
+
+            // Processo Judicial
+            dto.setProcessoJudicialPossui(e.getProcessoJudicialPossui());
+            dto.setProcessoJudicialNumero(e.getProcessoJudicialNumero());
+            dto.setProcessoJudicialVara(e.getProcessoJudicialVara());
+            dto.setProcessoJudicialTipoAcao(e.getProcessoJudicialTipoAcao());
+            dto.setProcessoJudicialStatus(e.getProcessoJudicialStatus());
+            dto.setProcessoJudicialDataDistribuicao(e.getProcessoJudicialDataDistribuicao());
+            dto.setProcessoJudicialObservacoes(e.getProcessoJudicialObservacoes());
             
             System.out.println("[DEBUG] DTO criado com sucesso para: " + dto.getName());
             return dto;
             
         } catch (Exception ex) {
-            System.err.println("[ERROR] Erro na conversÃ£o Entity -> DTO: " + ex.getMessage());
+            System.err.println("[ERROR] Erro na conversão Entity -> DTO: " + ex.getMessage());
             ex.printStackTrace();
-            throw new RuntimeException("Erro na conversÃ£o Entity -> DTO: " + ex.getMessage(), ex);
+            throw new RuntimeException("Erro na conversão Entity -> DTO: " + ex.getMessage(), ex);
         }
     }
     

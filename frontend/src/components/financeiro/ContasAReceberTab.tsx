@@ -13,12 +13,14 @@ import {
   FileText,
   BarChart3,
   Users,
-  CheckCircle
+  CheckCircle,
+  RefreshCw
 } from 'lucide-react';
 import { ContasAReceberFormModal, ContaAReceber } from '@/components/financeiro/ContasAReceberFormModal';
 import { ContasAReceberTable } from '@/components/financeiro/ContasAReceberTable';
 import { ContasAReceberDashboard } from '@/components/financeiro/ContasAReceberDashboard';
 import { ContasAReceberViewModal } from '@/components/financeiro/ContasAReceberViewModal';
+import { NfseImportModal } from '@/components/financeiro/NfseImportModal';
 import { contasAReceberService } from '@/services/contasAReceberService';
 import { format, addDays, isBefore } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -31,8 +33,10 @@ const ContasAReceberTab: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showFormModal, setShowFormModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
+  const [showNfseModal, setShowNfseModal] = useState(false);
   const [editingConta, setEditingConta] = useState<ContaAReceber | null>(null);
   const [viewingConta, setViewingConta] = useState<ContaAReceber | null>(null);
+  const [nfseTargetConta, setNfseTargetConta] = useState<ContaAReceber | null>(null);
   const [alertasVencimento, setAlertasVencimento] = useState<ContaAReceber[]>([]);
   const [showDashboard, setShowDashboard] = useState(false);
 
@@ -169,6 +173,11 @@ const ContasAReceberTab: React.FC = () => {
     setShowViewModal(true);
   };
 
+  const handleImportNfse = (conta: ContaAReceber) => {
+    setNfseTargetConta(conta);
+    setShowNfseModal(true);
+  };
+
   const handleDeleteConta = async (id: string) => {
     try {
       await contasAReceberService.deleteContaAReceber(id);
@@ -213,6 +222,33 @@ const ContasAReceberTab: React.FC = () => {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={async () => {
+              try {
+                setLoading(true);
+                const result = await contasAReceberService.syncAll();
+                toast({
+                  title: "Sincronização Concluída",
+                  description: result.message || `${result.syncedCount} títulos sincronizados com sucesso.`,
+                });
+                await loadData();
+              } catch (err: any) {
+                console.error("Erro ao sincronizar medições:", err);
+                toast({
+                  title: "Erro",
+                  description: "Erro ao sincronizar medições e fretamentos.",
+                  variant: "destructive",
+                });
+              } finally {
+                setLoading(false);
+              }
+            }}
+            className="flex items-center gap-2 border-blue-600 text-blue-400 hover:bg-blue-950/50"
+          >
+            <RefreshCw size={16} />
+            Sincronizar Medições e Fretamentos
+          </Button>
           <Button
             variant="outline"
             onClick={() => setShowDashboard(!showDashboard)}
@@ -464,6 +500,7 @@ const ContasAReceberTab: React.FC = () => {
         onEdit={handleEditConta}
         onView={handleViewConta}
         onDelete={handleDeleteConta}
+        onImportNfse={handleImportNfse}
         onRefresh={loadData}
       />
 
@@ -480,6 +517,13 @@ const ContasAReceberTab: React.FC = () => {
         isOpen={showViewModal}
         onClose={() => setShowViewModal(false)}
         conta={viewingConta}
+      />
+
+      <NfseImportModal
+        isOpen={showNfseModal}
+        onClose={() => setShowNfseModal(false)}
+        conta={nfseTargetConta}
+        onSuccess={loadData}
       />
     </div>
   );

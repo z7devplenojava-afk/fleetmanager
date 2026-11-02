@@ -9,6 +9,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import org.hibernate.annotations.Filter;
 
 /**
  * PRD 1.0 - MÓDULO 3 (RF-03.3): Laudo de Vistoria de Mobilização.
@@ -20,6 +21,7 @@ import java.util.UUID;
 @Table(name = "mobilization_inspections")
 @Data
 @EqualsAndHashCode(of = "id")
+@Filter(name = "tenantFilter", condition = "company_id = :companyId")
 public class MobilizationInspection {
 
     @Id

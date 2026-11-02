@@ -24,6 +24,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/fines")
 @RequiredArgsConstructor
+@lombok.extern.slf4j.Slf4j
 public class FineController {
     
     private final FineService fineService;
@@ -38,7 +39,8 @@ public class FineController {
             }
             return ResponseEntity.ok(fineService.getAllFines());
         } catch (Exception e) {
-            // Evitar 500 para o frontend
+            // Evitar 500 para o frontend, mas registrar o erro real (senão parece "sem multas")
+            log.error("Erro ao listar multas (vehicleId={}): {}", vehicleId, e.getMessage(), e);
             return ResponseEntity.ok(java.util.List.of());
         }
     }

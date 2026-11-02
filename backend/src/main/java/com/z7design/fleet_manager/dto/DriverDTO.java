@@ -38,7 +38,11 @@ public class DriverDTO {
             dto.setCnhCategory(driver.getCnhCategory());
             dto.setCnhExpiration(driver.getCnhExpiration());
             dto.setPhotoUrl(driver.getPhotoUrl());
-            dto.setUserId(driver.getUser() != null ? driver.getUser().getId() : null);
+            try {
+                dto.setUserId(driver.getUser() != null ? driver.getUser().getId() : null);
+            } catch (Exception ignored) {
+                dto.setUserId(null);
+            }
             dto.setCreatedAt(driver.getCreatedAt());
             dto.setUpdatedAt(driver.getUpdatedAt());
             return dto;

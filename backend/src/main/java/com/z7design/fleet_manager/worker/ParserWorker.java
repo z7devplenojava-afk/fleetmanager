@@ -27,6 +27,7 @@ import java.util.UUID;
 @Slf4j
 @Component
 @RequiredArgsConstructor
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "fluxbus.redis.workers.enabled", havingValue = "true")
 public class ParserWorker {
 
     private ParserWorker self; // Self-injection para permitir @Transactional em mÃ©todos internos

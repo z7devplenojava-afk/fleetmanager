@@ -66,11 +66,14 @@ import {
     CloudUpload,
     Loader2,
     Users,
+    Sparkles,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { routeService, Route, RoutePoint } from '@/services/routeService';
 import clientService from '@/services/clientService';
 import { OpenMapInteractive } from '@/components/routes/OpenMapInteractive';
+import { smartRoutingService, RoutingPoint } from '@/services/smartRoutingService';
+import kmlParserService from '@/services/kmlParserService';
 
 interface Unit {
     id: string;
@@ -102,6 +105,7 @@ const RoutesAndPoints: React.FC = () => {
     // Filters
     const [searchTerm, setSearchTerm] = useState('');
     const [filterUnit, setFilterUnit] = useState<string>('all');
+    const [isImporting, setIsImporting] = useState(false);
     const [importRouteFormData, setImportRouteFormData] = useState({
         clientId: '',
         file: null as File | null
@@ -153,10 +157,87 @@ const RoutesAndPoints: React.FC = () => {
 
     // Route tracing state
     const [tracingRoute, setTracingRoute] = useState(false);
+    const [routingProvider, setRoutingProvider] = useState<'OSRM' | 'GOOGLE_MAPS'>('OSRM');
     const [routePolyline, setRoutePolyline] = useState<[number, number][]>([]);
 
     /**
+     * Faz geocodificação reversa de coordenadas [lat, lon] para obter CEP e endereço completo.
+     * Utiliza Nominatim OpenStreetMap e valida com ViaCEP quando há código postal de 8 dígitos.
+     */
+    const reverseGeocodeNominatim = async (lat: number, lon: number): Promise<{ cep: string; endereco: string; dadosEstruturados: any } | null> => {
+        try {
+            const resp = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`,
+                { headers: { 'Accept-Language': 'pt-BR' } }
+            );
+            const data = await resp.json();
+            if (data && data.address) {
+                const addr = data.address;
+                let cep = addr.postcode || '';
+                if (cep) {
+                    cep = formatarCep(cep);
+                }
+
+                const logradouro = addr.road || addr.street || addr.pedestrian || addr.footway || addr.path || addr.amenity || '';
+                const numero = addr.house_number ? `, ${addr.house_number}` : '';
+                const bairro = addr.suburb || addr.neighbourhood || addr.city_district || '';
+                const cidade = addr.city || addr.town || addr.municipality || addr.village || '';
+                const estado = addr.state || '';
+
+                const partes = [
+                    logradouro ? `${logradouro}${numero}` : '',
+                    bairro,
+                    cidade ? `${cidade} - ${estado}` : estado
+                ].filter(Boolean);
+
+                let endereco = partes.join(', ') || data.display_name || '';
+
+                const cepLimpo = cep.replace(/\D/g, '');
+                let dadosViaCep = {
+                    logradouro: logradouro,
+                    bairro: bairro,
+                    localidade: cidade,
+                    uf: estado
+                };
+
+                if (cepLimpo.length === 8) {
+                    try {
+                        const vcResp = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+                        const vcData = await vcResp.json();
+                        if (vcData && !vcData.erro) {
+                            const partesVc = [
+                                vcData.logradouro ? `${vcData.logradouro}${numero}` : logradouro,
+                                vcData.bairro || bairro,
+                                vcData.localidade ? `${vcData.localidade} - ${vcData.uf}` : cidade
+                            ].filter(Boolean);
+                            endereco = partesVc.join(', ');
+                            dadosViaCep = {
+                                logradouro: vcData.logradouro || logradouro,
+                                bairro: vcData.bairro || bairro,
+                                localidade: vcData.localidade || cidade,
+                                uf: vcData.uf || estado
+                            };
+                        }
+                    } catch (e) {
+                        // mantém endereço do nominatim
+                    }
+                }
+
+                return {
+                    cep,
+                    endereco,
+                    dadosEstruturados: dadosViaCep
+                };
+            }
+        } catch (err) {
+            console.warn('Erro ao realizar reverse geocode:', err);
+        }
+        return null;
+    };
+
+    /**
      * Busca endereço via ViaCEP e atualiza o campo de endereço correspondente.
+     * Se origem e destino estiverem preenchidos, aciona automaticamente o cálculo de rota, distância e duração.
      * @param cep - CEP digitado (pode conter máscara)
      * @param tipo - 'origin' ou 'destination'
      */
@@ -186,11 +267,21 @@ const RoutesAndPoints: React.FC = () => {
                     uf: data.uf || '',
                 };
 
+                const formattedCep = formatarCep(cep);
+
+                const origEnd = tipo === 'origin' ? endereco : formData.originAddress;
+                const origCep = tipo === 'origin' ? formattedCep : formData.originCep;
+                const origVc = tipo === 'origin' ? dadosEstruturados : originViaCep;
+
+                const destEnd = tipo === 'destination' ? endereco : formData.destinationAddress;
+                const destCep = tipo === 'destination' ? formattedCep : formData.destinationCep;
+                const destVc = tipo === 'destination' ? dadosEstruturados : destinationViaCep;
+
                 if (tipo === 'origin') {
-                    setFormData(prev => ({ ...prev, originAddress: endereco }));
+                    setFormData(prev => ({ ...prev, originAddress: endereco, originCep: formattedCep }));
                     setOriginViaCep(dadosEstruturados);
                 } else {
-                    setFormData(prev => ({ ...prev, destinationAddress: endereco }));
+                    setFormData(prev => ({ ...prev, destinationAddress: endereco, destinationCep: formattedCep }));
                     setDestinationViaCep(dadosEstruturados);
                 }
 
@@ -198,6 +289,13 @@ const RoutesAndPoints: React.FC = () => {
                     title: 'CEP encontrado',
                     description: `Endereço de ${tipo === 'origin' ? 'origem' : 'destino'} preenchido automaticamente.`,
                 });
+
+                // Se ambos os lados estão preenchidos, calcula automaticamente rota, distância e duração
+                if ((origEnd || origCep) && (destEnd || destCep)) {
+                    setTimeout(() => {
+                        executarCalculoRota(origEnd, origCep, origVc, destEnd, destCep, destVc, true);
+                    }, 400);
+                }
             } else {
                 toast({
                     title: 'CEP não encontrado',
@@ -317,30 +415,23 @@ const RoutesAndPoints: React.FC = () => {
     };
 
     /**
-     * Traça a rota no mapa:
+     * Traça a rota no mapa e atualiza distância e duração:
      * 1. Geocodifica origem e destino usando endereços + CEPs com fallback
      * 2. Busca a rota real via OSRM (segue estradas)
      * 3. Cria pontos START e END automaticamente
      * 4. Atualiza distância e duração
      */
-    const handleTracarRota = async () => {
-        // Validação: precisa de pelo menos CEP de origem e destino
-        if (!formData.originCep && !formData.originAddress) {
-            toast({
-                title: 'Origem obrigatória',
-                description: 'Preencha o CEP de origem antes de traçar a rota.',
-                variant: 'destructive',
-            });
-            return;
-        }
-        if (!formData.destinationCep && !formData.destinationAddress) {
-            toast({
-                title: 'Destino obrigatório',
-                description: 'Preencha o CEP de destino antes de traçar a rota.',
-                variant: 'destructive',
-            });
-            return;
-        }
+    const executarCalculoRota = async (
+        origAddress: string,
+        origCep: string,
+        origViaCep: any,
+        destAddress: string,
+        destCep: string,
+        destViaCep: any,
+        showSuccessToast = false
+    ) => {
+        if (!origCep && !origAddress) return null;
+        if (!destCep && !destAddress) return null;
 
         setTracingRoute(true);
         setRoutePolyline([]);
@@ -348,52 +439,51 @@ const RoutesAndPoints: React.FC = () => {
         try {
             // 1. Geocodificar origem e destino com múltiplas estratégias
             const [origemCoords, destinoCoords] = await Promise.all([
-                geocodificarComFallback(formData.originAddress, formData.originCep, originViaCep),
-                geocodificarComFallback(formData.destinationAddress, formData.destinationCep, destinationViaCep),
+                geocodificarComFallback(origAddress, origCep, origViaCep),
+                geocodificarComFallback(destAddress, destCep, destViaCep),
             ]);
 
             if (!origemCoords) {
-                toast({
-                    title: 'Origem não encontrada',
-                    description: `Não foi possível localizar "${formData.originAddress || formData.originCep}". Verifique o CEP ou edite o endereço manualmente.`,
-                    variant: 'destructive',
-                });
-                return;
+                if (showSuccessToast) {
+                    toast({
+                        title: 'Origem não encontrada',
+                        description: `Não foi possível localizar "${origAddress || origCep}". Verifique o CEP ou edite o endereço.`,
+                        variant: 'destructive',
+                    });
+                }
+                return null;
             }
 
             if (!destinoCoords) {
-                toast({
-                    title: 'Destino não encontrado',
-                    description: `Não foi possível localizar "${formData.destinationAddress || formData.destinationCep}". Verifique o CEP ou edite o endereço manualmente.`,
-                    variant: 'destructive',
-                });
-                return;
+                if (showSuccessToast) {
+                    toast({
+                        title: 'Destino não encontrado',
+                        description: `Não foi possível localizar "${destAddress || destCep}". Verifique o CEP ou edite o endereço.`,
+                        variant: 'destructive',
+                    });
+                }
+                return null;
             }
 
-            // 2. Buscar rota via OSRM (gratuito, segue estradas)
-            const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${origemCoords.lon},${origemCoords.lat};${destinoCoords.lon},${destinoCoords.lat}?overview=full&geometries=geojson`;
-            const routeResp = await fetch(osrmUrl);
-            const routeData = await routeResp.json();
+            // 2. Buscar rota viária inteligente via smartRoutingService (multi-paradas, respeita mãos e contramãos)
+            const intermediatePoints = routePoints.filter(p => p.type !== 'START' && p.type !== 'END');
+            const allRoutingPoints: RoutingPoint[] = [
+                { latitude: origemCoords.lat, longitude: origemCoords.lon, name: origAddress || 'Origem', type: 'START' },
+                ...intermediatePoints.map(p => ({
+                    latitude: p.latitude,
+                    longitude: p.longitude,
+                    name: p.name,
+                    type: p.type
+                })),
+                { latitude: destinoCoords.lat, longitude: destinoCoords.lon, name: destAddress || 'Destino', type: 'END' }
+            ];
 
-            if (routeData.code !== 'Ok' || !routeData.routes || routeData.routes.length === 0) {
-                toast({
-                    title: 'Rota não encontrada',
-                    description: 'Não foi possível calcular uma rota entre os endereços informados.',
-                    variant: 'destructive',
-                });
-                return;
-            }
-
-            const route = routeData.routes[0];
-            const distanciaKm = parseFloat((route.distance / 1000).toFixed(1));
-            const duracaoMin = Math.round(route.duration / 60);
-
-            // 3. Extrair polyline da rota (GeoJSON: [lng, lat] → converter para [lat, lng])
-            const coords: [number, number][] = route.geometry.coordinates.map(
-                (c: [number, number]) => [c[1], c[0]] as [number, number]
-            );
+            const routeResult = await smartRoutingService.calculateRoute(allRoutingPoints);
+            setRoutingProvider(routeResult.provider);
+            const distanciaKm = routeResult.distanceKm;
+            const duracaoMin = routeResult.durationMinutes;
+            const coords = routeResult.polyline;
             setRoutePolyline(coords);
-
             // 4. Atualizar distância e duração no formulário
             setFormData(prev => ({
                 ...prev,
@@ -402,74 +492,139 @@ const RoutesAndPoints: React.FC = () => {
             }));
 
             // 5. Criar pontos START e END se ainda não existem
-            const hasStart = routePoints.some(p => p.type === 'START');
-            const hasEnd = routePoints.some(p => p.type === 'END');
-
-            const newPoints = [...routePoints];
-
-            if (!hasStart) {
-                newPoints.unshift({
-                    name: formData.originAddress || `Origem (${formData.originCep})`,
-                    latitude: origemCoords.lat,
-                    longitude: origemCoords.lon,
-                    order: 0,
-                    type: 'START',
-                    radiusMeters: formData.defaultRadiusMeters || 50,
-                });
-            } else {
-                // Atualizar coordenadas do START existente
+            setRoutePoints(prevPoints => {
+                const newPoints = [...prevPoints];
                 const startIdx = newPoints.findIndex(p => p.type === 'START');
                 if (startIdx >= 0) {
                     newPoints[startIdx] = {
                         ...newPoints[startIdx],
                         latitude: origemCoords.lat,
                         longitude: origemCoords.lon,
-                        name: formData.originAddress || newPoints[startIdx].name,
+                        name: origAddress || newPoints[startIdx].name,
                     };
+                } else {
+                    newPoints.unshift({
+                        name: origAddress || `Origem (${origCep})`,
+                        latitude: origemCoords.lat,
+                        longitude: origemCoords.lon,
+                        order: 0,
+                        type: 'START',
+                        radiusMeters: formData.defaultRadiusMeters || 50,
+                    });
                 }
-            }
 
-            if (!hasEnd) {
-                newPoints.push({
-                    name: formData.destinationAddress || `Destino (${formData.destinationCep})`,
-                    latitude: destinoCoords.lat,
-                    longitude: destinoCoords.lon,
-                    order: newPoints.length,
-                    type: 'END',
-                    radiusMeters: formData.defaultRadiusMeters || 50,
-                });
-            } else {
-                // Atualizar coordenadas do END existente
                 const endIdx = newPoints.findIndex(p => p.type === 'END');
                 if (endIdx >= 0) {
                     newPoints[endIdx] = {
                         ...newPoints[endIdx],
                         latitude: destinoCoords.lat,
                         longitude: destinoCoords.lon,
-                        name: formData.destinationAddress || newPoints[endIdx].name,
+                        name: destAddress || newPoints[endIdx].name,
                     };
+                } else {
+                    newPoints.push({
+                        name: destAddress || `Destino (${destCep})`,
+                        latitude: destinoCoords.lat,
+                        longitude: destinoCoords.lon,
+                        order: newPoints.length,
+                        type: 'END',
+                        radiusMeters: formData.defaultRadiusMeters || 50,
+                    });
                 }
-            }
 
-            // Reordenar
-            newPoints.forEach((p, i) => { p.order = i; });
-            setRoutePoints(newPoints);
-
-            toast({
-                title: 'Rota traçada com sucesso',
-                description: `Distância: ${distanciaKm} km | Duração estimada: ${duracaoMin} min`,
+                return newPoints.map((p, idx) => ({ ...p, order: idx }));
             });
 
+            if (showSuccessToast) {
+                toast({
+                    title: 'Rota Traçada no Mapa!',
+                    description: `Distância: ${distanciaKm} km | Duração estimada: ${duracaoMin} min.`,
+                });
+            }
+
+            return { distanciaKm, duracaoMin, coords };
         } catch (error) {
             console.error('Erro ao traçar rota:', error);
+            if (showSuccessToast) {
+                toast({
+                    title: 'Erro ao traçar rota',
+                    description: 'Não foi possível calcular a rota. Tente novamente.',
+                    variant: 'destructive',
+                });
+            }
+        } finally {
+            setTracingRoute(false);
+        }
+        return null;
+    };
+
+    /** Otimiza a ordem das paradas intermediárias mantendo fixos Origem e Destino */
+    const handleOtimizarOrdem = async () => {
+        if (routePoints.length < 2) {
             toast({
-                title: 'Erro ao traçar rota',
-                description: 'Não foi possível calcular a rota. Tente novamente.',
+                title: 'Traçado de Rota',
+                description: 'Adicione ao menos a Origem e o Destino para traçar ou otimizar a rota.',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        try {
+            setTracingRoute(true);
+            const optimized = smartRoutingService.optimizeWaypoints(routePoints as RoutingPoint[]);
+            setRoutePoints(optimized as RoutePoint[]);
+
+            const result = await smartRoutingService.calculateRoute(optimized as RoutingPoint[]);
+            setRoutePolyline(result.polyline);
+            setRoutingProvider(result.provider);
+            setFormData(prev => ({
+                ...prev,
+                distanceKm: result.distanceKm,
+                estimatedDuration: result.durationMinutes,
+            }));
+
+            toast({
+                title: 'Trajeto Otimizado!',
+                description: `Nova distância: ${result.distanceKm} km | Duração estimada: ${result.durationMinutes} min (${result.provider === 'GOOGLE_MAPS' ? 'Google Maps' : 'OSRM Sentido da Via'}).`,
+            });
+        } catch (err: any) {
+            console.error('Erro ao otimizar trajeto:', err);
+            toast({
+                title: 'Erro ao otimizar',
+                description: err.message || 'Não foi possível otimizar a ordem das paradas.',
                 variant: 'destructive',
             });
         } finally {
             setTracingRoute(false);
         }
+    };
+
+    const handleTracarRota = () => {
+        if (!formData.originCep && !formData.originAddress) {
+            toast({
+                title: 'Origem obrigatória',
+                description: 'Preencha o CEP ou endereço de origem antes de traçar a rota.',
+                variant: 'destructive',
+            });
+            return;
+        }
+        if (!formData.destinationCep && !formData.destinationAddress) {
+            toast({
+                title: 'Destino obrigatório',
+                description: 'Preencha o CEP ou endereço de destino antes de traçar a rota.',
+                variant: 'destructive',
+            });
+            return;
+        }
+        executarCalculoRota(
+            formData.originAddress,
+            formData.originCep,
+            originViaCep,
+            formData.destinationAddress,
+            formData.destinationCep,
+            destinationViaCep,
+            true
+        );
     };
 
     // Load initial data
@@ -815,14 +970,53 @@ const RoutesAndPoints: React.FC = () => {
         };
 
         const newPoints = [...routePoints];
+        const endIdx = newPoints.findIndex(p => p.type === 'END');
+
         if (editingPointIndex !== null) {
             newPoints[editingPointIndex] = newPoint;
+        } else if (endIdx >= 0) {
+            // Insere a nova parada de embarque imediatamente antes do Destino Final
+            newPoints.splice(endIdx, 0, newPoint);
         } else {
             newPoints.push(newPoint);
         }
 
-        setRoutePoints(newPoints);
+        const reordered = newPoints.map((p, idx) => ({ ...p, order: idx }));
+        setRoutePoints(reordered);
         setPointModalOpen(false);
+
+        toast({
+            title: editingPointIndex !== null ? 'Ponto Atualizado!' : 'Ponto de Embarque Marcado!',
+            description: `Ponto "${newPoint.name}" posicionado no mapa. O traçado viário será recalculado ao clicar em "Otimizar Ordem dos Pontos".`,
+        });
+    };
+
+    /** Reposiciona o ponto de embarque ao arrastar no mapa */
+    const handlePointDragEnd = (pointId: string, lat: number, lng: number) => {
+        setRoutePoints(prev =>
+            prev.map((p, idx) => {
+                if (p.id === pointId || `point-${idx}` === pointId || String(idx) === pointId) {
+                    return { ...p, latitude: lat, longitude: lng };
+                }
+                return p;
+            })
+        );
+        toast({
+            title: 'Ponto Reposicionado!',
+            description: 'Localização atualizada. Clique em "Otimizar Ordem dos Pontos" para atualizar o traçado viário.',
+        });
+    };
+
+    /** Exclui o ponto de embarque diretamente pelo popup do mapa */
+    const handlePointDeleteFromMap = (pointId: string) => {
+        setRoutePoints(prev => {
+            const filtered = prev.filter((p, idx) => p.id !== pointId && `point-${idx}` !== pointId && String(idx) !== pointId);
+            return filtered.map((p, idx) => ({ ...p, order: idx }));
+        });
+        toast({
+            title: 'Ponto de Embarque Excluído',
+            description: 'O ponto foi removido do mapa e do itinerário.',
+        });
     };
 
     const handleDeletePoint = (index: number) => {
@@ -902,6 +1096,226 @@ const RoutesAndPoints: React.FC = () => {
             return `${hours}h ${minutes}min`;
         }
         return `${minutes}min`;
+    };
+
+    /**
+     * Executa a importação e roteirização inteligente de arquivos KML e KMZ do Google Earth
+     */
+    const handleExecuteImportKmlKmz = async () => {
+        if (!importRouteFormData.file) {
+            toast({
+                title: 'Nenhum arquivo selecionado',
+                description: 'Por favor, selecione um arquivo .kml ou .kmz do Google Earth.',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        setIsImporting(true);
+        try {
+            const file = importRouteFormData.file;
+            const isKmz = file.name.toLowerCase().endsWith('.kmz');
+            let parsedData;
+
+            if (isKmz) {
+                const buffer = await file.arrayBuffer();
+                parsedData = await kmlParserService.parseKMZ(buffer);
+            } else {
+                const text = await file.text();
+                parsedData = await kmlParserService.parseKML(text);
+            }
+
+            if (!parsedData) {
+                throw new Error('Não foi possível extrair dados válidos do arquivo.');
+            }
+
+            // Identifica rota principal
+            const primaryRoute = parsedData.routes?.[0];
+            const coordinates = primaryRoute?.coordinates || [];
+            const wayPoints = parsedData.wayPoints || [];
+
+            // Converte coordenadas do KML em polyline para o mapa Leaflet [lat, lon]
+            const polylinePoints: [number, number][] = coordinates.map(c => [c.latitude, c.longitude]);
+            setRoutePolyline(polylinePoints);
+
+            // Gera sequência inteligente de pontos de parada (START, BOARDING, END)
+            const generatedPoints: RoutePoint[] = [];
+
+            if (wayPoints.length >= 2) {
+                // Se o KML já contém WayPoints/Placemarks definidos no Google Earth
+                wayPoints.forEach((wp, idx) => {
+                    let pointType: RoutePoint['type'] = 'BOARDING';
+                    if (idx === 0) pointType = 'START';
+                    else if (idx === wayPoints.length - 1) pointType = 'END';
+
+                    generatedPoints.push({
+                        name: wp.name || `Ponto ${idx + 1}`,
+                        latitude: wp.coordinates.latitude,
+                        longitude: wp.coordinates.longitude,
+                        order: idx,
+                        type: pointType,
+                        radiusMeters: 50,
+                    });
+                });
+            } else if (coordinates.length >= 2) {
+                // Se o KML contém apenas traçado (LineString), cria START, paradas intermediárias e END
+                const firstCoord = coordinates[0];
+                const lastCoord = coordinates[coordinates.length - 1];
+
+                generatedPoints.push({
+                    name: 'Origem (Ponto Inicial)',
+                    latitude: firstCoord.latitude,
+                    longitude: firstCoord.longitude,
+                    order: 0,
+                    type: 'START',
+                    radiusMeters: 50,
+                });
+
+                // Se houver waypoints avulsos, adiciona no meio
+                if (wayPoints.length > 0) {
+                    wayPoints.forEach((wp, idx) => {
+                        generatedPoints.push({
+                            name: wp.name || `Ponto de Embarque ${idx + 1}`,
+                            latitude: wp.coordinates.latitude,
+                            longitude: wp.coordinates.longitude,
+                            order: idx + 1,
+                            type: 'BOARDING',
+                            radiusMeters: 50,
+                        });
+                    });
+                } else if (coordinates.length > 8) {
+                    // Amostra pontos intermediários para representar paradas de embarque ao longo do traçado
+                    const sampleInterval = Math.floor(coordinates.length / 4);
+                    for (let step = 1; step <= 3; step++) {
+                        const midCoord = coordinates[step * sampleInterval];
+                        if (midCoord) {
+                            generatedPoints.push({
+                                name: `Embarque Intermediário ${step}`,
+                                latitude: midCoord.latitude,
+                                longitude: midCoord.longitude,
+                                order: step,
+                                type: 'BOARDING',
+                                radiusMeters: 50,
+                            });
+                        }
+                    }
+                }
+
+                generatedPoints.push({
+                    name: 'Destino (Ponto Final)',
+                    latitude: lastCoord.latitude,
+                    longitude: lastCoord.longitude,
+                    order: generatedPoints.length,
+                    type: 'END',
+                    radiusMeters: 50,
+                });
+            }
+
+            // Extrai coordenadas do ponto inicial e final para obter CEP e endereço completo
+            const firstPointCoord = generatedPoints[0] 
+                ? { latitude: generatedPoints[0].latitude, longitude: generatedPoints[0].longitude }
+                : (coordinates[0] || null);
+
+            const lastPointCoord = generatedPoints[generatedPoints.length - 1]
+                ? { latitude: generatedPoints[generatedPoints.length - 1].latitude, longitude: generatedPoints[generatedPoints.length - 1].longitude }
+                : (coordinates[coordinates.length - 1] || null);
+
+            let originCep = '';
+            let originAddress = '';
+            let destinationCep = '';
+            let destinationAddress = '';
+
+            if (firstPointCoord && lastPointCoord) {
+                try {
+                    const [origemInfo, destinoInfo] = await Promise.all([
+                        reverseGeocodeNominatim(firstPointCoord.latitude, firstPointCoord.longitude),
+                        reverseGeocodeNominatim(lastPointCoord.latitude, lastPointCoord.longitude)
+                    ]);
+
+                    if (origemInfo) {
+                        originCep = origemInfo.cep;
+                        originAddress = origemInfo.endereco;
+                        if (origemInfo.dadosEstruturados) {
+                            setOriginViaCep(origemInfo.dadosEstruturados);
+                        }
+                    }
+
+                    if (destinoInfo) {
+                        destinationCep = destinoInfo.cep;
+                        destinationAddress = destinoInfo.endereco;
+                        if (destinoInfo.dadosEstruturados) {
+                            setDestinationViaCep(destinoInfo.dadosEstruturados);
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Erro ao obter CEP e endereço reverso no KML:', e);
+                }
+            }
+
+            // Distância em KM calculada
+            let distanceKm = primaryRoute?.distance 
+                ? Number(primaryRoute.distance.toFixed(1)) 
+                : 0;
+
+            let durationMinutes = primaryRoute?.estimatedDuration 
+                ? primaryRoute.estimatedDuration 
+                : Math.max(15, Math.round(distanceKm * 2));
+
+            // Se o KML não fornecer distância calculada, consulta OSRM para rota precisa
+            if ((!distanceKm || distanceKm === 0) && firstPointCoord && lastPointCoord) {
+                try {
+                    const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${firstPointCoord.longitude},${firstPointCoord.latitude};${lastPointCoord.longitude},${lastPointCoord.latitude}?overview=false`;
+                    const r = await fetch(osrmUrl);
+                    const d = await r.json();
+                    if (d.code === 'Ok' && d.routes?.[0]) {
+                        distanceKm = parseFloat((d.routes[0].distance / 1000).toFixed(1));
+                        durationMinutes = Math.round(d.routes[0].duration / 60);
+                    }
+                } catch (e) {
+                    // mantém estimativa
+                }
+            }
+
+            const routeTitle = parsedData.name || primaryRoute?.name || file.name.replace(/\.(kml|kmz)$/i, '');
+            const generatedCode = `ROTA-${routeTitle.replace(/[^a-zA-Z0-9]/g, '').substring(0, 8).toUpperCase()}-${Math.floor(100 + Math.random() * 900)}`;
+
+            // Atualiza o formulário com todos os dados: CEPs, endereços, distância e duração
+            setFormData(prev => ({
+                ...prev,
+                name: routeTitle,
+                code: generatedCode,
+                description: parsedData.description || `Rota importada de arquivo Google Earth (${file.name})`,
+                clientId: importRouteFormData.clientId || prev.clientId,
+                originCep: originCep || prev.originCep,
+                originAddress: originAddress || generatedPoints[0]?.name || 'Origem traçada via KML',
+                destinationCep: destinationCep || prev.destinationCep,
+                destinationAddress: destinationAddress || generatedPoints[generatedPoints.length - 1]?.name || 'Destino traçado via KML',
+                distanceKm: distanceKm,
+                estimatedDuration: durationMinutes,
+                status: 'ATIVA',
+            }));
+
+            setRoutePoints(generatedPoints);
+
+            toast({
+                title: '🎉 Rota Importada com Sucesso!',
+                description: `CEPs, endereços, ${generatedPoints.length} pontos de parada e ${distanceKm} km preenchidos automaticamente.`,
+            });
+
+            // Fecha modal e vai para a aba de cadastro
+            setImportModalOpen(false);
+            setModalMode('create');
+            setActiveTab('form');
+        } catch (error: any) {
+            console.error('Erro na importação KML/KMZ:', error);
+            toast({
+                title: 'Erro ao importar arquivo',
+                description: error.message || 'Falha ao processar arquivo KML/KMZ do Google Earth.',
+                variant: 'destructive',
+            });
+        } finally {
+            setIsImporting(false);
+        }
     };
 
     return (
@@ -1056,12 +1470,7 @@ const RoutesAndPoints: React.FC = () => {
                                                                     {route.status === 'ATIVA' ? 'Ativa' : 'Inativa'}
                                                                 </Badge>
                                                             )}
-                                                            {(route.capacity ?? 0) > 0 && (
-                                                                <p className="text-xs text-gray-500 mt-1 flex items-center justify-end gap-1">
-                                                                    <Users className="w-3 h-3" />
-                                                                    {route.capacity} passageiros
-                                                                </p>
-                                                            )}
+
                                                             {route.estimatedDuration && (
                                                                 <p className="text-xs text-gray-500 mt-1 flex items-center justify-end gap-1">
                                                                     <Clock className="w-3 h-3" />
@@ -1397,7 +1806,7 @@ const RoutesAndPoints: React.FC = () => {
                                             />
                                         </div>
 
-                                        {/* Row 8: Cor, Status & Capacidade */}
+                                        {/* Row 8: Cor da Linha e Status (Capacidade alocada no cadastro do veículo) */}
                                         <div className="space-y-2">
                                             <Label className="text-gray-300 text-xs font-semibold uppercase tracking-wider">Cor da Linha</Label>
                                             <div className="flex items-center gap-2">
@@ -1434,38 +1843,203 @@ const RoutesAndPoints: React.FC = () => {
                                                 </SelectContent>
                                             </Select>
                                         </div>
-                                        <div className="space-y-2">
-                                            <Label className="text-gray-300 text-xs font-semibold uppercase tracking-wider">Capacidade (passageiros)</Label>
-                                            <Input
-                                                type="number"
-                                                value={formData.capacity}
-                                                onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) || 0 })}
-                                                placeholder="Ex.: 44"
-                                                className="bg-seguranca-black border-gray-600 text-gray-200 h-11"
-                                                disabled={modalMode === 'view'}
-                                            />
+                                    </div>
+
+                                    {/* Painel Organizado de Itinerário */}
+                                    <div className="pt-6 space-y-3">
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-gray-700">
+                                            <div>
+                                                <div className="flex items-center gap-2">
+                                                    <RouteIcon className="w-5 h-5 text-seguranca-yellow" />
+                                                    <Label className="text-white text-sm font-bold uppercase tracking-wider">
+                                                        Itinerário da Rota & Sequência de Paradas ({routePoints.length})
+                                                    </Label>
+                                                    <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-400 border-blue-500/30 font-bold">
+                                                        1º Embarque ➔ Paradas ➔ Destino
+                                                    </Badge>
+                                                </div>
+                                                <p className="text-xs text-gray-400 mt-0.5">
+                                                    O trajeto é percorrido nesta ordem exata. Adicione novos embarques clicando no mapa ou pelo botão ao lado.
+                                                </p>
+                                            </div>
+
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={handleOtimizarOrdem}
+                                                    disabled={tracingRoute || modalMode === 'view' || routePoints.length <= 3}
+                                                    className="border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 text-xs h-8 gap-1.5 font-bold shadow-sm"
+                                                    title="Calcula a sequência viária mais rápida/curta entre os embarques mantendo Origem e Destino fixos"
+                                                >
+                                                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                                                    Otimizar Ordem dos Pontos
+                                                </Button>
+                                                {modalMode !== 'view' && (
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={handleAddPoint}
+                                                        className="border-gray-600 text-gray-200 hover:bg-gray-800 text-xs h-8 gap-1.5"
+                                                    >
+                                                        <Plus className="w-3.5 h-3.5 text-seguranca-yellow" />
+                                                        + Adicionar Ponto
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Lista Sequencial de Pontos */}
+                                        <div className="space-y-2 max-h-[280px] overflow-y-auto pr-1">
+                                            {routePoints.length === 0 ? (
+                                                <div className="p-4 rounded-lg bg-seguranca-black/40 border border-dashed border-gray-700 text-center text-xs text-gray-400">
+                                                    Nenhum ponto traçado. Preencha o CEP de Origem e Destino acima ou clique no mapa para marcar os pontos de embarque.
+                                                </div>
+                                            ) : (
+                                                routePoints.map((point, idx) => {
+                                                    const isStart = point.type === 'START' || idx === 0;
+                                                    const isEnd = point.type === 'END' || (idx === routePoints.length - 1 && routePoints.length > 1);
+                                                    const isIntermediate = !isStart && !isEnd;
+
+                                                    return (
+                                                        <div
+                                                            key={point.id || idx}
+                                                            className={`flex items-center justify-between p-2.5 rounded-lg border transition-all ${
+                                                                isStart
+                                                                    ? 'bg-emerald-950/20 border-emerald-500/40 text-emerald-200'
+                                                                    : isEnd
+                                                                    ? 'bg-red-950/20 border-red-500/40 text-red-200'
+                                                                    : 'bg-slate-900/60 border-gray-700/80 text-gray-200 hover:border-gray-600'
+                                                            }`}
+                                                        >
+                                                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                                                                <span
+                                                                    className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${
+                                                                        isStart
+                                                                            ? 'bg-emerald-600 text-white'
+                                                                            : isEnd
+                                                                            ? 'bg-red-600 text-white'
+                                                                            : 'bg-sky-600 text-white'
+                                                                    }`}
+                                                                >
+                                                                    {isEnd ? '★' : idx + 1}
+                                                                </span>
+
+                                                                <div className="min-w-0 flex-1">
+                                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                                        <span className="font-bold text-xs text-white truncate max-w-[280px] sm:max-w-[420px]">
+                                                                            {point.name}
+                                                                        </span>
+                                                                        <Badge
+                                                                            variant="outline"
+                                                                            className={`text-[9px] px-1.5 py-0 font-bold shrink-0 ${
+                                                                                isStart
+                                                                                    ? 'border-emerald-500/40 text-emerald-300 bg-emerald-500/10'
+                                                                                    : isEnd
+                                                                                    ? 'border-red-500/40 text-red-300 bg-red-500/10'
+                                                                                    : 'border-sky-500/40 text-sky-300 bg-sky-500/10'
+                                                                            }`}
+                                                                        >
+                                                                            {isStart ? '1º Embarque (Origem)' : isEnd ? 'Destino Final (Desembarque)' : `Embarque #${idx + 1}`}
+                                                                        </Badge>
+                                                                        {point.radiusMeters && (
+                                                                            <span className="text-[10px] text-gray-400 font-mono">
+                                                                                Raio: {point.radiusMeters}m
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="text-[10px] text-gray-400 font-mono truncate mt-0.5">
+                                                                        Lat: {point.latitude?.toFixed(5)}, Lon: {point.longitude?.toFixed(5)}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            {modalMode !== 'view' && isIntermediate && (
+                                                                <div className="flex items-center gap-1 shrink-0 ml-2">
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        onClick={() => handleMovePoint(idx, 'up')}
+                                                                        disabled={idx <= 1}
+                                                                        title="Mover para cima no itinerário"
+                                                                        className="h-7 w-7 p-0 text-gray-400 hover:text-white hover:bg-gray-700"
+                                                                    >
+                                                                        <MoveUp className="w-3.5 h-3.5" />
+                                                                    </Button>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        onClick={() => handleMovePoint(idx, 'down')}
+                                                                        disabled={idx >= routePoints.length - 2}
+                                                                        title="Mover para baixo no itinerário"
+                                                                        className="h-7 w-7 p-0 text-gray-400 hover:text-white hover:bg-gray-700"
+                                                                    >
+                                                                        <MoveDown className="w-3.5 h-3.5" />
+                                                                    </Button>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        onClick={() => handleEditPoint(idx)}
+                                                                        title="Editar detalhes do ponto"
+                                                                        className="h-7 w-7 p-0 text-amber-400 hover:text-amber-300 hover:bg-amber-950/40"
+                                                                    >
+                                                                        <Edit className="w-3.5 h-3.5" />
+                                                                    </Button>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        onClick={() => handleDeletePoint(idx)}
+                                                                        title="Excluir ponto de embarque"
+                                                                        className="h-7 w-7 p-0 text-red-400 hover:text-red-300 hover:bg-red-950/40"
+                                                                    >
+                                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                                    </Button>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })
+                                            )}
                                         </div>
                                     </div>
 
                                     {/* Map Section */}
-                                    <div className="pt-6 relative">
-                                        <div className="flex items-center justify-between mb-4">
-                                            <Label className="text-gray-300 text-xs font-semibold uppercase tracking-wider">Traçar rota no mapa</Label>
-                                            <Badge variant="outline" className="text-[10px] bg-seguranca-yellow/10 text-seguranca-yellow border-seguranca-yellow/30 uppercase tracking-tighter">
-                                                OpenMaps (Leaflet)
+                                    <div className="pt-4 relative">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <div className="flex items-center gap-2">
+                                                <Label className="text-gray-300 text-xs font-semibold uppercase tracking-wider">Traçar rota no mapa</Label>
+                                                <span className="text-[11px] text-gray-400">• Clique no mapa para posicionar novos pontos de embarque</span>
+                                            </div>
+                                            <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-300 border-emerald-500/30 uppercase tracking-tighter font-bold flex items-center gap-1">
+                                                <span>🗺️ Google Maps</span>
+                                                <span className="text-gray-400 font-normal">({routingProvider === 'GOOGLE_MAPS' ? 'Google Directions' : 'Roteirização Inteligente'})</span>
                                             </Badge>
                                         </div>
-                                        <div className="w-full h-[350px] rounded-lg border border-gray-700 overflow-hidden shadow-inner">
+                                        <div className="w-full h-[420px] rounded-lg border border-gray-700 overflow-hidden shadow-inner">
                                             <OpenMapInteractive
                                                 points={routePoints.map((p, i) => ({
-                                                    id: `point-${i}`,
+                                                    id: p.id || `point-${i}`,
                                                     latitude: p.latitude,
                                                     longitude: p.longitude,
-                                                    label: p.name
+                                                    label: p.name,
+                                                    type: p.type
                                                 }))}
                                                 routePolyline={routePolyline}
                                                 onMapClick={handleMapClick}
+                                                onPointClick={(pointId) => {
+                                                    const idx = routePoints.findIndex((p, i) => p.id === pointId || `point-${i}` === pointId || String(i) === pointId);
+                                                    if (idx >= 0) handleOpenEditPoint(idx);
+                                                }}
+                                                onPointDelete={handlePointDeleteFromMap}
+                                                onPointDragEnd={handlePointDragEnd}
                                                 readOnly={modalMode === 'view'}
+                                                provider={routingProvider}
                                             />
                                         </div>
                                     </div>
@@ -1487,6 +2061,16 @@ const RoutesAndPoints: React.FC = () => {
                                     <RouteIcon className="w-4 h-4" />
                                 )}
                                 {tracingRoute ? 'Calculando rota...' : 'Traçar rota no mapa'}
+                            </Button>
+                            <Button
+                                variant="outline"
+                                onClick={handleOtimizarOrdem}
+                                disabled={tracingRoute || modalMode === 'view' || routePoints.length <= 3}
+                                className="border-gray-600 text-amber-300 hover:text-amber-200 hover:bg-amber-950/30 gap-2 font-medium ml-2"
+                                title="Calcula a sequência viária mais rápida/curta entre os embarques mantendo Origem e Destino fixos"
+                            >
+                                <Sparkles className="w-4 h-4 text-amber-400" />
+                                Otimizar Ordem dos Pontos
                             </Button>
 
                             {modalMode !== 'view' && (
@@ -1592,30 +2176,30 @@ const RoutesAndPoints: React.FC = () => {
                     </DialogContent>
                 </Dialog>
             </div>
-            {/* Modal de Importação KML/KMZ */}
+            {/* Modal de Importação KML/KMZ com Roteirização Inteligente */}
             <Dialog open={importModalOpen} onOpenChange={setImportModalOpen}>
-                <DialogContent className="bg-seguranca-graphite border-gray-700 text-white max-w-lg p-0 overflow-hidden">
+                <DialogContent className="bg-seguranca-graphite border-gray-700 text-white max-w-lg p-0 overflow-hidden shadow-2xl">
                     <DialogHeader className="p-8 pb-4 flex flex-col items-center text-center space-y-4">
-                        <div className="w-16 h-16 rounded-full bg-blue-500/10 flex items-center justify-center">
-                            <CloudUpload className="w-8 h-8 text-blue-500" />
+                        <div className="w-16 h-16 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                            <CloudUpload className="w-8 h-8 text-blue-400" />
                         </div>
                         <div>
-                            <DialogTitle className="text-2xl font-bold">Importar Rota</DialogTitle>
+                            <DialogTitle className="text-2xl font-bold">Importar Rota Google Earth</DialogTitle>
                             <DialogDescription className="text-gray-400 mt-1">
-                                Carregue arquivos KML ou KMZ do Google Earth
+                                Carregue arquivos KML ou KMZ para roteirização e extração automática de pontos
                             </DialogDescription>
                         </div>
                     </DialogHeader>
 
                     <div className="p-8 pt-2 space-y-6">
                         <div className="space-y-2">
-                            <Label className="text-gray-300 text-sm font-semibold">Organização</Label>
+                            <Label className="text-gray-300 text-sm font-semibold">Cliente / Empresa Contratante</Label>
                             <Select
                                 value={importRouteFormData.clientId}
                                 onValueChange={(v) => setImportRouteFormData({ ...importRouteFormData, clientId: v })}
                             >
                                 <SelectTrigger className="bg-seguranca-black border-gray-600 text-gray-200 h-12">
-                                    <SelectValue placeholder="Selecione uma organização..." />
+                                    <SelectValue placeholder="Selecione um cliente..." />
                                 </SelectTrigger>
                                 <SelectContent className="bg-seguranca-graphite border-gray-600">
                                     {units.map(u => (
@@ -1626,9 +2210,9 @@ const RoutesAndPoints: React.FC = () => {
                         </div>
 
                         <div className="space-y-2">
-                            <Label className="text-gray-300 text-sm font-semibold">Arquivo da Rota</Label>
+                            <Label className="text-gray-300 text-sm font-semibold">Arquivo da Rota (.kml ou .kmz)</Label>
                             <div
-                                className="border-2 border-dashed border-gray-700 rounded-xl p-10 flex flex-col items-center justify-center space-y-4 bg-seguranca-black/20 hover:bg-seguranca-black/40 transition-colors cursor-pointer group"
+                                className="border-2 border-dashed border-gray-700 rounded-xl p-8 flex flex-col items-center justify-center space-y-4 bg-seguranca-black/30 hover:bg-seguranca-black/50 transition-colors cursor-pointer group"
                                 onClick={() => {
                                     const input = document.createElement('input');
                                     input.type = 'file';
@@ -1638,31 +2222,32 @@ const RoutesAndPoints: React.FC = () => {
                                         if (file) {
                                             setImportRouteFormData({ ...importRouteFormData, file });
                                             toast({
-                                                title: 'Arquivo selecionado',
-                                                description: file.name
+                                                title: 'Arquivo carregado',
+                                                description: `${file.name} pronto para roteirização.`,
                                             });
                                         }
                                     };
                                     input.click();
                                 }}
                             >
-                                <div className="w-14 h-14 rounded-full bg-gray-800 flex items-center justify-center group-hover:bg-gray-700 transition-colors">
-                                    <CloudUpload className="w-7 h-7 text-gray-400" />
+                                <div className="w-14 h-14 rounded-full bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors">
+                                    <CloudUpload className="w-7 h-7 text-blue-400" />
                                 </div>
                                 <div className="text-center">
                                     <p className="text-sm font-bold text-gray-200">
-                                        {importRouteFormData.file ? importRouteFormData.file.name : 'Clique para selecionar o arquivo'}
+                                        {importRouteFormData.file ? importRouteFormData.file.name : 'Clique para selecionar o arquivo Google Earth'}
                                     </p>
-                                    <p className="text-xs text-gray-500 mt-1">Suporta formatos .kml e .kmz</p>
+                                    <p className="text-xs text-gray-500 mt-1">Suporta arquivos KML e KMZ com traçados e marcos</p>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <DialogFooter className="bg-seguranca-black/30 p-6 flex flex-row gap-3">
+                    <DialogFooter className="bg-seguranca-black/40 p-6 flex flex-row gap-3">
                         <Button
                             variant="ghost"
                             className="flex-1 text-gray-300 hover:text-white"
+                            disabled={isImporting}
                             onClick={() => {
                                 setImportModalOpen(false);
                                 setImportRouteFormData({ clientId: '', file: null });
@@ -1671,19 +2256,21 @@ const RoutesAndPoints: React.FC = () => {
                             Cancelar
                         </Button>
                         <Button
-                            className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-bold h-12 rounded-lg"
-                            disabled={!importRouteFormData.clientId || !importRouteFormData.file}
-                            onClick={() => {
-                                toast({
-                                    title: 'Sucesso',
-                                    description: 'Rota importada com sucesso (Mock)'
-                                });
-                                setImportModalOpen(false);
-                                setImportRouteFormData({ clientId: '', file: null });
-                            }}
+                            className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold h-12 rounded-lg shadow-lg shadow-blue-600/30"
+                            disabled={!importRouteFormData.clientId || !importRouteFormData.file || isImporting}
+                            onClick={handleExecuteImportKmlKmz}
                         >
-                            <CloudUpload className="w-4 h-4 mr-2" />
-                            Importar Rota
+                            {isImporting ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Roteirizando...
+                                </>
+                            ) : (
+                                <>
+                                    <CloudUpload className="w-4 h-4 mr-2" />
+                                    Importar e Roteirizar
+                                </>
+                            )}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

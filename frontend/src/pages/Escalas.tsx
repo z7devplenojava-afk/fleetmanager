@@ -294,28 +294,39 @@ const Escalas = () => {
       console.log('💾 data.locationId =', JSON.stringify(data.locationId));
       console.log('💾 data.legs =', data.legs);
 
-      // Validação: verificar se todos os campos obrigatórios estão preenchidos
       const hasLocation = data.locationId && data.locationId.trim() !== '' && data.locationId !== 'none';
       const hasWorkPost = data.workPostId && data.workPostId.trim() !== '' && data.workPostId !== 'none';
       const hasTravelTrip = data.travelTripId && data.travelTripId.trim() !== '' && data.travelTripId !== 'none';
-      console.log('💾 hasLocation =', hasLocation, 'hasWorkPost =', hasWorkPost, 'hasTravelTrip =', hasTravelTrip);
-      if (!data.employeeId || (!hasLocation && !hasWorkPost && !hasTravelTrip) || !data.shift || !data.scheduleDate) {
+      const hasRoute = data.routeId && data.routeId.trim() !== '' && data.routeId !== 'none';
+      if (!data.employeeId || (!hasLocation && !hasWorkPost && !hasTravelTrip && !hasRoute) || !data.shift || !data.scheduleDate) {
         toast({
           title: 'Erro de validação',
-          description: 'Por favor, preencha todos os campos obrigatórios (funcionário, posto/viagem, turno e data).',
+          description: 'Por favor, preencha todos os campos obrigatórios (motorista, rota/viagem, turno e data).',
           variant: 'destructive',
         });
         return;
       }
 
-      // Ajustar o mapeamento para o DTO correto do backend
-      // IMPORTANTE: O backend agora aceita workPostId e resolve a Location automaticamente
-      // O frontend envia locationId = workPostId, então precisamos garantir que workPostId seja enviado
+      const dAny = data as any;
       const mappedData: any = {
         employeeId: data.employeeId,
+        employeeName: dAny.employeeName,
         scheduleDate: format(data.scheduleDate, 'yyyy-MM-dd'),
-        shift: data.shift, // O backend espera 'DAY', 'NIGHT', 'MIXED', etc.
-        status: 'PENDING', // Status padrão
+        scheduleRecurrence: dAny.scheduleRecurrence || 'WEEKLY_FIXED',
+        shift: data.shift,
+        startTime: data.startTime,
+        endTime: data.endTime,
+        status: data.status || 'PENDING',
+        routeId: data.routeId,
+        routeName: dAny.routeName,
+        routeCode: dAny.routeName,
+        vehicleId: data.vehicleId,
+        vehiclePlate: dAny.vehiclePlate,
+        vehicleModel: dAny.vehicleModel,
+        clientName: dAny.clientName,
+        workPostName: dAny.workPostName,
+        travelTripName: dAny.travelTripName,
+        legs: data.legs || 1,
       };
 
       // Adicionar workPostId se disponível
@@ -851,144 +862,9 @@ const Escalas = () => {
             // Nesse caso, não fazer nada pois o estado já foi definido pelos handlers
           }}
           onSave={handleSaveEscala}
-          initialData={useMemo(() => {
-            console.log('🔍 useMemo initialData - modalState.escala:', modalState.escala);
-            console.log('🔍 useMemo initialData - modalState.mode:', modalState.mode);
-            console.log('🔍 useMemo initialData - modalState.open:', modalState.open);
-
-            if (modalState.escala) {
-              console.log('🔍 Mapeando selectedEscala para initialData:', modalState.escala);
-              console.log('🔍 selectedEscala completo:', JSON.stringify(modalState.escala, null, 2));
-
-              // Extrair employeeId - pode vir como objeto ou string
-              const employeeId = modalState.escala.employee?.id ||
-                (modalState.escala as any).employeeId ||
-                '';
-
-              // Extrair workPostId - pode vir como objeto ou string
-              const workPostId = modalState.escala.workPost?.id ||
-                (modalState.escala as any).workPostId ||
-                '';
-
-              // Extrair locationId - pode vir como objeto ou string
-              const locationId = modalState.escala.location?.id ||
-                (modalState.escala as any).locationId ||
-                workPostId || // Se não há locationId, usar workPostId
-                '';
-
-              // Extrair horários do workPost se disponível
-              const workPost = modalState.escala.workPost as any;
-              let startTime = '';
-              let endTime = '';
-
-              console.log('🔍 WorkPost completo para extrair horários:', workPost);
-
-              // Tentar extrair horários do workPost
-              if (workPost?.shiftStart) {
-                // Se shiftStart é uma string no formato HH:mm ou HH:mm:ss
-                if (typeof workPost.shiftStart === 'string') {
-                  // Pode vir como "HH:mm" ou "HH:mm:ss" ou "HH:mm:ss.SSS"
-                  startTime = workPost.shiftStart.substring(0, 5); // Pega apenas HH:mm
-                } else if (workPost.shiftStart instanceof Date) {
-                  // Se for Date, formatar para HH:mm
-                  const hours = String(workPost.shiftStart.getHours()).padStart(2, '0');
-                  const minutes = String(workPost.shiftStart.getMinutes()).padStart(2, '0');
-                  startTime = `${hours}:${minutes}`;
-                } else {
-                  startTime = String(workPost.shiftStart);
-                }
-                console.log('✅ startTime extraído do workPost:', startTime);
-              }
-
-              if (workPost?.shiftEnd) {
-                // Se shiftEnd é uma string no formato HH:mm ou HH:mm:ss
-                if (typeof workPost.shiftEnd === 'string') {
-                  // Pode vir como "HH:mm" ou "HH:mm:ss" ou "HH:mm:ss.SSS"
-                  endTime = workPost.shiftEnd.substring(0, 5); // Pega apenas HH:mm
-                } else if (workPost.shiftEnd instanceof Date) {
-                  // Se for Date, formatar para HH:mm
-                  const hours = String(workPost.shiftEnd.getHours()).padStart(2, '0');
-                  const minutes = String(workPost.shiftEnd.getMinutes()).padStart(2, '0');
-                  endTime = `${hours}:${minutes}`;
-                } else {
-                  endTime = String(workPost.shiftEnd);
-                }
-                console.log('✅ endTime extraído do workPost:', endTime);
-              }
-
-              // Se não encontrou horários no workPost, usar valores padrão baseados no turno
-              if (!startTime || !endTime) {
-                console.log('⚠️ Horários não encontrados no workPost, usando valores padrão baseados no turno:', modalState.escala.shift);
-                if (modalState.escala.shift === 'DAY') {
-                  startTime = startTime || '08:00';
-                  endTime = endTime || '17:00';
-                } else if (modalState.escala.shift === 'NIGHT') {
-                  startTime = startTime || '22:00';
-                  endTime = endTime || '06:00';
-                } else if (modalState.escala.shift === 'MIXED') {
-                  startTime = startTime || '14:00';
-                  endTime = endTime || '22:00';
-                }
-              }
-
-              // Extrair clientId do workPost (pode vir como clientId direto ou como objeto client)
-              const clientId = workPost?.clientId ||
-                workPost?.client?.id ||
-                (modalState.escala.location as any)?.unit?.clientId ||
-                (modalState.escala.location as any)?.unit?.client?.id ||
-                '';
-
-              // Processar scheduleDate - sempre vem como string da API
-              let scheduleDate: Date;
-              if (modalState.escala.scheduleDate) {
-                // scheduleDate sempre vem como string do backend (formato YYYY-MM-DD)
-                scheduleDate = new Date(modalState.escala.scheduleDate);
-                // Validar se a data é válida
-                if (isNaN(scheduleDate.getTime())) {
-                  scheduleDate = new Date();
-                }
-              } else {
-                scheduleDate = new Date();
-              }
-
-              const mappedData = {
-                employeeId: String(employeeId || ''),
-                locationId: String(locationId || ''),
-                workPostId: String(workPostId || ''),
-                scheduleDate: scheduleDate,
-                shift: String(modalState.escala.shift || ''),
-                startTime: String(startTime || ''),
-                endTime: String(endTime || ''),
-                observations: String(modalState.escala.observations || ''),
-                clientId: String(clientId || ''), // Adicionar clientId para facilitar o mapeamento no modal
-              };
-
-              console.log('📋 initialData mapeado (useMemo):', mappedData);
-              console.log('📋 Campos extraídos:');
-              console.log('  - employeeId:', mappedData.employeeId);
-              console.log('  - workPostId:', mappedData.workPostId);
-              console.log('  - locationId:', mappedData.locationId);
-              console.log('  - clientId:', mappedData.clientId);
-              console.log('  - scheduleDate:', mappedData.scheduleDate);
-              console.log('  - shift:', mappedData.shift);
-              console.log('  - startTime:', mappedData.startTime);
-              console.log('  - endTime:', mappedData.endTime);
-              console.log('  - observations:', mappedData.observations);
-
-              return mappedData;
-            }
-            return {
-              employeeId: '',
-              locationId: '',
-              workPostId: '',
-              scheduleDate: new Date(),
-              shift: '',
-              startTime: '',
-              endTime: '',
-              observations: '',
-            };
-          }, [modalState.escala])}
+          initialData={modalState.escala || undefined}
           mode={modalState.mode}
+          existingSchedules={schedules}
         />
 
         {/* Sheet de Visualização de Escala (Read-Only) */}

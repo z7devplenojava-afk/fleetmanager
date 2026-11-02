@@ -26,11 +26,12 @@ public class VehicleGateChecklistController {
     @GetMapping
     public ResponseEntity<List<VehicleGateChecklistDTO>> findAll(
             @RequestParam(name = "vehicleId", required = false) UUID vehicleId,
+            @RequestParam(name = "driverId", required = false) UUID driverId,
             @RequestParam(name = "type", required = false) VehicleGateChecklist.ChecklistType type,
             @RequestParam(name = "dateFrom", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
             @RequestParam(name = "dateTo", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo) {
-        if (vehicleId != null || type != null || dateFrom != null || dateTo != null) {
-            return ResponseEntity.ok(service.findByFilters(vehicleId, type, dateFrom, dateTo));
+        if (vehicleId != null || driverId != null || type != null || dateFrom != null || dateTo != null) {
+            return ResponseEntity.ok(service.findByFilters(vehicleId, driverId, type, dateFrom, dateTo));
         }
         return ResponseEntity.ok(service.findAll());
     }

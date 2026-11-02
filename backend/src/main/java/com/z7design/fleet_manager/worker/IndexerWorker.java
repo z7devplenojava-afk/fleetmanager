@@ -21,6 +21,7 @@ import java.util.UUID;
 @Slf4j
 @Component
 @RequiredArgsConstructor
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "fluxbus.redis.workers.enabled", havingValue = "true")
 public class IndexerWorker {
 
     private final StringRedisTemplate redisTemplate;

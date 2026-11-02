@@ -314,8 +314,8 @@ const MultasTable: React.FC<MultasTableProps> = ({
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <div className="flex items-center space-x-2">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex items-center justify-between sm:justify-start gap-2 flex-wrap">
           <h3 className="text-lg font-medium text-seguranca-lightgray">
             Multas ({multas.length})
           </h3>
@@ -329,21 +329,21 @@ const MultasTable: React.FC<MultasTableProps> = ({
             size="sm"
             onClick={handleRefresh}
             disabled={isLoading}
-            className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black"
+            className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black h-8 text-xs"
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${isLoading ? 'animate-spin' : ''}`} />
             Atualizar
           </Button>
         </div>
         
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center flex-wrap gap-2">
           <Button
             variant="outline"
             size="sm"
             onClick={() => setIsPDFModalOpen(true)}
-            className="border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
+            className="border-red-500 text-red-500 hover:bg-red-500 hover:text-white flex-1 sm:flex-initial text-xs h-8"
           >
-            <FileText size={16} className="mr-2" />
+            <FileText size={15} className="mr-1.5" />
             Gerar Relatório PDF
           </Button>
           
@@ -354,9 +354,9 @@ const MultasTable: React.FC<MultasTableProps> = ({
                   onClick={handleDeleteMultiple}
                   size="sm"
                   variant="outline"
-                  className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white"
+                  className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white text-xs h-8"
                 >
-                  <Trash2 className="h-4 w-4 mr-2" />
+                  <Trash2 className="h-3.5 w-3.5 mr-1.5" />
                   Excluir ({selectedMultas.length})
                 </Button>
               )}
@@ -365,18 +365,18 @@ const MultasTable: React.FC<MultasTableProps> = ({
                   <Button
                     onClick={() => handleGenerateReport('pdf')}
                     size="sm"
-                    className="bg-red-600 hover:bg-red-700 text-white"
+                    className="bg-red-600 hover:bg-red-700 text-white text-xs h-8"
                   >
-                    <Download className="h-4 w-4 mr-2" />
+                    <Download className="h-3.5 w-3.5 mr-1.5" />
                     PDF
                   </Button>
                   <Button
                     onClick={() => handleGenerateReport('excel')}
                     size="sm"
                     variant="outline"
-                    className="border-green-600 text-green-400 hover:bg-green-600 hover:text-white"
+                    className="border-green-600 text-green-400 hover:bg-green-600 hover:text-white text-xs h-8"
                   >
-                    <FileText className="h-4 w-4 mr-2" />
+                    <FileText className="h-3.5 w-3.5 mr-1.5" />
                     Excel
                   </Button>
                 </>
@@ -386,7 +386,158 @@ const MultasTable: React.FC<MultasTableProps> = ({
         </div>
       </div>
 
-      <div className="rounded-md border border-gray-600 overflow-x-auto">
+      {/* Visualização Mobile (Cards Individuais) */}
+      <div className="block md:hidden space-y-3">
+        {showSelection && multas.length > 0 && (
+          <div className="flex items-center justify-between bg-seguranca-graphite border border-gray-700/80 rounded-lg px-3 py-2 text-xs">
+            <label className="flex items-center gap-2 cursor-pointer text-gray-300">
+              <Checkbox
+                checked={isAllSelected}
+                onCheckedChange={handleSelectAll}
+                className="border-gray-500 data-[state=checked]:bg-seguranca-yellow data-[state=checked]:border-seguranca-yellow h-4 w-4"
+              />
+              <span>Selecionar todas ({multas.length})</span>
+            </label>
+            {selectedMultas.length > 0 && (
+              <span className="text-seguranca-yellow font-bold">
+                {selectedMultas.length} selecionada(s)
+              </span>
+            )}
+          </div>
+        )}
+
+        {multas.map((multa) => (
+          <div
+            key={`mobile-multa-${multa.id}`}
+            className="bg-seguranca-black border border-gray-700/80 hover:border-gray-600 rounded-xl p-3.5 space-y-3 shadow-md transition-all"
+          >
+            {/* Header: Checkbox + Placa + Status */}
+            <div className="flex items-center justify-between gap-2 border-b border-gray-800 pb-2.5">
+              <div className="flex items-center gap-2 min-w-0">
+                {showSelection && (
+                  <Checkbox
+                    checked={selectedMultas.includes(multa.id)}
+                    onCheckedChange={(checked) => handleSelectMulta(multa.id, checked as boolean)}
+                    className="border-gray-500 data-[state=checked]:bg-seguranca-yellow data-[state=checked]:border-seguranca-yellow h-4 w-4 shrink-0"
+                  />
+                )}
+                <div className="w-9 h-9 bg-seguranca-red/20 border border-seguranca-red/40 rounded-lg flex items-center justify-center shrink-0">
+                  <Car className="text-seguranca-red" size={16} />
+                </div>
+                <div className="min-w-0">
+                  <div className="font-mono font-extrabold text-seguranca-yellow text-base tracking-wider leading-none truncate">
+                    {multa.placa}
+                  </div>
+                  <div className="text-[11px] text-gray-400 mt-1 truncate leading-none">
+                    {multa.marca} {multa.modelo}
+                  </div>
+                </div>
+              </div>
+
+              <div className="shrink-0">
+                <Badge
+                  className={
+                    multa.status === 'paga'
+                      ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-semibold'
+                      : multa.status === 'vencida'
+                      ? 'bg-rose-600/20 text-rose-400 border border-rose-500/30 text-[10px] font-semibold'
+                      : 'bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-semibold'
+                  }
+                >
+                  {getStatusText(multa.status)}
+                </Badge>
+              </div>
+            </div>
+
+            {/* Infração e Código */}
+            <div className="bg-seguranca-graphite/40 border border-gray-800 rounded-lg p-2.5 space-y-1.5 text-xs">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-semibold text-gray-200 line-clamp-1" title={multa.tipo_infracao}>
+                  {multa.tipo_infracao}
+                </span>
+                {multa.pontos ? (
+                  <Badge variant="outline" className="text-[10px] font-mono px-1.5 py-0 border-rose-500/40 text-rose-400 bg-rose-500/10 shrink-0">
+                    {multa.pontos} pts
+                  </Badge>
+                ) : null}
+              </div>
+
+              {/* Motorista */}
+              <div className="flex items-center gap-1.5 text-gray-300 text-[11px] pt-1 border-t border-gray-800">
+                <User className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                <span className="truncate">
+                  {multa.motorista_nome || 'Motorista não identificado'}
+                </span>
+                {multa.motorista_cnh && (
+                  <span className="text-gray-500 text-[10px]">
+                    (CNH: {multa.motorista_cnh})
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Grid de Datas e Valores */}
+            <div className="grid grid-cols-2 gap-2 text-xs bg-seguranca-graphite/30 rounded-lg p-2.5 border border-gray-800/80">
+              <div>
+                <span className="text-[10px] text-gray-400 uppercase tracking-wider block">Infração</span>
+                <span className="font-mono text-gray-200 text-[11px] flex items-center gap-1 mt-0.5">
+                  <Calendar className="w-3 h-3 text-gray-400" />
+                  {formatDate(multa.data_infracao)}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] text-gray-400 uppercase tracking-wider block">Vencimento</span>
+                <span className={`font-mono text-[11px] flex items-center gap-1 mt-0.5 ${isVencida(multa.data_vencimento) && multa.status !== 'paga' ? 'text-rose-400 font-bold' : 'text-gray-200'}`}>
+                  <Calendar className="w-3 h-3 text-gray-400" />
+                  {formatDate(multa.data_vencimento)}
+                </span>
+              </div>
+              <div className="col-span-2 pt-1 border-t border-gray-800/60 flex items-center justify-between">
+                <span className="text-[10px] text-gray-400 uppercase tracking-wider">Valor</span>
+                <span className="font-mono font-bold text-sm text-seguranca-yellow">
+                  {formatCurrency(multa.valor)}
+                </span>
+              </div>
+            </div>
+
+            {/* Ações Mobile */}
+            <div className="flex items-center justify-between gap-1.5 pt-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onView(multa)}
+                className="flex-1 h-9 border-blue-500/40 text-blue-400 hover:bg-blue-950/30 text-xs font-semibold"
+              >
+                <Eye size={14} className="mr-1" />
+                Visualizar
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onEdit(multa)}
+                className="flex-1 h-9 border-green-600/40 text-green-400 hover:bg-green-950/30 text-xs font-semibold"
+              >
+                <Edit size={14} className="mr-1" />
+                Editar
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onDelete(multa)}
+                className="h-9 w-9 p-0 border-red-700/50 text-red-400 hover:bg-red-950/30 shrink-0"
+                title="Excluir Multa"
+              >
+                <Trash2 size={15} />
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Visualização Desktop (Tabela) */}
+      <div className="hidden md:block rounded-md border border-gray-600 overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow className="border-gray-600">

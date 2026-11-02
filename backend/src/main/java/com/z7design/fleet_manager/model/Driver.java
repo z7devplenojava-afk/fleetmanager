@@ -17,7 +17,7 @@ import org.hibernate.annotations.Filter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Filter(name = "tenantFilter", condition = "company_id = :companyId")
+@Filter(name = "tenantFilter", condition = "(company_id = :companyId OR company_id IS NULL)")
 public class Driver implements TenantAware {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

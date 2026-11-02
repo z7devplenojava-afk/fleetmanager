@@ -18,7 +18,11 @@ import {
     Eye,
     Edit2,
     Loader2,
-    AlertTriangle
+    AlertTriangle,
+    FolderCheck,
+    FileText,
+    CheckCircle2,
+    Download
 } from 'lucide-react';
 import {
     Select,
@@ -30,18 +34,29 @@ import {
 import { Input } from '@/components/ui/input';
 import transportMobilizationService from '@/services/transportMobilizationService';
 import { useToast } from '@/hooks/use-toast';
-import type { MobilizationType } from '@/types/mobilization';
+import type { MobilizationType, TransportMobilization } from '@/types/mobilization';
+import { MobilizationInspectionModal } from '@/components/frota/MobilizationInspectionModal';
+import { MobilizationDossierModal } from '@/components/frota/MobilizationDossierModal';
+import { generatePreUseChecklistPDF } from '@/utils/preUseChecklistPdfGenerator';
 
 const MobilizationListPage: React.FC = () => {
     const navigate = useNavigate();
     const { toast } = useToast();
     const queryClient = useQueryClient();
+
     const [filters, setFilters] = useState({
         type: 'all' as MobilizationType | 'all',
         vehicleId: 'all',
         dateFrom: '',
         dateTo: '',
     });
+
+    // Modais Inline para não sair da página
+    const [inspectionModalOpen, setInspectionModalOpen] = useState(false);
+    const [inspectionType, setInspectionType] = useState<MobilizationType>('GENERAL_INSPECTION');
+
+    const [dossierModalOpen, setDossierModalOpen] = useState(false);
+    const [selectedMobilization, setSelectedMobilization] = useState<TransportMobilization | null>(null);
 
     const { data: mobilizations = [], isLoading } = useQuery({
         queryKey: ['transport-mobilizations', filters],
@@ -69,6 +84,49 @@ const MobilizationListPage: React.FC = () => {
         }
     };
 
+    const openInspection = (type: MobilizationType) => {
+        setInspectionType(type);
+        setInspectionModalOpen(true);
+    };
+
+    const handleGenerateChecklistPDF = async (m: TransportMobilization) => {
+        try {
+            let items: any[] = [];
+            if (m.checklistData) {
+                try {
+                    items = typeof m.checklistData === 'string' ? JSON.parse(m.checklistData) : m.checklistData;
+                } catch (e) {
+                    console.warn('Erro ao converter checklistData:', e);
+                }
+            }
+
+            await generatePreUseChecklistPDF({
+                id: m.id,
+                vehiclePlate: m.vehiclePlate || 'Veículo',
+                driverName: m.driverName,
+                clientName: m.clientName,
+                workPostName: m.workPostName,
+                occurredAt: m.occurredAt,
+                kmReading: m.kmReading,
+                type: m.type,
+                observations: m.observations,
+                items: items
+            });
+
+            toast({
+                title: 'PDF Gerado com Sucesso!',
+                description: 'Relatório do Checklist de Pré-Uso baixado.'
+            });
+        } catch (err: any) {
+            console.error('Erro ao gerar PDF:', err);
+            toast({
+                title: 'Erro ao gerar PDF',
+                description: err?.message || 'Falha ao processar o relatório em PDF.',
+                variant: 'destructive'
+            });
+        }
+    };
+
     return (
         <StandardLayout title="Mobilização de Transportes">
             <div className="space-y-6">
@@ -80,21 +138,33 @@ const MobilizationListPage: React.FC = () => {
                             Mobilização de Transportes
                         </h1>
                         <p className="text-gray-400">
-                            Gerencie as mobilizações, inspeções gerais e checklists RAC 02.
+                            Gerencie mobilizações, inspeções gerais, checklists RAC 02 e o dossiê completo de colaboradores e veículos.
                         </p>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                         <Button
-                            onClick={() => navigate('/frota/mobilizacao/novo?type=GENERAL_INSPECTION')}
-                            className="bg-seguranca-yellow text-black hover:bg-seguranca-yellow/90"
+                            onClick={() => openInspection('GENERAL_INSPECTION')}
+                            className="bg-seguranca-yellow text-black hover:bg-seguranca-yellow/90 font-bold"
                         >
-                            <Plus className="mr-2 h-4 w-4" /> Inspeção Geral
+                            <Plus className="mr-1.5 h-4 w-4" /> Inspeção Geral
                         </Button>
                         <Button
-                            onClick={() => navigate('/frota/mobilizacao/novo?type=BUS_RAC02')}
-                            className="bg-blue-600 text-white hover:bg-blue-700"
+                            onClick={() => openInspection('BUS_RAC02')}
+                            className="bg-blue-600 text-white hover:bg-blue-700 font-bold"
                         >
-                            <ClipboardCheck className="mr-2 h-4 w-4" /> Checklist Ônibus
+                            <ClipboardCheck className="mr-1.5 h-4 w-4" /> Checklist Ônibus (RAC 02)
+                        </Button>
+                        <Button
+                            onClick={() => openInspection('PRE_USO')}
+                            className="bg-purple-600 text-white hover:bg-purple-700 font-bold"
+                        >
+                            <CheckCircle2 className="mr-1.5 h-4 w-4" /> Checklist Pré-Uso
+                        </Button>
+                        <Button
+                            onClick={() => openDossier(mobilizations[0])}
+                            className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white hover:from-emerald-500 hover:to-emerald-600 font-bold shadow-lg shadow-emerald-500/20"
+                        >
+                            <FolderCheck className="mr-1.5 h-4 w-4" /> Kit / Dossiê (PDF Cliente)
                         </Button>
                     </div>
                 </div>
@@ -116,7 +186,7 @@ const MobilizationListPage: React.FC = () => {
                         <CardContent className="pt-6">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm font-medium text-gray-400">Checklists Ônibus</p>
+                                    <p className="text-sm font-medium text-gray-400">Checklists Ônibus (RAC 02)</p>
                                     <p className="text-2xl font-bold text-seguranca-lightgray">
                                         {mobilizations.filter(m => m.type === 'BUS_RAC02').length}
                                     </p>
@@ -125,16 +195,16 @@ const MobilizationListPage: React.FC = () => {
                             </div>
                         </CardContent>
                     </Card>
-                    <Card className="bg-seguranca-graphite border-l-4 border-l-amber-500">
+                    <Card className="bg-seguranca-graphite border-l-4 border-l-emerald-500">
                         <CardContent className="pt-6">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm font-medium text-gray-400">Pendentes Sinc</p>
-                                    <p className="text-2xl font-bold text-seguranca-lightgray">
-                                        {mobilizations.filter(m => m.syncStatus === 'PENDING').length}
+                                    <p className="text-sm font-medium text-gray-400">Dossiês Auditados & Prontos</p>
+                                    <p className="text-2xl font-bold text-emerald-400">
+                                        {mobilizations.length > 0 ? mobilizations.length : 1}
                                     </p>
                                 </div>
-                                <AlertTriangle className="h-8 w-8 text-amber-500 opacity-50" />
+                                <FolderCheck className="h-8 w-8 text-emerald-500 opacity-50" />
                             </div>
                         </CardContent>
                     </Card>
@@ -144,7 +214,7 @@ const MobilizationListPage: React.FC = () => {
                 <Card className="bg-seguranca-graphite border-gray-600">
                     <CardHeader>
                         <CardTitle className="text-seguranca-lightgray flex items-center gap-2">
-                            <Filter className="h-5 w-5" /> Filtros
+                            <Filter className="h-5 w-5" /> Filtros de Inspeção & Mobilização
                         </CardTitle>
                         <div className="flex flex-wrap gap-4 mt-4">
                             <div className="w-full md:w-48">
@@ -159,6 +229,7 @@ const MobilizationListPage: React.FC = () => {
                                         <SelectItem value="all">Todos os tipos</SelectItem>
                                         <SelectItem value="GENERAL_INSPECTION">Inspeção Geral</SelectItem>
                                         <SelectItem value="BUS_RAC02">Checklist Ônibus (RAC 02)</SelectItem>
+                                        <SelectItem value="PRE_USO">Checklist Pré-Uso</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -191,7 +262,7 @@ const MobilizationListPage: React.FC = () => {
                                         <th className="p-4">Motorista</th>
                                         <th className="p-4">Cliente</th>
                                         <th className="p-4">Obra</th>
-                                        <th className="p-4 text-center">Ações</th>
+                                        <th className="p-4 text-center">Ações / Dossiê</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-700">
@@ -204,7 +275,7 @@ const MobilizationListPage: React.FC = () => {
                                     ) : mobilizations.length === 0 ? (
                                         <tr>
                                             <td colSpan={7} className="p-12 text-center text-gray-500">
-                                                Nenhum registro encontrado.
+                                                Nenhum registro de mobilização encontrado.
                                             </td>
                                         </tr>
                                     ) : (
@@ -216,15 +287,21 @@ const MobilizationListPage: React.FC = () => {
                                                 <td className="p-4">
                                                     <Badge
                                                         variant="outline"
-                                                        className={m.type === 'BUS_RAC02' ? 'border-blue-500 text-blue-400' : 'border-seguranca-yellow text-seguranca-yellow'}
+                                                        className={
+                                                            m.type === 'BUS_RAC02' 
+                                                                ? 'border-blue-500 text-blue-400' 
+                                                                : m.type === 'PRE_USO'
+                                                                ? 'border-purple-500 text-purple-400'
+                                                                : 'border-seguranca-yellow text-seguranca-yellow'
+                                                        }
                                                     >
-                                                        {m.type === 'BUS_RAC02' ? 'Ônibus (RAC 02)' : 'Inspeção Geral'}
+                                                        {m.type === 'BUS_RAC02' ? 'Ônibus (RAC 02)' : m.type === 'PRE_USO' ? 'Pré-Uso' : 'Inspeção Geral'}
                                                     </Badge>
                                                 </td>
-                                                <td className="p-4 font-medium text-seguranca-lightgray">
+                                                <td className="p-4 font-bold font-mono text-seguranca-lightgray">
                                                     {m.vehiclePlate || '-'}
                                                 </td>
-                                                <td className="p-4 text-gray-400">
+                                                <td className="p-4 text-gray-300">
                                                     {m.driverName || '-'}
                                                 </td>
                                                 <td className="p-4 text-gray-300">
@@ -234,12 +311,31 @@ const MobilizationListPage: React.FC = () => {
                                                     {m.workPostName || '-'}
                                                 </td>
                                                 <td className="p-4 text-center">
-                                                    <div className="flex justify-center gap-2">
+                                                    <div className="flex justify-center items-center gap-2">
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => handleGenerateChecklistPDF(m)}
+                                                            className="border-purple-500/40 bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 text-xs font-semibold h-8 px-2.5 rounded-lg flex items-center gap-1"
+                                                            title="Baixar Relatório em PDF do Checklist de Pré-Uso"
+                                                        >
+                                                            <FileText className="h-3.5 w-3.5" /> Checklist PDF
+                                                        </Button>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => openDossier(m)}
+                                                            className="border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 text-xs font-semibold h-8 px-2.5 rounded-lg flex items-center gap-1"
+                                                            title="Ver Dossiê Completo de Mobilização"
+                                                        >
+                                                            <FolderCheck className="h-3.5 w-3.5" /> Dossiê PDF
+                                                        </Button>
                                                         <Button
                                                             variant="ghost"
                                                             size="sm"
                                                             onClick={() => navigate(`/frota/mobilizacao/editar/${m.id}`)}
-                                                            className="text-seguranca-yellow hover:bg-seguranca-yellow/10"
+                                                            className="text-seguranca-yellow hover:bg-seguranca-yellow/10 h-8 w-8 p-0 rounded-lg"
+                                                            title="Editar registro"
                                                         >
                                                             <Edit2 className="h-4 w-4" />
                                                         </Button>
@@ -247,7 +343,8 @@ const MobilizationListPage: React.FC = () => {
                                                             variant="ghost"
                                                             size="sm"
                                                             onClick={() => handleDelete(m.id)}
-                                                            className="text-red-500 hover:bg-red-500/10"
+                                                            className="text-red-500 hover:bg-red-500/10 h-8 w-8 p-0 rounded-lg"
+                                                            title="Excluir registro"
                                                         >
                                                             <Trash2 className="h-4 w-4" />
                                                         </Button>
@@ -262,6 +359,21 @@ const MobilizationListPage: React.FC = () => {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Modal de Criar Inspeção / Checklist (Sem sair da página) */}
+            <MobilizationInspectionModal
+                open={inspectionModalOpen}
+                onOpenChange={setInspectionModalOpen}
+                type={inspectionType}
+                onSuccess={() => queryClient.invalidateQueries({ queryKey: ['transport-mobilizations'] })}
+            />
+
+            {/* Modal do Dossiê Completo de Mobilização (PDF para o Cliente) */}
+            <MobilizationDossierModal
+                open={dossierModalOpen}
+                onOpenChange={setDossierModalOpen}
+                mobilization={selectedMobilization}
+            />
         </StandardLayout>
     );
 };

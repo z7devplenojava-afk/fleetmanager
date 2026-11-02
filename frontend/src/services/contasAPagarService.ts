@@ -28,6 +28,8 @@ export interface CreateContaAPagarRequest {
   parentInvoiceId?: string;
   nfeKey?: string;
   ddaInvoiceId?: string;
+  workOrderId?: string;
+  workOrderNumber?: string;
 }
 
 export interface BankCredential {
@@ -135,6 +137,11 @@ export interface ExpensePdfImportResultDTO {
   created: number;
   updated: number;
   skipped: number;
+  referencePeriodType?: string;
+  referenceStartDate?: string;
+  referenceEndDate?: string;
+  referencePeriodText?: string;
+  referenceMonthYear?: string;
   errors: string[];
   items: any[];
 }
@@ -273,8 +280,9 @@ export const contasAPagarService = {
     if (filters.startDate) params.append('startDate', filters.startDate);
     if (filters.endDate) params.append('endDate', filters.endDate);
     if (filters.searchTerm) params.append('searchTerm', filters.searchTerm);
+    const size = filters.size !== undefined ? filters.size : 10000;
+    params.append('size', size.toString());
     if (filters.page !== undefined) params.append('page', filters.page.toString());
-    if (filters.size !== undefined) params.append('size', filters.size.toString());
     if (filters.sortBy) params.append('sortBy', filters.sortBy);
     if (filters.sortDir) params.append('sortDir', filters.sortDir);
 
@@ -334,7 +342,9 @@ export const contasAPagarService = {
         paidAmount: invoice.paidAmount != null ? parseFloat(invoice.paidAmount) : undefined,
         balanceAmount: invoice.balanceAmount != null ? parseFloat(invoice.balanceAmount) : undefined,
         bankAccountInfo: invoice.bankAccountInfo,
-        isCanceled: invoice.isCanceled
+        isCanceled: invoice.isCanceled,
+        workOrderId: invoice.workOrderId ? String(invoice.workOrderId) : undefined,
+        workOrderNumber: invoice.workOrderNumber || undefined
       };
     });
   },
@@ -389,7 +399,9 @@ export const contasAPagarService = {
       paidAmount: invoice.paidAmount != null ? parseFloat(invoice.paidAmount) : undefined,
       balanceAmount: invoice.balanceAmount != null ? parseFloat(invoice.balanceAmount) : undefined,
       bankAccountInfo: invoice.bankAccountInfo,
-      isCanceled: invoice.isCanceled
+      isCanceled: invoice.isCanceled,
+      workOrderId: invoice.workOrderId ? String(invoice.workOrderId) : undefined,
+      workOrderNumber: invoice.workOrderNumber || undefined
     };
   },
 
@@ -425,7 +437,9 @@ export const contasAPagarService = {
       category: conta.categoria === 'NENHUMA' ? undefined : conta.categoria,
       notes: conta.observacoes,
       centroCusto: conta.centroCusto === 'NENHUM' ? undefined : conta.centroCusto,
-      companySigla: conta.companySigla
+      companySigla: conta.companySigla,
+      workOrderId: conta.workOrderId,
+      workOrderNumber: conta.workOrderNumber
     };
 
 
@@ -463,6 +477,8 @@ export const contasAPagarService = {
     if (conta.observacoes) requestData.notes = conta.observacoes;
     if (conta.centroCusto !== undefined) requestData.centroCusto = conta.centroCusto === 'NENHUM' ? undefined : conta.centroCusto;
     if (conta.companySigla !== undefined) requestData.companySigla = conta.companySigla;
+    if (conta.workOrderId !== undefined) requestData.workOrderId = conta.workOrderId;
+    if (conta.workOrderNumber !== undefined) requestData.workOrderNumber = conta.workOrderNumber;
     
     // Se não há unitId, buscar uma unidade padrão
     if (!requestData.unitId) {
@@ -661,7 +677,7 @@ export const contasAPagarService = {
   // Buscar todos os fornecedores
   async getFornecedores(): Promise<Supplier[]> {
     try {
-      const response = await api.get('/api/suppliers/all');
+      const response = await api.get('/api/suppliers/all', { silentErrorLog: true } as any);
       const data = response.data;
       const result = Array.isArray(data) ? data : [];
       console.log('contasAPagarService.getFornecedores:', result.length, 'fornecedores');

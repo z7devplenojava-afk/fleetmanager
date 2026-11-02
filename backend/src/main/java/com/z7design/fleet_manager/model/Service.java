@@ -24,7 +24,7 @@ import org.hibernate.annotations.Filter;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Filter(name = "tenantFilter", condition = "company_id = :companyId")
+@Filter(name = "tenantFilter", condition = "(company_id = :companyId OR company_id IS NULL)")
 public class Service implements TenantAware {
 
     @Id

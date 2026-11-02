@@ -23,6 +23,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.Filter;
 
 @Data
 @Entity
@@ -30,6 +31,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "branches")
+@Filter(name = "tenantFilter", condition = "company_id = :companyId")
 public class Branch {
 
     @Id

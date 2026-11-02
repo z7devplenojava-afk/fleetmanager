@@ -1,26 +1,31 @@
+import api from '@/lib/axios';
 import { Employee, EmployeeHistoryItem } from '@/types/employee';
 
-const STORAGE_PREFIX = 'employee_history_';
-
-function readLocal(employeeId: string): EmployeeHistoryItem[] {
-  try {
-    const raw = localStorage.getItem(`${STORAGE_PREFIX}${employeeId}`);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+interface BackendEmployeeHistory {
+  id: string;
+  employeeId: string;
+  eventType: string;
+  eventDate: string;
+  description: string;
+  relatedDocumentUrl?: string;
+  createdBy?: string;
+  createdAt?: string;
 }
 
-function writeLocal(employeeId: string, items: EmployeeHistoryItem[]): void {
-  try {
-    localStorage.setItem(`${STORAGE_PREFIX}${employeeId}`, JSON.stringify(items));
-  } catch {
-    // ignore quota errors
-  }
+function toItem(h: BackendEmployeeHistory): EmployeeHistoryItem {
+  return {
+    id: h.id,
+    type: (h.eventType as EmployeeHistoryItem['type']) || 'admissao',
+    date: h.eventDate,
+    description: h.description,
+    relatedDocumentUrl: h.relatedDocumentUrl,
+  };
 }
 
+/**
+ * Eventos derivados dos dados do próprio cadastro (admissão, férias, rescisão...).
+ * Servem como complemento ao histórico persistido no backend.
+ */
 function deriveFromEmployee(employee: Employee): EmployeeHistoryItem[] {
   const items: EmployeeHistoryItem[] = [];
   const baseId = employee.id || 'unknown';
@@ -64,10 +69,6 @@ function deriveFromEmployee(employee: Employee): EmployeeHistoryItem[] {
     });
   }
 
-  (employee.history || []).forEach((h, idx) => {
-    items.push({ ...h, id: h.id || `${baseId}-hist-${idx}` });
-  });
-
   if (employee.createdAt) {
     items.push({
       id: `${baseId}-criacao`,
@@ -80,38 +81,54 @@ function deriveFromEmployee(employee: Employee): EmployeeHistoryItem[] {
   return items;
 }
 
+/**
+ * Histórico do colaborador persistido no backend (/api/employees/{id}/history),
+ * complementado por eventos derivados do próprio cadastro.
+ */
 export const employeeHistoryService = {
   async getHistory(employee: Employee): Promise<EmployeeHistoryItem[]> {
     if (!employee?.id) return [];
+
+    let remote: EmployeeHistoryItem[] = [];
     try {
-      const local = readLocal(employee.id);
-      const derived = deriveFromEmployee(employee);
-      const seen = new Set<string>();
-      const merged = [...derived, ...local].filter(item => {
-        const key = `${item.type}|${item.date}|${item.description}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-      return merged.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+      const response = await api.get<BackendEmployeeHistory[]>(
+        `/api/employees/${employee.id}/history`,
+      );
+      remote = (response.data || []).map(toItem);
     } catch {
-      return deriveFromEmployee(employee);
+      remote = [];
     }
+
+    const derived = deriveFromEmployee(employee);
+    const seen = new Set<string>();
+    const merged = [...derived, ...remote].filter((item) => {
+      const key = `${item.type}|${item.date}|${item.description}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    return merged.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   },
 
-  async addItem(employeeId: string, item: Omit<EmployeeHistoryItem, 'id'>): Promise<EmployeeHistoryItem> {
-    const created: EmployeeHistoryItem = {
-      ...item,
-      id: `${employeeId}-${Date.now()}`,
-    };
-    const local = readLocal(employeeId);
-    writeLocal(employeeId, [created, ...local]);
-    return created;
+  async addItem(
+    employeeId: string,
+    item: Omit<EmployeeHistoryItem, 'id'>,
+  ): Promise<EmployeeHistoryItem> {
+    const response = await api.post<BackendEmployeeHistory>(
+      `/api/employees/${employeeId}/history`,
+      {
+        eventType: item.type,
+        eventDate: item.date,
+        description: item.description,
+        relatedDocumentUrl: item.relatedDocumentUrl,
+      },
+    );
+    return toItem(response.data);
   },
 
   async removeItem(employeeId: string, itemId: string): Promise<void> {
-    const local = readLocal(employeeId);
-    writeLocal(employeeId, local.filter(i => i.id !== itemId));
+    await api.delete(`/api/employees/${employeeId}/history/${itemId}`);
   },
 };
 

@@ -29,37 +29,59 @@ public interface UserConsentRepository extends JpaRepository<UserConsent, UUID> 
     );
 
     /**
-     * Verifica se usuÃ¡rio aceitou todos os termos obrigatÃ³rios
+     * Upsert atômico de consentimento em nível de banco de dados (PostgreSQL ON CONFLICT)
      */
-    @Query("SELECT CASE WHEN COUNT(uc) >= 3 THEN TRUE ELSE FALSE END " +
-           "FROM UserConsent uc " +
-           "WHERE uc.user.id = :userId " +
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.transaction.annotation.Transactional
+    @Query(value = "INSERT INTO user_consents (id, user_id, consent_type, term_version, accepted, accepted_at, ip_address, user_agent, latitude, longitude, created_at, updated_at, revoked) " +
+           "VALUES (gen_random_uuid(), :userId, :consentType, :termVersion, true, :now, :ipAddress, :userAgent, :latitude, :longitude, :now, :now, false) " +
+           "ON CONFLICT (user_id, consent_type, term_version) DO UPDATE SET " +
+           "accepted = true, accepted_at = :now, updated_at = :now, revoked = false, revoked_at = null, revoked_reason = null, " +
+           "ip_address = EXCLUDED.ip_address, user_agent = EXCLUDED.user_agent, latitude = EXCLUDED.latitude, longitude = EXCLUDED.longitude",
+           nativeQuery = true)
+    int upsertConsent(
+        @Param("userId") UUID userId,
+        @Param("consentType") String consentType,
+        @Param("termVersion") String termVersion,
+        @Param("ipAddress") String ipAddress,
+        @Param("userAgent") String userAgent,
+        @Param("latitude") java.math.BigDecimal latitude,
+        @Param("longitude") java.math.BigDecimal longitude,
+        @Param("now") java.time.LocalDateTime now
+    );
+
+    /**
+     * Verifica se usuário aceitou todos os termos obrigatórios
+     */
+    @Query(value = "SELECT CASE WHEN COUNT(DISTINCT uc.consent_type) >= 3 THEN TRUE ELSE FALSE END " +
+           "FROM user_consents uc " +
+           "WHERE uc.user_id = :userId " +
            "AND uc.accepted = TRUE " +
-           "AND uc.revoked = FALSE " +
-           "AND uc.consentType IN ('TERMS_OF_USE', 'PRIVACY_POLICY', 'DATA_PROCESSING')")
+           "AND (uc.revoked = FALSE OR uc.revoked IS NULL) " +
+           "AND uc.consent_type IN ('TERMS_OF_USE', 'PRIVACY_POLICY', 'DATA_PROCESSING')",
+           nativeQuery = true)
     boolean hasAcceptedAllRequiredConsents(@Param("userId") UUID userId);
 
     /**
-     * Busca consentimentos nÃ£o revogados de um usuÃ¡rio
+     * Busca consentimentos não revogados de um usuário
      */
     @Query("SELECT uc FROM UserConsent uc " +
            "WHERE uc.user.id = :userId " +
-           "AND uc.revoked = FALSE " +
+           "AND (uc.revoked = FALSE OR uc.revoked IS NULL) " +
            "ORDER BY uc.createdAt DESC")
     List<UserConsent> findActiveConsentsByUserId(@Param("userId") UUID userId);
 
     /**
      * Busca consentimento mais recente de um tipo
      */
-    @Query("SELECT uc FROM UserConsent uc " +
-           "WHERE uc.user.id = :userId " +
-           "AND uc.consentType = :consentType " +
-           "ORDER BY uc.createdAt DESC " +
-           "LIMIT 1")
-    Optional<UserConsent> findLatestConsentByType(
-        @Param("userId") UUID userId, 
-        @Param("consentType") ConsentType consentType
+    Optional<UserConsent> findFirstByUserIdAndConsentTypeOrderByCreatedAtDesc(
+        UUID userId, 
+        ConsentType consentType
     );
+
+    default Optional<UserConsent> findLatestConsentByType(UUID userId, ConsentType consentType) {
+        return findFirstByUserIdAndConsentTypeOrderByCreatedAtDesc(userId, consentType);
+    }
 }
 
 

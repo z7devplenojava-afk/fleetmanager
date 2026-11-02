@@ -7,6 +7,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -28,6 +29,7 @@ import java.util.Arrays;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
 
         private final CustomUserDetailsService customUserDetailsService;
@@ -47,7 +49,7 @@ public class SecurityConfig {
         }
 
         @Bean
-        public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        public SecurityFilterChain securityFilterChain(HttpSecurity http, AuthenticationProvider authenticationProvider) throws Exception {
                 http
                                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                                 .csrf(csrf -> csrf.disable())
@@ -56,7 +58,7 @@ public class SecurityConfig {
                                 .sessionManagement(session -> session
                                                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                                 .headers(headers -> headers
-                                                .frameOptions(frame -> frame.disable())
+                                                .frameOptions(frame -> frame.sameOrigin())
                                                 .contentTypeOptions(contentType -> {
                                                 }))
                                 .authorizeHttpRequests(auth -> auth
@@ -108,8 +110,9 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/email/config").authenticated()
                                                 // Endpoints pÃƒÂºblicos do portal (vagas, etc)
                                                 .requestMatchers("/api/public/**").permitAll()
-                                                // WhatsApp controller - pÃƒÂºblico para pareamento/health em dev
-                                                .requestMatchers("/api/whatsapp/**").permitAll()
+                                                // WhatsApp controller - apenas health público; ações de conexão/desconexão/QR exigem autenticação
+                                                .requestMatchers("/api/whatsapp/health").permitAll()
+                                                .requestMatchers("/api/whatsapp/**").authenticated()
                                                 .requestMatchers("/api/payslips/test-download/**").authenticated()
                                                 .requestMatchers("/api/invoices/public/test-cost-centers").authenticated()
                                                 .requestMatchers("/api/invoices/public/debug-cost-centers").authenticated()
@@ -120,37 +123,38 @@ public class SecurityConfig {
                                                                 "/swagger-ui.html")
                                                 .permitAll()
                                                 .requestMatchers("/api/v1/document-processing/**").authenticated()
-                                                // Arquivos pÃƒÂºblicos (imagens e uploads)
+                                                // Arquivos públicos (imagens e uploads)
                                                 .requestMatchers("/uploads/**").permitAll()
-                                                // Logos e banners de empresas - permitir acesso pÃºblico para exibiÃ§Ã£o
+                                                .requestMatchers("/files/**").permitAll()
+                                                // Leitura de uploads públicos/estáticos (ex.: fotos de manutenção, avatares, banners)
+                                                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/uploads/**").permitAll()
+                                                // Logos e banners de empresas - permitir acesso público para exibição
                                                 .requestMatchers("/api/uploads/companies/logos/**").permitAll()
                                                 .requestMatchers("/api/uploads/companies/banners/**").permitAll()
-                                                .requestMatchers("/api/uploads/companies/logo").authenticated()
+                                                .requestMatchers("/api/uploads/companies/logo", "/api/uploads/companies/logos").authenticated()
                                                 .requestMatchers("/api/uploads/companies/banner-upload", "/api/uploads/companies/banners").authenticated()
-                                                .requestMatchers("/api/uploads/**").authenticated() // Outros arquivos
-                                                                                                    // do chat requerem
-                                                                                                    // autenticaÃƒÂ§ÃƒÂ£o
-                                                .requestMatchers("/files/**").permitAll()
-                                                // Endpoints HR - requerem permissÃƒÂµes especÃƒÂ­ficas
+                                                .requestMatchers("/api/uploads/**").authenticated() // Demais operações de upload requerem autenticação
+                                                // Endpoints de Atestados Médicos e CID-10
+                                                .requestMatchers("/api/cid10/**", "/api/medical-certificates/**").authenticated()
+                                                // Endpoints HR - requerem permissões específicas
                                                 .requestMatchers("/api/hr/**")
                                                 .hasAnyAuthority("EMPLOYEES_READ", "EMPLOYEES_WRITE",
                                                                 "EMPLOYEES_CREATE", "EMPLOYEES_DELETE",
-                                                                "SUPER_ADMIN", "ADMIN", "HR", "ROLE_SUPER_ADMIN",
-                                                                "ROLE_ADMIN", "ROLE_HR", "ROLE_RH")
-                                                // Endpoints SST - requerem permissÃƒÂµes especÃƒÂ­ficas
+                                                                "SUPER_ADMIN", "ADMIN", "HR", "RH", "ROLE_SUPER_ADMIN",
+                                                                "ROLE_ADMIN", "ROLE_HR", "ROLE_RH",
+                                                                "ROLE_COMPANY_ADMIN", "COMPANY_ADMIN", "ROLE_FLEX_ADMIN", "FLEX_ADMIN",
+                                                                "ROLE_MANUTENCAO", "MANUTENCAO", "ROLE_GESTOR", "ROLE_SUPERVISOR")
+                                                // Endpoints SST - requerem permissões específicas
                                                 .requestMatchers("/api/sst/**")
                                                 .hasAnyAuthority("EMPLOYEES_READ", "EMPLOYEES_WRITE",
                                                                 "EMPLOYEES_CREATE", "EMPLOYEES_DELETE",
-                                                                "SUPER_ADMIN", "ADMIN", "HR", "ROLE_SUPER_ADMIN",
-                                                                "ROLE_ADMIN", "ROLE_HR", "ROLE_RH")
-                                                // Endpoints de usuÃƒÂ¡rios - permitir leitura para usuÃƒÂ¡rios autenticados
-                                                // (para
-                                                // chat), escrita requer permissÃƒÂµes especÃƒÂ­ficas
-                                                // IMPORTANTE: Regras especÃƒÂ­ficas devem vir ANTES das genÃƒÂ©ricas
-                                                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/users")
-                                                .authenticated()
-                                                .requestMatchers(org.springframework.http.HttpMethod.GET,
-                                                                "/api/users/{id}")
+                                                                "SUPER_ADMIN", "ADMIN", "HR", "RH", "ROLE_SUPER_ADMIN",
+                                                                "ROLE_ADMIN", "ROLE_HR", "ROLE_RH",
+                                                                "ROLE_COMPANY_ADMIN", "COMPANY_ADMIN", "ROLE_FLEX_ADMIN", "FLEX_ADMIN",
+                                                                "ROLE_MANUTENCAO", "MANUTENCAO", "ROLE_GESTOR", "ROLE_SUPERVISOR",
+                                                                "ROLE_SST", "SST", "ROLE_SEGURANCA_DO_TRABALHO")
+                                                // Endpoints de usuários - permitir leitura para usuários autenticados
+                                                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/users", "/api/users/profile", "/api/users/search", "/api/users/cpf/**", "/api/users/{id}")
                                                 .authenticated()
                                                 .requestMatchers(org.springframework.http.HttpMethod.POST,
                                                                 "/api/users/**")
@@ -172,10 +176,9 @@ public class SecurityConfig {
                                                 // Endpoints de grupos - permitir consulta de prÃƒÂ³prios grupos para
                                                 // usuÃƒÂ¡rios
                                                 // autenticados
-                                                .requestMatchers("/api/groups/user/**").authenticated()
-                                                // Endpoints de grupos - operaÃƒÂ§ÃƒÂµes administrativas requerem
-                                                // permissÃƒÂµes
-                                                // especÃƒÂ­ficas
+                                                // Endpoints de grupos - leitura permitida para usuários autenticados (chat interno e visualizações)
+                                                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/groups", "/api/groups/**").authenticated()
+                                                // Endpoints de grupos - operações administrativas requerem permissões específicas
                                                 .requestMatchers("/api/groups/**")
                                                 .hasAnyAuthority("GROUPS_READ", "GROUPS_WRITE", "GROUPS_CREATE",
                                                                 "GROUPS_DELETE",
@@ -228,6 +231,8 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/mechanic/dashboard/**")
                                                 .hasAnyAuthority("ROLE_SUPER_ADMIN", "ROLE_ADMIN", "ROLE_COMPANY_ADMIN",
                                                                 "ROLE_FLEX_ADMIN", "ROLE_MECANICO")
+                                                // Endpoints de Ordem de Serviço (Frota) - Motoristas e Mecânicos podem criar e consultar OS
+                                                .requestMatchers("/api/fleet-work-orders/**", "/api/v1/fleet-work-orders/**").authenticated()
                                                 .requestMatchers("/api/frota/**").authenticated()
                                                 .requestMatchers("/api/client-checklists/**").authenticated()
                                                 // Endpoints da Client Area (Mobile PWA)
@@ -299,6 +304,8 @@ public class SecurityConfig {
                                                 // Endpoints de suppliers (fornecedores) - requerem permissÃƒÂµes
                                                 // administrativas
                                                 // ou financeiras
+                                                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/suppliers/**").authenticated()
+                                                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/cost-centers/**").authenticated()
                                                 .requestMatchers("/api/suppliers/**")
                                                 .hasAnyAuthority("SUPER_ADMIN", "ADMIN", "FINANCEIRO",
                                                                 "ROLE_SUPER_ADMIN", "ROLE_ADMIN", "ROLE_COMPANY_ADMIN",
@@ -380,50 +387,18 @@ public class SecurityConfig {
                                                                 "ROLE_GESTOR", "ROLE_SUPERVISOR")
                                                 // Endpoints de chat e leads (CRM)
                                                 .requestMatchers("/api/v1/chat/**").authenticated()
+                                                // Assistente virtual BiliFlux (qualquer usuário autenticado)
+                                                .requestMatchers("/api/v1/biliflux/**").authenticated()
                                                 .requestMatchers("/api/leads/**").authenticated()
                                                 // Endpoints de mensagens - permitir para todos os roles principais,
                                                 // incluindo
                                                 // Departamento Pessoal
-                                                .requestMatchers("/api/v1/messages/**").hasAnyAuthority(
-                                                                "SUPER_ADMIN",
-                                                                "ADMIN",
-                                                                "SUPERVISOR",
-                                                                "COLABORADOR",
-                                                                "VIGILANTE",
-                                                                "RH",
-                                                                "DEPARTAMENTO_PESSOAL",
-                                                                "FINANCEIRO",
-                                                                "GESTOR",
-                                                                "ROLE_SUPER_ADMIN",
-                                                                "ROLE_ADMIN",
-                                                                "ROLE_SUPERVISOR",
-                                                                "ROLE_COLABORADOR",
-                                                                "ROLE_VIGILANTE",
-                                                                "ROLE_RH",
-                                                                "ROLE_DEPARTAMENTO_PESSOAL",
-                                                                "ROLE_FINANCEIRO",
-                                                                "ROLE_GESTOR",
-                                                                "ROLE_COMPANY_ADMIN",
-                                                                "ROLE_FLEX_ADMIN")
+                                                .requestMatchers("/api/v1/messages/**").authenticated()
                                                 // Endpoints de suporte e atendimento - requerem permissÃƒÂµes
                                                 // especÃƒÂ­ficas
-                                                .requestMatchers("/api/v1/support/**")
-                                                .hasAnyAuthority("SUPPORT_READ", "SUPPORT_WRITE", "SUPPORT_CREATE",
-                                                                "SUPPORT_DELETE",
-                                                                "SUPPORT_MANAGE", "ATTENDANCE_READ", "ATTENDANCE_WRITE",
-                                                                "ATTENDANCE_MANAGE",
-                                                                "ROLE_SUPER_ADMIN", "ROLE_ADMIN", "ROLE_RH",
-                                                                "ROLE_DEPARTAMENTO_PESSOAL",
-                                                                "ROLE_FINANCEIRO", "ROLE_COMERCIAL", "ROLE_SUPERVISOR")
+                                                .requestMatchers("/api/v1/support/**").authenticated()
                                                 // Endpoints de chatbot - mesmas permissÃƒÂµes de suporte
-                                                .requestMatchers("/api/v1/support/chatbot/**")
-                                                .hasAnyAuthority("SUPPORT_READ", "SUPPORT_WRITE", "SUPPORT_CREATE",
-                                                                "SUPPORT_DELETE",
-                                                                "SUPPORT_MANAGE", "ATTENDANCE_READ", "ATTENDANCE_WRITE",
-                                                                "ATTENDANCE_MANAGE",
-                                                                "ROLE_SUPER_ADMIN", "ROLE_ADMIN", "ROLE_RH",
-                                                                "ROLE_DEPARTAMENTO_PESSOAL",
-                                                                "ROLE_FINANCEIRO", "ROLE_COMERCIAL", "ROLE_SUPERVISOR")
+                                                .requestMatchers("/api/v1/support/chatbot/**").authenticated()
                                                 // SEGURANÃ‡A: mÃ³dulos com dados pessoais que estavam "temporariamente pÃºblicos
                                                 // para debug" agora exigem autenticaÃ§Ã£o (LGPD).
                                                 .requestMatchers("/api/employees/**").authenticated()
@@ -479,8 +454,12 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/measurements/bulk/excel").permitAll()
                                                 .requestMatchers("/api/measurements/**").authenticated()
                                                 .requestMatchers("/api/contract-retentions/**").authenticated()
-                                                // Endpoints de estoque - requerem permissÃƒÂµes especÃƒÂ­ficas ou
-                                                // autenticaÃƒÂ§ÃƒÂ£o
+                                                // Endpoints de importação de NF-e (XML/PDF) para Estoque e Financeiro - qualquer usuário autenticado
+                                                .requestMatchers("/api/stock/nfe/**").authenticated()
+                                                // Endpoints de estoque - requerem permissões específicas ou
+                                                // autenticação
+                                                // Endpoints de estoque - leitura permitida para autenticados (SST, RH, Manutenção, etc.)
+                                                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/stock/**").authenticated()
                                                 .requestMatchers("/api/stock/**")
                                                 .hasAnyAuthority("EQUIPMENTS_READ", "EQUIPMENTS_WRITE",
                                                                 "EQUIPMENTS_CREATE",
@@ -488,14 +467,19 @@ public class SecurityConfig {
                                                                 "STOCK_WRITE", "STOCK_CREATE",
                                                                 "STOCK_DELETE", "ROLE_SUPER_ADMIN", "ROLE_ADMIN",
                                                                 "ROLE_COMPANY_ADMIN", "ROLE_FLEX_ADMIN",
-                                                                "ROLE_GESTOR", "ROLE_SUPERVISOR")
-                                                // SEGURANÃ‡A: mÃ³dulos de documentos que estavam pÃºblicos para teste agora exigem autenticaÃ§Ã£o
+                                                                "ROLE_GESTOR", "ROLE_SUPERVISOR",
+                                                                "ROLE_RH", "ROLE_AUXILIAR_DE_RH", "ROLE_DEPARTAMENTO_PESSOAL",
+                                                                "ROLE_ALMOXARIFADO", "ROLE_ESTOQUE", "ROLE_GESTOR_DE_MANUTENCAO",
+                                                                "ROLE_MANUTENCAO", "ROLE_MECANICO", "ROLE_OPERACIONAL",
+                                                                "ROLE_ANALISTA_DE_FROTA", "ROLE_ANALISTA_FROTA",
+                                                                "ROLE_SST", "ROLE_SEGURANCA_DO_TRABALHO",
+                                                                "ROLE_AUXILIAR_ADMINISTRATIVO", "ROLE_AUXI_ADMINISTRATIVO")
+                                                // SEGURANÇA: módulos de documentos que estavam públicos para teste agora exigem autenticação
                                                 .requestMatchers("/api/modelos-documentos/**").authenticated()
                                                 .requestMatchers("/api/documentos-gerados/**").authenticated()
                                                 .requestMatchers("/api/assinaturas-documentos/**").authenticated()
-                                                // Endpoints de dependentes - leitura requer permissÃƒÂµes bÃƒÂ¡sicas,
-                                                // escrita
-                                                // requer permissÃƒÂµes especÃƒÂ­ficas
+                                                // Endpoints de dependentes - leitura requer permissões básicas,
+                                                // escrita requer permissões específicas
                                                 .requestMatchers(org.springframework.http.HttpMethod.GET,
                                                                 "/api/dependents/**")
                                                 .hasAnyAuthority(
@@ -503,31 +487,29 @@ public class SecurityConfig {
                                                                 "ADMIN",
                                                                 "GESTOR",
                                                                 "RH",
+                                                                "SST",
                                                                 "ROLE_SUPER_ADMIN",
                                                                 "ROLE_ADMIN",
+                                                                "ROLE_COMPANY_ADMIN",
+                                                                "COMPANY_ADMIN",
+                                                                "ROLE_FLEX_ADMIN",
                                                                 "ROLE_GESTOR",
                                                                 "ROLE_RH",
+                                                                "ROLE_SST",
+                                                                "ROLE_SEGURANCA_DO_TRABALHO",
                                                                 "EMPLOYEES_READ",
                                                                 "EMPLOYEES_WRITE")
                                                 .requestMatchers("/api/dependents/**")
-                                                .hasAnyAuthority("SUPER_ADMIN", "ADMIN", "GESTOR", "RH",
+                                                .hasAnyAuthority("SUPER_ADMIN", "ADMIN", "GESTOR", "RH", "SST",
                                                                 "ROLE_SUPER_ADMIN", "ROLE_ADMIN",
-                                                                "ROLE_GESTOR", "ROLE_RH", "EMPLOYEES_READ",
-                                                                "EMPLOYEES_WRITE")
-                                                // Endpoints de folha de ponto (time-sheets)
-                                                .requestMatchers("/api/time-sheets/**").hasAnyAuthority(
-                                                                "TIME_RECORD_READ",
-                                                                "SUPER_ADMIN",
-                                                                "ADMIN",
-                                                                "RH",
-                                                                "DEPARTAMENTO_PESSOAL",
-                                                                "ROLE_SUPER_ADMIN",
-                                                                "ROLE_ADMIN",
-                                                                "ROLE_RH",
-                                                                "ROLE_DEPARTAMENTO_PESSOAL")
+                                                                "ROLE_COMPANY_ADMIN", "COMPANY_ADMIN", "ROLE_FLEX_ADMIN",
+                                                                "ROLE_GESTOR", "ROLE_RH", "ROLE_SST", "ROLE_SEGURANCA_DO_TRABALHO",
+                                                                "EMPLOYEES_READ", "EMPLOYEES_WRITE")
+                                                // Endpoints de folha de ponto (time-sheets) e registro de ponto - disponíveis para todos os funcionários autenticados
+                                                .requestMatchers("/api/time-sheets/**", "/api/time-records/**").authenticated()
                                                 // Todo o resto requer autenticaÃƒÂ§ÃƒÂ£o
                                                 .anyRequest().authenticated())
-                                .authenticationProvider(authenticationProvider())
+                                .authenticationProvider(authenticationProvider)
                                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                                 .addFilterAfter(jwtTenantFilter, UsernamePasswordAuthenticationFilter.class)
                                 // SEGURANÃ‡A: rate limiting de tentativas de login (10/15min por IP)
@@ -537,21 +519,11 @@ public class SecurityConfig {
         }
 
         @Bean
-        public PasswordEncoder passwordEncoder() {
-                return new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder();
-        }
-
-        @Bean
-        public AuthenticationProvider authenticationProvider() {
+        public AuthenticationProvider authenticationProvider(PasswordEncoder passwordEncoder) {
                 DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
                 authProvider.setUserDetailsService(customUserDetailsService);
-                authProvider.setPasswordEncoder(passwordEncoder());
+                authProvider.setPasswordEncoder(passwordEncoder);
                 return authProvider;
-        }
-
-        @Bean
-        public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
-                return config.getAuthenticationManager();
         }
 
         // Ajusta o prefixo padrÃƒÂ£o de roles para vazio, permitindo usar nomes como
@@ -559,9 +531,24 @@ public class SecurityConfig {
         @Bean
         public CorsConfigurationSource corsConfigurationSource() {
                 CorsConfiguration configuration = new CorsConfiguration();
-                // Permitir todas as origens para desenvolvimento (incluindo diferentes portas
-                // do frontend)
-                configuration.setAllowedOriginPatterns(Arrays.asList("*"));
+                // Restringir origens permitidas estritamente aos domínios oficiais e dev local (OWASP CORS hardening)
+                configuration.setAllowedOriginPatterns(Arrays.asList(
+                                "https://*.fluxbus.com.br",
+                                "https://fluxbus.com.br",
+                                "https://*.z7botsolutions.com.br",
+                                "https://z7botsolutions.com.br",
+                                "http://localhost:[*]",
+                                "http://127.0.0.1:[*]",
+                                "https://localhost:[*]",
+                                "https://127.0.0.1:[*]",
+                                // Permitir acesso via IP na rede local (Wi-Fi)
+                                "http://192.168.*:[*]",
+                                "https://192.168.*:[*]",
+                                "http://172.*:[*]",
+                                "https://172.*:[*]",
+                                "http://10.*:[*]",
+                                "https://10.*:[*]"
+                ));
                 configuration.setAllowedMethods(
                                 Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"));
                 configuration.setAllowedHeaders(Arrays.asList("*"));

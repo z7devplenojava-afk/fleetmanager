@@ -9,6 +9,7 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
+import org.hibernate.annotations.Filter;
 
 @Entity
 @Table(name = "client_doc_categories")
@@ -16,6 +17,7 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Filter(name = "tenantFilter", condition = "company_id = :companyId")
 public class ClientDocCategory {
 
     @Id

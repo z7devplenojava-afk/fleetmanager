@@ -21,6 +21,15 @@ public class VehicleGateChecklistDTO {
     private VehicleGateChecklist.ChecklistType type;
     private LocalDateTime occurredAt;
     private Integer kmReading;
+    private Integer initialKm;
+    private Integer finalKm;
+    private Integer distanceTravelled;
+    private Boolean hasDisplacement;
+    private String displacementType;
+    private Integer displacementInitialKm;
+    private Integer displacementFinalKm;
+    private Integer displacementDistance;
+    private Integer totalKmTravelled;
     private String odometerPhotoUrl;
     private String odometerPhotoDescription;
     private String checklistData;

@@ -1,5 +1,5 @@
 -- Migration V445: Create branches table
-CREATE TABLE branches (
+CREATE TABLE IF NOT EXISTS branches (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(100) NOT NULL,
     sigla VARCHAR(10) NOT NULL,
@@ -12,9 +12,9 @@ CREATE TABLE branches (
 );
 
 -- Indices for better performance
-CREATE INDEX idx_branches_company_id ON branches(company_id);
-CREATE INDEX idx_branches_sigla ON branches(sigla);
-CREATE INDEX idx_branches_active ON branches(active);
+CREATE INDEX IF NOT EXISTS idx_branches_company_id ON branches(company_id);
+CREATE INDEX IF NOT EXISTS idx_branches_sigla ON branches(sigla);
+CREATE INDEX IF NOT EXISTS idx_branches_active ON branches(active);
 
 -- Comments
 COMMENT ON TABLE branches IS 'Tabela que armazena as filiais das empresas';

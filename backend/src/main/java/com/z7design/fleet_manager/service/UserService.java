@@ -4,12 +4,23 @@ import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 import java.util.UUID;
 
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+
+import com.z7design.fleet_manager.tenant.TenantContext;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import org.hibernate.Session;
+import org.hibernate.Filter;
 
 import com.z7design.fleet_manager.model.User;
 import com.z7design.fleet_manager.model.enums.UserStatus;
@@ -21,6 +32,8 @@ import com.z7design.fleet_manager.model.Permission;
 import com.z7design.fleet_manager.dto.ProfileUpdateRequest;
 import com.z7design.fleet_manager.dto.CreateUserRequest;
 
+import com.z7design.fleet_manager.model.Employee;
+import com.z7design.fleet_manager.repository.EmployeeRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,25 +41,319 @@ import org.slf4j.LoggerFactory;
 public class UserService {
     private static final Logger log = LoggerFactory.getLogger(UserService.class);
 
+    private static final java.util.Set<String> ADMIN_ROLE_NAMES = java.util.Set.of(
+            "SUPER_ADMIN", "FLEX_ADMIN", "COMPANY_ADMIN", "ADMIN");
+    private static final java.util.Set<String> GLOBAL_MANAGER_ROLE_NAMES = java.util.Set.of(
+            "SUPER_ADMIN", "FLEX_ADMIN");
+    private static final java.util.Set<String> TENANT_MANAGER_ROLE_NAMES = java.util.Set.of(
+            "COMPANY_ADMIN", "ADMIN");
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final RoleRepository roleRepository;
     private final CompanyRepository companyRepository;
+    private final EmployeeRepository employeeRepository;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, RoleRepository roleRepository,
-            CompanyRepository companyRepository) {
+            CompanyRepository companyRepository, EmployeeRepository employeeRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.roleRepository = roleRepository;
         this.companyRepository = companyRepository;
+        this.employeeRepository = employeeRepository;
+    }
+
+    public void autoLinkEmployeeIfMatched(User user) {
+        if (user == null || user.getId() == null) return;
+        // REGRA: Usuário sem empresa (Acesso Global) não deve ser auto-vinculado a funcionário de empresa específica
+        if (user.getCompanyId() == null) {
+            log.debug("AutoLink ignorado para usuário @{} pois está sem empresa (Acesso Global)", user.getUsername());
+            return;
+        }
+        try {
+            String cleanCpf = user.getCpf() != null ? user.getCpf().replaceAll("\\D", "") : "";
+            if (cleanCpf.length() < 11 && user.getUsername() != null) {
+                cleanCpf = user.getUsername().replaceAll("\\D", "");
+            }
+            Employee emp = null;
+            if (cleanCpf.length() >= 11) {
+                emp = employeeRepository.findByCpfGlobal(cleanCpf).orElse(null);
+            }
+            if (emp == null && user.getEmail() != null && !user.getEmail().isBlank()) {
+                emp = employeeRepository.findByEmail(user.getEmail().trim()).orElse(null);
+            }
+            if (emp == null && user.getName() != null && !user.getName().isBlank()) {
+                var emps = employeeRepository.findByNameContainingIgnoreCase(user.getName().trim());
+                if (!emps.isEmpty()) {
+                    emp = emps.get(0);
+                }
+            }
+            if (emp != null) {
+                UUID empCompanyId = emp.getCompany() != null ? emp.getCompany().getId() : null;
+                // REGRA: Usuário só pode ser vinculado a funcionário da mesma empresa
+                if (empCompanyId == null || !user.getCompanyId().equals(empCompanyId)) {
+                    log.info("AutoLink recusado: Funcionário {} pertence à empresa {} e Usuário @{} pertence à empresa {}",
+                            emp.getName(), empCompanyId, user.getCompanyId());
+                    return;
+                }
+
+                if (emp.getUser() == null || !user.getId().equals(emp.getUser().getId())) {
+                    emp.setUser(user);
+                    employeeRepository.save(emp);
+                    log.info("🔗 Vínculo estabelecido com sucesso: Funcionário {} ({}) vinculado ao Usuário @{}", emp.getName(), emp.getId(), user.getUsername());
+                }
+                if ((user.getCpf() == null || user.getCpf().isBlank()) && emp.getDocument() != null && !emp.getDocument().isBlank()) {
+                    user.setCpf(emp.getDocument());
+                    userRepository.save(user);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("⚠️ Não foi possível auto-vincular funcionário ao usuário {}: {}", user.getUsername(), e.getMessage());
+        }
     }
 
     public Optional<User> findById(UUID id) {
-        return userRepository.findById(id);
+        if (!isSuperAdmin()) {
+            return userRepository.findById(id).or(() -> userRepository.findByIdNative(id));
+        }
+        return withoutTenantFilter(() -> userRepository.findByIdNative(id).or(() -> userRepository.findById(id)));
     }
 
     public List<User> findAll() {
-        return userRepository.findAll();
+        if (!isSuperAdmin()) {
+            return userRepository.findAll();
+        }
+        return withoutTenantFilter(userRepository::findAll);
+    }
+
+    private <T> T withoutTenantFilter(Supplier<T> action) {
+        UUID tenantId = TenantContext.get();
+        boolean impersonating = TenantContext.isImpersonating();
+        try {
+            TenantContext.set(null);
+            TenantContext.setImpersonating(false);
+            disableHibernateTenantFilter();
+            return action.get();
+        } finally {
+            TenantContext.set(tenantId);
+            TenantContext.setImpersonating(impersonating);
+            restoreHibernateTenantFilter(tenantId);
+        }
+    }
+
+    private void disableHibernateTenantFilter() {
+        try {
+            if (entityManager != null) {
+                Session session = entityManager.unwrap(Session.class);
+                if (session != null) {
+                    session.disableFilter("tenantFilter");
+                    log.debug("TenantFilter desabilitado manualmente na sessao Hibernate");
+                }
+            }
+        } catch (Exception e) {
+            log.debug("Erro ao desabilitar tenantFilter na sessao Hibernate: {}", e.getMessage());
+        }
+    }
+
+    private void restoreHibernateTenantFilter(UUID companyId) {
+        try {
+            if (entityManager != null) {
+                Session session = entityManager.unwrap(Session.class);
+                if (session != null) {
+                    if (companyId != null) {
+                        Filter filter = session.enableFilter("tenantFilter");
+                        filter.setParameter("companyId", companyId);
+                        log.debug("TenantFilter reabilitado para empresa {} na sessao Hibernate", companyId);
+                    } else {
+                        session.disableFilter("tenantFilter");
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.debug("Erro ao restaurar tenantFilter na sessao Hibernate: {}", e.getMessage());
+        }
+    }
+
+    private boolean isSuperAdmin() {
+        return getCurrentRoleNames().contains("SUPER_ADMIN");
+    }
+
+    private java.util.Set<String> getCurrentRoleNames() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getAuthorities() == null) {
+            return java.util.Collections.emptySet();
+        }
+        return auth.getAuthorities().stream()
+                .map(authority -> normalizeRoleName(authority.getAuthority()))
+                .filter(StringUtils::hasText)
+                .collect(java.util.stream.Collectors.toSet());
+    }
+
+    private String normalizeRoleName(String role) {
+        if (!StringUtils.hasText(role)) {
+            return "";
+        }
+        String normalized = role.trim().toUpperCase();
+        return normalized.startsWith("ROLE_") ? normalized.substring(5) : normalized;
+    }
+
+    private boolean isAdminRoleName(String role) {
+        return ADMIN_ROLE_NAMES.contains(normalizeRoleName(role));
+    }
+
+    private boolean isCurrentUserGlobalManager() {
+        return getCurrentRoleNames().stream().anyMatch(GLOBAL_MANAGER_ROLE_NAMES::contains);
+    }
+
+    private boolean isCurrentUserTenantManager() {
+        return getCurrentRoleNames().stream().anyMatch(TENANT_MANAGER_ROLE_NAMES::contains);
+    }
+
+    private boolean hasAdminRole(User user) {
+        return user != null && user.getRoles() != null && user.getRoles().stream()
+                .filter(java.util.Objects::nonNull)
+                .map(Role::getName)
+                .anyMatch(this::isAdminRoleName);
+    }
+
+    public User getCurrentUserOrThrow() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
+            throw new AccessDeniedException("Usuário não autenticado.");
+        }
+        if (auth.getPrincipal() instanceof User user) {
+            return user;
+        }
+        String username = auth.getName();
+        String cleanDigits = username != null ? username.replaceAll("\\D", "") : "";
+        return userRepository.findByIdentifierNative(username, cleanDigits)
+                .or(() -> userRepository.findByUsernameNative(username))
+                .or(() -> userRepository.findByEmailNative(username))
+                .or(() -> userRepository.findByUsername(username))
+                .or(() -> userRepository.findByEmail(username))
+                .orElseThrow(() -> new AccessDeniedException("Usuário autenticado não encontrado."));
+    }
+
+    public UUID getCurrentCompanyId() {
+        User currentUser = getCurrentUserOrThrow();
+        return currentUser.getCompanyId() != null ? currentUser.getCompanyId() : TenantContext.get();
+    }
+
+    public void assertCanCreateUser(CreateUserRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("Dados do usuário não fornecidos");
+        }
+
+        if (!isSuperAdmin()) {
+            if (!isCurrentUserGlobalManager() && !isCurrentUserTenantManager()) {
+                throw new AccessDeniedException("Apenas administradores podem criar usuários.");
+            }
+            boolean assignsAdminRole = request.getRoles() != null && request.getRoles().stream()
+                    .anyMatch(this::isAdminRoleName);
+            if (assignsAdminRole) {
+                throw new AccessDeniedException("Somente SUPER_ADMIN pode criar contas de administrador.");
+            }
+        }
+
+        if (isCurrentUserTenantManager() && !isCurrentUserGlobalManager()) {
+            UUID currentCompanyId = getCurrentCompanyId();
+            if (currentCompanyId == null) {
+                throw new AccessDeniedException("Administrador sem empresa vinculada não pode criar usuários.");
+            }
+            if (request.getCompanyId() != null && !currentCompanyId.equals(request.getCompanyId())) {
+                throw new AccessDeniedException("Não é permitido criar usuários em outra empresa.");
+            }
+            request.setCompanyId(currentCompanyId);
+        }
+    }
+
+    public void assertCanManageUser(User targetUser) {
+        if (targetUser == null) {
+            throw new AccessDeniedException("Usuário não encontrado.");
+        }
+
+        User currentUser = getCurrentUserOrThrow();
+        boolean isSelf = currentUser.getId() != null && currentUser.getId().equals(targetUser.getId());
+
+        if (isSuperAdmin()) {
+            return;
+        }
+
+        if (hasAdminRole(targetUser) && !isSelf) {
+            throw new AccessDeniedException("Somente SUPER_ADMIN pode gerenciar contas de administrador.");
+        }
+
+        if (isCurrentUserGlobalManager()) {
+            return;
+        }
+
+        if (isCurrentUserTenantManager()) {
+            UUID currentCompanyId = getCurrentCompanyId();
+            if (currentCompanyId == null
+                    || targetUser.getCompanyId() == null
+                    || !currentCompanyId.equals(targetUser.getCompanyId())) {
+                throw new AccessDeniedException("Não é permitido gerenciar usuários de outra empresa.");
+            }
+            return;
+        }
+
+        throw new AccessDeniedException("Apenas administradores podem gerenciar usuários.");
+    }
+
+    private void assertCanAssignRoles(User targetUser, List<String> requestedRoles) {
+        if (requestedRoles == null || requestedRoles.isEmpty() || isSuperAdmin()) {
+            return;
+        }
+
+        java.util.Set<String> requestedAdminRoles = requestedRoles.stream()
+                .filter(java.util.Objects::nonNull)
+                .map(this::normalizeRoleName)
+                .filter(ADMIN_ROLE_NAMES::contains)
+                .collect(java.util.stream.Collectors.toSet());
+
+        if (requestedAdminRoles.isEmpty()) {
+            return;
+        }
+
+        java.util.Set<String> existingAdminRoles = targetUser.getRoles() == null
+                ? java.util.Collections.emptySet()
+                : targetUser.getRoles().stream()
+                        .filter(java.util.Objects::nonNull)
+                        .map(Role::getName)
+                        .map(this::normalizeRoleName)
+                        .filter(ADMIN_ROLE_NAMES::contains)
+                        .collect(java.util.stream.Collectors.toSet());
+
+        if (!existingAdminRoles.containsAll(requestedAdminRoles)) {
+            throw new AccessDeniedException("Somente SUPER_ADMIN pode atribuir perfis de administrador.");
+        }
+    }
+
+    private void assertCanUpdateUser(User targetUser, com.z7design.fleet_manager.dto.UpdateUserRequest request) {
+        assertCanManageUser(targetUser);
+        assertCanAssignRoles(targetUser, request.getRoles());
+
+        if (isCurrentUserTenantManager() && !isCurrentUserGlobalManager()) {
+            UUID currentCompanyId = getCurrentCompanyId();
+            if (Boolean.TRUE.equals(request.getRemoveCompany())) {
+                throw new AccessDeniedException("Não é permitido desvincular usuários da empresa.");
+            }
+            if (request.getCompanyId() != null
+                    && (currentCompanyId == null || !currentCompanyId.equals(request.getCompanyId()))) {
+                throw new AccessDeniedException("Não é permitido mover usuários para outra empresa.");
+            }
+        }
+    }
+
+    private void assertCanDeleteUser(User targetUser) {
+        assertCanManageUser(targetUser);
+        User currentUser = getCurrentUserOrThrow();
+        if (currentUser.getId() != null && currentUser.getId().equals(targetUser.getId())) {
+            throw new AccessDeniedException("Não é permitido excluir sua própria conta de usuário.");
+        }
     }
 
     public User createFromRequest(CreateUserRequest request) {
@@ -73,6 +380,8 @@ public class UserService {
             throw new IllegalArgumentException("Pelo menos uma funÃ§Ã£o deve ser selecionada");
         }
 
+        assertCanCreateUser(request);
+
         // Verificar se username jÃ¡ existe
         if (userRepository.findByUsername(request.getUsername()).isPresent()) {
             throw new IllegalArgumentException("Nome de usuÃ¡rio jÃ¡ estÃ¡ em uso");
@@ -93,8 +402,8 @@ public class UserService {
             throw new IllegalArgumentException("Senha deve ter pelo menos 6 caracteres");
         }
 
-        // Permitir exceÃ§Ã£o para padrÃ£o cpf@2025
-        boolean isCpfDefault = request.getPassword().matches("^\\d{11}@2025$");
+        // Permitir exceção para padrão cpf@2025/2026 e senha padrão corporativa FluxBus@2026
+        boolean isCpfDefault = request.getPassword().matches("^\\d{11}@202[0-9]$") || "FluxBus@2026".equals(request.getPassword());
         if (!isCpfDefault
                 && !request.getPassword().matches("^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[^a-zA-Z0-9\\s]).*$")) {
             throw new IllegalArgumentException(
@@ -103,7 +412,7 @@ public class UserService {
 
         // Buscar roles do banco de dados pelos nomes (Array de Strings)
         System.out.println("ðŸ” Buscando roles: " + request.getRoles());
-        List<Role> rolesFromDb = roleRepository.findByNames(request.getRoles());
+        List<Role> rolesFromDb = findRolesByCandidateNames(request.getRoles());
         System.out.println("âœ… Roles encontrados: " + rolesFromDb.size());
 
         if (rolesFromDb.isEmpty()) {
@@ -121,15 +430,17 @@ public class UserService {
             }
         }
 
-        // Criar usuÃ¡rio
+        // Criar usuário
         User user = User.builder()
                 .name(request.getName())
+                .cpf(request.getCpf() != null && !request.getCpf().trim().isEmpty() ? request.getCpf().trim() : null)
                 .username(request.getUsername())
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .whatsapp(
                         request.getWhatsapp() != null && !request.getWhatsapp().trim().isEmpty() ? request.getWhatsapp()
                                 : null)
+                .whatsappConsent(false)
                 .roles(new java.util.HashSet<>(rolesFromDb))
                 .active(request.getActive() != null ? request.getActive() : true)
                 .status(status)
@@ -141,9 +452,27 @@ public class UserService {
             validateUserLimit(user.getCompanyId());
         }
 
-        System.out.println("ðŸ’¾ Salvando usuÃ¡rio no banco...");
+        System.out.println("💾 Salvando usuário no banco...");
         User savedUser = userRepository.save(user);
-        System.out.println("âœ… UsuÃ¡rio salvo com ID: " + savedUser.getId());
+        System.out.println("✅ Usuário salvo com ID: " + savedUser.getId());
+
+        // Se employeeId foi explicitamente fornecido, vincular imediatamente
+        if (request.getEmployeeId() != null) {
+            final UUID empId = request.getEmployeeId();
+            employeeRepository.findByIdGlobal(empId)
+                    .or(() -> employeeRepository.findById(empId))
+                    .ifPresent(emp -> {
+                        emp.setUser(savedUser);
+                        employeeRepository.save(emp);
+                        log.info("Funcionário {} vinculado diretamente no cadastro do usuário {}", emp.getName(), savedUser.getUsername());
+                        if (savedUser.getCpf() == null && emp.getDocument() != null) {
+                            savedUser.setCpf(emp.getDocument());
+                            userRepository.save(savedUser);
+                        }
+                    });
+        } else {
+            autoLinkEmployeeIfMatched(savedUser);
+        }
 
         return savedUser;
     }
@@ -170,11 +499,11 @@ public class UserService {
             throw new IllegalArgumentException("FunÃ§Ã£o nÃ£o pode ser nula");
         }
 
-        // Buscar roles existentes pelo name
+        // Buscar roles existentes pelo name (flexível)
         var roleNames = user.getRoles().stream().map(Role::getName).toList();
-        var rolesFromDb = roleRepository.findByNames(roleNames);
+        var rolesFromDb = findRolesByCandidateNames(roleNames);
         if (rolesFromDb.isEmpty()) {
-            throw new IllegalArgumentException("Nenhum role vÃ¡lido encontrado no banco");
+            throw new IllegalArgumentException("Nenhum role válido encontrado no banco");
         }
         user.setRoles(new java.util.HashSet<>(rolesFromDb));
 
@@ -213,7 +542,9 @@ public class UserService {
         // Criptografar senha
         user.setPassword(passwordEncoder.encode(user.getPassword()));
 
-        return userRepository.save(user);
+        User savedUser = userRepository.save(user);
+        autoLinkEmployeeIfMatched(savedUser);
+        return savedUser;
     }
 
     public User update(UUID id, User user) {
@@ -242,12 +573,23 @@ public class UserService {
         return userRepository.save(existingUser);
     }
 
+    @Transactional
     public User updateFromRequest(UUID id, com.z7design.fleet_manager.dto.UpdateUserRequest request) {
-        log.info("Atualizando usuÃ¡rio {} com dados: name={}, email={}, username={}, roles={}",
+        if (isSuperAdmin()) {
+            return withoutTenantFilter(() -> doUpdateFromRequest(id, request));
+        }
+        return doUpdateFromRequest(id, request);
+    }
+
+    private User doUpdateFromRequest(UUID id, com.z7design.fleet_manager.dto.UpdateUserRequest request) {
+        log.info("Atualizando usuário {} com dados: name={}, email={}, username={}, roles={}",
                 id, request.getName(), request.getEmail(), request.getUsername(), request.getRoles());
 
-        User existingUser = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("UsuÃ¡rio nÃ£o encontrado"));
+        User existingUser = userRepository.findByIdNative(id)
+                .or(() -> userRepository.findById(id))
+                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+
+        assertCanUpdateUser(existingUser, request);
 
         if (!StringUtils.hasText(request.getName())) {
             throw new IllegalArgumentException("Nome nÃ£o pode ser vazio");
@@ -317,10 +659,31 @@ public class UserService {
             }
         }
 
-        // Atualizar empresa se fornecida (permitido apenas para Flex Admins - validado
-        // no controller)
-        if (request.getCompanyId() != null) {
+        // Atualizar empresa se fornecida (ou desvincular empresa se removeCompany for true)
+        if (Boolean.TRUE.equals(request.getRemoveCompany())) {
+            existingUser.setCompanyId(null);
+            // REGRA: Usuário sem empresa (Acesso Global) não pode ter funcionário de empresa vinculado
+            employeeRepository.findByUserIdGlobal(id).ifPresent(emp -> {
+                emp.setUser(null);
+                employeeRepository.save(emp);
+                log.info("Desvinculado funcionário {} do usuário {} porque o usuário agora está sem empresa (Acesso Global)",
+                        emp.getName(), existingUser.getUsername());
+            });
+        } else if (request.getCompanyId() != null) {
+            UUID oldComp = existingUser.getCompanyId();
             existingUser.setCompanyId(request.getCompanyId());
+            // Se a empresa mudou, desvincula qualquer funcionário que pertencia à empresa antiga
+            if (oldComp != null && !oldComp.equals(request.getCompanyId())) {
+                employeeRepository.findByUserIdGlobal(id).ifPresent(emp -> {
+                    UUID empCompId = emp.getCompany() != null ? emp.getCompany().getId() : null;
+                    if (empCompId != null && !empCompId.equals(request.getCompanyId())) {
+                        emp.setUser(null);
+                        employeeRepository.save(emp);
+                        log.info("Desvinculado funcionário {} do usuário {} devido à alteração de empresa",
+                                emp.getName(), existingUser.getUsername());
+                    }
+                });
+            }
         }
 
         boolean isNowActive = existingUser.isActive();
@@ -338,8 +701,8 @@ public class UserService {
 
         // Atualizar roles se fornecidas
         if (request.getRoles() != null && !request.getRoles().isEmpty()) {
-            var roleNames = request.getRoles(); // JÃ¡ Ã© uma lista de strings
-            var rolesFromDb = roleRepository.findByNames(roleNames);
+            var roleNames = request.getRoles(); // Já é uma lista de strings
+            var rolesFromDb = findRolesByCandidateNames(roleNames);
 
             // Validar se pelo menos um role foi encontrado
             if (rolesFromDb.isEmpty()) {
@@ -388,25 +751,98 @@ public class UserService {
             existingUser.setAddress(request.getAddress().trim().isEmpty() ? null : request.getAddress());
         }
 
+        if (request.getCpf() != null) {
+            existingUser.setCpf(request.getCpf().trim().isEmpty() ? null : request.getCpf().trim());
+        }
+
         try {
             User savedUser = userRepository.save(existingUser);
-            log.info("UsuÃ¡rio {} atualizado com sucesso", id);
+            final UUID userId = savedUser.getId();
+            final String username = savedUser.getUsername();
+
+            // Gerenciar vínculo de funcionário na atualização de usuário
+            if (Boolean.TRUE.equals(request.getRemoveEmployee()) || savedUser.getCompanyId() == null) {
+                employeeRepository.findByUserIdGlobal(userId).ifPresent(emp -> {
+                    emp.setUser(null);
+                    employeeRepository.save(emp);
+                    log.info("Desvinculado funcionário {} do usuário {}", emp.getName(), username);
+                });
+            } else if (request.getEmployeeId() != null) {
+                UUID targetEmpId = request.getEmployeeId();
+                // 1. Desvincular funcionário antigo vinculado a este usuário, se diferente
+                employeeRepository.findByUserIdGlobal(userId).ifPresent(oldEmp -> {
+                    if (!oldEmp.getId().equals(targetEmpId)) {
+                        oldEmp.setUser(null);
+                        employeeRepository.save(oldEmp);
+                        log.info("Desvinculado funcionário anterior {} do usuário {}", oldEmp.getName(), username);
+                    }
+                });
+
+                // 2. Localizar o funcionário selecionado
+                Employee targetEmp = employeeRepository.findByIdGlobal(targetEmpId)
+                        .or(() -> employeeRepository.findById(targetEmpId))
+                        .orElse(null);
+
+                if (targetEmp != null) {
+                    UUID userCompId = savedUser.getCompanyId();
+                    UUID empCompId = targetEmp.getCompany() != null ? targetEmp.getCompany().getId() : null;
+
+                    // REGRA: Usuário só pode ser vinculado a funcionário da mesma empresa
+                    if (userCompId == null && empCompId != null) {
+                        throw new IllegalArgumentException("Um usuário sem empresa (Acesso Global) não pode ser vinculado a um funcionário de empresa específica.");
+                    }
+                    if (userCompId != null && (empCompId == null || !userCompId.equals(empCompId))) {
+                        throw new IllegalArgumentException("Um usuário só pode ser vinculado a um funcionário da mesma empresa.");
+                    }
+
+                    targetEmp.setUser(savedUser);
+                    employeeRepository.save(targetEmp);
+                    log.info("Funcionário {} vinculado com sucesso ao usuário {}", targetEmp.getName(), username);
+
+                    // Sincronizar dados vazios do usuário a partir do funcionário
+                    boolean userChanged = false;
+                    if ((savedUser.getWhatsapp() == null || savedUser.getWhatsapp().isBlank()) && targetEmp.getPhone() != null && !targetEmp.getPhone().isBlank()) {
+                        savedUser.setWhatsapp(targetEmp.getPhone().replaceAll("\\D", ""));
+                        userChanged = true;
+                    }
+                    if ((savedUser.getEmail() == null || savedUser.getEmail().isBlank()) && targetEmp.getEmail() != null && !targetEmp.getEmail().isBlank()) {
+                        savedUser.setEmail(targetEmp.getEmail().trim());
+                        userChanged = true;
+                    }
+                    if ((savedUser.getCpf() == null || savedUser.getCpf().isBlank()) && targetEmp.getDocument() != null && !targetEmp.getDocument().isBlank()) {
+                        savedUser.setCpf(targetEmp.getDocument());
+                        userChanged = true;
+                    }
+                    if (userChanged) {
+                        savedUser = userRepository.save(savedUser);
+                    }
+                }
+            } else {
+                autoLinkEmployeeIfMatched(savedUser);
+            }
+
+            log.info("Usuário {} atualizado com sucesso", id);
             return savedUser;
         } catch (Exception e) {
-            log.error("Erro ao salvar usuÃ¡rio {}: {}", id, e.getMessage(), e);
-            throw new RuntimeException("Erro ao salvar usuÃ¡rio: " + e.getMessage(), e);
+            log.error("Erro ao salvar usuário {}: {}", id, e.getMessage(), e);
+            throw new RuntimeException("Erro ao salvar usuário: " + e.getMessage(), e);
         }
     }
 
     public void delete(UUID id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+        assertCanDeleteUser(user);
         userRepository.deleteById(id);
     }
 
     public Map<String, Object> deleteBulk(List<UUID> ids, String currentUsername) {
         if (ids == null || ids.isEmpty()) {
             return Map.of("deletedCount", 0, "message", "Nenhum ID fornecido");
+        }
+
+        for (UUID id : ids) {
+            userRepository.findById(id).ifPresent(this::assertCanManageUser);
         }
 
         UUID currentUserId = null;
@@ -497,13 +933,16 @@ public class UserService {
      * Atualiza o perfil do prÃ³prio usuÃ¡rio logado
      */
     public User updateProfile(UUID userId, ProfileUpdateRequest request) {
-        User existingUser = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("UsuÃ¡rio nÃ£o encontrado"));
+        User existingUser = userRepository.findByIdNative(userId)
+                .or(() -> userRepository.findById(userId))
+                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
 
-        // Validar se o email nÃ£o estÃ¡ sendo usado por outro usuÃ¡rio
-        if (!existingUser.getEmail().equals(request.getEmail())) {
-            if (userRepository.findByEmail(request.getEmail()).isPresent()) {
-                throw new IllegalArgumentException("Email jÃ¡ estÃ¡ em uso por outro usuÃ¡rio");
+        // Validar se o email não está sendo usado por outro usuário
+        if (!existingUser.getEmail().equalsIgnoreCase(request.getEmail().trim())) {
+            Optional<User> other = userRepository.findByEmailNative(request.getEmail().trim())
+                    .or(() -> userRepository.findByEmail(request.getEmail().trim()));
+            if (other.isPresent() && !other.get().getId().equals(userId)) {
+                throw new IllegalArgumentException("Email já está em uso por outro usuário");
             }
         }
 
@@ -557,5 +996,23 @@ public class UserService {
                 }
             }
         });
+    }
+
+    private List<Role> findRolesByCandidateNames(List<String> requestedRoles) {
+        if (requestedRoles == null || requestedRoles.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+        java.util.Set<String> candidates = new java.util.HashSet<>();
+        for (String r : requestedRoles) {
+            if (!StringUtils.hasText(r)) continue;
+            String trimmed = r.trim();
+            candidates.add(trimmed);
+            if (trimmed.startsWith("ROLE_")) {
+                candidates.add(trimmed.substring(5));
+            } else {
+                candidates.add("ROLE_" + trimmed);
+            }
+        }
+        return roleRepository.findByNames(new java.util.ArrayList<>(candidates));
     }
 }

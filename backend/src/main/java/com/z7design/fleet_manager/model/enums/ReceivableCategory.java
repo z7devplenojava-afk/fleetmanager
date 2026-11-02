@@ -4,8 +4,11 @@ public enum ReceivableCategory {
     INVOICE("Fatura"),
     NOTE("Nota Fiscal"),
     ADVANCE("Adiantamento"),
-    SERVICE("ServiÃ§o"),
+    SERVICE("Serviço"),
     PRODUCT("Produto"),
+    MEASUREMENT("Medição de Contratos"),
+    VEHICLE_RENTAL("Locação de Veículos"),
+    CHARTER_TOURISM("Fretamento e Turismo"),
     OTHER("Outros");
     
     private final String description;

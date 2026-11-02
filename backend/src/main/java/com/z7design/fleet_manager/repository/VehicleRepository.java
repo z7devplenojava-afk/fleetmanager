@@ -1,6 +1,7 @@
 package com.z7design.fleet_manager.repository;
 
 import com.z7design.fleet_manager.model.Vehicle;
+import com.z7design.fleet_manager.tenant.TenantContext;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -29,8 +30,13 @@ public interface VehicleRepository extends JpaRepository<Vehicle, UUID> {
     @Query(value = "SELECT * FROM vehicles", nativeQuery = true)
     List<Vehicle> findAllRawIncludingDeletedAndTenants();
 
-    @Query(value = "SELECT * FROM vehicles WHERE UPPER(REPLACE(REPLACE(plate, '-', ''), ' ', '')) = UPPER(REPLACE(REPLACE(:plate, '-', ''), ' ', '')) LIMIT 1", nativeQuery = true)
-    Optional<Vehicle> findByPlateRaw(@Param("plate") String plate);
+    @Query(value = "SELECT * FROM vehicles WHERE UPPER(REPLACE(REPLACE(plate, '-', ''), ' ', '')) = UPPER(REPLACE(REPLACE(:plate, '-', ''), ' ', '')) " +
+            "AND (CAST(:companyId AS uuid) IS NULL OR company_id = CAST(:companyId AS uuid)) LIMIT 1", nativeQuery = true)
+    Optional<Vehicle> findByPlateRawScoped(@Param("plate") String plate, @Param("companyId") UUID companyId);
+
+    default Optional<Vehicle> findByPlateRaw(String plate) {
+        return findByPlateRawScoped(plate, TenantContext.get());
+    }
 
     Optional<Vehicle> findByPlate(String plate);
 
@@ -46,10 +52,19 @@ public interface VehicleRepository extends JpaRepository<Vehicle, UUID> {
 
     List<Vehicle> findByStatus(Vehicle.VehicleStatus status);
 
+    @Query("SELECT v FROM Vehicle v WHERE v.deletedAt IS NULL AND v.status = :status AND v.companyId = :companyId")
+    List<Vehicle> findByStatusAndCompanyId(@Param("status") Vehicle.VehicleStatus status, @Param("companyId") UUID companyId);
+
     List<Vehicle> findByFuelType(Vehicle.FuelType fuelType);
+
+    @Query("SELECT v FROM Vehicle v WHERE v.deletedAt IS NULL AND v.fuelType = :fuelType AND v.companyId = :companyId")
+    List<Vehicle> findByFuelTypeAndCompanyId(@Param("fuelType") Vehicle.FuelType fuelType, @Param("companyId") UUID companyId);
 
     @Query("SELECT v FROM Vehicle v WHERE v.deletedAt IS NULL AND (v.plate LIKE %:searchTerm% OR v.fleetNumber LIKE %:searchTerm% OR v.model LIKE %:searchTerm% OR v.brand LIKE %:searchTerm%)")
     List<Vehicle> findBySearchTerm(@Param("searchTerm") String searchTerm);
+
+    @Query("SELECT v FROM Vehicle v WHERE v.deletedAt IS NULL AND v.companyId = :companyId AND (v.plate LIKE %:searchTerm% OR v.fleetNumber LIKE %:searchTerm% OR v.model LIKE %:searchTerm% OR v.brand LIKE %:searchTerm%)")
+    List<Vehicle> findBySearchTermAndCompanyId(@Param("searchTerm") String searchTerm, @Param("companyId") UUID companyId);
 
     boolean existsByPlate(String plate);
 
@@ -59,33 +74,62 @@ public interface VehicleRepository extends JpaRepository<Vehicle, UUID> {
     @Query("SELECT COUNT(v) FROM Vehicle v WHERE v.deletedAt IS NULL")
     long countActive();
 
+    @Query("SELECT COUNT(v) FROM Vehicle v WHERE v.deletedAt IS NULL AND v.companyId = :companyId")
+    long countActiveByCompanyId(@Param("companyId") UUID companyId);
+
     /** Soft delete — marca a data de exclusão sem remover a linha */
-    @Query("UPDATE Vehicle v SET v.deletedAt = CURRENT_TIMESTAMP WHERE v.id = :id AND v.deletedAt IS NULL")
+    @Query("UPDATE Vehicle v SET v.deletedAt = CURRENT_TIMESTAMP WHERE v.id = :id AND v.deletedAt IS NULL " +
+            "AND (:companyId IS NULL OR v.companyId = :companyId)")
     @org.springframework.data.jpa.repository.Modifying
     @org.springframework.transaction.annotation.Transactional
-    int softDelete(@Param("id") UUID id);
+    int softDeleteScoped(@Param("id") UUID id, @Param("companyId") UUID companyId);
+
+    default int softDelete(UUID id) {
+        return softDeleteScoped(id, TenantContext.get());
+    }
 
     /** Soft delete em lote — retorna quantos veículos foram marcados como excluídos */
-    @Query("UPDATE Vehicle v SET v.deletedAt = CURRENT_TIMESTAMP WHERE v.id IN :ids AND v.deletedAt IS NULL")
+    @Query("UPDATE Vehicle v SET v.deletedAt = CURRENT_TIMESTAMP WHERE v.id IN :ids AND v.deletedAt IS NULL " +
+            "AND (:companyId IS NULL OR v.companyId = :companyId)")
     @org.springframework.data.jpa.repository.Modifying
     @org.springframework.transaction.annotation.Transactional
-    int softDeleteAll(@Param("ids") java.util.Collection<UUID> ids);
+    int softDeleteAllScoped(@Param("ids") java.util.Collection<UUID> ids, @Param("companyId") UUID companyId);
+
+    default int softDeleteAll(java.util.Collection<UUID> ids) {
+        return softDeleteAllScoped(ids, TenantContext.get());
+    }
 
     /** Restaura um veículo excluído por engano */
-    @Query("UPDATE Vehicle v SET v.deletedAt = NULL WHERE v.id = :id")
+    @Query("UPDATE Vehicle v SET v.deletedAt = NULL WHERE v.id = :id " +
+            "AND (:companyId IS NULL OR v.companyId = :companyId)")
     @org.springframework.data.jpa.repository.Modifying
     @org.springframework.transaction.annotation.Transactional
-    int restore(@Param("id") UUID id);
+    int restoreScoped(@Param("id") UUID id, @Param("companyId") UUID companyId);
+
+    default int restore(UUID id) {
+        return restoreScoped(id, TenantContext.get());
+    }
 
     /** Desvincula veículos associados a postos de trabalho que serão excluídos */
-    @Query("UPDATE Vehicle v SET v.workPostId = NULL, v.workPostEntity = NULL, v.clientName = NULL WHERE v.workPostId IN :workPostIds")
+    @Query("UPDATE Vehicle v SET v.workPostId = NULL, v.workPostEntity = NULL, v.clientName = NULL " +
+            "WHERE v.workPostId IN :workPostIds AND (:companyId IS NULL OR v.companyId = :companyId)")
     @org.springframework.data.jpa.repository.Modifying
     @org.springframework.transaction.annotation.Transactional
-    int clearWorkPostAllocation(@Param("workPostIds") java.util.Collection<UUID> workPostIds);
+    int clearWorkPostAllocationScoped(@Param("workPostIds") java.util.Collection<UUID> workPostIds,
+            @Param("companyId") UUID companyId);
+
+    default int clearWorkPostAllocation(java.util.Collection<UUID> workPostIds) {
+        return clearWorkPostAllocationScoped(workPostIds, TenantContext.get());
+    }
 
     /** Desvincula veículos com o nome do cliente que será excluído */
-    @Query("UPDATE Vehicle v SET v.clientName = NULL WHERE v.clientName = :clientName")
+    @Query("UPDATE Vehicle v SET v.clientName = NULL WHERE v.clientName = :clientName " +
+            "AND (:companyId IS NULL OR v.companyId = :companyId)")
     @org.springframework.data.jpa.repository.Modifying
     @org.springframework.transaction.annotation.Transactional
-    int clearClientNameAllocation(@Param("clientName") String clientName);
+    int clearClientNameAllocationScoped(@Param("clientName") String clientName, @Param("companyId") UUID companyId);
+
+    default int clearClientNameAllocation(String clientName) {
+        return clearClientNameAllocationScoped(clientName, TenantContext.get());
+    }
 }

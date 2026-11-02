@@ -28,7 +28,8 @@ import {
     ArrowUpDown,
     ArrowUp,
     ArrowDown,
-    Sparkles
+    Sparkles,
+    Warehouse
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -45,7 +46,8 @@ import fleetWorkOrderService, {
     WorkOrderStatus,
     WorkOrderItemType,
     FleetWorkOrder,
-    MaintenanceType
+    MaintenanceType,
+    getOrderResponsibleDisplay
 } from '@/services/fleetWorkOrderService';
 import FleetWorkOrderForm from '@/components/frota/FleetWorkOrderForm';
 import { FleetWorkOrderViewModal } from '@/components/frota/FleetWorkOrderViewModal';
@@ -101,12 +103,16 @@ const FleetWorkOrdersPage: React.FC = () => {
     const { data: garages = [] } = useQuery({
         queryKey: ['garages-for-os-filter'],
         queryFn: () => garageService.list(),
-        staleTime: 60_000,
+        staleTime: 5 * 60_000,
+        gcTime: 30 * 60_000,
     });
 
     const { data: orders = [], isLoading } = useQuery({
         queryKey: ['fleet-work-orders'],
-        queryFn: () => fleetWorkOrderService.findAll()
+        queryFn: () => fleetWorkOrderService.findAll(),
+        staleTime: 60_000, // 1 minuto de dados quentes instantâneos
+        gcTime: 10 * 60_000, // Mantém em cache por 10 minutos na memória
+        refetchOnWindowFocus: false, // Evita engasgos e refetches desnecessários ao alternar abas
     });
 
     const handleUpdateStatus = async (id: string, status: WorkOrderStatus) => {
@@ -189,6 +195,15 @@ const FleetWorkOrdersPage: React.FC = () => {
         completed: orders.filter(o => o.status === WorkOrderStatus.COMPLETED).length,
     }), [orders]);
 
+    const getOrderGarageName = (order: FleetWorkOrder): string => {
+        if (order.garageName && order.garageName.trim()) return order.garageName;
+        if (order.garageId) {
+            const found = garages.find(g => g.id === order.garageId);
+            if (found?.name) return found.name;
+        }
+        return '—';
+    };
+
     const filteredOrders = useMemo(() => {
         return orders.filter(o => {
             if (statusFilter !== 'ALL' && o.status !== statusFilter) return false;
@@ -203,16 +218,17 @@ const FleetWorkOrdersPage: React.FC = () => {
                 const osNum = (o.osNumber || '').toLowerCase();
                 const plate = (o.vehiclePlate || '').toLowerCase();
                 const model = (o.vehicleModel || '').toLowerCase();
-                const mech = (o.mechanicName || '').toLowerCase();
+                const mech = getOrderResponsibleDisplay(o).toLowerCase();
                 const client = (o.clientName || '').toLowerCase();
                 const wp = (o.workPostName || '').toLowerCase();
-                if (!osNum.includes(term) && !plate.includes(term) && !model.includes(term) && !mech.includes(term) && !client.includes(term) && !wp.includes(term)) {
+                const garage = getOrderGarageName(o).toLowerCase();
+                if (!osNum.includes(term) && !plate.includes(term) && !model.includes(term) && !mech.includes(term) && !client.includes(term) && !wp.includes(term) && !garage.includes(term)) {
                     return false;
                 }
             }
             return true;
         });
-    }, [orders, statusFilter, typeFilter, garageFilter, dateFrom, dateTo, searchTerm]);
+    }, [orders, statusFilter, typeFilter, garageFilter, dateFrom, dateTo, searchTerm, garages]);
 
     const sortedOrders = useMemo(() => {
         const arr = [...filteredOrders];
@@ -236,6 +252,10 @@ const FleetWorkOrdersPage: React.FC = () => {
                     aVal = a.vehiclePlate || '';
                     bVal = b.vehiclePlate || '';
                     return sortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+                case 'garage':
+                    aVal = getOrderGarageName(a);
+                    bVal = getOrderGarageName(b);
+                    return sortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
                 case 'client':
                     aVal = a.clientName || '';
                     bVal = b.clientName || '';
@@ -249,8 +269,8 @@ const FleetWorkOrdersPage: React.FC = () => {
                     bVal = b.odometerIn || 0;
                     return sortDir === 'asc' ? aVal - bVal : bVal - aVal;
                 case 'mechanicName':
-                    aVal = a.mechanicName || '';
-                    bVal = b.mechanicName || '';
+                    aVal = getOrderResponsibleDisplay(a);
+                    bVal = getOrderResponsibleDisplay(b);
                     return sortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
                 case 'totalCost':
                     aVal = a.totalCost || 0;
@@ -261,7 +281,7 @@ const FleetWorkOrdersPage: React.FC = () => {
             }
         });
         return arr;
-    }, [filteredOrders, sortField, sortDir]);
+    }, [filteredOrders, sortField, sortDir, garages]);
 
     const handleSort = (field: string) => {
         if (sortField === field) {
@@ -283,33 +303,33 @@ const FleetWorkOrdersPage: React.FC = () => {
         <StandardLayout title="Gestão de Ordem de Serviço">
             <div className="space-y-6">
                 {/* Header Section */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                        <h1 className="text-3xl font-bold text-seguranca-lightgray flex items-center gap-2">
-                            <ClipboardList className="h-8 w-8 text-seguranca-yellow" />
-                            Ordens de Serviço de Manutenção
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                    <div className="text-center lg:text-left">
+                        <h1 className="text-2xl sm:text-3xl font-bold text-seguranca-lightgray flex items-center justify-center lg:justify-start gap-2">
+                            <ClipboardList className="h-7 w-7 sm:h-8 sm:w-8 text-seguranca-yellow" />
+                            Ordens de Serviço
                         </h1>
-                        <p className="text-gray-400">Controle completo de manutenção corretiva e preventiva de equipamentos e veículos.</p>
+                        <p className="text-sm text-gray-400 mt-1">Controle de manutenção corretiva e preventiva.</p>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                         <Button
                             variant="outline"
                             onClick={() => navigate('/manutencao/limpeza')}
-                            className="border-seguranca-yellow text-seguranca-yellow hover:bg-seguranca-yellow/10 font-bold"
+                            className="border-seguranca-yellow text-seguranca-yellow hover:bg-seguranca-yellow/10 font-bold text-xs sm:text-sm h-10"
                         >
-                            <Sparkles className="mr-2 h-4 w-4" /> Nova Solicitação de Limpeza
+                            <Sparkles className="mr-2 h-4 w-4" /> Solicitar Limpeza
                         </Button>
                         <Button
                             onClick={() => { setSelectedOrder(undefined); setIsFormOpen(true); }}
-                            className="bg-seguranca-red hover:bg-seguranca-darkred text-white font-bold"
+                            className="bg-seguranca-red hover:bg-seguranca-darkred text-white font-bold text-xs sm:text-sm h-10"
                         >
-                            <Plus className="mr-2 h-4 w-4" /> Nova Ordem de Serviço
+                            <Plus className="mr-2 h-4 w-4" /> Nova O.S.
                         </Button>
                     </div>
                 </div>
 
                 {/* Cards/Resumo conforme PRD Seção 23 */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
                     <Card className="bg-seguranca-graphite border-l-4 border-l-gray-500">
                         <CardContent className="p-4">
                             <p className="text-xs text-gray-400 font-semibold uppercase">Total de OS</p>
@@ -344,36 +364,39 @@ const FleetWorkOrdersPage: React.FC = () => {
 
                 {/* Filters & Content */}
                 <div className="space-y-4">
-                    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-seguranca-graphite p-3 rounded-lg border border-gray-700">
-                        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                            <div className="relative w-full sm:w-60">
+                    <div className="bg-seguranca-graphite p-3 rounded-lg border border-gray-700 space-y-4">
+                        {/* Top row: Search, Dates, Garage */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                            <div className="relative w-full">
                                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
                                 <Input
                                     placeholder="Pesquisar por OS, placa, modelo..."
                                     value={searchTerm}
                                     onChange={e => setSearchTerm(e.target.value)}
-                                    className="pl-9 bg-seguranca-black border-gray-600 text-sm h-9"
+                                    className="pl-9 bg-seguranca-black border-gray-600 text-sm h-10 w-full"
                                 />
                             </div>
-                            <div className="flex items-center gap-1">
+
+                            <div className="flex items-center gap-2">
                                 <Input
                                     type="date"
                                     value={dateFrom}
                                     onChange={e => setDateFrom(e.target.value)}
-                                    className="bg-seguranca-black border-gray-600 text-xs h-9 w-32 text-gray-300"
+                                    className="bg-seguranca-black border-gray-600 text-xs h-10 flex-1 text-gray-300"
                                     title="Data inicial"
                                 />
-                                <span className="text-gray-500 text-xs">até</span>
+                                <span className="text-gray-500 text-xs shrink-0">até</span>
                                 <Input
                                     type="date"
                                     value={dateTo}
                                     onChange={e => setDateTo(e.target.value)}
-                                    className="bg-seguranca-black border-gray-600 text-xs h-9 w-32 text-gray-300"
+                                    className="bg-seguranca-black border-gray-600 text-xs h-10 flex-1 text-gray-300"
                                     title="Data final"
                                 />
                             </div>
+
                             <Select value={garageFilter} onValueChange={setGarageFilter}>
-                                <SelectTrigger className="bg-seguranca-black border-gray-600 text-xs h-9 w-44">
+                                <SelectTrigger className="bg-seguranca-black border-gray-600 text-sm h-10 w-full">
                                     <SelectValue placeholder="Garagem" />
                                 </SelectTrigger>
                                 <SelectContent className="bg-seguranca-black border-gray-600 z-[10060]">
@@ -383,52 +406,58 @@ const FleetWorkOrdersPage: React.FC = () => {
                                     ))}
                                 </SelectContent>
                             </Select>
-                            <Button
-                                variant={typeFilter === 'ALL' ? 'default' : 'outline'}
-                                onClick={() => setTypeFilter('ALL')}
-                                size="sm"
-                                className="h-9 text-xs"
-                            >
-                                Todos Tipos
-                            </Button>
-                            <Button
-                                variant={typeFilter === MaintenanceType.CORRETIVA ? 'default' : 'outline'}
-                                onClick={() => setTypeFilter(MaintenanceType.CORRETIVA)}
-                                size="sm"
-                                className="h-9 text-xs border-orange-600/40 text-orange-400"
-                            >
-                                🔧 Corretiva
-                            </Button>
-                            <Button
-                                variant={typeFilter === MaintenanceType.PREVENTIVA ? 'default' : 'outline'}
-                                onClick={() => setTypeFilter(MaintenanceType.PREVENTIVA)}
-                                size="sm"
-                                className="h-9 text-xs border-green-600/40 text-green-400"
-                            >
-                                📋 Preventiva
-                            </Button>
+
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant={typeFilter === 'ALL' ? 'default' : 'outline'}
+                                    onClick={() => setTypeFilter('ALL')}
+                                    size="sm"
+                                    className="flex-1 h-10 text-xs font-semibold"
+                                >
+                                    Todos Tipos
+                                </Button>
+                                <Button
+                                    variant={typeFilter === MaintenanceType.CORRETIVA ? 'default' : 'outline'}
+                                    onClick={() => setTypeFilter(MaintenanceType.CORRETIVA)}
+                                    size="sm"
+                                    className="flex-1 h-10 text-xs border-orange-600/40 text-orange-400 font-semibold"
+                                >
+                                    🔧 Corretiva
+                                </Button>
+                                <Button
+                                    variant={typeFilter === MaintenanceType.PREVENTIVA ? 'default' : 'outline'}
+                                    onClick={() => setTypeFilter(MaintenanceType.PREVENTIVA)}
+                                    size="sm"
+                                    className="flex-1 h-10 text-xs border-green-600/40 text-green-400 font-semibold"
+                                >
+                                    📋 Preventiva
+                                </Button>
+                            </div>
                         </div>
 
-                        <div className="flex items-center gap-1 overflow-x-auto w-full sm:w-auto">
-                            <Button
-                                variant={statusFilter === 'ALL' ? 'default' : 'outline'}
-                                onClick={() => setStatusFilter('ALL')}
-                                size="sm"
-                                className="h-8 text-xs"
-                            >
-                                Todos Status
-                            </Button>
-                            {Object.entries(STATUS_CONFIG).map(([status, config]) => (
+                        {/* Bottom row: Status scrollable bar */}
+                        <div className="border-t border-gray-700/50 pt-3">
+                            <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
                                 <Button
-                                    key={status}
-                                    variant={statusFilter === status ? 'default' : 'outline'}
-                                    onClick={() => setStatusFilter(status as WorkOrderStatus)}
+                                    variant={statusFilter === 'ALL' ? 'default' : 'outline'}
+                                    onClick={() => setStatusFilter('ALL')}
                                     size="sm"
-                                    className={`h-8 text-xs ${statusFilter === status ? config.color : 'text-gray-400'}`}
+                                    className="h-8 text-[11px] px-3 shrink-0 font-bold"
                                 >
-                                    {config.label}
+                                    TODOS STATUS
                                 </Button>
-                            ))}
+                                {Object.entries(STATUS_CONFIG).map(([status, config]) => (
+                                    <Button
+                                        key={status}
+                                        variant={statusFilter === status ? 'default' : 'outline'}
+                                        onClick={() => setStatusFilter(status as WorkOrderStatus)}
+                                        size="sm"
+                                        className={`h-8 text-[11px] px-3 shrink-0 font-bold ${statusFilter === status ? config.color : 'text-gray-400 border-gray-700'}`}
+                                    >
+                                        {config.label.toUpperCase()}
+                                    </Button>
+                                ))}
+                            </div>
                         </div>
                     </div>
 
@@ -436,84 +465,118 @@ const FleetWorkOrdersPage: React.FC = () => {
                         <CardContent className="p-0">
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm text-left">
-                                    <thead className="bg-seguranca-black/50 text-gray-400 uppercase text-xs">
+                                    <thead className="bg-seguranca-black/50 text-gray-400 uppercase text-[10px] sm:text-xs">
                                         <tr>
-                                            <th className="p-4 cursor-pointer hover:text-white transition-colors select-none" onClick={() => handleSort('osNumber')}>
+                                            <th className="p-3 sm:p-4 cursor-pointer hover:text-white transition-colors select-none" onClick={() => handleSort('osNumber')}>
                                                 <span className="flex items-center">Nº OS <SortIcon field="osNumber" /></span>
                                             </th>
-                                            <th className="p-4 cursor-pointer hover:text-white transition-colors select-none" onClick={() => handleSort('maintenanceType')}>
+                                            <th className="p-3 sm:p-4 cursor-pointer hover:text-white transition-colors select-none" onClick={() => handleSort('maintenanceType')}>
                                                 <span className="flex items-center">Tipo <SortIcon field="maintenanceType" /></span>
                                             </th>
-                                            <th className="p-4 cursor-pointer hover:text-white transition-colors select-none" onClick={() => handleSort('status')}>
+                                            <th className="p-3 sm:p-4 cursor-pointer hover:text-white transition-colors select-none" onClick={() => handleSort('status')}>
                                                 <span className="flex items-center">Status <SortIcon field="status" /></span>
                                             </th>
-                                            <th className="p-4 cursor-pointer hover:text-white transition-colors select-none" onClick={() => handleSort('vehiclePlate')}>
-                                                <span className="flex items-center">Equipamento / Placa <SortIcon field="vehiclePlate" /></span>
+                                            <th className="p-3 sm:p-4 cursor-pointer hover:text-white transition-colors select-none" onClick={() => handleSort('vehiclePlate')}>
+                                                <span className="flex items-center">Equipamento <SortIcon field="vehiclePlate" /></span>
                                             </th>
-                                            <th className="p-4 cursor-pointer hover:text-white transition-colors select-none" onClick={() => handleSort('client')}>
+                                            <th className="hidden sm:table-cell p-3 sm:p-4 cursor-pointer hover:text-white transition-colors select-none" onClick={() => handleSort('garage')}>
+                                                <span className="flex items-center">Garagem <SortIcon field="garage" /></span>
+                                            </th>
+                                            <th className="hidden lg:table-cell p-4 cursor-pointer hover:text-white transition-colors select-none" onClick={() => handleSort('client')}>
                                                 <span className="flex items-center">Cliente / Obra <SortIcon field="client" /></span>
                                             </th>
-                                            <th className="p-4 cursor-pointer hover:text-white transition-colors select-none" onClick={() => handleSort('stopDate')}>
+                                            <th className="hidden md:table-cell p-4 cursor-pointer hover:text-white transition-colors select-none" onClick={() => handleSort('stopDate')}>
                                                 <span className="flex items-center">Data Parada <SortIcon field="stopDate" /></span>
                                             </th>
-                                            <th className="p-4 cursor-pointer hover:text-white transition-colors select-none" onClick={() => handleSort('odometerIn')}>
+                                            <th className="hidden xl:table-cell p-4 cursor-pointer hover:text-white transition-colors select-none" onClick={() => handleSort('odometerIn')}>
                                                 <span className="flex items-center">KM Parada <SortIcon field="odometerIn" /></span>
                                             </th>
-                                            <th className="p-4 cursor-pointer hover:text-white transition-colors select-none" onClick={() => handleSort('mechanicName')}>
+                                            <th className="hidden md:table-cell p-4 cursor-pointer hover:text-white transition-colors select-none" onClick={() => handleSort('mechanicName')}>
                                                 <span className="flex items-center">Responsável <SortIcon field="mechanicName" /></span>
                                             </th>
-                                            <th className="p-4 text-right cursor-pointer hover:text-white transition-colors select-none" onClick={() => handleSort('totalCost')}>
-                                                <span className="flex items-center justify-end">Custo Total <SortIcon field="totalCost" /></span>
+                                            <th className="p-3 sm:p-4 text-right cursor-pointer hover:text-white transition-colors select-none" onClick={() => handleSort('totalCost')}>
+                                                <span className="flex items-center justify-end">Custo <SortIcon field="totalCost" /></span>
                                             </th>
-                                            <th className="p-4 text-center">Ações</th>
+                                            <th className="p-3 sm:p-4 text-center">Ações</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-700">
-                                        {sortedOrders.map(order => (
+                                        {isLoading && orders.length === 0 ? (
+                                            Array.from({ length: 5 }).map((_, idx) => (
+                                                <tr key={`skeleton-${idx}`} className="animate-pulse">
+                                                    <td className="p-3 sm:p-4"><div className="h-4 w-16 sm:w-24 bg-gray-700 rounded" /></td>
+                                                    <td className="p-3 sm:p-4"><div className="h-5 w-16 sm:w-20 bg-gray-700 rounded-full" /></td>
+                                                    <td className="p-3 sm:p-4"><div className="h-5 w-12 sm:w-16 bg-gray-700 rounded-full" /></td>
+                                                    <td className="p-3 sm:p-4"><div className="h-4 w-20 sm:w-28 bg-gray-700 rounded mb-1" /><div className="h-3 w-28 sm:w-36 bg-gray-800 rounded" /></td>
+                                                    <td className="hidden sm:table-cell p-3 sm:p-4"><div className="h-4 w-24 bg-gray-700 rounded" /></td>
+                                                    <td className="hidden lg:table-cell p-4"><div className="h-4 w-28 bg-gray-700 rounded mb-1" /><div className="h-3 w-20 bg-gray-800 rounded" /></td>
+                                                    <td className="hidden md:table-cell p-4"><div className="h-4 w-24 bg-gray-700 rounded" /></td>
+                                                    <td className="hidden xl:table-cell p-4"><div className="h-4 w-16 bg-gray-700 rounded" /></td>
+                                                    <td className="hidden md:table-cell p-4"><div className="h-4 w-28 bg-gray-700 rounded" /></td>
+                                                    <td className="p-3 sm:p-4 text-right"><div className="h-4 w-16 sm:w-20 bg-gray-700 rounded ml-auto" /></td>
+                                                    <td className="p-3 sm:p-4"><div className="h-8 w-20 sm:w-24 bg-gray-700 rounded mx-auto" /></td>
+                                                </tr>
+                                            ))
+                                        ) : sortedOrders.map(order => (
                                             <tr key={order.id} className="hover:bg-seguranca-black/30 transition-colors">
-                                                <td className="p-4 font-bold text-seguranca-lightgray">
+                                                <td className="p-3 sm:p-4 font-bold text-seguranca-lightgray text-xs sm:text-sm">
                                                     {order.osNumber || `OS-${order.id.slice(0, 8)}`}
                                                 </td>
-                                                <td className="p-4">
-                                                    <Badge variant="outline" className={`font-bold ${order.maintenanceType === MaintenanceType.PREVENTIVA ? 'border-green-500 text-green-400' : 'border-orange-500 text-orange-400'}`}>
-                                                        {order.maintenanceType || 'CORRETIVA'}
+                                                <td className="p-3 sm:p-4">
+                                                    <Badge variant="outline" className={`font-bold text-[10px] sm:text-xs px-1.5 sm:px-2.5 ${order.maintenanceType === MaintenanceType.PREVENTIVA ? 'border-green-500 text-green-400' : 'border-orange-500 text-orange-400'}`}>
+                                                        {order.maintenanceType === MaintenanceType.PREVENTIVA ? 'PREV' : (order.maintenanceType === MaintenanceType.CORRETIVA ? 'CORR' : order.maintenanceType || 'CORR')}
                                                     </Badge>
                                                 </td>
-                                                <td className="p-4">
+                                                <td className="p-3 sm:p-4">
                                                     {order.status === WorkOrderStatus.WAITING_PARTS ? (
                                                         <PartsProcurementHoverCard workOrderId={order.id} osNumber={order.osNumber}>
-                                                            <Badge className={`${STATUS_CONFIG[order.status]?.color || 'bg-gray-600'} border-none font-bold text-xs cursor-pointer hover:opacity-90 transition-opacity`}>
+                                                            <Badge className={`${STATUS_CONFIG[order.status]?.color || 'bg-gray-600'} border-none font-bold text-[10px] sm:text-xs cursor-pointer hover:opacity-90 transition-opacity px-1.5 sm:px-2.5`}>
                                                                 {STATUS_CONFIG[order.status]?.label || order.status}
                                                             </Badge>
                                                         </PartsProcurementHoverCard>
                                                     ) : (
-                                                        <Badge className={`${STATUS_CONFIG[order.status]?.color || 'bg-gray-600'} border-none font-bold text-xs`}>
+                                                        <Badge className={`${STATUS_CONFIG[order.status]?.color || 'bg-gray-600'} border-none font-bold text-[10px] sm:text-xs px-1.5 sm:px-2.5`}>
                                                             {STATUS_CONFIG[order.status]?.label || order.status}
                                                         </Badge>
                                                     )}
                                                 </td>
-                                                <td className="p-4">
-                                                    <div className="font-semibold text-gray-200">{order.vehiclePlate || 'N/A'}</div>
-                                                    <div className="text-xs text-gray-400">{order.vehicleModel}</div>
+                                                <td className="p-3 sm:p-4">
+                                                    <div className="font-semibold text-gray-200 text-xs sm:text-sm">{order.vehiclePlate || 'N/A'}</div>
+                                                    <div className="text-[10px] text-gray-400 truncate max-w-[80px] sm:max-w-none">{order.vehicleModel}</div>
+                                                    {/* Em telas muito pequenas exibe também a garagem resumida */}
+                                                    <div className="text-[10px] text-seguranca-yellow/90 sm:hidden flex items-center gap-1 mt-0.5">
+                                                        <Warehouse className="h-3 w-3 shrink-0" />
+                                                        <span className="truncate">{getOrderGarageName(order)}</span>
+                                                    </div>
                                                 </td>
-                                                <td className="p-4 text-gray-300">
+                                                <td className="hidden sm:table-cell p-3 sm:p-4 text-gray-300">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <Warehouse className="h-3.5 w-3.5 text-seguranca-yellow/80 shrink-0" />
+                                                        <span className="font-medium text-xs sm:text-sm text-gray-200 whitespace-nowrap">
+                                                            {getOrderGarageName(order)}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td className="hidden lg:table-cell p-4 text-gray-300">
                                                     <div className="font-medium text-gray-200">{order.clientName || '—'}</div>
                                                     {order.workPostName && <div className="text-xs text-gray-400">{order.workPostName}</div>}
                                                 </td>
-                                                <td className="p-4 text-gray-300">
-                                                    {formatDisplayDate(order.stopDate)}
-                                                    {order.stopTime && <span className="text-xs text-gray-500 ml-1">({order.stopTime})</span>}
+                                                <td className="hidden md:table-cell p-4 text-gray-300 text-xs sm:text-sm">
+                                                    <div>
+                                                        {formatDisplayDate(order.stopDate)}
+                                                        {order.stopTime && <span className="text-xs text-gray-500 ml-1">({order.stopTime})</span>}
+                                                    </div>
                                                 </td>
-                                                <td className="p-4 text-gray-300 font-mono">
+                                                <td className="hidden xl:table-cell p-4 text-gray-300 font-mono text-xs sm:text-sm">
                                                     {order.odometerIn != null ? `${order.odometerIn.toLocaleString('pt-BR')} km` : '—'}
                                                 </td>
-                                                <td className="p-4 text-gray-300">
-                                                    {order.mechanicName || 'Não atribuído'}
+                                                <td className="hidden md:table-cell p-4 text-gray-300 text-xs sm:text-sm">
+                                                    {getOrderResponsibleDisplay(order)}
                                                 </td>
-                                                <td className="p-4 text-right font-mono font-bold text-seguranca-lightgray">
+                                                <td className="p-3 sm:p-4 text-right font-mono font-bold text-seguranca-lightgray text-xs sm:text-sm">
                                                     {(order.totalCost || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                                 </td>
-                                                <td className="p-4">
+                                                <td className="p-3 sm:p-4">
                                                     <div className="flex items-center justify-center gap-1">
                                                         <Button
                                                             variant="outline"
@@ -521,10 +584,10 @@ const FleetWorkOrdersPage: React.FC = () => {
                                                             onClick={() => handleGeneratePDF(order)}
                                                             disabled={generatingPdfId === order.id}
                                                             title="Visualizar e Imprimir OS"
-                                                            className="border-red-500/60 text-red-400 hover:bg-red-500/10 hover:text-red-300 h-8 px-2.5 text-xs font-semibold"
+                                                            className="hidden sm:flex border-red-500/60 text-red-400 hover:bg-red-500/10 hover:text-red-300 h-8 px-2.5 text-xs font-semibold"
                                                         >
                                                             <FileText className="mr-1 h-3.5 w-3.5" />
-                                                            Visualizar OS
+                                                            Visualizar
                                                         </Button>
                                                         <DropdownMenu>
                                                             <DropdownMenuTrigger asChild>
@@ -532,9 +595,12 @@ const FleetWorkOrdersPage: React.FC = () => {
                                                                     <MoreHorizontal className="h-4 w-4" />
                                                                 </Button>
                                                             </DropdownMenuTrigger>
-                                                            <DropdownMenuContent align="end" className="bg-seguranca-graphite border-gray-600">
+                                                            <DropdownMenuContent align="end" className="bg-seguranca-graphite border-gray-600 z-[10100]">
                                                                 <DropdownMenuItem onClick={() => { setSelectedOrder(order); setIsFormOpen(true); }} className="text-gray-200">
                                                                     <Eye className="mr-2 h-4 w-4" /> Visualizar / Editar
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem onClick={() => handleGeneratePDF(order)} className="sm:hidden text-red-400">
+                                                                    <FileText className="mr-2 h-4 w-4" /> Visualizar PDF
                                                                 </DropdownMenuItem>
 
                                                                 <DropdownMenuItem
@@ -629,8 +695,27 @@ const FleetWorkOrdersPage: React.FC = () => {
 
             <FleetWorkOrderForm
                 isOpen={isFormOpen}
-                onClose={() => setIsFormOpen(false)}
-                onSuccess={() => { setIsFormOpen(false); queryClient.invalidateQueries({ queryKey: ['fleet-work-orders'] }); }}
+                onClose={() => {
+                    setIsFormOpen(false);
+                    setSelectedOrder(undefined);
+                    setTimeout(() => {
+                        if (!document.querySelector('[role="dialog"], [role="alertdialog"]')) {
+                            document.body.style.pointerEvents = '';
+                            document.body.style.overflow = '';
+                        }
+                    }, 50);
+                }}
+                onSuccess={() => {
+                    setIsFormOpen(false);
+                    setSelectedOrder(undefined);
+                    queryClient.invalidateQueries({ queryKey: ['fleet-work-orders'] });
+                    setTimeout(() => {
+                        if (!document.querySelector('[role="dialog"], [role="alertdialog"]')) {
+                            document.body.style.pointerEvents = '';
+                            document.body.style.overflow = '';
+                        }
+                    }, 50);
+                }}
                 order={selectedOrder}
             />
 
@@ -639,6 +724,12 @@ const FleetWorkOrdersPage: React.FC = () => {
                 onClose={() => {
                     setIsPdfModalOpen(false);
                     setViewingPdfOrder(null);
+                    setTimeout(() => {
+                        if (!document.querySelector('[role="dialog"], [role="alertdialog"]')) {
+                            document.body.style.pointerEvents = '';
+                            document.body.style.overflow = '';
+                        }
+                    }, 50);
                 }}
                 order={viewingPdfOrder}
             />
@@ -649,6 +740,12 @@ const FleetWorkOrdersPage: React.FC = () => {
                 onClose={() => {
                     setIsPurchaseModalOpen(false);
                     setPurchaseModalOrder(null);
+                    setTimeout(() => {
+                        if (!document.querySelector('[role="dialog"], [role="alertdialog"]')) {
+                            document.body.style.pointerEvents = '';
+                            document.body.style.overflow = '';
+                        }
+                    }, 50);
                 }}
                 order={purchaseModalOrder}
                 onSuccess={() => {

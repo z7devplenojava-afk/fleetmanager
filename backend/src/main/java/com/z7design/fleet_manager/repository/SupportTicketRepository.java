@@ -12,6 +12,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.z7design.fleet_manager.model.SupportTicket;
+import com.z7design.fleet_manager.tenant.TenantContext;
 import com.z7design.fleet_manager.model.enums.TicketStatus;
 import com.z7design.fleet_manager.model.enums.TicketPriority;
 import com.z7design.fleet_manager.model.enums.TicketCategory;
@@ -96,15 +97,26 @@ public interface SupportTicketRepository extends JpaRepository<SupportTicket, UU
     /**
      * Calcula tempo mÃ©dio de resoluÃ§Ã£o (em horas)
      */
-    @Query(value = "SELECT AVG(EXTRACT(EPOCH FROM (resolved_at - created_at)) / 3600.0) FROM support_tickets WHERE resolved_at IS NOT NULL", nativeQuery = true)
-    Double getAverageResolutionTime();
-    
+    @Query(value = "SELECT AVG(EXTRACT(EPOCH FROM (resolved_at - created_at)) / 3600.0) FROM support_tickets " +
+           "WHERE resolved_at IS NOT NULL " +
+           "AND (CAST(:companyId AS uuid) IS NULL OR company_id = CAST(:companyId AS uuid))", nativeQuery = true)
+    Double getAverageResolutionTimeScoped(@Param("companyId") UUID companyId);
+
+    default Double getAverageResolutionTime() {
+        return getAverageResolutionTimeScoped(TenantContext.get());
+    }
+
     /**
-     * Taxa de resoluÃ§Ã£o (tickets resolvidos / total)
+     * Taxa de resolução (tickets resolvidos / total)
      */
     @Query(value = "SELECT (COUNT(CASE WHEN status = 'RESOLVED' THEN 1 END) * 100.0 / NULLIF(COUNT(*), 0)) " +
-           "FROM support_tickets WHERE created_at >= :since", nativeQuery = true)
-    Double getResolutionRate(@Param("since") LocalDateTime since);
+           "FROM support_tickets WHERE created_at >= :since " +
+           "AND (CAST(:companyId AS uuid) IS NULL OR company_id = CAST(:companyId AS uuid))", nativeQuery = true)
+    Double getResolutionRateScoped(@Param("since") LocalDateTime since, @Param("companyId") UUID companyId);
+
+    default Double getResolutionRate(LocalDateTime since) {
+        return getResolutionRateScoped(since, TenantContext.get());
+    }
 }
 
 

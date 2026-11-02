@@ -123,6 +123,9 @@ export const CompanyMotivationalCarousel: React.FC<CompanyMotivationalCarouselPr
                 alt={`Banner motivacional ${idx + 1} - ${displayName}`}
                 className="w-full h-full object-cover select-none"
                 loading={idx === 0 ? 'eager' : 'lazy'}
+                onError={() => {
+                  setBanners(prev => prev.filter(u => u !== url));
+                }}
               />
               {/* Gradiente sutil nas bordas para integração com o tema escuro */}
               <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 via-transparent to-black/20 pointer-events-none" />

@@ -21,5 +21,11 @@ public class ProfileResponse {
     private String whatsapp;
     private boolean active;
     private List<String> roles;
+    private Boolean firstAccessCompleted;
+    private Boolean requiresLgpdConsent;
+    private UUID employeeId;
+    private String position;
+    private String department;
+    private Boolean isDriver;
 }
 

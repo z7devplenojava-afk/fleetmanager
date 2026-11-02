@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
+import org.hibernate.annotations.Filter;
 
 @Entity
 @Table(name = "notification_settings")
@@ -15,6 +16,7 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Filter(name = "tenantFilter", condition = "company_id = :companyId")
 public class NotificationSettings {
     
     @Id

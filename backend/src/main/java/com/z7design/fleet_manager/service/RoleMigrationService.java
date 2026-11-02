@@ -137,30 +137,24 @@ public class RoleMigrationService {
         try {
             log.info("Verificando e criando roles padrÃ£o (assÃ­ncrono)...");
 
-            // Verificar se jÃ¡ existem roles
-            long roleCount = roleRepository.count();
-            if (roleCount > 0) {
-                log.info("Roles jÃ¡ existem no banco. Pulando criaÃ§Ã£o de roles padrÃ£o.");
-                return;
-            }
-
+            // Criar roles padrão que ainda não existirem
             createDefaultRoles();
-            log.info("Roles padrÃ£o criadas com sucesso!");
+            log.info("Roles padrão verificadas com sucesso!");
         } catch (Exception e) {
-            log.error("âŒ Erro durante criaÃ§Ã£o de roles padrÃ£o: {}", e.getMessage(), e);
-            // NÃ£o re-lanÃ§ar exceÃ§Ã£o para nÃ£o crashar a aplicaÃ§Ã£o
-            // A criaÃ§Ã£o de roles padrÃ£o nÃ£o Ã© crÃ­tica para o funcionamento bÃ¡sico
+            log.error("❌ Erro durante verificação de roles padrão: {}", e.getMessage(), e);
         }
     }
 
     private void createDefaultRoles() {
-        // Criar roles padrÃ£o se nÃ£o existirem
+        // Criar roles padrão se não existirem
         String[] defaultRoles = {
                 "FLEX_ADMIN",
                 "COMPANY_ADMIN",
                 "SUPER_ADMIN",
                 "ADMIN",
                 "RH",
+                "SST",
+                "SEGURANCA_DO_TRABALHO",
                 "FINANCEIRO",
                 "SUPERVISOR",
                 "TI_SUPORTE",
@@ -168,8 +162,14 @@ public class RoleMigrationService {
                 "USER",
                 "MANUTENCAO",
                 "MECANICO",
+                "ANALISTA_DE_FROTA",
+                "ANALISTA_FROTA",
                 "GESTOR_TRAFEGO",
                 "GESTOR_DE_TRAFEGO",
+                "ENCARREGADO_DE_TRANSPORTES",
+                "ENCARREGADO_TRANSPORTES",
+                "ENCARREGADO_DE_TRAFEGO",
+                "ENCARREGADO_TRAFEGO",
                 "MOTORISTA",
                 "ALMOXARIFADO",
                 "COMPRAS",
@@ -179,6 +179,7 @@ public class RoleMigrationService {
                 "GESTOR_FINANCEIRO",
                 "GESTOR_OPERACIONAL",
                 "AUXILIAR_ADMINISTRATIVO",
+                "AUXI_ADMINISTRATIVO",
                 "AUXILIAR_DE_RH",
                 "AUXILIAR_DE_DEPARTAMENTO_PESSOAL",
                 "ASSISTENTE_OPERACIONAL",

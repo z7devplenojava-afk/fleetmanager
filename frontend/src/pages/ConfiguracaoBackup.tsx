@@ -102,7 +102,7 @@ const ConfiguracaoBackup: React.FC = () => {
   const loadConfigurations = async () => {
     try {
       const response = await api.get('/api/backup/configurations');
-      const configs = response.data;
+      const configs = Array.isArray(response?.data) ? response.data : [];
 
       const local = configs.find((c: any) => c.type === 'LOCAL');
       const remote = configs.find((c: any) => c.type === 'REMOTE');
@@ -146,7 +146,7 @@ const ConfiguracaoBackup: React.FC = () => {
   const loadHistory = async () => {
     try {
       const response = await api.get('/api/backup/history');
-      setHistory(response.data);
+      setHistory(Array.isArray(response?.data) ? response.data : []);
     } catch (error) {
       console.error('Erro ao carregar histórico:', error);
     }
@@ -233,10 +233,11 @@ const ConfiguracaoBackup: React.FC = () => {
   };
 
   const formatBytes = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
+    if (!bytes || bytes <= 0 || isNaN(bytes)) return '0 Bytes';
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
+    if (i < 0 || i >= sizes.length) return '0 Bytes';
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
   };
 

@@ -27,7 +27,7 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
-@Filter(name = "tenantFilter", condition = "company_id = :companyId")
+@Filter(name = "tenantFilter", condition = "(company_id = :companyId OR company_id IS NULL)")
 public class EscalaOperacional implements TenantAware {
 
     public static final String STATUS_PLANEJADA = "PLANEJADA";

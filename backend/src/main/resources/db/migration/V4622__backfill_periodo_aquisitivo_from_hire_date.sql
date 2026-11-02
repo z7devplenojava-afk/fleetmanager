@@ -8,6 +8,18 @@
 --   dias_saldo         = dias_direito - dias ja gozados (vacations APPROVED no periodo)
 -- Idempotente: nao insere PA ja existente (employee_id, data_inicio).
 
+CREATE TABLE IF NOT EXISTS absences (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    employee_id UUID NOT NULL,
+    absence_date DATE NOT NULL,
+    absence_type VARCHAR(30) DEFAULT 'UNAUTHORIZED',
+    status VARCHAR(20) DEFAULT 'CONFIRMED',
+    is_justified BOOLEAN NOT NULL DEFAULT FALSE,
+    company_id UUID,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 WITH emp AS (
     SELECT id AS employee_id, hire_date
     FROM employees

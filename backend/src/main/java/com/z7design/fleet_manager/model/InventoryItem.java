@@ -10,6 +10,9 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 @Entity
 @Table(name = "inventory_items")
 @Data
@@ -24,10 +27,12 @@ public class InventoryItem {
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "inventory_id", nullable = false)
+    @JsonIgnore
     private Inventory inventory;
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Product product;
     
     @Column(nullable = false, length = 100)

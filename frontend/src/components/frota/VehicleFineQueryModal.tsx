@@ -251,22 +251,22 @@ export const VehicleFineQueryModal: React.FC<VehicleFineQueryModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto p-6 bg-card border-border text-foreground shadow-2xl">
-        <DialogHeader className="border-b border-border pb-4">
+      <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto p-3.5 sm:p-6 bg-card border-border text-foreground shadow-2xl w-[96vw] sm:w-full">
+        <DialogHeader className="border-b border-border pb-3 sm:pb-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-blue-500/10 text-blue-400 rounded-xl border border-blue-500/20 shadow-sm">
-                <Car className="h-6 w-6" />
+            <div className="flex items-center gap-2.5 sm:gap-3">
+              <div className="p-2 sm:p-2.5 bg-blue-500/10 text-blue-400 rounded-xl border border-blue-500/20 shadow-sm shrink-0">
+                <Car className="h-5 w-5 sm:h-6 sm:w-6" />
               </div>
               <div>
-                <DialogTitle className="text-xl font-bold flex items-center gap-2 text-foreground">
-                  Consulta de Multas, Débitos e Restrições Veiculares
-                  <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-xs">
+                <DialogTitle className="text-base sm:text-xl font-bold flex flex-wrap items-center gap-1.5 sm:gap-2 text-foreground leading-tight">
+                  Consulta de Multas e Restrições Veiculares
+                  <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[10px] sm:text-xs">
                     Parte Diária Integrada
                   </Badge>
                 </DialogTitle>
-                <DialogDescription className="text-muted-foreground text-sm">
-                  Consulta consolidada de autuações governamentais com apuração inteligente do motorista por rotas e diárias.
+                <DialogDescription className="text-muted-foreground text-xs sm:text-sm mt-0.5">
+                  Consulta consolidada de autuações com apuração inteligente do motorista por rotas e diárias.
                 </DialogDescription>
               </div>
             </div>
@@ -274,35 +274,35 @@ export const VehicleFineQueryModal: React.FC<VehicleFineQueryModalProps> = ({
         </DialogHeader>
 
         {/* Formulário de Busca com Abas/Alternador */}
-        <div className="bg-muted/20 p-4 rounded-xl border border-border mt-4">
+        <div className="bg-muted/20 p-3 sm:p-4 rounded-xl border border-border mt-3 sm:mt-4">
           {/* Alternador de Modo: Frota vs Manual */}
-          <div className="flex items-center justify-between flex-wrap gap-2 mb-4 pb-3 border-b border-border/60">
-            <div className="flex items-center gap-1.5 p-1 bg-muted/40 rounded-lg border border-border">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 mb-3 sm:mb-4 pb-3 border-b border-border/60">
+            <div className="grid grid-cols-2 sm:flex sm:items-center gap-1.5 p-1 bg-muted/40 rounded-lg border border-border w-full sm:w-auto">
               <button
                 type="button"
                 onClick={() => setSearchMode('fleet')}
                 className={cn(
-                  "flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold transition-all",
+                  "flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-semibold transition-all text-center",
                   searchMode === 'fleet'
                     ? "bg-blue-600 text-white shadow-sm"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                 )}
               >
-                <Database className="h-3.5 w-3.5" />
-                Buscar da Base do Sistema
+                <Database className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">Base do Sistema</span>
               </button>
               <button
                 type="button"
                 onClick={() => setSearchMode('manual')}
                 className={cn(
-                  "flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold transition-all",
+                  "flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-semibold transition-all text-center",
                   searchMode === 'manual'
                     ? "bg-blue-600 text-white shadow-sm"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                 )}
               >
-                <Keyboard className="h-3.5 w-3.5" />
-                Informar Manualmente
+                <Keyboard className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">Manual</span>
               </button>
             </div>
 
@@ -476,7 +476,7 @@ export const VehicleFineQueryModal: React.FC<VehicleFineQueryModalProps> = ({
           )}
 
           {/* Grid de Campos (Placa, RENAVAM, UF e Consultar) */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 items-end">
             <div>
               <Label className="text-xs font-semibold text-foreground/80">Placa do Veículo *</Label>
               <Input
@@ -488,7 +488,7 @@ export const VehicleFineQueryModal: React.FC<VehicleFineQueryModalProps> = ({
                     setSelectedVehicle(null);
                   }
                 }}
-                className="mt-1 font-mono uppercase tracking-wider font-semibold text-base bg-background/60 border-border focus-visible:ring-blue-500"
+                className="mt-1 font-mono uppercase tracking-wider font-semibold text-base bg-background/60 border-border focus-visible:ring-blue-500 h-10"
                 maxLength={8}
                 disabled={loading}
               />
@@ -500,7 +500,7 @@ export const VehicleFineQueryModal: React.FC<VehicleFineQueryModalProps> = ({
                 placeholder="Ex: 00123456789"
                 value={renavam}
                 onChange={(e) => setRenavam(e.target.value.replace(/\D/g, ''))}
-                className="mt-1 bg-background/60 border-border focus-visible:ring-blue-500"
+                className="mt-1 bg-background/60 border-border focus-visible:ring-blue-500 h-10"
                 maxLength={11}
                 disabled={loading}
               />
@@ -512,7 +512,7 @@ export const VehicleFineQueryModal: React.FC<VehicleFineQueryModalProps> = ({
                 placeholder="MG"
                 value={uf}
                 onChange={(e) => setUf(e.target.value.toUpperCase())}
-                className="mt-1 uppercase bg-background/60 border-border focus-visible:ring-blue-500"
+                className="mt-1 uppercase bg-background/60 border-border focus-visible:ring-blue-500 h-10"
                 maxLength={2}
                 disabled={loading}
               />
@@ -522,7 +522,7 @@ export const VehicleFineQueryModal: React.FC<VehicleFineQueryModalProps> = ({
               <Button
                 onClick={() => handleSearch(false)}
                 disabled={loading || !placa.trim()}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm transition-all"
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm transition-all h-10 text-xs sm:text-sm"
               >
                 {loading ? (
                   <>
@@ -544,7 +544,7 @@ export const VehicleFineQueryModal: React.FC<VehicleFineQueryModalProps> = ({
                   title="Forçar atualização na API externa (ignorar cache)"
                   onClick={() => handleSearch(true)}
                   disabled={loading}
-                  className="border-border bg-background/60 hover:bg-muted text-foreground"
+                  className="border-border bg-background/60 hover:bg-muted text-foreground h-10 w-10 shrink-0"
                 >
                   <RefreshCw className={`h-4 w-4 text-muted-foreground ${loading ? 'animate-spin' : ''}`} />
                 </Button>
@@ -616,84 +616,84 @@ export const VehicleFineQueryModal: React.FC<VehicleFineQueryModalProps> = ({
             </div>
 
             {/* Cards de Resumo */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
               <Card className="shadow-sm border-border bg-card">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-xs font-semibold text-muted-foreground uppercase flex items-center gap-1.5">
-                    <Car className="h-3.5 w-3.5 text-blue-400" />
+                <CardHeader className="p-3 sm:p-4 pb-1 sm:pb-2">
+                  <CardTitle className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase flex items-center gap-1.5">
+                    <Car className="h-3.5 w-3.5 text-blue-400 shrink-0" />
                     Veículo
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="text-lg font-bold text-foreground tracking-tight">
+                <CardContent className="p-3 sm:p-4 pt-0">
+                  <div className="text-sm sm:text-lg font-bold text-foreground tracking-tight truncate">
                     {result.dados_veiculo?.marca_modelo || 'N/D'}
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1 flex items-center justify-between">
-                    <span>Placa: <strong className="text-foreground font-mono">{result.dados_veiculo?.placa}</strong></span>
-                    <span>Ano: {result.dados_veiculo?.ano_fabricacao || '-'}/{result.dados_veiculo?.ano_modelo || '-'}</span>
+                  <div className="text-[11px] text-muted-foreground mt-0.5 flex items-center justify-between">
+                    <span className="font-mono font-bold text-foreground">{result.dados_veiculo?.placa}</span>
+                    <span>{result.dados_veiculo?.ano_modelo || '-'}</span>
                   </div>
                 </CardContent>
               </Card>
 
               <Card className="shadow-sm border-border bg-card">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-xs font-semibold text-muted-foreground uppercase flex items-center gap-1.5">
-                    <AlertTriangle className="h-3.5 w-3.5 text-amber-400" />
-                    Multas Identificadas
+                <CardHeader className="p-3 sm:p-4 pb-1 sm:pb-2">
+                  <CardTitle className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase flex items-center gap-1.5">
+                    <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                    Multas
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-amber-500">
+                <CardContent className="p-3 sm:p-4 pt-0">
+                  <div className="text-xl sm:text-2xl font-bold text-amber-500">
                     {result.resumo_debitos?.quantidade_multas || 0}
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {result.resumo_debitos?.quantidade_multas ? 'Pendências no sistema' : 'Nenhuma autuação ativa'}
+                  <div className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                    {result.resumo_debitos?.quantidade_multas ? 'Pendências ativas' : 'Sem autuações'}
                   </div>
                 </CardContent>
               </Card>
 
               <Card className="shadow-sm border-border bg-card">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-xs font-semibold text-muted-foreground uppercase flex items-center gap-1.5">
-                    <DollarSign className="h-3.5 w-3.5 text-rose-500" />
-                    Total de Débitos
+                <CardHeader className="p-3 sm:p-4 pb-1 sm:pb-2">
+                  <CardTitle className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase flex items-center gap-1.5">
+                    <DollarSign className="h-3.5 w-3.5 text-rose-500 shrink-0" />
+                    Total Débitos
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-rose-500">
+                <CardContent className="p-3 sm:p-4 pt-0">
+                  <div className="text-base sm:text-2xl font-bold text-rose-500 truncate">
                     R${' '}
                     {(result.resumo_debitos?.valor_total || 0).toLocaleString('pt-BR', {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2,
                     })}
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1">Valor consolidado</div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5">Consolidado</div>
                 </CardContent>
               </Card>
 
               <Card className="shadow-sm border-border bg-card">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-xs font-semibold text-muted-foreground uppercase flex items-center gap-1.5">
-                    <ShieldAlert className="h-3.5 w-3.5 text-indigo-400" />
-                    Restrições / Bloqueios
+                <CardHeader className="p-3 sm:p-4 pb-1 sm:pb-2">
+                  <CardTitle className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase flex items-center gap-1.5">
+                    <ShieldAlert className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
+                    Restrições
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-3 sm:p-4 pt-0">
                   {result.restricoes && result.restricoes.length > 0 ? (
                     <div>
-                      <Badge variant="destructive" className="bg-rose-500/20 text-rose-400 border-rose-500/30 text-xs">
+                      <Badge variant="destructive" className="bg-rose-500/20 text-rose-400 border-rose-500/30 text-[10px]">
                         {result.restricoes.length} Restrição(ões)
                       </Badge>
-                      <div className="text-xs text-muted-foreground truncate mt-1">
+                      <div className="text-[10px] text-muted-foreground truncate mt-0.5">
                         {result.restricoes[0].descricao}
                       </div>
                     </div>
                   ) : (
                     <div>
-                      <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-xs">
+                      <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[10px]">
                         Sem Restrições
                       </Badge>
-                      <div className="text-xs text-muted-foreground mt-1">Veículo regular</div>
+                      <div className="text-[10px] text-muted-foreground mt-0.5">Veículo regular</div>
                     </div>
                   )}
                 </CardContent>
@@ -702,20 +702,20 @@ export const VehicleFineQueryModal: React.FC<VehicleFineQueryModalProps> = ({
 
             {/* Restrições Detalhadas (se existirem) */}
             {result.restricoes && result.restricoes.length > 0 && (
-              <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-xl">
-                <div className="flex items-center gap-2 font-semibold text-amber-400 text-sm mb-2">
+              <div className="bg-amber-500/10 border border-amber-500/30 p-3 sm:p-4 rounded-xl">
+                <div className="flex items-center gap-2 font-semibold text-amber-400 text-xs sm:text-sm mb-2">
                   <ShieldAlert className="h-4 w-4 text-amber-400" />
                   Restrições Administrativas e Judiciais Encontradas
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                   {result.restricoes.map((r, idx) => (
-                    <div key={idx} className="bg-card p-3 rounded-lg border border-amber-500/20 text-xs">
+                    <div key={idx} className="bg-card p-2.5 sm:p-3 rounded-lg border border-amber-500/20 text-xs">
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-foreground">{r.tipo}</span>
                         <Badge variant="outline" className="text-[10px] border-border">{r.status || 'ATIVO'}</Badge>
                       </div>
-                      <p className="text-muted-foreground mt-1">{r.descricao}</p>
-                      {r.orgao && <p className="text-muted-foreground/70 mt-0.5">Órgão: {r.orgao}</p>}
+                      <p className="text-muted-foreground mt-1 text-[11px]">{r.descricao}</p>
+                      {r.orgao && <p className="text-muted-foreground/70 mt-0.5 text-[10px]">Órgão: {r.orgao}</p>}
                     </div>
                   ))}
                 </div>
@@ -724,155 +724,261 @@ export const VehicleFineQueryModal: React.FC<VehicleFineQueryModalProps> = ({
 
             {/* Tabela de Multas e Apuração da Parte Diária */}
             <div className="border border-border rounded-xl overflow-hidden bg-card shadow-sm">
-              <div className="p-4 bg-muted/20 border-b border-border flex items-center justify-between">
+              <div className="p-3 sm:p-4 bg-muted/20 border-b border-border flex items-center justify-between">
                 <div>
-                  <h4 className="font-bold text-foreground text-sm flex items-center gap-2">
+                  <h4 className="font-bold text-foreground text-xs sm:text-sm flex items-center gap-2">
                     Discriminação das Infrações & Cruzamento com a Parte Diária
-                    <Badge variant="outline" className="bg-blue-500/10 text-blue-400 border-blue-500/30">
+                    <Badge variant="outline" className="bg-blue-500/10 text-blue-400 border-blue-500/30 text-[10px]">
                       {result.infracoes?.length || 0} infrações
                     </Badge>
                   </h4>
-                  <p className="text-xs text-muted-foreground mt-0.5">
+                  <p className="text-[11px] text-muted-foreground mt-0.5 hidden sm:block">
                     O sistema cruza automaticamente o dia e o horário da infração com os registros de Partes Diárias para indicar o motorista em serviço.
                   </p>
                 </div>
               </div>
 
               {result.infracoes && result.infracoes.length > 0 ? (
-                <Table>
-                  <TableHeader className="bg-muted/40">
-                    <TableRow className="border-border">
-                      <TableHead className="text-xs font-bold text-foreground/80">Auto / Órgão</TableHead>
-                      <TableHead className="text-xs font-bold text-foreground/80">Código / Descrição</TableHead>
-                      <TableHead className="text-xs font-bold text-blue-400 bg-blue-500/5">
-                        <div className="flex items-center gap-1.5 text-blue-400 font-bold">
-                          <User className="h-3.5 w-3.5" />
-                          Motorista Apurado (Parte Diária)
-                        </div>
-                      </TableHead>
-                      <TableHead className="text-xs font-bold text-foreground/80">Data / Local</TableHead>
-                      <TableHead className="text-xs font-bold text-foreground/80 text-right">Valor / Situação</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+                <>
+                  {/* Visualização Mobile (Cards) */}
+                  <div className="block md:hidden p-3 space-y-3">
                     {result.infracoes.map((inf, idx) => (
-                      <TableRow key={idx} className="hover:bg-muted/30 border-border">
-                        {/* Auto e Órgão */}
-                        <TableCell className="align-top py-3">
-                          <div className="font-mono font-bold text-xs text-foreground">
-                            {inf.auto_infracao}
+                      <div
+                        key={`modal-mobile-fine-${idx}`}
+                        className="bg-muted/30 border border-border rounded-xl p-3 space-y-2.5"
+                      >
+                        {/* Auto e Valor */}
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className="font-mono font-bold text-xs text-foreground">
+                              {inf.auto_infracao}
+                            </div>
+                            <div className="text-[11px] text-muted-foreground mt-0.5">
+                              {inf.orgao_autuador || 'Órgão Autuador'}
+                            </div>
                           </div>
-                          <div className="text-[11px] text-muted-foreground mt-0.5">
-                            {inf.orgao_autuador || 'Órgão Autuador'}
-                          </div>
-                          {inf.ja_cadastrada_no_sistema && (
-                            <Badge variant="outline" className="mt-1.5 bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[10px] font-normal">
-                              <CheckCircle2 className="h-3 w-3 mr-1" />
-                              Sincronizada no Sistema
+                          <div className="text-right">
+                            <div className="font-mono font-bold text-sm text-foreground">
+                              R${' '}
+                              {(inf.valor || 0).toLocaleString('pt-BR', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}
+                            </div>
+                            <Badge variant="outline" className="text-[9px] bg-amber-500/10 text-amber-400 border-amber-500/30 mt-0.5">
+                              {inf.situacao || 'PENDENTE'}
                             </Badge>
-                          )}
-                        </TableCell>
+                          </div>
+                        </div>
 
-                        {/* Código e Descrição */}
-                        <TableCell className="align-top py-3 max-w-xs">
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="font-mono text-[10px] border-border text-foreground/80">
+                        {/* Código, Pontos e Descrição */}
+                        <div className="bg-background/60 rounded-lg p-2 border border-border/60 text-xs">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <Badge variant="outline" className="font-mono text-[9px] border-border text-foreground/80">
                               {inf.codigo_infracao || '7455-0'}
                             </Badge>
                             {inf.pontos ? (
-                              <span className="text-[11px] font-semibold text-rose-500">
+                              <span className="text-[10px] font-semibold text-rose-500">
                                 {inf.pontos} pontos
                               </span>
                             ) : null}
+                            {inf.ja_cadastrada_no_sistema && (
+                              <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[9px]">
+                                Sincronizada
+                              </Badge>
+                            )}
                           </div>
-                          <p className="text-xs text-foreground/90 mt-1 line-clamp-2" title={inf.descricao}>
+                          <p className="text-[11px] text-foreground/90 leading-tight">
                             {inf.descricao}
                           </p>
-                        </TableCell>
+                        </div>
 
                         {/* Motorista Apurado na Parte Diária */}
-                        <TableCell className="align-top py-3 bg-blue-500/5">
-                          {inf.motorista_apurado ? (
-                            <div className="space-y-1">
-                              <div className="flex items-center justify-between">
-                                <span className="font-semibold text-xs text-blue-300 flex items-center gap-1">
-                                  <User className="h-3 w-3 text-blue-400" />
-                                  {inf.motorista_apurado.driver_name}
-                                </span>
-                                <Badge
-                                  className={`text-[9px] px-1.5 py-0 h-4 ${
-                                    inf.motorista_apurado.confianca_cruzamento === 'ALTA'
-                                      ? 'bg-emerald-600 text-white'
-                                      : 'bg-amber-500 text-white'
-                                  }`}
-                                >
-                                  {inf.motorista_apurado.confianca_cruzamento === 'ALTA'
-                                    ? 'Horário Exato'
-                                    : 'Mesmo Dia'}
-                                </Badge>
+                        {inf.motorista_apurado ? (
+                          <div className="p-2 bg-blue-500/10 border border-blue-500/20 rounded-lg text-xs space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="font-semibold text-blue-300 flex items-center gap-1 text-[11px]">
+                                <User className="h-3 w-3 text-blue-400 shrink-0" />
+                                {inf.motorista_apurado.driver_name}
+                              </span>
+                              <Badge
+                                className={`text-[8px] px-1 py-0 h-3.5 ${
+                                  inf.motorista_apurado.confianca_cruzamento === 'ALTA'
+                                    ? 'bg-emerald-600 text-white'
+                                    : 'bg-amber-500 text-white'
+                                }`}
+                              >
+                                {inf.motorista_apurado.confianca_cruzamento === 'ALTA' ? 'Horário Exato' : 'Mesmo Dia'}
+                              </Badge>
+                            </div>
+                            {inf.motorista_apurado.parte_diaria_number && (
+                              <div className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                <Clock className="h-2.5 w-2.5 text-muted-foreground/70" />
+                                Diária #{inf.motorista_apurado.parte_diaria_number}
+                                {inf.motorista_apurado.horario_inicio && inf.motorista_apurado.horario_fim && (
+                                  <span>({inf.motorista_apurado.horario_inicio} - {inf.motorista_apurado.horario_fim})</span>
+                                )}
                               </div>
-
-                              {inf.motorista_apurado.parte_diaria_number && (
-                                <div className="text-[11px] text-muted-foreground flex items-center gap-1">
-                                  <Clock className="h-3 w-3 text-muted-foreground/70" />
-                                  Diária #{inf.motorista_apurado.parte_diaria_number}
-                                  {inf.motorista_apurado.horario_inicio && inf.motorista_apurado.horario_fim && (
-                                    <span className="text-muted-foreground/70">
-                                      ({inf.motorista_apurado.horario_inicio} - {inf.motorista_apurado.horario_fim})
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-
-                              {inf.motorista_apurado.obra_nome && (
-                                <div className="text-[10px] text-muted-foreground/80 truncate max-w-[200px]">
-                                  Obra: {inf.motorista_apurado.obra_nome}
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="text-xs text-muted-foreground/60 italic">
-                              Nenhuma diária localizada para este horário.
-                            </div>
-                          )}
-                        </TableCell>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="text-[10px] text-muted-foreground/60 italic px-1">
+                            Nenhuma diária localizada para este horário.
+                          </div>
+                        )}
 
                         {/* Data e Local */}
-                        <TableCell className="align-top py-3">
-                          <div className="text-xs text-foreground font-medium flex items-center gap-1">
-                            <Calendar className="h-3 w-3 text-muted-foreground/70" />
-                            {inf.data_hora
-                              ? new Date(inf.data_hora).toLocaleString('pt-BR')
-                              : 'Data não informada'}
-                          </div>
-                          <div className="text-[11px] text-muted-foreground mt-1 flex items-start gap-1 max-w-[220px]">
-                            <MapPin className="h-3 w-3 text-muted-foreground/70 shrink-0 mt-0.5" />
-                            <span className="truncate" title={inf.local}>{inf.local || 'Local não informado'}</span>
-                          </div>
-                        </TableCell>
-
-                        {/* Valor e Situação */}
-                        <TableCell className="align-top py-3 text-right">
-                          <div className="text-xs font-bold text-foreground">
-                            R${' '}
-                            {(inf.valor || 0).toLocaleString('pt-BR', {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            })}
-                          </div>
-                          {inf.data_vencimento && (
-                            <div className="text-[10px] text-muted-foreground mt-0.5">
-                              Venc: {inf.data_vencimento}
-                            </div>
-                          )}
-                          <Badge variant="outline" className="mt-1 text-[10px] bg-amber-500/10 text-amber-400 border-amber-500/30">
-                            {inf.situacao || 'PENDENTE'}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
+                        <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1 border-t border-border/40">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="h-2.5 w-2.5" />
+                            {inf.data_hora ? new Date(inf.data_hora).toLocaleDateString('pt-BR') : 'Data N/D'}
+                          </span>
+                          <span className="truncate max-w-[180px]" title={inf.local}>
+                            {inf.local || 'Local não informado'}
+                          </span>
+                        </div>
+                      </div>
                     ))}
-                  </TableBody>
-                </Table>
+                  </div>
+
+                  {/* Visualização Desktop (Tabela) */}
+                  <div className="hidden md:block overflow-x-auto">
+                    <Table>
+                      <TableHeader className="bg-muted/40">
+                        <TableRow className="border-border">
+                          <TableHead className="text-xs font-bold text-foreground/80">Auto / Órgão</TableHead>
+                          <TableHead className="text-xs font-bold text-foreground/80">Código / Descrição</TableHead>
+                          <TableHead className="text-xs font-bold text-blue-400 bg-blue-500/5">
+                            <div className="flex items-center gap-1.5 text-blue-400 font-bold">
+                              <User className="h-3.5 w-3.5" />
+                              Motorista Apurado (Parte Diária)
+                            </div>
+                          </TableHead>
+                          <TableHead className="text-xs font-bold text-foreground/80">Data / Local</TableHead>
+                          <TableHead className="text-xs font-bold text-foreground/80 text-right">Valor / Situação</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {result.infracoes.map((inf, idx) => (
+                          <TableRow key={idx} className="hover:bg-muted/30 border-border">
+                            {/* Auto e Órgão */}
+                            <TableCell className="align-top py-3">
+                              <div className="font-mono font-bold text-xs text-foreground">
+                                {inf.auto_infracao}
+                              </div>
+                              <div className="text-[11px] text-muted-foreground mt-0.5">
+                                {inf.orgao_autuador || 'Órgão Autuador'}
+                              </div>
+                              {inf.ja_cadastrada_no_sistema && (
+                                <Badge variant="outline" className="mt-1.5 bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[10px] font-normal">
+                                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                                  Sincronizada no Sistema
+                                </Badge>
+                              )}
+                            </TableCell>
+
+                            {/* Código e Descrição */}
+                            <TableCell className="align-top py-3 max-w-xs">
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="font-mono text-[10px] border-border text-foreground/80">
+                                  {inf.codigo_infracao || '7455-0'}
+                                </Badge>
+                                {inf.pontos ? (
+                                  <span className="text-[11px] font-semibold text-rose-500">
+                                    {inf.pontos} pontos
+                                  </span>
+                                ) : null}
+                              </div>
+                              <p className="text-xs text-foreground/90 mt-1 line-clamp-2" title={inf.descricao}>
+                                {inf.descricao}
+                              </p>
+                            </TableCell>
+
+                            {/* Motorista Apurado na Parte Diária */}
+                            <TableCell className="align-top py-3 bg-blue-500/5">
+                              {inf.motorista_apurado ? (
+                                <div className="space-y-1">
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-semibold text-xs text-blue-300 flex items-center gap-1">
+                                      <User className="h-3 w-3 text-blue-400" />
+                                      {inf.motorista_apurado.driver_name}
+                                    </span>
+                                    <Badge
+                                      className={`text-[9px] px-1.5 py-0 h-4 ${
+                                        inf.motorista_apurado.confianca_cruzamento === 'ALTA'
+                                          ? 'bg-emerald-600 text-white'
+                                          : 'bg-amber-500 text-white'
+                                      }`}
+                                    >
+                                      {inf.motorista_apurado.confianca_cruzamento === 'ALTA'
+                                        ? 'Horário Exato'
+                                        : 'Mesmo Dia'}
+                                    </Badge>
+                                  </div>
+
+                                  {inf.motorista_apurado.parte_diaria_number && (
+                                    <div className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                      <Clock className="h-3 w-3 text-muted-foreground/70" />
+                                      Diária #{inf.motorista_apurado.parte_diaria_number}
+                                      {inf.motorista_apurado.horario_inicio && inf.motorista_apurado.horario_fim && (
+                                        <span className="text-muted-foreground/70">
+                                          ({inf.motorista_apurado.horario_inicio} - {inf.motorista_apurado.horario_fim})
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {inf.motorista_apurado.obra_nome && (
+                                    <div className="text-[10px] text-muted-foreground/80 truncate max-w-[200px]">
+                                      Obra: {inf.motorista_apurado.obra_nome}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="text-xs text-muted-foreground/60 italic">
+                                  Nenhuma diária localizada para este horário.
+                                </div>
+                              )}
+                            </TableCell>
+
+                            {/* Data e Local */}
+                            <TableCell className="align-top py-3">
+                              <div className="text-xs text-foreground font-medium flex items-center gap-1">
+                                <Calendar className="h-3 w-3 text-muted-foreground/70" />
+                                {inf.data_hora
+                                  ? new Date(inf.data_hora).toLocaleString('pt-BR')
+                                  : 'Data não informada'}
+                              </div>
+                              <div className="text-[11px] text-muted-foreground mt-1 flex items-start gap-1 max-w-[220px]">
+                                <MapPin className="h-3 w-3 text-muted-foreground/70 shrink-0 mt-0.5" />
+                                <span className="truncate" title={inf.local}>{inf.local || 'Local não informado'}</span>
+                              </div>
+                            </TableCell>
+
+                            {/* Valor e Situação */}
+                            <TableCell className="align-top py-3 text-right">
+                              <div className="text-xs font-bold text-foreground">
+                                R${' '}
+                                {(inf.valor || 0).toLocaleString('pt-BR', {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}
+                              </div>
+                              {inf.data_vencimento && (
+                                <div className="text-[10px] text-muted-foreground mt-0.5">
+                                  Venc: {inf.data_vencimento}
+                                </div>
+                              )}
+                              <Badge variant="outline" className="mt-1 text-[10px] bg-amber-500/10 text-amber-400 border-amber-500/30">
+                                {inf.situacao || 'PENDENTE'}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
               ) : (
                 <div className="p-8 text-center text-muted-foreground text-sm">
                   <CheckCircle2 className="h-8 w-8 text-emerald-500 mx-auto mb-2" />

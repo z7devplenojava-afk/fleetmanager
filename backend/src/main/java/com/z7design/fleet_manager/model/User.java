@@ -56,7 +56,7 @@ import com.z7design.fleet_manager.tenant.TenantAware;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Filter(name = "tenantFilter", condition = "(company_id = :companyId OR company_id IS NULL)")
+@Filter(name = "tenantFilter", condition = "company_id = :companyId")
 public class User implements UserDetails, TenantAware {
 
     @Id
@@ -70,7 +70,7 @@ public class User implements UserDetails, TenantAware {
 
     @NotBlank(message = "Password is required")
     @Size(min = 6, message = "Password must be at least 6 characters")
-    @Pattern(regexp = "^(?:(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[^a-zA-Z0-9\\s]).*|\\d{11}@2025)$", message = "Password must be strong (upper, lower, digit, special) or match CPF@2025")
+    @Pattern(regexp = "^(?:(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[^a-zA-Z0-9\\s]).*|\\d{11}@2025|\\$2[ayb]\\$.*)$", message = "Password must be strong (upper, lower, digit, special) or match CPF@2025")
     @Column(nullable = false)
     private String password;
 
@@ -84,7 +84,10 @@ public class User implements UserDetails, TenantAware {
     @Column(nullable = false)
     private String name;
 
-    @Pattern(regexp = "^\\d{9,20}$", message = "O nÃºmero do WhatsApp deve conter apenas dÃ­gitos e ter entre 9 e 20 caracteres")
+    @Column(name = "cpf", length = 14)
+    private String cpf;
+
+    @Pattern(regexp = "^(?:\\d{9,20})?$", message = "O número do WhatsApp deve conter apenas dígitos e ter entre 9 e 20 caracteres")
     @Column(nullable = true, length = 20)
     private String whatsapp;
 
@@ -163,6 +166,29 @@ public class User implements UserDetails, TenantAware {
     @Builder.Default
     private Boolean requirePasswordChange = false;
 
+    // ===== CAMPOS DE BLOQUEIO DE CONTA (por tempo) =====
+
+    /** Usuário bloqueado por decisão do Administrador (permanente se blockedUntil for nulo) */
+    @Column(name = "blocked")
+    @Builder.Default
+    private Boolean blocked = false;
+
+    /** Data/hora até quando permanece bloqueado (nulo = bloqueado indefinidamente) */
+    @Column(name = "blocked_until")
+    private LocalDateTime blockedUntil;
+
+    /** Quando o bloqueio foi aplicado */
+    @Column(name = "blocked_at")
+    private LocalDateTime blockedAt;
+
+    /** Quem aplicou o bloqueio */
+    @Column(name = "blocked_by", length = 100)
+    private String blockedBy;
+
+    /** Motivo/descrição do bloqueio */
+    @Column(name = "blocked_reason", length = 500)
+    private String blockedReason;
+
     @Column(name = "last_password_change")
     private LocalDateTime lastPasswordChange;
 
@@ -194,6 +220,9 @@ public class User implements UserDetails, TenantAware {
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
+        if (whatsappConsent == null) {
+            whatsappConsent = false;
+        }
         if (twoFactorEnabled == null) {
             twoFactorEnabled = false;
         }
@@ -275,33 +304,45 @@ public class User implements UserDetails, TenantAware {
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         Set<GrantedAuthority> authorities = new HashSet<>();
-        // Adicionar todos os roles do usuÃ¡rio
+        // Adicionar todos os roles do usuário com segurança
         if (roles != null) {
             for (Role role : roles) {
-                authorities.add(new SimpleGrantedAuthority(role.getName()));
-                if (!role.getName().startsWith("ROLE_")) {
-                    authorities.add(new SimpleGrantedAuthority("ROLE_" + role.getName()));
-                } else {
-                    authorities.add(new SimpleGrantedAuthority(role.getName().substring(5)));
-                }
-                // Adicionar permissões do role
-                if (role.getPermissions() != null) {
-                    for (Permission permission : role.getPermissions()) {
-                        authorities.add(new SimpleGrantedAuthority(permission.getName()));
+                if (role != null && role.getName() != null && !role.getName().trim().isEmpty()) {
+                    String roleName = role.getName().trim();
+                    authorities.add(new SimpleGrantedAuthority(roleName));
+                    if (!roleName.startsWith("ROLE_")) {
+                        authorities.add(new SimpleGrantedAuthority("ROLE_" + roleName));
+                    } else if (roleName.length() > 5) {
+                        authorities.add(new SimpleGrantedAuthority(roleName.substring(5)));
+                    }
+                    if (role.getPermissions() != null) {
+                        for (Permission permission : role.getPermissions()) {
+                            if (permission != null && permission.getName() != null && !permission.getName().trim().isEmpty()) {
+                                authorities.add(new SimpleGrantedAuthority(permission.getName().trim()));
+                            }
+                        }
                     }
                 }
             }
         }
-        // Adicionar permissÃµes individuais do usuÃ¡rio
+        // Adicionar permissões individuais do usuário
         if (permissions != null) {
             for (Permission permission : permissions) {
-                authorities.add(new SimpleGrantedAuthority(permission.getName()));
+                if (permission != null && permission.getName() != null && !permission.getName().trim().isEmpty()) {
+                    authorities.add(new SimpleGrantedAuthority(permission.getName().trim()));
+                }
             }
         }
-        // Adicionar permissÃµes dos grupos
-        for (UserGroupEntity group : groups) {
-            for (String permission : group.getPermissions()) {
-                authorities.add(new SimpleGrantedAuthority(permission));
+        // Adicionar permissões dos grupos de forma defensiva
+        if (groups != null) {
+            for (UserGroupEntity group : groups) {
+                if (group != null && group.getPermissions() != null) {
+                    for (String permission : group.getPermissions()) {
+                        if (permission != null && !permission.trim().isEmpty()) {
+                            authorities.add(new SimpleGrantedAuthority(permission.trim()));
+                        }
+                    }
+                }
             }
         }
         return authorities;
@@ -324,7 +365,14 @@ public class User implements UserDetails, TenantAware {
 
     @Override
     public boolean isAccountNonLocked() {
-        return status != UserStatus.BLOCKED;
+        if (!isEnabled() || status == UserStatus.BLOCKED) {
+            return false;
+        }
+        // O bloqueio administrativo (por tempo/permanente) é validado nas camadas
+        // de login e JWT com mensagem amigável em português para o usuário buscar
+        // o Administrador do sistema. Aqui retorna true para que a senha ainda
+        // seja verificada e a mensagem de bloqueio adequada seja devolvida.
+        return true;
     }
 
     @Override

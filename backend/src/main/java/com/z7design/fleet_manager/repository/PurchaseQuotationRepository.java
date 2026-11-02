@@ -18,8 +18,7 @@ public interface PurchaseQuotationRepository extends JpaRepository<PurchaseQuota
            "LEFT JOIN FETCH pq.supplier " +
            "LEFT JOIN FETCH pq.unit " +
            "LEFT JOIN FETCH pq.createdBy " +
-           "LEFT JOIN FETCH pq.assignedTo " +
-           "LEFT JOIN FETCH pq.purchaseRequest")
+           "LEFT JOIN FETCH pq.assignedTo")
     List<PurchaseQuotation> findAllWithRelations();
     
     List<PurchaseQuotation> findByStatus(PurchaseQuotationStatus status);

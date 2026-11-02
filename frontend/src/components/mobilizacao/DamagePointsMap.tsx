@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { VehicleDiagram } from './VehicleDiagram';
 
 export type DamageSeverity = 'critical' | 'medium' | 'light';
 export type DamageType = 'scratch' | 'dent' | 'broken' | 'glass' | 'paint' | 'missing' | 'other';
@@ -359,12 +360,11 @@ export const DamageMap: React.FC<DamageMapProps> = ({
                 {/* Malha de fundo sutil */}
                 <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b12_1px,transparent_1px),linear-gradient(to_bottom,#1e293b12_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
 
-                <img 
-                  src={images.side}
-                  alt={`Lateral do ${currentVehicleMeta.name}`}
-                  className={`max-h-[290px] w-full object-contain pointer-events-none transition-transform duration-300 drop-shadow-[0_15px_15px_rgba(0,0,0,0.6)] ${
-                    sideOrientation === 'left' ? '-scale-x-100' : ''
-                  }`}
+                <VehicleDiagram 
+                  bodyType={bodyType}
+                  view="side"
+                  orientation={sideOrientation}
+                  className="max-h-[290px] w-full pointer-events-none drop-shadow-[0_15px_15px_rgba(0,0,0,0.6)]"
                 />
 
                 {renderMarkersForView('side')}
@@ -386,10 +386,10 @@ export const DamageMap: React.FC<DamageMapProps> = ({
                 >
                   <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b12_1px,transparent_1px),linear-gradient(to_bottom,#1e293b12_1px,transparent_1px)] bg-[size:16px_16px] pointer-events-none" />
 
-                  <img 
-                    src={images.front}
-                    alt={`Frente do ${currentVehicleMeta.name}`}
-                    className="max-h-[135px] w-full object-contain pointer-events-none drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)]"
+                  <VehicleDiagram 
+                    bodyType={bodyType}
+                    view="front"
+                    className="max-h-[135px] w-full pointer-events-none drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)]"
                   />
 
                   {renderMarkersForView('front')}
@@ -407,10 +407,10 @@ export const DamageMap: React.FC<DamageMapProps> = ({
                 >
                   <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b12_1px,transparent_1px),linear-gradient(to_bottom,#1e293b12_1px,transparent_1px)] bg-[size:16px_16px] pointer-events-none" />
 
-                  <img 
-                    src={images.rear}
-                    alt={`Traseira do ${currentVehicleMeta.name}`}
-                    className="max-h-[135px] w-full object-contain pointer-events-none drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)]"
+                  <VehicleDiagram 
+                    bodyType={bodyType}
+                    view="rear"
+                    className="max-h-[135px] w-full pointer-events-none drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)]"
                   />
 
                   {renderMarkersForView('rear')}

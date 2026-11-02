@@ -6,6 +6,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -14,4 +15,8 @@ public interface DriverWorkHourRepository extends JpaRepository<DriverWorkHour, 
             LocalDate endDate);
 
     List<DriverWorkHour> findByReferenceDateBetween(LocalDate startDate, LocalDate endDate);
+
+    List<DriverWorkHour> findByReferenceDateBetweenOrderByReferenceDateDesc(LocalDate startDate, LocalDate endDate);
+
+    Optional<DriverWorkHour> findByEmployeeIdAndReferenceDate(UUID employeeId, LocalDate referenceDate);
 }

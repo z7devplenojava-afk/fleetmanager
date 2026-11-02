@@ -349,102 +349,104 @@ export const ContasAPagarViewModal: React.FC<ContasAPagarViewModalProps> = ({
             </Card>
           )}
 
-          {/* PAINEL DE RASTREABILIDADE DE ORIGEM (LINHA DO TEMPO DA DESPESA) */}
-          <div className="bg-zinc-950/60 border border-blue-500/30 rounded-2xl p-4 sm:p-5 space-y-3 shadow-inner">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1">
-              <span className="text-xs font-bold uppercase tracking-wider text-blue-400 flex items-center gap-1.5">
-                <GitBranch size={15} /> Rastreabilidade & Origem do Lançamento
-              </span>
-              <span className="text-[11px] text-zinc-400">
-                Clique em um card para abrir os detalhes completos
-              </span>
+          {/* PAINEL DE RASTREABILIDADE DE ORIGEM (LINHA DO TEMPO DA DESPESA) - SÓ EXIBE SE HOUVER OS VINCULADA */}
+          {(conta.workOrderNumber || conta.workOrderId) && (
+            <div className="bg-zinc-950/60 border border-blue-500/30 rounded-2xl p-4 sm:p-5 space-y-3 shadow-inner">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1">
+                <span className="text-xs font-bold uppercase tracking-wider text-blue-400 flex items-center gap-1.5">
+                  <GitBranch size={15} /> Rastreabilidade & Origem do Lançamento
+                </span>
+                <span className="text-[11px] text-zinc-400">
+                  Clique em um card para abrir os detalhes completos
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 pt-1">
+                {/* Step 1: OS */}
+                <div 
+                  onClick={() => setLineageModalType('WORK_ORDER')}
+                  className="bg-zinc-900/90 hover:bg-zinc-900 border border-blue-500/30 hover:border-blue-400 p-3 rounded-xl flex flex-col justify-between space-y-1 cursor-pointer transition-all hover:scale-[1.02] shadow-sm hover:shadow-blue-500/10 group"
+                >
+                  <div className="text-[10px] font-bold text-blue-400 uppercase tracking-wider flex items-center justify-between">
+                    <span>1. Ordem de Serviço</span>
+                    <span className="text-blue-300 font-mono text-[10px] bg-blue-500/10 group-hover:bg-blue-500/20 px-1.5 py-0.5 rounded border border-blue-500/20">OS</span>
+                  </div>
+                  <div className="text-xs font-bold text-zinc-100 font-mono flex items-center gap-1">
+                    <Link2 size={12} className="text-blue-400 shrink-0" />
+                    <span className="truncate group-hover:underline">
+                      {conta.workOrderNumber || (conta.workOrderId ? `OS #${conta.workOrderId.slice(0, 8)}` : 'OS')}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-zinc-400 truncate flex items-center justify-between">
+                    <span>Manutenção de Frota</span>
+                    <span className="text-blue-400 text-[9px] font-semibold">🔍 Ver</span>
+                  </div>
+                </div>
+
+                {/* Step 2: Cotação / Requisição */}
+                <div 
+                  onClick={() => setLineageModalType('REQUISITION')}
+                  className="bg-zinc-900/90 hover:bg-zinc-900 border border-purple-500/30 hover:border-purple-400 p-3 rounded-xl flex flex-col justify-between space-y-1 cursor-pointer transition-all hover:scale-[1.02] shadow-sm hover:shadow-purple-500/10 group"
+                >
+                  <div className="text-[10px] font-bold text-purple-400 uppercase tracking-wider flex items-center justify-between">
+                    <span>2. Cotação / Requisição</span>
+                    <span className="text-purple-300 font-mono text-[10px] bg-purple-500/10 group-hover:bg-purple-500/20 px-1.5 py-0.5 rounded border border-purple-500/20">COT/REQ</span>
+                  </div>
+                  <div className="text-xs font-bold text-zinc-100 font-mono flex items-center gap-1">
+                    <Link2 size={12} className="text-purple-400 shrink-0" />
+                    <span className="truncate group-hover:underline">
+                      {conta.requisitionNumber || (conta.requisitionId ? `REQ #${conta.requisitionId.slice(0, 8)}` : `REQ-${conta.workOrderNumber || 'PEÇAS'}`)}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-purple-300/80 font-medium truncate flex items-center justify-between">
+                    <span>Peças de Reposição</span>
+                    <span className="text-purple-400 text-[9px] font-semibold">🔍 Ver</span>
+                  </div>
+                </div>
+
+                {/* Step 3: Ordem de Compra */}
+                <div 
+                  onClick={() => setLineageModalType('PURCHASE_ORDER')}
+                  className="bg-zinc-900/90 hover:bg-zinc-900 border border-amber-500/30 hover:border-amber-400 p-3 rounded-xl flex flex-col justify-between space-y-1 cursor-pointer transition-all hover:scale-[1.02] shadow-sm hover:shadow-amber-500/10 group"
+                >
+                  <div className="text-[10px] font-bold text-amber-400 uppercase tracking-wider flex items-center justify-between">
+                    <span>3. Ordem de Compra (OC)</span>
+                    <span className="text-amber-300 font-mono text-[10px] bg-amber-500/10 group-hover:bg-amber-500/20 px-1.5 py-0.5 rounded border border-amber-500/20">OC</span>
+                  </div>
+                  <div className="text-xs font-bold text-zinc-100 font-mono flex items-center gap-1">
+                    <Link2 size={12} className="text-amber-400 shrink-0" />
+                    <span className="truncate group-hover:underline">
+                      {conta.purchaseOrderNumber || (conta.purchaseOrderId ? `OC #${conta.purchaseOrderId.slice(0, 8)}` : `OC-${conta.workOrderNumber || 'DIRETA'}`)}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-amber-300/80 font-medium truncate flex items-center justify-between">
+                    <span>Aprovado Financeiro</span>
+                    <span className="text-amber-400 text-[9px] font-semibold">🔍 Ver</span>
+                  </div>
+                </div>
+
+                {/* Step 4: Liquidação / Pagamento */}
+                <div 
+                  onClick={() => setLineageModalType('PAYMENT')}
+                  className={`p-3 rounded-xl flex flex-col justify-between space-y-1 border cursor-pointer transition-all hover:scale-[1.02] shadow-sm group ${conta.status === 'PAGA' ? 'bg-emerald-500/10 border-emerald-500/40 hover:border-emerald-400 hover:shadow-emerald-500/10' : 'bg-zinc-900/90 border-zinc-700 hover:border-zinc-500'}`}
+                >
+                  <div className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider flex items-center justify-between">
+                    <span>4. Status Liquidação</span>
+                    <span className="font-mono text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-500/30">
+                      {conta.status}
+                    </span>
+                  </div>
+                  <div className="text-xs font-bold text-zinc-100 font-mono truncate group-hover:underline">
+                    {conta.status === 'PAGA' ? formatCurrency(conta.valor) : 'Pendente de Pagamento'}
+                  </div>
+                  <div className="text-[10px] text-zinc-400 truncate flex items-center justify-between">
+                    <span>{conta.status === 'PAGA' && conta.dataPagamento ? `Pago ${format(new Date(conta.dataPagamento), 'dd/MM/yyyy')}` : 'Aguardando quitação'}</span>
+                    <span className="text-emerald-400 text-[9px] font-semibold">🔍 Recibo</span>
+                  </div>
+                </div>
+              </div>
             </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 pt-1">
-              {/* Step 1: OS */}
-              <div 
-                onClick={() => setLineageModalType('WORK_ORDER')}
-                className="bg-zinc-900/90 hover:bg-zinc-900 border border-blue-500/30 hover:border-blue-400 p-3 rounded-xl flex flex-col justify-between space-y-1 cursor-pointer transition-all hover:scale-[1.02] shadow-sm hover:shadow-blue-500/10 group"
-              >
-                <div className="text-[10px] font-bold text-blue-400 uppercase tracking-wider flex items-center justify-between">
-                  <span>1. Ordem de Serviço</span>
-                  <span className="text-blue-300 font-mono text-[10px] bg-blue-500/10 group-hover:bg-blue-500/20 px-1.5 py-0.5 rounded border border-blue-500/20">OS</span>
-                </div>
-                <div className="text-xs font-bold text-zinc-100 font-mono flex items-center gap-1">
-                  <Link2 size={12} className="text-blue-400 shrink-0" />
-                  <span className="truncate group-hover:underline">
-                    {conta.workOrderNumber || (conta.workOrderId ? `OS #${conta.workOrderId.slice(0, 8)}` : 'OS-2026-000105')}
-                  </span>
-                </div>
-                <div className="text-[10px] text-zinc-400 truncate flex items-center justify-between">
-                  <span>Manutenção Preventiva</span>
-                  <span className="text-blue-400 text-[9px] font-semibold">🔍 Ver</span>
-                </div>
-              </div>
-
-              {/* Step 2: Cotação / Requisição */}
-              <div 
-                onClick={() => setLineageModalType('REQUISITION')}
-                className="bg-zinc-900/90 hover:bg-zinc-900 border border-purple-500/30 hover:border-purple-400 p-3 rounded-xl flex flex-col justify-between space-y-1 cursor-pointer transition-all hover:scale-[1.02] shadow-sm hover:shadow-purple-500/10 group"
-              >
-                <div className="text-[10px] font-bold text-purple-400 uppercase tracking-wider flex items-center justify-between">
-                  <span>2. Cotação / Requisição</span>
-                  <span className="text-purple-300 font-mono text-[10px] bg-purple-500/10 group-hover:bg-purple-500/20 px-1.5 py-0.5 rounded border border-purple-500/20">COT/REQ</span>
-                </div>
-                <div className="text-xs font-bold text-zinc-100 font-mono flex items-center gap-1">
-                  <Link2 size={12} className="text-purple-400 shrink-0" />
-                  <span className="truncate group-hover:underline">
-                    {conta.requisitionNumber || (conta.requisitionId ? `REQ #${conta.requisitionId.slice(0, 8)}` : 'COT-2026-000215')}
-                  </span>
-                </div>
-                <div className="text-[10px] text-purple-300/80 font-medium truncate flex items-center justify-between">
-                  <span>3 Cotações</span>
-                  <span className="text-purple-400 text-[9px] font-semibold">🔍 Ver</span>
-                </div>
-              </div>
-
-              {/* Step 3: Ordem de Compra */}
-              <div 
-                onClick={() => setLineageModalType('PURCHASE_ORDER')}
-                className="bg-zinc-900/90 hover:bg-zinc-900 border border-amber-500/30 hover:border-amber-400 p-3 rounded-xl flex flex-col justify-between space-y-1 cursor-pointer transition-all hover:scale-[1.02] shadow-sm hover:shadow-amber-500/10 group"
-              >
-                <div className="text-[10px] font-bold text-amber-400 uppercase tracking-wider flex items-center justify-between">
-                  <span>3. Ordem de Compra (OC)</span>
-                  <span className="text-amber-300 font-mono text-[10px] bg-amber-500/10 group-hover:bg-amber-500/20 px-1.5 py-0.5 rounded border border-amber-500/20">OC</span>
-                </div>
-                <div className="text-xs font-bold text-zinc-100 font-mono flex items-center gap-1">
-                  <Link2 size={12} className="text-amber-400 shrink-0" />
-                  <span className="truncate group-hover:underline">
-                    {conta.purchaseOrderNumber || (conta.purchaseOrderId ? `OC #${conta.purchaseOrderId.slice(0, 8)}` : 'OC-2026-000098')}
-                  </span>
-                </div>
-                <div className="text-[10px] text-amber-300/80 font-medium truncate flex items-center justify-between">
-                  <span>Aprovado Financeiro</span>
-                  <span className="text-amber-400 text-[9px] font-semibold">🔍 Ver</span>
-                </div>
-              </div>
-
-              {/* Step 4: Liquidação / Pagamento */}
-              <div 
-                onClick={() => setLineageModalType('PAYMENT')}
-                className={`p-3 rounded-xl flex flex-col justify-between space-y-1 border cursor-pointer transition-all hover:scale-[1.02] shadow-sm group ${conta.status === 'PAGA' ? 'bg-emerald-500/10 border-emerald-500/40 hover:border-emerald-400 hover:shadow-emerald-500/10' : 'bg-zinc-900/90 border-zinc-700 hover:border-zinc-500'}`}
-              >
-                <div className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider flex items-center justify-between">
-                  <span>4. Status Liquidação</span>
-                  <span className="font-mono text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-500/30">
-                    {conta.status}
-                  </span>
-                </div>
-                <div className="text-xs font-bold text-zinc-100 font-mono truncate group-hover:underline">
-                  {conta.status === 'PAGA' ? formatCurrency(conta.valor) : 'Pendente de Pagamento'}
-                </div>
-                <div className="text-[10px] text-zinc-400 truncate flex items-center justify-between">
-                  <span>{conta.status === 'PAGA' && conta.dataPagamento ? `Pago ${format(new Date(conta.dataPagamento), 'dd/MM/yyyy')}` : 'Aguardando quitação'}</span>
-                  <span className="text-emerald-400 text-[9px] font-semibold">🔍 Recibo</span>
-                </div>
-              </div>
-            </div>
-          </div>
+          )}
 
           {/* Botões de Ação */}
           <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-4 border-t border-zinc-800">

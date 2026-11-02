@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
 import { employeeService } from '@/services/employeeService';
-import { CreateEmployeeDTO } from '@/types/employee';
+import { CreateEmployeeDTO, Employee } from '@/types/employee';
 import { positionService, Position } from '@/services/positionService';
 import workPostService, { WorkPost } from '@/services/workPostService';
 import departmentService, { Department } from '@/services/departmentService';
@@ -15,7 +15,7 @@ import { userService } from '@/services/userService';
 import { User } from '@/types/user';
 import { companyService } from '@/services/companyService';
 import { Company } from '@/types/company';
-import { Search, User as UserIcon, Building, Briefcase, Plus, UserPlus, Link, X, FileText, Upload, FileCheck, AlertCircle, Users as UsersIcon, Trash2, Edit2, Shield, Eye, FileSpreadsheet } from 'lucide-react';
+import { Search, User as UserIcon, Building, Briefcase, Plus, UserPlus, UserCheck, Link, X, FileText, Upload, FileCheck, AlertCircle, Users as UsersIcon, Trash2, Edit2, Shield, Eye, FileSpreadsheet, Brain } from 'lucide-react';
 import NovoCargoModal from '@/components/funcionarios/NovoCargoModal';
 import NovoMedicoModal from '@/components/funcionarios/NovoMedicoModal';
 import CriarUsuarioPadraoModal from '@/components/funcionarios/CriarUsuarioPadraoModal';
@@ -34,6 +34,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import EmployeeHistoryTimeline from '@/components/funcionarios/EmployeeHistoryTimeline';
 import EmployeeDocumentsTab from '@/components/funcionarios/EmployeeDocumentsTab';
+import { generateSingleAdmissionDocumentPdf, generatePacoteAdmissionalCompleto, EmployeeAdmissionData } from '@/utils/admissionDocumentsPdfGenerator';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface FuncionarioNovoModalProps {
   open: boolean;
@@ -88,11 +90,24 @@ const initialState: CreateEmployeeDTO = {
     agency: '',
     account: '',
     type: 'CORRENTE'
-  }
+  },
+  laudoPsicologicoData: '',
+  laudoPsicologicoStatus: '',
+  laudoPsicologicoProfissional: '',
+  laudoPsicologicoObservacoes: '',
+  processoJudicialPossui: false,
+  processoJudicialNumero: '',
+  processoJudicialVara: '',
+  processoJudicialTipoAcao: '',
+  processoJudicialStatus: '',
+  processoJudicialDataDistribuicao: '',
+  processoJudicialObservacoes: '',
 };
 
 const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClose, onCreated, employeeToEdit }) => {
   const { toast } = useToast();
+  const { user: authUser, empresa: authEmpresa } = useAuth();
+  const isSuperAdmin = (authUser?.role ?? '').toUpperCase().includes('SUPER_ADMIN') || (authUser?.role ?? '').toUpperCase().includes('FLEX_ADMIN');
   const [form, setForm] = useState<CreateEmployeeDTO>(initialState);
   const [isEditMode, setIsEditMode] = useState(false);
 
@@ -391,6 +406,9 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
         exameMedicoTipo: employeeToEdit.exameMedicoTipo || '',
         // Laudo Psicológico + próximos vencimentos
         laudoPsicologicoData: (employeeToEdit as any).laudoPsicologicoData || '',
+        laudoPsicologicoStatus: (employeeToEdit as any).laudoPsicologicoStatus || '',
+        laudoPsicologicoProfissional: (employeeToEdit as any).laudoPsicologicoProfissional || '',
+        laudoPsicologicoObservacoes: (employeeToEdit as any).laudoPsicologicoObservacoes || '',
         nextExameMedico: (employeeToEdit as any).nextExameMedico || '',
         nextLaudoPsicologico: (employeeToEdit as any).nextLaudoPsicologico || '',
         exameMedicoDoctor: employeeToEdit.exameMedicoDoctor || undefined,
@@ -399,6 +417,18 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
         exameMedicoObservacoes: employeeToEdit.exameMedicoObservacoes || '',
         exameMedicoPrimeiroEmprego: employeeToEdit.exameMedicoPrimeiroEmprego,
         exameMedicoContribuicaoSindicalPaga: employeeToEdit.exameMedicoContribuicaoSindicalPaga,
+
+        // Histórico de Processo Judicial (RF07)
+        processoJudicialPossui: (employeeToEdit as any).processoJudicialPossui || false,
+        processoJudicialNumero: (employeeToEdit as any).processoJudicialNumero || '',
+        processoJudicialVara: (employeeToEdit as any).processoJudicialVara || '',
+        processoJudicialTipoAcao: (employeeToEdit as any).processoJudicialTipoAcao || '',
+        processoJudicialStatus: (employeeToEdit as any).processoJudicialStatus || '',
+        processoJudicialDataDistribuicao: (employeeToEdit as any).processoJudicialDataDistribuicao || '',
+        processoJudicialObservacoes: (employeeToEdit as any).processoJudicialObservacoes || '',
+        
+        // Posto de trabalho
+        workPostId: (employeeToEdit as any).workPostId || '',
         
         // Dados bancários - converter de bankInfo (backend) para bankData (frontend)
         bankData: employeeToEdit.bankData ? {
@@ -436,10 +466,76 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
         console.log('🔍 Carregando unidade:', employeeToEdit.unit);
         setSelectedUnit(employeeToEdit.unit);
       }
-      if (employeeToEdit.user) {
+      if (employeeToEdit.user && (employeeToEdit.user.id || (employeeToEdit.user as any).name)) {
         console.log('🔍 Carregando usuário:', employeeToEdit.user);
-        setSelectedUser(employeeToEdit.user);
-        setUserSearchTerm(employeeToEdit.user.name || employeeToEdit.user.username || '');
+        const u = employeeToEdit.user;
+        setSelectedUser(u);
+        const displayName = u.name || (u as any).username || '';
+        setUserSearchTerm(displayName);
+        if (u.id) {
+          userService.getUserById(u.id)
+            .then(userData => {
+              if (userData) {
+                setSelectedUser(userData);
+                setUserSearchTerm(userData.name || userData.username || '');
+                setForm(prev => ({
+                  ...prev,
+                  user: { id: userData.id },
+                  email: prev.email || userData.email || '',
+                  phone: prev.phone || userData.whatsapp || (userData as any).phone || ''
+                }));
+              }
+            })
+            .catch(err => console.warn('Erro ao resolver usuário de employeeToEdit:', err));
+        }
+      } else {
+        // Se o funcionário não possui user vinculado no objeto, buscar usuário correspondente existente (por CPF, email ou nome)
+        const cleanCpf = (employeeToEdit.document || employeeToEdit.cpf || '').replace(/\D/g, '');
+        const empEmail = (employeeToEdit.email || '').trim().toLowerCase();
+        const empName = (employeeToEdit.name || '').trim().toLowerCase();
+
+        userService.getAllUsers().then(allUsersList => {
+          if (!allUsersList || allUsersList.length === 0) return;
+          const matched = allUsersList.find(u => {
+            if (cleanCpf && u.cpf) {
+              const uCpf = u.cpf.replace(/\D/g, '');
+              if (uCpf && uCpf === cleanCpf) return true;
+            }
+            if (cleanCpf && u.username) {
+              const uUserClean = u.username.replace(/\D/g, '');
+              if (uUserClean && uUserClean === cleanCpf) return true;
+            }
+            if (empEmail && u.email && u.email.toLowerCase() === empEmail) {
+              return true;
+            }
+            if (employeeToEdit.id && u.employeeId && u.employeeId === employeeToEdit.id) {
+              return true;
+            }
+            const uName = (u.name || '').trim().toLowerCase();
+            if (empName && uName && empName.length > 5 && empName === uName) {
+              return true;
+            }
+            return false;
+          });
+
+          if (matched) {
+            console.log('🔗 Usuário correspondente localizado e carregado:', matched);
+            setSelectedUser(matched);
+            setUserSearchTerm(matched.name || matched.username || '');
+            setForm(prev => ({
+              ...prev,
+              user: { id: matched.id },
+              email: prev.email || matched.email || ''
+            }));
+            // Se o funcionário já está salvo, persiste o vínculo no backend
+            if (employeeToEdit.id) {
+              employeeService.updateEmployee(employeeToEdit.id, {
+                ...employeeToEdit,
+                user: { id: matched.id }
+              }).catch(err => console.warn('Erro ao persistir vínculo automático:', err));
+            }
+          }
+        }).catch(err => console.warn('Erro ao auto-localizar usuário para funcionário:', err));
       }
       if (employeeToEdit.company && employeeToEdit.company.id) {
         console.log('🔍 Carregando empresa:', employeeToEdit.company);
@@ -507,16 +603,59 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
     loadWorkPostsAndDepartments();
   }, []);
 
-  // Atualizar selectedCompany quando companies forem carregadas e houver employeeToEdit
+  // Gerenciar empresa selecionada (SUPER_ADMIN vs Usuário de empresa)
   useEffect(() => {
-    if (employeeToEdit?.company?.id && companies.length > 0) {
-      const fullCompany = companies.find(c => c.id === employeeToEdit.company?.id);
-      if (fullCompany && (!selectedCompany || selectedCompany.id !== fullCompany.id)) {
-        console.log('🔍 Atualizando empresa com dados completos:', fullCompany);
-        setSelectedCompany(fullCompany);
+    if (!open) return;
+
+    const loggedCompanyId = authEmpresa?.id || (authUser as any)?.companyId || (authUser as any)?.company?.id;
+    const userCompany = companies.find(c => c.id === loggedCompanyId) || (authEmpresa?.id ? {
+      id: authEmpresa.id,
+      name: authEmpresa.nome,
+      sigla: (authEmpresa as any).sigla || '',
+      cnpj: (authEmpresa as any).cnpj || '',
+      address: (authEmpresa as any).address || ''
+    } as Company : null);
+
+    if (!isSuperAdmin) {
+      // Regra obrigatória: Não-SuperAdmin SEMPRE tem vinculada a empresa a qual pertence (criação e edição)
+      if (userCompany) {
+        if (!selectedCompany || selectedCompany.id !== userCompany.id) {
+          console.log('🏢 Definindo empresa do usuário logado (não-SuperAdmin):', userCompany.name);
+          setSelectedCompany(userCompany);
+        }
+        if (!form.company?.id || form.company.id !== userCompany.id) {
+          setForm(prev => ({
+            ...prev,
+            company: { id: userCompany.id },
+            empresaNome: userCompany.name,
+            empresaCnpj: userCompany.cnpj || prev.empresaCnpj || '',
+            empresaEndereco: userCompany.address || prev.empresaEndereco || ''
+          }));
+        }
+      }
+    } else {
+      // Super Admin: Pode listar e selecionar qualquer empresa
+      if (employeeToEdit?.company?.id) {
+        const found = companies.find(c => c.id === employeeToEdit.company?.id);
+        if (found && (!selectedCompany || selectedCompany.id !== found.id)) {
+          console.log('🔍 SuperAdmin - carregando empresa do funcionário editado:', found.name);
+          setSelectedCompany(found);
+        } else if (!found && employeeToEdit.company && (!selectedCompany || selectedCompany.id !== employeeToEdit.company.id)) {
+          setSelectedCompany(employeeToEdit.company as Company);
+        }
+      } else if (!selectedCompany && userCompany) {
+        // Se o funcionário não tem empresa cadastrada e o SuperAdmin tem empresa ativa
+        setSelectedCompany(userCompany);
+        setForm(prev => ({
+          ...prev,
+          company: { id: userCompany.id },
+          empresaNome: userCompany.name,
+          empresaCnpj: userCompany.cnpj || prev.empresaCnpj || '',
+          empresaEndereco: userCompany.address || prev.empresaEndereco || ''
+        }));
       }
     }
-  }, [companies, employeeToEdit?.company?.id]);
+  }, [open, isSuperAdmin, employeeToEdit, companies, authEmpresa, authUser]);
 
   // Função para carregar dependentes do funcionário
   const loadEmployeeDependents = async (employeeId: string) => {
@@ -656,6 +795,17 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
 
   // Buscar usuários no backend baseado no termo de busca
   useEffect(() => {
+    const selectedCompanyId = selectedCompany?.id ? String(selectedCompany.id) : null;
+
+    // Filtrar por empresa — regra obrigatória
+    const filterByCompany = (list: User[]): User[] => {
+      if (!selectedCompanyId) return [];
+      return list.filter(u => {
+        const uCompId = (u as any).companyId ? String((u as any).companyId) : null;
+        return uCompId === selectedCompanyId;
+      });
+    };
+
     const searchUsers = async () => {
       try {
         // Verificar se o termo de busca é um CPF (apenas números)
@@ -665,16 +815,16 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
           // Buscar por CPF
           try {
             const userByCpf = await userService.getUserByCpf(userSearchTerm.replace(/\D/g, ''));
-            setFilteredUsers([userByCpf]);
+            setFilteredUsers(filterByCompany([userByCpf]));
           } catch (cpfError) {
             // Se não encontrar por CPF, fazer busca normal
             const searchResults = await userService.searchUsers(userSearchTerm);
-            setFilteredUsers(searchResults);
+            setFilteredUsers(filterByCompany(searchResults));
           }
         } else {
           // Busca normal por nome, email ou username
           const searchResults = await userService.searchUsers(userSearchTerm);
-          setFilteredUsers(searchResults);
+          setFilteredUsers(filterByCompany(searchResults));
         }
       } catch (error) {
         console.error('Erro ao buscar usuários:', error);
@@ -687,12 +837,12 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
       if (userSearchTerm.trim()) {
         searchUsers();
       } else {
-        setFilteredUsers([]);
+        setFilteredUsers(filterByCompany(users));
       }
     }, 300);
 
     return () => clearTimeout(timeoutId);
-  }, [userSearchTerm]);
+  }, [userSearchTerm, users, selectedCompany]);
 
   // Buscar cargos no backend baseado no termo de busca
   useEffect(() => {
@@ -718,11 +868,20 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
   useEffect(() => {
     if (form.user?.id) {
       const user = users.find(u => u.id === form.user.id);
-      setSelectedUser(user || null);
       if (user) {
+        setSelectedUser(user);
         setUserSearchTerm(user.name);
+      } else if (!selectedUser || selectedUser.id !== form.user.id) {
+        userService.getUserById(form.user.id)
+          .then(userData => {
+            if (userData) {
+              setSelectedUser(userData);
+              setUserSearchTerm(userData.name || userData.username || '');
+            }
+          })
+          .catch(err => console.warn('Não foi possível carregar usuário vinculado:', err));
       }
-    } else {
+    } else if (form.user === null || form.user?.id === '') {
       setSelectedUser(null);
       setUserSearchTerm('');
     }
@@ -775,7 +934,36 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
       setPositions(positionsData);
       setFilteredPositions(positionsData);
       setUnits(unitsData);
-      setCompanies(companiesData);
+
+      const loggedCompanyId = authEmpresa?.id || (authUser as any)?.companyId || (authUser as any)?.company?.id;
+      let userCompany = companiesData.find(c => c.id === loggedCompanyId);
+      if (!userCompany && authEmpresa?.id) {
+        userCompany = {
+          id: authEmpresa.id,
+          name: authEmpresa.nome,
+          sigla: (authEmpresa as any).sigla || '',
+          cnpj: (authEmpresa as any).cnpj || '',
+          address: (authEmpresa as any).address || ''
+        } as Company;
+      }
+
+      // Se for SuperAdmin, exibe todas as empresas. Se NÃO for SuperAdmin, exibe APENAS a empresa à qual o usuário pertence!
+      if (isSuperAdmin) {
+        setCompanies(companiesData);
+      } else {
+        const restrictedList = userCompany ? [userCompany] : companiesData.filter(c => c.id === loggedCompanyId);
+        setCompanies(restrictedList);
+        if (userCompany) {
+          setSelectedCompany(userCompany);
+          setForm(prev => ({
+            ...prev,
+            company: { id: userCompany!.id },
+            empresaNome: userCompany!.name,
+            empresaCnpj: userCompany!.cnpj || prev.empresaCnpj || '',
+            empresaEndereco: userCompany!.address || prev.empresaEndereco || ''
+          }));
+        }
+      }
       
       // Carregar usuários iniciais (sem filtro)
       const usersData = await userService.searchUsers();
@@ -900,6 +1088,16 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
         ...form
         // Removido: dependents - não enviar dependentes no payload do funcionário
       } as any;
+
+      // Sincronizar vínculo de usuário explicitamente
+      if (selectedUser?.id) {
+        employeeData.user = { id: selectedUser.id };
+        employeeData.removeUser = false;
+      } else {
+        employeeData.user = null;
+        employeeData.removeUser = true;
+      }
+
       // Próximos vencimentos são sempre recalculados pelo backend (data + 1 ano)
       delete employeeData.nextExameMedico;
       delete employeeData.nextLaudoPsicologico;
@@ -1012,7 +1210,7 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
     });
   };
 
-  const handleUsuarioPadraoCriado = (usuario: User) => {
+  const handleUsuarioPadraoCriado = async (usuario: User) => {
     // Adicionar o novo usuário à lista
     setUsers(prev => [...prev, usuario]);
     setFilteredUsers(prev => [...prev, usuario]);
@@ -1022,8 +1220,31 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
     setUserSearchTerm(usuario.name);
     setCriarUsuarioModalOpen(false);
     
-    // Fechar o modal principal após criar o usuário
-    onClose();
+    const targetEmpId = employeeToEdit?.id || currentEmployeeId;
+    if (targetEmpId) {
+      try {
+        await employeeService.updateEmployee(targetEmpId, {
+          ...form,
+          user: { id: usuario.id }
+        });
+        toast({
+          title: "Vínculo Concluído!",
+          description: `Usuário @${usuario.username} foi criado e vinculado com sucesso a este funcionário.`,
+        });
+        onCreated();
+      } catch (err: any) {
+        console.error('Erro ao vincular usuário ao funcionário:', err);
+        toast({
+          title: "Atenção",
+          description: "Usuário criado. Clique no botão 'Salvar' no rodapé para confirmar o vínculo.",
+        });
+      }
+    } else {
+      toast({
+        title: "Usuário Selecionado!",
+        description: `Usuário @${usuario.username} gerado e preenchido. Clique em 'Salvar' no rodapé para cadastrar o funcionário.`,
+      });
+    }
   };
 
   // Funções para importação de PDF
@@ -1234,6 +1455,9 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
 
   const handleUserInputFocus = () => {
     setShowUserDropdown(true);
+    if (!userSearchTerm.trim()) {
+      setFilteredUsers(users);
+    }
   };
 
   const handleUserInputBlur = () => {
@@ -1290,6 +1514,10 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
   };
 
   const handleCompanySelect = (companyId: string) => {
+    if (!isSuperAdmin && selectedCompany) {
+      // Usuários não-SuperAdmin não podem alterar a empresa
+      return;
+    }
     if (companyId === 'none') {
       setSelectedCompany(null);
       setForm(prev => ({ ...prev, company: { id: '' } }));
@@ -1297,7 +1525,13 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
       const company = companies.find(c => c.id === companyId);
       if (company) {
         setSelectedCompany(company);
-        setForm(prev => ({ ...prev, company: { id: company.id } }));
+        setForm(prev => ({
+          ...prev,
+          company: { id: company.id },
+          empresaNome: company.name,
+          empresaCnpj: company.cnpj || prev.empresaCnpj || '',
+          empresaEndereco: company.address || prev.empresaEndereco || ''
+        }));
       }
     }
   };
@@ -1351,35 +1585,47 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
   };
 
   const handleEmployeeRecordPdf = async (mode: 'download' | 'preview') => {
-    if (!employeeIdValue) {
-      toast({
-        title: "Atenção",
-        description: "É necessário salvar o funcionário primeiro para gerar a ficha.",
-        variant: "destructive"
-      });
-      return;
-    }
-
     setLoading(true);
     try {
-      const blob = await employeeService.generateEmployeeRecordPdf(employeeIdValue);
+      const data = getAdmissionDataFromForm();
+      const pdfDoc = await generateSingleAdmissionDocumentPdf('registro-empregado', data);
+      const blob = pdfDoc.output('blob');
+      const safeName = (data.name || 'funcionario').replace(/\s+/g, '_').toLowerCase();
       if (mode === 'preview') {
         openBlobInNewTab(blob);
       } else {
-        downloadBlob(blob, `ficha-registro-funcionario-${employeeIdValue}.pdf`);
+        downloadBlob(blob, `ficha_registro_${safeName}.pdf`);
       }
       toast({
         title: "Sucesso",
-        description: "Ficha de registro gerada com sucesso!",
+        description: "Ficha de registro de empregado gerada com o cabeçalho padrão com sucesso!",
         variant: "default"
       });
     } catch (error: any) {
-      console.error('❌ Erro ao gerar ficha:', error);
-      toast({
-        title: "Erro",
-        description: error.message || "Não foi possível gerar a ficha.",
-        variant: "destructive"
-      });
+      console.warn('Tentando fallback para serviço backend:', error);
+      try {
+        if (!employeeIdValue) {
+          throw new Error('É necessário salvar o funcionário primeiro para gerar a ficha.');
+        }
+        const blob = await employeeService.generateEmployeeRecordPdf(employeeIdValue);
+        if (mode === 'preview') {
+          openBlobInNewTab(blob);
+        } else {
+          downloadBlob(blob, `ficha-registro-funcionario-${employeeIdValue}.pdf`);
+        }
+        toast({
+          title: "Sucesso",
+          description: "Ficha de registro gerada com sucesso!",
+          variant: "default"
+        });
+      } catch (err2: any) {
+        console.error('❌ Erro ao gerar ficha:', err2);
+        toast({
+          title: "Erro",
+          description: err2.message || "Não foi possível gerar a ficha.",
+          variant: "destructive"
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -1593,6 +1839,108 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
       toast({
         title: "❌ Erro",
         description: "Erro ao visualizar ficha de contabilidade. Tente novamente.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const getAdmissionDataFromForm = (): EmployeeAdmissionData => {
+    return {
+      id: employeeIdValue,
+      name: form.name || 'Funcionário',
+      cpf: form.cpf,
+      rg: form.rg,
+      carteiraIdentidadeOrgaoEmissor: form.carteiraIdentidadeOrgaoEmissor,
+      carteiraIdentidadeDataEmissao: form.carteiraIdentidadeDataEmissao,
+      birthDate: form.birthDate,
+      maritalStatus: form.maritalStatus,
+      nationality: form.nationality || 'Brasileiro',
+      sexo: form.sexo || form.gender,
+      racaCor: (form as any).racaCor,
+      nomePai: form.nomePai,
+      nomeMae: form.nomeMae,
+      registrationNumber: form.registrationNumber || form.matriculaEsocial,
+      matriculaEsocial: form.matriculaEsocial,
+      hireDate: form.hireDate,
+      salario: form.salario,
+      salarioPorExtenso: form.salarioPorExtenso,
+      horarioTrabalho: form.horarioTrabalho,
+      cargo: selectedPosition?.name || (employeeToEdit?.position?.name) || '',
+      cbo: form.cbo || selectedPosition?.cbo || '',
+      
+      enderecoRua: form.enderecoRua || form.address,
+      enderecoNumero: form.enderecoNumero,
+      enderecoComplemento: form.enderecoComplemento,
+      enderecoBairro: form.enderecoBairro,
+      enderecoCidade: form.enderecoCidade,
+      enderecoEstado: form.enderecoEstado,
+      enderecoCep: form.enderecoCep,
+      address: form.address,
+
+      ctps: form.ctps,
+      ctpsSeries: form.ctpsSeries,
+      ctpsState: (form as any).ctpsState || 'MG',
+      ctpsIssueDate: form.ctpsIssueDate,
+      pis: form.pis,
+      cnhNumber: form.cnhNumber,
+      cnhCategory: form.cnhCategory,
+      cnhExpirationDate: form.cnhExpirationDate,
+
+      empresaNome: form.empresaNome || selectedCompany?.name || 'VIACAO SAO SILVESTRE LTDA',
+      empresaCnpj: form.empresaCnpj || selectedCompany?.cnpj || '71.055.644/0001-25',
+      empresaEndereco: form.empresaEndereco || selectedCompany?.address || 'Rua DOS ESPORTES, 45',
+      empresaCidade: selectedCompany?.city || 'Moeda',
+      empresaEstado: selectedCompany?.state || 'MG',
+
+      spouseName: form.spouseName,
+      spouseCpf: form.spouseCpf,
+
+      dependents: employeeDependents.map(d => ({
+        name: d.name,
+        relationship: d.relationship,
+        birthDate: d.birthDate,
+        cpf: d.cpf,
+        rg: d.rg
+      }))
+    };
+  };
+
+  const handleGenerateAdmissionDoc = async (docType: string, mode: 'download' | 'preview') => {
+    const data = getAdmissionDataFromForm();
+    if (!data.name || data.name.trim() === '') {
+      toast({
+        title: "Atenção",
+        description: "Preencha o nome do funcionário para gerar o documento.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const pdfDoc = await generateSingleAdmissionDocumentPdf(docType, data);
+      const blob = pdfDoc.output('blob');
+      const safeName = data.name.replace(/\s+/g, '_').toLowerCase();
+
+      if (mode === 'preview') {
+        openBlobInNewTab(blob);
+      } else {
+        const filename = docType === 'pacote-completo' 
+          ? `pacote_admissional_${safeName}.pdf` 
+          : `documento_${docType}_${safeName}.pdf`;
+        downloadBlob(blob, filename);
+      }
+
+      toast({
+        title: "Documento Gerado",
+        description: docType === 'pacote-completo' 
+          ? "Pacote admissional completo em PDF gerado com sucesso!" 
+          : "Documento admissional gerado com sucesso.",
+      });
+    } catch (err: any) {
+      console.error('Erro ao gerar documento admissional:', err);
+      toast({
+        title: "Erro ao gerar PDF",
+        description: err.message || "Ocorreu um erro ao gerar o documento.",
         variant: "destructive"
       });
     }
@@ -1877,11 +2225,15 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
         
                 <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
                   <Tabs defaultValue="cadastro" className="space-y-4 sm:space-y-6">
-                    <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 bg-seguranca-graphite border border-gray-600 h-auto">
+                    <TabsList className="grid w-full grid-cols-2 sm:grid-cols-6 bg-seguranca-graphite border border-gray-600 h-auto">
                       <TabsTrigger value="cadastro" className="py-2">Cadastro</TabsTrigger>
                       <TabsTrigger value="historico" className="py-2">Histórico</TabsTrigger>
                       <TabsTrigger value="documentos" className="py-2">Documentos</TabsTrigger>
                       <TabsTrigger value="dependentes" className="py-2">Dependentes</TabsTrigger>
+                      <TabsTrigger value="documentos-admissionais" className="py-2 text-seguranca-yellow font-semibold flex items-center justify-center gap-1">
+                        <FileCheck className="h-3.5 w-3.5" />
+                        Doc. Admissionais
+                      </TabsTrigger>
                       <TabsTrigger value="relatorios" className="py-2">Relatórios</TabsTrigger>
                     </TabsList>
                     <TabsContent value="cadastro" className="space-y-4 sm:space-y-6">
@@ -1896,104 +2248,298 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
                  Relacionamentos Obrigatórios
                </h3>
              </div>
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-               {/* Seleção de Usuário */}
-               <div className="space-y-2">
-                 <Label className="text-xs sm:text-sm font-medium text-gray-200">
-                   Usuário do Sistema
-                 </Label>
-                 <div className="relative">
-                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 sm:h-5 sm:w-5" />
-                   <Input
-                     placeholder="Digite nome, email, username ou CPF para buscar usuário..."
-                     value={userSearchTerm}
-                     onChange={handleUserSearch}
-                     onFocus={handleUserInputFocus}
-                     onBlur={handleUserInputBlur}
-                     className="pl-9 sm:pl-10 text-xs sm:text-sm h-9 sm:h-10"
-                   />
-                   
-                   {/* Dropdown de usuários */}
-                   {showUserDropdown && filteredUsers.length > 0 && (
-                     <div className="absolute z-50 w-full mt-1 bg-seguranca-graphite border border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                       {filteredUsers.map((user) => (
-                         <div
-                           key={user.id}
-                           className="px-3 py-2 hover:bg-gray-700 cursor-pointer border-b border-gray-600 last:border-b-0"
-                           onClick={() => handleUserSelect(user)}
-                         >
-                           <div className="flex flex-col">
-                             <span className="font-medium text-seguranca-lightgray">{user.name}</span>
-                             <span className="text-xs text-gray-400">
-                               {user.email} • {user.username} • {user.role}
-                             </span>
-                           </div>
-                         </div>
-                       ))}
-                     </div>
-                   )}
-                   
-                   {/* Mensagem quando não há resultados */}
-                   {showUserDropdown && userSearchTerm.trim() !== '' && filteredUsers.length === 0 && (
-                     <div className="absolute z-50 w-full mt-1 bg-seguranca-graphite border border-gray-600 rounded-lg shadow-lg p-3">
-                       <p className="text-sm text-gray-400">Nenhum usuário encontrado</p>
-                     </div>
-                   )}
-                 </div>
-                 
-                 {/* Exibir usuário selecionado */}
-                 {selectedUser && (
-                   <div className="bg-green-900/20 border border-green-600 rounded-lg p-3">
-                     <div className="flex items-center justify-between">
-                       <div>
-                         <p className="text-sm font-medium text-green-400">Usuário selecionado:</p>
-                         <p className="text-sm text-seguranca-lightgray">{selectedUser.name}</p>
-                         <p className="text-xs text-gray-400">{selectedUser.email}</p>
-                       </div>
-                       <Button
-                         type="button"
-                         variant="ghost"
-                         size="sm"
-                         onClick={() => {
-                           setSelectedUser(null);
-                           setUserSearchTerm('');
-                           setForm(prev => ({ ...prev, user: { id: '' } }));
-                         }}
-                         className="text-red-400 hover:text-red-300"
-                       >
-                         <X className="h-4 w-4" />
-                       </Button>
-                     </div>
-                   </div>
-                 )}
-                 <div className="flex items-center justify-between">
-                 <p className="text-xs text-gray-300">
-                   O usuário selecionado será associado ao funcionário para acesso ao sistema. (Opcional)
-                   {canCreateDefaultUser && (
-                     <span className="block mt-1 text-seguranca-yellow">
-                       Para este cargo, é recomendado criar um usuário padrão.
-                     </span>
-                   )}
-                 </p>
-                   {canCreateDefaultUser && (
-                     <Button
-                       type="button"
-                       variant="ghost"
-                       size="sm"
-                       onClick={() => setCriarUsuarioModalOpen(true)}
-                       className="text-seguranca-yellow hover:text-yellow-400 text-xs px-2 py-1 h-auto"
-                     >
-                       <UserPlus className="h-3 w-3 mr-1" />
-                       Criar Usuário Padrão
-                       <Link className="h-3 w-3 ml-1" />
-                     </Button>
-                   )}
-                 </div>
-               </div>
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* 1. Cargo */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs sm:text-sm font-medium text-gray-200">
+                      Cargo *
+                    </Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setNovoCargoModalOpen(true)}
+                      className="text-seguranca-yellow hover:text-yellow-400 text-xs p-0 h-auto flex items-center gap-1"
+                      title="Criar novo cargo"
+                    >
+                      <Plus className="h-3 w-3" />
+                      Novo Cargo
+                    </Button>
+                  </div>
+                  <div className="relative">
+                    <Input
+                      type="text"
+                      value={positionSearchTerm}
+                      onChange={handlePositionSearch}
+                      onFocus={handlePositionInputFocus}
+                      onBlur={handlePositionInputBlur}
+                      placeholder="Buscar cargo..."
+                      className="pr-10 text-xs sm:text-sm h-9 sm:h-10 bg-seguranca-graphite border-gray-600 text-seguranca-lightgray"
+                    />
+                    <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    
+                    {showPositionDropdown && (
+                      <div className="absolute z-50 w-full mt-1 bg-seguranca-graphite border border-gray-600 rounded-lg shadow-lg max-h-60 overflow-auto">
+                        {filteredPositions.length > 0 ? (
+                          filteredPositions.map((pos) => (
+                            <div
+                              key={pos.id}
+                              className="px-3 py-2 hover:bg-gray-700 cursor-pointer flex items-center border-b border-gray-600 last:border-b-0"
+                              onClick={() => handlePositionSelect(pos)}
+                            >
+                              <Briefcase className="mr-2 h-4 w-4 text-seguranca-yellow" />
+                              <div className="flex-1">
+                                <div className="font-medium text-seguranca-lightgray text-xs sm:text-sm">{pos.name}</div>
+                                {pos.description && (
+                                  <div className="text-xs text-gray-400">{pos.description}</div>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="px-3 py-2 text-gray-400 text-xs">
+                            Nenhum cargo encontrado
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {selectedPosition && (
+                    <div className="bg-yellow-900/20 border border-yellow-600/50 rounded-lg p-2.5 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Briefcase className="h-4 w-4 text-seguranca-yellow" />
+                        <span className="text-xs sm:text-sm font-medium text-yellow-300">{selectedPosition.name}</span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedPosition(null);
+                          setPositionSearchTerm('');
+                          setForm(prev => ({ ...prev, position: { id: '' } }));
+                        }}
+                        className="text-red-400 hover:text-red-300 p-1 h-auto"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
 
-             </div>
-             </div>
-           </Card>
+                {/* 2. Empresa */}
+                <div className="space-y-2">
+                  <Label className="text-xs sm:text-sm font-medium text-gray-200">
+                    Empresa *
+                  </Label>
+                  <Select 
+                    value={selectedCompany?.id || 'none'} 
+                    onValueChange={handleCompanySelect}
+                    disabled={!isSuperAdmin && !!selectedCompany}
+                  >
+                    <SelectTrigger className="bg-seguranca-graphite border-gray-600 text-seguranca-lightgray text-xs sm:text-sm h-9 sm:h-10 disabled:opacity-90 disabled:cursor-not-allowed">
+                      <SelectValue placeholder="Selecione a empresa">
+                        {selectedCompany ? (
+                          <div className="flex items-center gap-2">
+                            <Building className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                            <span className="truncate">
+                              {selectedCompany.sigla ? `${selectedCompany.sigla.toUpperCase()} - ${selectedCompany.name}` : selectedCompany.name}
+                            </span>
+                          </div>
+                        ) : 'Selecione a empresa'}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent className="bg-seguranca-graphite border-gray-600">
+                      {isSuperAdmin && (
+                        <SelectItem value="none" className="text-seguranca-lightgray hover:bg-gray-700">
+                          <span className="text-gray-400">Selecione uma empresa</span>
+                        </SelectItem>
+                      )}
+                      {companies.map((company) => (
+                        <SelectItem 
+                          key={company.id} 
+                          value={company.id}
+                          className="text-seguranca-lightgray hover:bg-gray-700"
+                        >
+                          {company.sigla ? `${company.sigla.toUpperCase()} - ${company.name}` : company.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedCompany && (
+                    <p className="text-xs text-green-400 flex items-center gap-1">
+                      <Building className="h-3 w-3" />
+                      Empresa vinculada: <span className="font-semibold">{selectedCompany.name}</span>
+                      {!isSuperAdmin && (
+                        <span className="ml-1 text-[11px] text-gray-400 font-normal">(Sua empresa cadastrada)</span>
+                      )}
+                    </p>
+                  )}
+                </div>
+
+                {/* 3. Unidade */}
+                <div className="space-y-2">
+                  <Label className="text-xs sm:text-sm font-medium text-gray-200">
+                    Unidade
+                  </Label>
+                  <Select 
+                    value={form.unit?.id || ''} 
+                    onValueChange={(value) => handleSelectChange('unit', value)}
+                  >
+                    <SelectTrigger className="bg-seguranca-graphite border-gray-600 text-seguranca-lightgray text-xs sm:text-sm h-9 sm:h-10">
+                      <SelectValue placeholder="Selecione uma unidade" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-seguranca-graphite border-gray-600">
+                      {units.map((unit) => (
+                        <SelectItem key={unit.id} value={unit.id} className="text-seguranca-lightgray hover:bg-gray-700">
+                          <div className="flex items-center gap-2">
+                            <Building className="h-3.5 w-3.5 text-seguranca-yellow" />
+                            {unit.name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* 4. Setor de Trabalho */}
+                <div className="space-y-2">
+                  <Label className="text-xs sm:text-sm font-medium text-gray-200">
+                    Setor de Trabalho
+                  </Label>
+                  <Select 
+                    value={(form as any).workPostId || ''}
+                    onValueChange={(value) => setForm(prev => ({ ...(prev as any), workPostId: value }))}
+                  >
+                    <SelectTrigger className="bg-seguranca-graphite border-gray-600 text-seguranca-lightgray text-xs sm:text-sm h-9 sm:h-10">
+                      <SelectValue placeholder="Selecione o setor/posto" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-seguranca-graphite border-gray-600">
+                      {workPosts.map((wp) => (
+                        <SelectItem key={wp.id} value={wp.id} className="text-seguranca-lightgray hover:bg-gray-700">
+                          {wp.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* 5. Usuário do Sistema */}
+                <div className="space-y-2 md:col-span-2 lg:col-span-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs sm:text-sm font-medium text-gray-200">
+                      Usuário do Sistema
+                    </Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCriarUsuarioModalOpen(true)}
+                      className={selectedUser
+                        ? "bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border-emerald-500/30 text-xs px-2.5 py-1 h-7 flex items-center gap-1.5"
+                        : "bg-seguranca-yellow/20 hover:bg-seguranca-yellow/30 text-seguranca-yellow border-seguranca-yellow/40 text-xs px-2.5 py-1 h-7 flex items-center gap-1.5"
+                      }
+                    >
+                      {selectedUser ? (
+                        <>
+                          <UserCheck className="h-3.5 w-3.5 text-emerald-400" />
+                          <span>Usuário Vinculado (@{selectedUser.username})</span>
+                        </>
+                      ) : (
+                        <>
+                          <UserPlus className="h-3.5 w-3.5" />
+                          <span>Gerar Usuário de Sistema</span>
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <Input
+                      placeholder="Buscar usuário por nome, email, username ou CPF..."
+                      value={userSearchTerm}
+                      onChange={handleUserSearch}
+                      onFocus={handleUserInputFocus}
+                      onBlur={handleUserInputBlur}
+                      className="pl-9 text-xs sm:text-sm h-9 sm:h-10 bg-seguranca-graphite border-gray-600 text-seguranca-lightgray"
+                    />
+                    
+                    {showUserDropdown && filteredUsers.length > 0 && (
+                      <div className="absolute z-50 w-full mt-1 bg-seguranca-graphite border border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        {filteredUsers.map((user) => {
+                          const currentEmpId = currentEmployeeId || employeeToEdit?.id;
+                          const isLinkedToOther = !!(user.employeeId && user.employeeId !== currentEmpId);
+                          const isLinkedToCurrent = !!(user.employeeId && user.employeeId === currentEmpId);
+
+                          return (
+                            <div
+                              key={user.id}
+                              className={`px-3 py-2 border-b border-gray-600 last:border-b-0 transition-colors ${
+                                isLinkedToOther
+                                  ? 'opacity-60 bg-gray-800/50 cursor-not-allowed'
+                                  : 'hover:bg-gray-700 cursor-pointer'
+                              }`}
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                if (!isLinkedToOther) {
+                                  handleUserSelect(user);
+                                }
+                              }}
+                            >
+                              <div className="flex flex-col">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-seguranca-lightgray text-xs sm:text-sm">
+                                    {user.name}
+                                  </span>
+                                  {isLinkedToOther && (
+                                    <span className="text-[10px] bg-red-950/80 text-red-300 border border-red-700/60 px-1.5 py-0.5 rounded font-medium">
+                                      Já vinculado a {user.employeeName || 'outro funcionário'}
+                                    </span>
+                                  )}
+                                  {isLinkedToCurrent && (
+                                    <span className="text-[10px] bg-emerald-950/80 text-emerald-300 border border-emerald-700/60 px-1.5 py-0.5 rounded font-medium">
+                                      Vinculado a este funcionário
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-xs text-gray-400">
+                                  {user.email} • @{user.username} {user.role ? `• ${user.role}` : ''}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                  
+                  {selectedUser && (
+                    <div className="bg-green-900/20 border border-green-600/50 rounded-lg p-2.5 flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-semibold text-green-400">Usuário vinculado:</p>
+                        <p className="text-xs sm:text-sm text-seguranca-lightgray">{selectedUser.name}</p>
+                        <p className="text-xs text-gray-400">{selectedUser.email}</p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedUser(null);
+                          setUserSearchTerm('');
+                          setForm(prev => ({ ...prev, user: { id: '' } }));
+                        }}
+                        className="text-red-400 hover:text-red-300 p-1 h-auto"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+              </div>
+            </Card>
 
            {/* Seção: Informações Pessoais */}
            <Card className="bg-gradient-to-r from-seguranca-graphite to-gray-700 border-gray-600">
@@ -3409,14 +3955,26 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
                  <Select 
                    value={selectedCompany?.id || 'none'} 
                    onValueChange={handleCompanySelect}
+                   disabled={!isSuperAdmin && !!selectedCompany}
                  >
-                   <SelectTrigger className="bg-seguranca-graphite border-gray-600 text-seguranca-lightgray">
-                     <SelectValue placeholder="Selecione uma empresa" />
+                   <SelectTrigger className="bg-seguranca-graphite border-gray-600 text-seguranca-lightgray disabled:opacity-90 disabled:cursor-not-allowed">
+                     <SelectValue placeholder="Selecione uma empresa">
+                       {selectedCompany ? (
+                         <div className="flex items-center gap-2">
+                           <Building className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                           <span className="truncate">
+                             {selectedCompany.sigla ? `${selectedCompany.sigla.toUpperCase()} - ${selectedCompany.name}` : selectedCompany.name}
+                           </span>
+                         </div>
+                       ) : 'Selecione uma empresa'}
+                     </SelectValue>
                    </SelectTrigger>
                    <SelectContent className="bg-seguranca-graphite border-gray-600">
-                     <SelectItem value="none" className="text-seguranca-lightgray hover:bg-gray-700">
-                       <span className="text-gray-400">Nenhuma empresa</span>
-                     </SelectItem>
+                     {isSuperAdmin && (
+                       <SelectItem value="none" className="text-seguranca-lightgray hover:bg-gray-700">
+                         <span className="text-gray-400">Nenhuma empresa</span>
+                       </SelectItem>
+                     )}
                      {companies.map((company) => (
                        <SelectItem 
                          key={company.id} 
@@ -3882,6 +4440,267 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
               </div>
             </Card>
           </TabsContent>
+          <TabsContent value="documentos-admissionais" className="space-y-4 sm:space-y-6">
+            {/* Card Principal: Baixar Todos os Documentos (Pacote Completo) */}
+            <Card className="bg-gradient-to-r from-seguranca-graphite via-gray-800 to-gray-700 border-2 border-seguranca-yellow shadow-lg">
+              <div className="p-4 sm:p-5 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-seguranca-yellow/20 rounded-xl border border-seguranca-yellow/30">
+                      <FileCheck className="h-6 w-6 text-seguranca-yellow" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                        PACOTE ADMISSIONAL COMPLETO (PDF ÚNICO)
+                      </h3>
+                      <p className="text-xs text-seguranca-lightgray/80 mt-0.5">
+                        Gera um único PDF compilando todos os 5 documentos de admissão preenchidos com os dados do funcionário.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Button
+                      type="button"
+                      onClick={() => handleGenerateAdmissionDoc('pacote-completo', 'download')}
+                      className="bg-seguranca-yellow hover:bg-seguranca-yellow/90 text-seguranca-black font-semibold h-10 px-4 text-xs sm:text-sm"
+                    >
+                      <FileText className="mr-2 h-4 w-4" />
+                      Baixar Todos (PDF Único)
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleGenerateAdmissionDoc('pacote-completo', 'preview')}
+                      className="border-seguranca-yellow text-seguranca-yellow hover:bg-seguranca-yellow/10 h-10 px-3 text-xs sm:text-sm"
+                    >
+                      <Eye className="mr-2 h-4 w-4" />
+                      Visualizar
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            {/* Grid dos 6 Documentos Admissionais Oficiais */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              
+              {/* 1. SOLICITAÇÃO DE VALE - TRANSPORTE */}
+              <Card className="bg-gradient-to-r from-seguranca-graphite to-gray-700 border-gray-600">
+                <div className="p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-seguranca-yellow/20 rounded-lg">
+                      <FileText className="h-4 w-4 text-seguranca-yellow" />
+                    </div>
+                    <h4 className="text-sm font-semibold text-white">1. SOLICITAÇÃO DE VALE - TRANSPORTE</h4>
+                  </div>
+                  <p className="text-xs text-gray-300">
+                    Termo oficial de opção/declaração de Vale-Transporte (Decreto nº 95.247/87).
+                  </p>
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleGenerateAdmissionDoc('vt', 'download')}
+                      className="flex-1 border-blue-500 text-blue-400 hover:bg-blue-500/10 h-9 text-xs"
+                    >
+                      <FileText className="mr-1.5 h-3.5 w-3.5" />
+                      Baixar PDF
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleGenerateAdmissionDoc('vt', 'preview')}
+                      className="border-gray-500 text-gray-300 hover:bg-gray-500/10 h-9 text-xs px-3"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+
+              {/* 2. Declaração De Encargos De Família Para Fins De Imposto De Renda */}
+              <Card className="bg-gradient-to-r from-seguranca-graphite to-gray-700 border-gray-600">
+                <div className="p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-seguranca-yellow/20 rounded-lg">
+                      <FileText className="h-4 w-4 text-seguranca-yellow" />
+                    </div>
+                    <h4 className="text-sm font-semibold text-white">2. Declaração De Encargos De Família (IRPF)</h4>
+                  </div>
+                  <p className="text-xs text-gray-300">
+                    Declaração para fins de dedução do Imposto de Renda Retido na Fonte (IN RFB 1.500/14).
+                  </p>
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleGenerateAdmissionDoc('ir', 'download')}
+                      className="flex-1 border-blue-500 text-blue-400 hover:bg-blue-500/10 h-9 text-xs"
+                    >
+                      <FileText className="mr-1.5 h-3.5 w-3.5" />
+                      Baixar PDF
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleGenerateAdmissionDoc('ir', 'preview')}
+                      className="border-gray-500 text-gray-300 hover:bg-gray-500/10 h-9 text-xs px-3"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+
+              {/* 3. Ficha de Salário-Família */}
+              <Card className="bg-gradient-to-r from-seguranca-graphite to-gray-700 border-gray-600">
+                <div className="p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-seguranca-yellow/20 rounded-lg">
+                      <FileText className="h-4 w-4 text-seguranca-yellow" />
+                    </div>
+                    <h4 className="text-sm font-semibold text-white">3. Ficha de Salário-Família</h4>
+                  </div>
+                  <p className="text-xs text-gray-300">
+                    Ficha oficial de acompanhamento e concessão do benefício de Salário-Família.
+                  </p>
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleGenerateAdmissionDoc('salario-familia', 'download')}
+                      className="flex-1 border-blue-500 text-blue-400 hover:bg-blue-500/10 h-9 text-xs"
+                    >
+                      <FileText className="mr-1.5 h-3.5 w-3.5" />
+                      Baixar PDF
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleGenerateAdmissionDoc('salario-familia', 'preview')}
+                      className="border-gray-500 text-gray-300 hover:bg-gray-500/10 h-9 text-xs px-3"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+
+              {/* 4. Termo de Responsabilidade */}
+              <Card className="bg-gradient-to-r from-seguranca-graphite to-gray-700 border-gray-600">
+                <div className="p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-seguranca-yellow/20 rounded-lg">
+                      <FileText className="h-4 w-4 text-seguranca-yellow" />
+                    </div>
+                    <h4 className="text-sm font-semibold text-white">4. Termo de Responsabilidade (Salário-Família)</h4>
+                  </div>
+                  <p className="text-xs text-gray-300">
+                    Termo de responsabilidade conforme Portaria MPAS nº 3.040/1982.
+                  </p>
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleGenerateAdmissionDoc('termo-responsabilidade', 'download')}
+                      className="flex-1 border-blue-500 text-blue-400 hover:bg-blue-500/10 h-9 text-xs"
+                    >
+                      <FileText className="mr-1.5 h-3.5 w-3.5" />
+                      Baixar PDF
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleGenerateAdmissionDoc('termo-responsabilidade', 'preview')}
+                      className="border-gray-500 text-gray-300 hover:bg-gray-500/10 h-9 text-xs px-3"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+
+              {/* 5. CONTRATO DE TRABALHO A TÍTULO DE EXPERIÊNCIA */}
+              <Card className="bg-gradient-to-r from-seguranca-graphite to-gray-700 border-gray-600">
+                <div className="p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-seguranca-yellow/20 rounded-lg">
+                      <FileText className="h-4 w-4 text-seguranca-yellow" />
+                    </div>
+                    <h4 className="text-sm font-semibold text-white">5. CONTRATO DE TRABALHO DE EXPERIÊNCIA</h4>
+                  </div>
+                  <p className="text-xs text-gray-300">
+                    Contrato individual a título de experiência (Art. 443 §2º "c" CLT) com Termo de Prorrogação e LGPD.
+                  </p>
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleGenerateAdmissionDoc('contrato-experiencia', 'download')}
+                      className="flex-1 border-blue-500 text-blue-400 hover:bg-blue-500/10 h-9 text-xs"
+                    >
+                      <FileText className="mr-1.5 h-3.5 w-3.5" />
+                      Baixar PDF
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleGenerateAdmissionDoc('contrato-experiencia', 'preview')}
+                      className="border-gray-500 text-gray-300 hover:bg-gray-500/10 h-9 text-xs px-3"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+
+              {/* 6. Ficha de Registro de Empregado */}
+              <Card className="bg-gradient-to-r from-seguranca-graphite to-gray-700 border-gray-600">
+                <div className="p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-seguranca-yellow/20 rounded-lg">
+                      <FileCheck className="h-4 w-4 text-seguranca-yellow" />
+                    </div>
+                    <h4 className="text-sm font-semibold text-white">6. Ficha de Registro de Empregado</h4>
+                  </div>
+                  <p className="text-xs text-gray-300">
+                    Ficha de registro de empregado completa para arquivo do RH e contabilidade.
+                  </p>
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleEmployeeRecordPdf('download')}
+                      disabled={!canGenerateReports || loading}
+                      className="flex-1 border-blue-500 text-blue-400 hover:bg-blue-500/10 h-9 text-xs"
+                    >
+                      <FileText className="mr-1.5 h-3.5 w-3.5" />
+                      Baixar PDF
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleEmployeeRecordPdf('preview')}
+                      disabled={!canGenerateReports || loading}
+                      className="border-gray-500 text-gray-300 hover:bg-gray-500/10 h-9 text-xs px-3"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleEmployeeRecordExcel}
+                      disabled={!canGenerateReports || loading}
+                      className="border-emerald-500 text-emerald-400 hover:bg-emerald-500/10 h-9 text-xs px-3"
+                    >
+                      <FileSpreadsheet className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+
+            </div>
+          </TabsContent>
           </Tabs>
 
           {error && (
@@ -3931,18 +4750,20 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
 
        {/* Modal de Criar Usuário Padrão */}
        <CriarUsuarioPadraoModal
-         open={criarUsuarioModalOpen}
-         onClose={() => {
-           setCriarUsuarioModalOpen(false);
-           // Se fechar sem criar usuário, fechar o modal principal também
-           onClose();
-         }}
-         onUsuarioCreated={handleUsuarioPadraoCriado}
-         positionName={selectedPosition?.name || ''}
-         employeeName={form.name}
-         employeeCpf={form.cpf}
-         employeePhone={form.phone}
-       />
+          open={criarUsuarioModalOpen}
+          onClose={() => {
+            setCriarUsuarioModalOpen(false);
+          }}
+          onUsuarioCreated={handleUsuarioPadraoCriado}
+          positionName={selectedPosition?.name || ''}
+          employeeName={form.name}
+          employeeCpf={form.cpf}
+          employeePhone={form.phone}
+          employeeEmail={form.email}
+          employeeId={employeeToEdit?.id || currentEmployeeId || undefined}
+          initialUser={selectedUser || undefined}
+          companyId={selectedCompany?.id || form.company?.id || authEmpresa?.id || authUser?.companyId}
+        />
 
        {/* Modal de Novo Médico */}
        <NovoMedicoModal

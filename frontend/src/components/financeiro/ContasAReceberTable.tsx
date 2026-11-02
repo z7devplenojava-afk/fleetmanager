@@ -18,7 +18,9 @@ import {
   XCircle,
   Calendar,
   DollarSign,
-  Users
+  Users,
+  FileUp,
+  FileText
 } from 'lucide-react';
 import { ContaAReceber } from './ContasAReceberFormModal';
 import { format, isAfter, isBefore, addDays } from 'date-fns';
@@ -29,6 +31,7 @@ interface ContasAReceberTableProps {
   onEdit: (conta: ContaAReceber) => void;
   onDelete: (id: string) => void;
   onView: (conta: ContaAReceber) => void;
+  onImportNfse?: (conta: ContaAReceber) => void;
   onRefresh: () => void;
   loading?: boolean;
 }
@@ -38,6 +41,7 @@ export const ContasAReceberTable: React.FC<ContasAReceberTableProps> = ({
   onEdit,
   onDelete,
   onView,
+  onImportNfse,
   onRefresh,
   loading = false
 }) => {
@@ -90,6 +94,10 @@ export const ContasAReceberTable: React.FC<ContasAReceberTableProps> = ({
         return <Badge className="bg-blue-100 text-blue-800">Fatura</Badge>;
       case 'MEDICAO':
         return <Badge className="bg-purple-100 text-purple-800">Medição</Badge>;
+      case 'LOCACAO_VEICULOS':
+        return <Badge className="bg-cyan-100 text-cyan-800">Locação de Veículos</Badge>;
+      case 'FRETAMENTO_TURISMO':
+        return <Badge className="bg-amber-100 text-amber-800">Fretamento / Turismo</Badge>;
       case 'SERVICO':
         return <Badge className="bg-green-100 text-green-800">Serviço</Badge>;
       case 'PRODUTO':
@@ -175,9 +183,11 @@ export const ContasAReceberTable: React.FC<ContasAReceberTableProps> = ({
               <SelectValue placeholder="Tipo" />
             </SelectTrigger>
             <SelectContent className="bg-seguranca-black border-gray-600">
-              <SelectItem value="TODOS" className="text-white hover:bg-seguranca-graphite">Todos</SelectItem>
+              <SelectItem value="TODOS" className="text-white hover:bg-seguranca-graphite">Todos os Tipos</SelectItem>
               <SelectItem value="FATURA" className="text-white hover:bg-seguranca-graphite">Fatura</SelectItem>
               <SelectItem value="MEDICAO" className="text-white hover:bg-seguranca-graphite">Medição</SelectItem>
+              <SelectItem value="LOCACAO_VEICULOS" className="text-white hover:bg-seguranca-graphite">Locação de Veículos</SelectItem>
+              <SelectItem value="FRETAMENTO_TURISMO" className="text-white hover:bg-seguranca-graphite">Fretamento / Turismo</SelectItem>
               <SelectItem value="SERVICO" className="text-white hover:bg-seguranca-graphite">Serviço</SelectItem>
               <SelectItem value="PRODUTO" className="text-white hover:bg-seguranca-graphite">Produto</SelectItem>
             </SelectContent>
@@ -223,7 +233,14 @@ export const ContasAReceberTable: React.FC<ContasAReceberTableProps> = ({
                     }`}
                   >
                     <TableCell className="text-white">
-                      {conta.numeroFatura || '-'}
+                      <div className="flex flex-col">
+                        <span>{conta.numeroFatura || '-'}</span>
+                        {conta.nfseNumber ? (
+                          <span className="text-[10px] text-green-400 font-mono">NFS-e: #{conta.nfseNumber}</span>
+                        ) : (
+                          <span className="text-[10px] text-yellow-500 font-mono">Pend. NFS-e</span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-white">
                       <div className="flex flex-col">
@@ -231,8 +248,9 @@ export const ContasAReceberTable: React.FC<ContasAReceberTableProps> = ({
                           <Users size={14} className="text-gray-400" />
                           {conta.cliente || '-'}
                         </div>
-                        {(conta.obra || conta.contrato) && (
+                        {(conta.obra || conta.contrato || conta.measurementNumber) && (
                           <div className="text-xs text-gray-400 mt-0.5 flex flex-wrap gap-2">
+                            {conta.measurementNumber && <span className="text-purple-400 font-semibold">Medição #{conta.measurementNumber}</span>}
                             {conta.obra && <span>Obra: {conta.obra}</span>}
                             {conta.contrato && <span>Contrato: {conta.contrato}</span>}
                           </div>
@@ -246,7 +264,12 @@ export const ContasAReceberTable: React.FC<ContasAReceberTableProps> = ({
                       {getTipoBadge(conta.tipo)}
                     </TableCell>
                     <TableCell className="text-green-400 font-semibold">
-                      {formatCurrency(conta.valor)}
+                      <div className="flex flex-col">
+                        <span>{formatCurrency(conta.valor)}</span>
+                        {conta.grossAmount && (
+                          <span className="text-[10px] text-gray-400">Bruto: {formatCurrency(conta.grossAmount)}</span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-white">
                       <div className="flex items-center gap-2">
@@ -276,20 +299,33 @@ export const ContasAReceberTable: React.FC<ContasAReceberTableProps> = ({
                       {getStatusBadge(conta.status)}
                     </TableCell>
                     <TableCell>
-                      <div className="flex justify-center gap-2">
+                      <div className="flex justify-center gap-1.5">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => onView(conta)}
-                          className="border-gray-600 text-white hover:bg-seguranca-black p-1"
+                          title="Visualizar Detalhes"
+                          className="border-gray-600 text-white hover:bg-seguranca-black p-1.5"
                         >
                           <Eye size={14} />
                         </Button>
+                        {onImportNfse && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => onImportNfse(conta)}
+                            title="Importar NFS-e (XML/PDF)"
+                            className="border-green-600 text-green-400 hover:bg-green-600/20 p-1.5"
+                          >
+                            <FileUp size={14} />
+                          </Button>
+                        )}
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => onEdit(conta)}
-                          className="border-blue-600 text-blue-400 hover:bg-blue-600/20 p-1"
+                          title="Editar"
+                          className="border-blue-600 text-blue-400 hover:bg-blue-600/20 p-1.5"
                         >
                           <Edit size={14} />
                         </Button>
@@ -301,7 +337,8 @@ export const ContasAReceberTable: React.FC<ContasAReceberTableProps> = ({
                               onDelete(conta.id!);
                             }
                           }}
-                          className="border-red-600 text-red-400 hover:bg-red-600/20 p-1"
+                          title="Excluir"
+                          className="border-red-600 text-red-400 hover:bg-red-600/20 p-1.5"
                         >
                           <Trash2 size={14} />
                         </Button>

@@ -1,6 +1,7 @@
 package com.z7design.fleet_manager.repository;
 
 import com.z7design.fleet_manager.model.Payslip;
+import com.z7design.fleet_manager.tenant.TenantContext;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -40,8 +41,15 @@ public interface PayslipRepository extends JpaRepository<Payslip, java.util.UUID
     
     // Retorna o primeiro holerite com o nome do arquivo (mais recente)
     // IMPORTANTE: Usar LIMIT 1 para garantir que retorne apenas 1 resultado
-    @Query(value = "SELECT * FROM payslips WHERE file_name = :fileName ORDER BY processed_at DESC LIMIT 1", nativeQuery = true)
-    Payslip findFirstByFileNameOrderByProcessedAtDesc(@Param("fileName") String fileName);
+    @Query(value = "SELECT * FROM payslips WHERE file_name = :fileName " +
+           "AND (CAST(:companyId AS uuid) IS NULL OR company_id = CAST(:companyId AS uuid)) " +
+           "ORDER BY processed_at DESC LIMIT 1", nativeQuery = true)
+    Payslip findFirstByFileNameOrderByProcessedAtDescScoped(@Param("fileName") String fileName,
+           @Param("companyId") java.util.UUID companyId);
+
+    default Payslip findFirstByFileNameOrderByProcessedAtDesc(String fileName) {
+        return findFirstByFileNameOrderByProcessedAtDescScoped(fileName, TenantContext.get());
+    }
     
     @Query("SELECT p FROM Payslip p WHERE p.month = :month AND p.year = :year")
     List<Payslip> findByMonthAndYear(@Param("month") Integer month, @Param("year") Integer year);

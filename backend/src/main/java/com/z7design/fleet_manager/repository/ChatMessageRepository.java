@@ -50,15 +50,17 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, UUID> 
     /**
      * Busca últimas mensagens de conversas para um usuário
      */
-    @Query("SELECT cm FROM ChatMessage cm WHERE cm.id IN (" +
-           "SELECT MAX(cm2.id) FROM ChatMessage cm2 WHERE " +
-           "(cm2.sender.id = :userId OR cm2.recipient.id = :userId OR " +
-           "cm2.group.id IN (SELECT ug.id FROM User u JOIN u.groups ug WHERE u.id = :userId)) " +
-           "GROUP BY CASE " +
-           "WHEN cm2.recipient.id = :userId THEN cm2.sender.id " +
-           "WHEN cm2.sender.id = :userId THEN cm2.recipient.id " +
-           "ELSE cm2.group.id END) " +
-           "ORDER BY cm.createdAt DESC")
+    @Query(value = "SELECT * FROM chat_messages WHERE id IN (" +
+           "SELECT DISTINCT ON (" +
+           "  COALESCE(CASE WHEN recipient_id = :userId THEN sender_id WHEN sender_id = :userId THEN recipient_id ELSE NULL END, group_id, department_id, id)" +
+           ") id FROM chat_messages " +
+           "WHERE (sender_id = :userId OR recipient_id = :userId " +
+           "       OR group_id IN (SELECT group_id FROM user_group_membership WHERE user_id = :userId) " +
+           "       OR department_id IS NOT NULL) " +
+           "ORDER BY " +
+           "  COALESCE(CASE WHEN recipient_id = :userId THEN sender_id WHEN sender_id = :userId THEN recipient_id ELSE NULL END, group_id, department_id, id), " +
+           "  created_at DESC" +
+           ") ORDER BY created_at DESC", nativeQuery = true)
     List<ChatMessage> findRecentConversationsForUser(@Param("userId") UUID userId);
 
     /**

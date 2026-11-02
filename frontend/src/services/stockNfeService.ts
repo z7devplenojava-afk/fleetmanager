@@ -5,6 +5,7 @@ export interface StockNfeItemDTO {
   barcode: string;
   description: string;
   ncm: string;
+  cst?: string;
   cfop: string;
   unitOfMeasure: string;
   quantity: number;
@@ -45,6 +46,16 @@ export interface StockNfeParsedDTO {
   supplierPhone?: string;
   supplierEmail?: string;
   existingSupplierId?: string;
+
+  // Destinatário / Cliente
+  customerCnpj?: string;
+  customerName?: string;
+  customerAddress?: string;
+  customerCity?: string;
+  customerState?: string;
+  customerZipCode?: string;
+  customerPhone?: string;
+
   alreadyImported: boolean;
   duplicateWarning?: string;
   items: StockNfeItemDTO[];
@@ -59,6 +70,10 @@ export interface ProcessItemPayload {
   category: string;
   unitName?: string;
   unitId?: string;
+  ncm?: string;
+  cst?: string;
+  cfop?: string;
+  unitMeasure?: string;
   quantity: number;
   unitCost: number;
   description?: string;
@@ -92,6 +107,7 @@ export interface StockNfeProcessRequestDTO {
   supplierEmail?: string;
   supplierId?: string;
   createFinancialAccounts: boolean;
+  forceImport?: boolean;
   items: ProcessItemPayload[];
   installments: ProcessInstallmentPayload[];
 }

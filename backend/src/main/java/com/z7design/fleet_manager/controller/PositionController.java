@@ -49,8 +49,12 @@ public class PositionController {
     public ResponseEntity<Object> searchPositions(@RequestParam(value = "query", required = false) String query) {
         log.debug("Buscando cargos com query: {}", query);
         try {
-            // Retornar todos os cargos por enquanto para evitar erro
-            List<PositionDTO> positions = positionService.getAllPositions();
+            List<PositionDTO> positions;
+            if (query != null && !query.trim().isEmpty()) {
+                positions = positionService.searchPositions(query.trim());
+            } else {
+                positions = positionService.getAllPositions();
+            }
             return ResponseEntity.ok(positions);
         } catch (Exception e) {
             log.error("Erro ao buscar cargos: ", e);

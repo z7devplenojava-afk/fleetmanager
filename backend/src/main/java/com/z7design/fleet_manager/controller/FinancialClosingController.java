@@ -47,18 +47,18 @@ public class FinancialClosingController {
 
     @PostMapping("/measurements/{bulletinId}/workshop-cuts")
     public ResponseEntity<List<WorkshopCutService.VehicleCutResult>> applyWorkshopCuts(
-            @PathVariable UUID bulletinId) {
+            @PathVariable("bulletinId") UUID bulletinId) {
         return ResponseEntity.ok(workshopCutService.applyWorkshopCuts(bulletinId));
     }
 
     @GetMapping("/measurements/{bulletinId}/workshop-cuts")
-    public ResponseEntity<List<MeasurementCut>> getWorkshopCuts(@PathVariable UUID bulletinId) {
+    public ResponseEntity<List<MeasurementCut>> getWorkshopCuts(@PathVariable("bulletinId") UUID bulletinId) {
         return ResponseEntity.ok(workshopCutService.getCuts(bulletinId));
     }
 
     @PostMapping("/work-orders/{workOrderId}/reserve-cover")
     public ResponseEntity<FleetWorkOrder> registerReserveCover(
-            @PathVariable UUID workOrderId,
+            @PathVariable("workOrderId") UUID workOrderId,
             @RequestBody Map<String, Object> body) {
         UUID reserveVehicleId = body.get("reserveVehicleId") != null
                 ? UUID.fromString(body.get("reserveVehicleId").toString())
@@ -105,7 +105,7 @@ public class FinancialClosingController {
     }
 
     @GetMapping("/receivables/{receivableId}/boleto-pdf")
-    public ResponseEntity<byte[]> getBoletoPdf(@PathVariable UUID receivableId) throws Exception {
+    public ResponseEntity<byte[]> getBoletoPdf(@PathVariable("receivableId") UUID receivableId) throws Exception {
         byte[] pdf = financialClosingService.generateBoletoPdf(receivableId);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_PDF);

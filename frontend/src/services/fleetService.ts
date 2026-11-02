@@ -73,29 +73,22 @@ class FleetService {
   async getVehicles(): Promise<Vehicle[]> {
     console.log('🔍 FleetService - Buscando veículos...');
     try {
-      const response = await api.get('/api/frota/vehicles');
-      console.log('✅ FleetService - Veículos encontrados:', response.data);
-      console.log('🔍 FleetService - Tipo de resposta:', typeof response.data);
-      console.log('🔍 FleetService - É array?', Array.isArray(response.data));
-      console.log('🔍 FleetService - Quantidade:', response.data?.length);
-      
-      // Verificar se a resposta é válida
-      if (!response.data || !Array.isArray(response.data)) {
-        console.warn('⚠️ FleetService - Resposta inválida, retornando array vazio');
-        return [];
+      let response;
+      try {
+        response = await api.get('/api/vehicles');
+      } catch (e) {
+        response = await api.get('/api/frota/vehicles');
       }
       
-      return response.data;
+      const list = Array.isArray(response?.data) 
+        ? response.data 
+        : (Array.isArray(response?.data?.content) ? response.data.content : []);
+      
+      console.log('✅ FleetService - Veículos carregados:', list.length);
+      return list;
     } catch (error: any) {
       console.error('❌ FleetService - Erro ao buscar veículos:', error);
-      
-      // Se for erro 500, retornar array vazio em vez de lançar erro
-      if (error.response?.status === 500) {
-        console.warn('⚠️ FleetService - Erro 500 do servidor, retornando array vazio');
-        return [];
-      }
-      
-      throw error;
+      return [];
     }
   }
 
@@ -139,9 +132,10 @@ class FleetService {
   }
 
   // Registros de Abastecimento
-  async getFuelRecords(vehicleId?: string): Promise<FuelRecord[]> {
+  async getFuelRecords(vehicleId?: string | any): Promise<FuelRecord[]> {
     try {
-      const url = vehicleId ? `/api/fuel-records?vehicleId=${vehicleId}` : '/api/fuel-records';
+      const validVehicleId = typeof vehicleId === 'string' && vehicleId.trim() !== '' ? vehicleId.trim() : null;
+      const url = validVehicleId ? `/api/fuel-records?vehicleId=${validVehicleId}` : '/api/fuel-records';
       console.log('🔍 FleetService - Buscando registros de abastecimento:', url);
       
       const response = await api.get(url);
@@ -190,8 +184,9 @@ class FleetService {
   }
 
   // Multas
-  async getFines(vehicleId?: string): Promise<Fine[]> {
-    const url = vehicleId ? `/api/fines?vehicleId=${vehicleId}` : '/api/fines';
+  async getFines(vehicleId?: string | any): Promise<Fine[]> {
+    const validVehicleId = typeof vehicleId === 'string' && vehicleId.trim() !== '' ? vehicleId.trim() : null;
+    const url = validVehicleId ? `/api/fines?vehicleId=${validVehicleId}` : '/api/fines';
     const response = await api.get(url);
     return response.data;
   }
@@ -211,8 +206,9 @@ class FleetService {
   }
 
   // Manutenções
-  async getMaintenances(vehicleId?: string): Promise<Maintenance[]> {
-    const url = vehicleId ? `/api/maintenances?vehicleId=${vehicleId}` : '/api/maintenances';
+  async getMaintenances(vehicleId?: string | any): Promise<Maintenance[]> {
+    const validVehicleId = typeof vehicleId === 'string' && vehicleId.trim() !== '' ? vehicleId.trim() : null;
+    const url = validVehicleId ? `/api/maintenances?vehicleId=${validVehicleId}` : '/api/maintenances';
     const response = await api.get(url);
     return response.data;
   }

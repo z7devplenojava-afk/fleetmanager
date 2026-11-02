@@ -43,8 +43,14 @@ public class VehicleService {
     public List<VehicleDTO> getAllVehicles() {
         log.debug("Buscando todos os veículos");
         try {
-            List<Vehicle> vehicles = vehicleRepository.findAll();
-            log.debug("Encontrados {} veículos", vehicles.size());
+            UUID tenantId = com.z7design.fleet_manager.tenant.TenantContext.get();
+            List<Vehicle> vehicles;
+            if (tenantId != null) {
+                vehicles = vehicleRepository.findByCompanyId(tenantId);
+            } else {
+                vehicles = vehicleRepository.findAll();
+            }
+            log.debug("Encontrados {} veículos (tenant: {})", vehicles.size(), tenantId);
             return vehicles.stream()
                     .map(VehicleDTO::fromEntity)
                     .collect(Collectors.toList());
@@ -65,38 +71,47 @@ public class VehicleService {
     
     @Transactional(readOnly = true)
     public Optional<VehicleDTO> getVehicleByPlate(String plate) {
-        log.debug("Buscando veÃ­culo por placa: {}", plate);
-        Optional<Vehicle> vehicle = vehicleRepository.findByPlate(plate);
+        log.debug("Buscando veículo por placa: {}", plate);
+        UUID tenantId = com.z7design.fleet_manager.tenant.TenantContext.get();
+        Optional<Vehicle> vehicle = (tenantId != null) 
+                ? vehicleRepository.findByPlateAndCompanyId(plate, tenantId) 
+                : vehicleRepository.findByPlate(plate);
         return vehicle.map(VehicleDTO::fromEntity);
     }
     
     @Transactional(readOnly = true)
     public List<VehicleDTO> getVehiclesByStatus(Vehicle.VehicleStatus status) {
-        log.debug("Buscando veÃ­culos por status: {}", status);
+        log.debug("Buscando veículos por status: {}", status);
         try {
-            List<Vehicle> vehicles = vehicleRepository.findByStatus(status);
-            log.debug("Encontrados {} veÃ­culos com status {}", vehicles.size(), status);
+            UUID tenantId = com.z7design.fleet_manager.tenant.TenantContext.get();
+            List<Vehicle> vehicles = (tenantId != null) 
+                    ? vehicleRepository.findByStatusAndCompanyId(status, tenantId) 
+                    : vehicleRepository.findByStatus(status);
+            log.debug("Encontrados {} veículos com status {}", vehicles.size(), status);
             return vehicles.stream()
                     .map(VehicleDTO::fromEntity)
                     .collect(Collectors.toList());
         } catch (Exception e) {
-            log.error("Erro ao buscar veÃ­culos por status: ", e);
-            throw new RuntimeException("Erro ao buscar veÃ­culos por status: " + e.getMessage(), e);
+            log.error("Erro ao buscar veículos por status: ", e);
+            throw new RuntimeException("Erro ao buscar veículos por status: " + e.getMessage(), e);
         }
     }
     
     @Transactional(readOnly = true)
     public List<VehicleDTO> searchVehicles(String searchTerm) {
-        log.debug("Buscando veÃ­culos com termo: {}", searchTerm);
+        log.debug("Buscando veículos com termo: {}", searchTerm);
         try {
-            List<Vehicle> vehicles = vehicleRepository.findBySearchTerm(searchTerm);
-            log.debug("Encontrados {} veÃ­culos para o termo '{}'", vehicles.size(), searchTerm);
+            UUID tenantId = com.z7design.fleet_manager.tenant.TenantContext.get();
+            List<Vehicle> vehicles = (tenantId != null) 
+                    ? vehicleRepository.findBySearchTermAndCompanyId(searchTerm, tenantId) 
+                    : vehicleRepository.findBySearchTerm(searchTerm);
+            log.debug("Encontrados {} veículos para o termo '{}'", vehicles.size(), searchTerm);
             return vehicles.stream()
                     .map(VehicleDTO::fromEntity)
                     .collect(Collectors.toList());
         } catch (Exception e) {
-            log.error("Erro ao buscar veÃ­culos: ", e);
-            throw new RuntimeException("Erro ao buscar veÃ­culos: " + e.getMessage(), e);
+            log.error("Erro ao buscar veículos: ", e);
+            throw new RuntimeException("Erro ao buscar veículos: " + e.getMessage(), e);
         }
     }
     

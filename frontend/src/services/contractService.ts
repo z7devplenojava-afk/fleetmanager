@@ -321,4 +321,6 @@ export const contractService = {
       }
     ];
   }
-}; 
+};
+
+export default contractService; 

@@ -26,7 +26,7 @@ public class ChatbotConfigController {
     private ChatbotConfigService chatbotConfigService;
     
     @PostMapping("/config")
-    @PreAuthorize("hasAnyAuthority('SUPPORT_MANAGE', 'ATTENDANCE_MANAGE', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ChatbotConfigDTO> createConfig(
             @Valid @RequestBody CreateChatbotConfigRequest request,
             Authentication authentication) {
@@ -42,7 +42,7 @@ public class ChatbotConfigController {
     }
     
     @PutMapping("/config/{id}")
-    @PreAuthorize("hasAnyAuthority('SUPPORT_MANAGE', 'ATTENDANCE_MANAGE', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ChatbotConfigDTO> updateConfig(
             @PathVariable("id") UUID id,
             @Valid @RequestBody UpdateChatbotConfigRequest request,
@@ -53,7 +53,7 @@ public class ChatbotConfigController {
     }
     
     @GetMapping("/config")
-    @PreAuthorize("hasAnyAuthority('SUPPORT_READ', 'SUPPORT_MANAGE', 'ATTENDANCE_READ', 'ATTENDANCE_MANAGE', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<ChatbotConfigDTO>> getAllConfigs() {
         try {
             List<ChatbotConfigDTO> configs = chatbotConfigService.getAllConfigs();
@@ -65,14 +65,14 @@ public class ChatbotConfigController {
     }
     
     @GetMapping("/config/{id}")
-    @PreAuthorize("hasAnyAuthority('SUPPORT_READ', 'SUPPORT_MANAGE', 'ATTENDANCE_READ', 'ATTENDANCE_MANAGE', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ChatbotConfigDTO> getConfig(@PathVariable("id") UUID id) {
         ChatbotConfigDTO config = chatbotConfigService.getConfig(id);
         return ResponseEntity.ok(config);
     }
     
     @GetMapping("/config/active")
-    @PreAuthorize("hasAnyAuthority('SUPPORT_READ', 'SUPPORT_MANAGE', 'ATTENDANCE_READ', 'ATTENDANCE_MANAGE', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ChatbotConfigDTO> getActiveConfig() {
         try {
             ChatbotConfigDTO config = chatbotConfigService.getActiveConfig();
@@ -83,7 +83,7 @@ public class ChatbotConfigController {
     }
     
     @DeleteMapping("/config/{id}")
-    @PreAuthorize("hasAnyAuthority('SUPPORT_MANAGE', 'ATTENDANCE_MANAGE', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> deleteConfig(@PathVariable("id") UUID id) {
         chatbotConfigService.deleteConfig(id);
         return ResponseEntity.noContent().build();

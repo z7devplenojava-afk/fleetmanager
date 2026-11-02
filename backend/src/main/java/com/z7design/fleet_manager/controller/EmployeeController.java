@@ -241,6 +241,7 @@ public class EmployeeController {
                     java.util.Map<String, Object> position = new java.util.HashMap<>();
                     position.put("name", row[19]); // position_name
                     employee.put("position", position);
+                    employee.put("positionDescription", row[19]);
                 }
                 
                 if (row.length > 20 && row[20] != null) {
@@ -259,6 +260,7 @@ public class EmployeeController {
                 // Adicionar userId se existir (index 22)
                 if (row.length > 22 && row[22] != null) {
                     employee.put("userId", row[22]);
+                    employee.put("user", java.util.Map.of("id", row[22]));
                 }
                 
                 employees.add(employee);
@@ -290,13 +292,46 @@ public class EmployeeController {
             
             // Se houver searchTerm, usar busca por nome ou documento
             List<Object[]> data;
-            if (searchTerm != null && !searchTerm.trim().isEmpty()) {
-                System.out.println("ðŸ” EmployeeController.getAll - Buscando por termo: " + searchTerm);
-                data = employeeService.findBasicDataBySearchTerm(searchTerm.trim());
-            } else {
-                data = employeeService.findBasicData();
+            try {
+                if (searchTerm != null && !searchTerm.trim().isEmpty()) {
+                    System.out.println(" EmployeeController.getAll - Buscando por termo: " + searchTerm);
+                    data = employeeService.findBasicDataBySearchTerm(searchTerm.trim());
+                } else {
+                    data = employeeService.findBasicData();
+                }
+                System.out.println(" Encontrados " + data.size() + " funcionarios no banco");
+            } catch (Exception queryEx) {
+                System.err.println(" WARN Falha na query nativa findBasicData: " + queryEx.getMessage() + ". Executando fallback via findAll.");
+                queryEx.printStackTrace();
+                List<Employee> fallbackList = employeeService.findAll();
+                List<java.util.Map<String, Object>> fallbackResult = new java.util.ArrayList<>();
+                for (Employee emp : fallbackList) {
+                    java.util.Map<String, Object> simple = new java.util.HashMap<>();
+                    simple.put("id", emp.getId());
+                    simple.put("name", emp.getName());
+                    simple.put("document", emp.getDocument());
+                    simple.put("email", emp.getEmail());
+                    simple.put("phone", emp.getPhone());
+                    simple.put("status", emp.getStatus() != null ? emp.getStatus().name() : null);
+                    simple.put("registrationNumber", emp.getRegistrationNumber());
+                    simple.put("hireDate", emp.getHireDate());
+                    simple.put("birthDate", emp.getBirthDate());
+                    simple.put("createdAt", emp.getCreatedAt());
+                    simple.put("updatedAt", emp.getUpdatedAt());
+                    if (emp.getPosition() != null) {
+                        simple.put("position", java.util.Map.of("id", emp.getPosition().getId(), "name", emp.getPosition().getName()));
+                        simple.put("positionDescription", emp.getPosition().getName());
+                    }
+                    if (emp.getUnit() != null) {
+                        simple.put("unit", java.util.Map.of("id", emp.getUnit().getId(), "name", emp.getUnit().getName()));
+                    }
+                    if (emp.getCompany() != null) {
+                        simple.put("company", java.util.Map.of("id", emp.getCompany().getId(), "sigla", emp.getCompany().getSigla()));
+                    }
+                    fallbackResult.add(simple);
+                }
+                return ResponseEntity.ok(fallbackResult);
             }
-            System.out.println("ðŸ” Encontrados " + data.size() + " funcionÃ¡rios no banco");
             
             if (data.isEmpty()) {
                 System.out.println("âš ï¸ Lista de funcionÃ¡rios vazia");
@@ -333,6 +368,7 @@ public class EmployeeController {
                         java.util.Map<String, Object> position = new java.util.HashMap<>();
                         position.put("name", row[19]); // position_name
                         employee.put("position", position);
+                        employee.put("positionDescription", row[19]);
                     }
                     
                     if (row.length > 20 && row[20] != null) {
@@ -351,6 +387,7 @@ public class EmployeeController {
                     // Adicionar userId se existir (index 22)
                     if (row.length > 22 && row[22] != null) {
                         employee.put("userId", row[22]);
+                        employee.put("user", java.util.Map.of("id", row[22]));
                     }
                     
                     // Adicionar workPost se existir (index 23)
@@ -411,12 +448,70 @@ public class EmployeeController {
             System.out.println("âœ… FuncionÃ¡rio encontrado: " + employee.getName());
             
             // Converter para DTO que inclui todos os relacionamentos (user, position, unit, etc)
-            EmployeeDTO dto = employeeService.toDTO(employee);
+            EmployeeDTO dto;
+            try {
+                dto = employeeService.toDTO(employee);
+            } catch (Exception toDtoEx) {
+                System.err.println("⚠️ [WARN] Falha na conversão completa toDTO para employee " + employeeId + ": " + toDtoEx.getMessage());
+                toDtoEx.printStackTrace();
+                // Fallback resiliente: cria DTO com campos fundamentais sem propagar erro 500
+                dto = EmployeeDTO.builder()
+                        .id(employee.getId())
+                        .name(employee.getName())
+                        .cpf(employee.getDocument())
+                        .email(employee.getEmail())
+                        .phone(employee.getPhone())
+                        .status(employee.getStatus() != null ? employee.getStatus().name() : null)
+                        .notes(employee.getNotes())
+                        .createdAt(employee.getCreatedAt())
+                        .updatedAt(employee.getUpdatedAt())
+                        .birthDate(employee.getBirthDate())
+                        .maritalStatus(employee.getMaritalStatus())
+                        .nationality(employee.getNationality())
+                        .registrationNumber(employee.getRegistrationNumber())
+                        .hireDate(employee.getHireDate())
+                        .terminationDate(employee.getTerminationDate())
+                        .enderecoRua(employee.getEnderecoRua())
+                        .enderecoNumero(employee.getEnderecoNumero())
+                        .enderecoComplemento(employee.getEnderecoComplemento())
+                        .enderecoBairro(employee.getEnderecoBairro())
+                        .enderecoCidade(employee.getEnderecoCidade())
+                        .enderecoEstado(employee.getEnderecoEstado())
+                        .enderecoCep(employee.getEnderecoCep())
+                        .telefoneContato(employee.getTelefoneContato())
+                        .cnhNumber(employee.getCnhNumber())
+                        .cnhCategory(employee.getCnhCategory())
+                        .cnhExpirationDate(employee.getCnhExpirationDate())
+                        .ctps(employee.getCtps())
+                        .ctpsSeries(employee.getCtpsSeries())
+                        .ctpsIssueDate(employee.getCtpsIssueDate())
+                        .ctpsIssuingAgency(employee.getCtpsIssuingAgency())
+                        .pis(employee.getPis())
+                        .salario(employee.getSalario())
+                        .build();
+
+                if (employee.getUser() != null) {
+                    try {
+                        EmployeeDTO.IdOnlyDTO uDto = new EmployeeDTO.IdOnlyDTO();
+                        uDto.setId(employee.getUser().getId());
+                        uDto.setName(employee.getUser().getName());
+                        uDto.setUsername(employee.getUser().getUsername());
+                        uDto.setEmail(employee.getUser().getEmail());
+                        dto.setUser(uDto);
+                    } catch (Exception ignore) {}
+                }
+                if (employee.getPosition() != null) {
+                    try {
+                        EmployeeDTO.PositionDTO pDto = new EmployeeDTO.PositionDTO();
+                        pDto.setId(employee.getPosition().getId());
+                        pDto.setName(employee.getPosition().getName());
+                        pDto.setDescription(employee.getPosition().getDescription());
+                        dto.setPosition(pDto);
+                    } catch (Exception ignore) {}
+                }
+            }
             
-            System.out.println("âœ… DTO convertido - User ID: " + (dto.getUser() != null ? dto.getUser().getId() : "null"));
-            System.out.println("âœ… DTO convertido - Position ID: " + (dto.getPosition() != null ? dto.getPosition().getId() : "null"));
-            System.out.println("âœ… DTO convertido - Unit ID: " + (dto.getUnit() != null ? dto.getUnit().getId() : "null"));
-            
+            System.out.println("✅ DTO retornado para employee: " + dto.getName());
             return ResponseEntity.ok(dto);
             
         } catch (com.z7design.fleet_manager.exception.ResourceNotFoundException e) {
@@ -429,7 +524,7 @@ public class EmployeeController {
             }
             System.err.println("❌ EmployeeController.getById - Erro: " + e.getMessage());
             e.printStackTrace();
-            return ResponseEntity.status(500).body(java.util.Map.of("error", e.getMessage()));
+            return ResponseEntity.status(500).body(java.util.Map.of("error", e.getMessage() != null ? e.getMessage() : "Erro interno ao buscar funcionário"));
         }
     }
     

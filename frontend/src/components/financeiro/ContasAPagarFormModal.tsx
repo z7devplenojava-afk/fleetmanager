@@ -7,7 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { 
   CalendarDays, DollarSign, Plus, Users, Building2, Tag, CheckCircle, 
   Search, X, Warehouse, FileSignature, CheckCircle2, Sparkles, Store, UserCheck, User,
-  FileText, Download, Receipt, GitBranch, ArrowRight, Link2
+  FileText, Download, Receipt, GitBranch, ArrowRight, Link2, Wrench, Truck
 } from 'lucide-react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
@@ -19,6 +19,7 @@ import { workPostService, WorkPost } from '@/services/workPostService';
 import { contractService, Contract } from '@/services/contractService';
 import { garageService, Garage } from '@/services/garageService';
 import { employeeService, Employee } from '@/services/employeeService';
+import fleetWorkOrderService, { FleetWorkOrder } from '@/services/fleetWorkOrderService';
 import SupplierFormModal from '@/components/estoque/SupplierFormModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { generatePaymentReceiptPDF } from '@/utils/paymentReceiptPdfGenerator';
@@ -103,6 +104,7 @@ let cachedStaticData: {
   categories?: string[];
   costCenters?: string[];
   employees?: Employee[];
+  workOrders?: FleetWorkOrder[];
 } = {};
 
 const DEFAULT_COST_CENTERS = [
@@ -152,6 +154,14 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
   const [employeeDropdownOpen, setEmployeeDropdownOpen] = useState(false);
   const employeeInputRef = useRef<HTMLInputElement>(null);
   const employeeDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Seleção e Vínculo de Ordem de Serviço (OS) para Rastreabilidade
+  const [workOrders, setWorkOrders] = useState<FleetWorkOrder[]>(cachedStaticData.workOrders || []);
+  const [osSearchQuery, setOsSearchQuery] = useState('');
+  const [osDropdownOpen, setOsDropdownOpen] = useState(false);
+  const [isLinkingWorkOrder, setIsLinkingWorkOrder] = useState(false);
+  const osInputRef = useRef<HTMLInputElement>(null);
+  const osDropdownRef = useRef<HTMLDivElement>(null);
 
   // Campos de Pagamento, NF-e e Parcelamento
   const [paymentMethod, setPaymentMethod] = useState<'PIX' | 'BOLETO' | 'CARTAO_CREDITO' | 'TRANSFERENCIA' | 'DINHEIRO'>('BOLETO');
@@ -339,6 +349,7 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
   const [formData, setFormData] = useState<ContaAPagar>({
     dataEmissao: new Date(),
     vencimento: new Date(),
+    invoiceNumber: '',
     fornecedor: '',
     fornecedorId: '',
     empresa: '',
@@ -366,6 +377,108 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
   const [valorDisplay, setValorDisplay] = useState<string>('0,00');
   const [supplierModalOpen, setSupplierModalOpen] = useState(false);
   const [paymentConfirmDate, setPaymentConfirmDate] = useState<Date | null>(new Date());
+
+  // Campos Específicos para Locação de Veículos, Rastreadores e Seguros de Frota
+  const [periodoLocacao, setPeriodoLocacao] = useState<string>('');
+  const [placasVeiculos, setPlacasVeiculos] = useState<string>('');
+  const [dadosBancariosFornecedor, setDadosBancariosFornecedor] = useState<string>('');
+  const [pixChave, setPixChave] = useState<string>('');
+  const [apoliceNumber, setApoliceNumber] = useState<string>('');
+  const [endossoNumber, setEndossoNumber] = useState<string>('');
+  const [qtdVeiculosSegurados, setQtdVeiculosSegurados] = useState<string>('');
+
+  // Identificadores Dinâmicos por Categoria ou Descrição
+  const isLocacaoVeiculos = useMemo(() => {
+    const cat = (formData.categoria || '').toUpperCase();
+    const desc = (formData.descricao || '').toUpperCase();
+    const forn = (formData.fornecedor || '').toUpperCase();
+    return cat.includes('LOCAC') || desc.includes('LOCAC') || forn.includes('A&D LOCADORA') || forn.includes('LOCADORA');
+  }, [formData.categoria, formData.descricao, formData.fornecedor]);
+
+  const isRastreadores = useMemo(() => {
+    const cat = (formData.categoria || '').toUpperCase();
+    const desc = (formData.descricao || '').toUpperCase();
+    const forn = (formData.fornecedor || '').toUpperCase();
+    return cat.includes('RASTREA') || desc.includes('RASTREA') || desc.includes('TELEMETRIA') || forn.includes('GLOBALRV');
+  }, [formData.categoria, formData.descricao, formData.fornecedor]);
+
+  const isSeguroFrota = useMemo(() => {
+    const cat = (formData.categoria || '').toUpperCase();
+    const desc = (formData.descricao || '').toUpperCase();
+    const forn = (formData.fornecedor || '').toUpperCase();
+    return cat.includes('SEGURO') || desc.includes('SEGURO') || desc.includes('APOLICE') || forn.includes('EZZE');
+  }, [formData.categoria, formData.descricao, formData.fornecedor]);
+
+  // Funções de Preenchimento Rápido (Presets dos Documentos em Anexo)
+  const fillADLocadoraPreset = () => {
+    setFormData(prev => ({
+      ...prev,
+      fornecedor: 'A&D LOCADORA DE VEÍCULOS LTDA.',
+      categoria: '1.03 - LOCACAO DE VEICULOS',
+      descricao: 'LOCAÇÃO DE 1 VEÍCULO (VAN) PLACA: OPP0A67 - SETEMBRO/2026',
+      invoiceNumber: '193/2026',
+      valor: 9555.00,
+      vencimento: new Date(2026, 9, 9),
+      dataEmissao: new Date(2026, 9, 2),
+      status: 'ABERTA'
+    }));
+    setValorDisplay('9.555,00');
+    setPeriodoLocacao('SETEMBRO/2026');
+    setPlacasVeiculos('OPP0A67');
+    setDadosBancariosFornecedor('BANCO DO BRASIL, Ag: 750-1, CC: 207.779-5');
+    setPixChave('33.479.529/0001-99');
+    setPaymentMethod('PIX');
+    toast({
+      title: 'Preset A&D Locadora Aplicado!',
+      description: 'Fatura Nº 193/2026 (R$ 9.555,00) preenchida com placas, dados bancários e PIX.'
+    });
+  };
+
+  const fillGlobalRVPreset = () => {
+    setFormData(prev => ({
+      ...prev,
+      fornecedor: 'GLOBALRV RASTREAMENTO',
+      categoria: '1.06 - RASTREADORES DE VEICULOS',
+      descricao: 'Monitoramento & Rastreamento de Frota - Boleto Itaú Doc nº 99030068',
+      invoiceNumber: '99030068',
+      codigoBarras: '34191099900300689093779927170005116100000020700',
+      valor: 207.00,
+      vencimento: new Date(2026, 9, 25),
+      dataEmissao: new Date(2026, 9, 1),
+      status: 'ABERTA'
+    }));
+    setValorDisplay('207,00');
+    setPaymentMethod('BOLETO');
+    setPixChave('00020101021226770014BR.GOV.BCB.PIX2555api.itau/pix/qr/v2/f92258b0-5120-46b3-9659-d8587c34aa675204000053039865802BR5921GLOBALRV RASTREAMENTO6014BELO HORIZONTE62070503***6304C995');
+    toast({
+      title: 'Preset GlobalRV Rastreadores Aplicado!',
+      description: 'Boleto nº 99030068 (R$ 207,00) preenchido com linha digitável Itaú e PIX.'
+    });
+  };
+
+  const fillEzzeSegurosPreset = () => {
+    setFormData(prev => ({
+      ...prev,
+      fornecedor: 'EZZE SEGUROS S/A',
+      categoria: 'FROTA (PEÇAS,SERVIÇOS,IPVA)',
+      descricao: 'Seguro RC Veicular Coletivo Rodoviário - Apólice 1062800034517',
+      invoiceNumber: '1062800034517',
+      codigoBarras: '23792.37205 50000.230669 96033.178300 7 16090000159237',
+      valor: 1592.37,
+      vencimento: new Date(2026, 9, 24),
+      dataEmissao: new Date(2026, 9, 5),
+      status: 'ABERTA'
+    }));
+    setValorDisplay('1.592,37');
+    setApoliceNumber('1062800034517');
+    setEndossoNumber('1078611');
+    setQtdVeiculosSegurados('18');
+    setPaymentMethod('BOLETO');
+    toast({
+      title: 'Preset Ezze Seguros Aplicado!',
+      description: 'Faturamento de Seguro (R$ 1.592,37) preenchido com apólice, endosso e linha digitável Bradesco.'
+    });
+  };
 
   // Recalcular parcelas quando o valor total, número de parcelas ou data de vencimento mudar
   useEffect(() => {
@@ -434,8 +547,9 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
       contractService.getContracts(),
       garageService.list(),
       contasAPagarService.getCostCenters(),
-      employeeService.getAllEmployees()
-    ]).then(([resFornec, resEmp, resCli, resObr, resCont, resGar, resCost, resEmply]) => {
+      employeeService.getAllEmployees(),
+      fleetWorkOrderService.findAll()
+    ]).then(([resFornec, resEmp, resCli, resObr, resCont, resGar, resCost, resEmply, resWo]) => {
       // 1. Fornecedores
       if (resFornec.status === 'fulfilled' && Array.isArray(resFornec.value)) {
         setFornecedores(resFornec.value);
@@ -485,6 +599,11 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
         setEmployees(resEmply.value);
         cachedStaticData.employees = resEmply.value;
       }
+      // 9. Ordens de Serviço (OS)
+      if (resWo && resWo.status === 'fulfilled' && Array.isArray(resWo.value)) {
+        setWorkOrders(resWo.value);
+        cachedStaticData.workOrders = resWo.value;
+      }
     });
   }, [open]);
 
@@ -522,7 +641,13 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
         dataPagamento: (typeof initialData.dataPagamento === 'string' ? parseDateFromBackend(initialData.dataPagamento) : initialData.dataPagamento) || undefined,
         observacoes: initialData.observacoes || '',
         categoria: initialData.categoria || undefined,
-        centroCusto: initialData.centroCusto || undefined
+        centroCusto: initialData.centroCusto || undefined,
+        workOrderId: initialData.workOrderId,
+        workOrderNumber: initialData.workOrderNumber,
+        requisitionId: initialData.requisitionId,
+        requisitionNumber: initialData.requisitionNumber,
+        purchaseOrderId: initialData.purchaseOrderId,
+        purchaseOrderNumber: initialData.purchaseOrderNumber
       });
       setValorDisplay(formatToBRL(initialData.valor || 0));
       setPaymentConfirmDate((typeof initialData.dataPagamento === 'string' ? parseDateFromBackend(initialData.dataPagamento) : initialData.dataPagamento) || new Date());
@@ -532,33 +657,35 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
       // Resetar formulário para nova conta com a empresa do usuário já definida
       const defaultCompany = displayEmpresas.length > 0 ? displayEmpresas[0] : null;
       setFormData({
-        dataEmissao: new Date(),
-        vencimento: new Date(),
-        fornecedor: '',
-        fornecedorId: '',
-        cliente: '',
-        clienteId: '',
-        obra: '',
-        obraId: '',
-        contrato: '',
-        contratoId: '',
-        garagem: '',
-        garagemId: '',
-        empresa: defaultCompany?.name || userCompanyInfo.name || '',
-        empresaId: defaultCompany?.id ? String(defaultCompany.id) : (userCompanyInfo.id || ''),
-        companySigla: defaultCompany?.sigla || userCompanyInfo.sigla || 'EMP',
-        descricao: '',
-        tipo: 'VARIAVEL',
-        valor: 0,
-        codigoBarras: '',
-        status: 'ABERTA',
+        dataEmissao: (typeof initialData?.dataEmissao === 'string' ? parseDateFromBackend(initialData.dataEmissao) : initialData?.dataEmissao) || new Date(),
+        vencimento: (typeof initialData?.vencimento === 'string' ? parseDateFromBackend(initialData.vencimento) : initialData?.vencimento) || new Date(),
+        fornecedor: initialData?.fornecedor || '',
+        fornecedorId: initialData?.fornecedorId ? String(initialData.fornecedorId) : '',
+        cliente: initialData?.cliente || '',
+        clienteId: initialData?.clienteId || '',
+        obra: initialData?.obra || '',
+        obraId: initialData?.obraId || '',
+        contrato: initialData?.contrato || '',
+        contratoId: initialData?.contratoId || '',
+        garagem: initialData?.garagem || '',
+        garagemId: initialData?.garagemId || '',
+        empresa: initialData?.empresa || defaultCompany?.name || userCompanyInfo.name || '',
+        empresaId: initialData?.empresaId || (defaultCompany?.id ? String(defaultCompany.id) : (userCompanyInfo.id || '')),
+        companySigla: initialData?.companySigla || defaultCompany?.sigla || userCompanyInfo.sigla || 'EMP',
+        descricao: initialData?.descricao || '',
+        tipo: initialData?.tipo || 'VARIAVEL',
+        valor: initialData?.valor || 0,
+        codigoBarras: initialData?.codigoBarras || '',
+        status: initialData?.status || 'ABERTA',
         baixa: false,
         dataPagamento: undefined,
-        observacoes: '',
-        categoria: undefined,
-        centroCusto: undefined
+        observacoes: initialData?.observacoes || '',
+        categoria: initialData?.categoria || undefined,
+        centroCusto: initialData?.centroCusto || undefined,
+        workOrderId: initialData?.workOrderId,
+        workOrderNumber: initialData?.workOrderNumber
       });
-      setValorDisplay('0,00');
+      setValorDisplay(initialData?.valor ? formatToBRL(initialData.valor) : '0,00');
       setPaymentConfirmDate(new Date());
       setSupplierSearchQuery('');
       setAccountSearchQuery('');
@@ -589,6 +716,14 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
         !accountDropdownRef.current.contains(event.target as Node)
       ) {
         setAccountDropdownOpen(false);
+      }
+      if (
+        osDropdownRef.current &&
+        !osDropdownRef.current.contains(event.target as Node) &&
+        osInputRef.current &&
+        !osInputRef.current.contains(event.target as Node)
+      ) {
+        setOsDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -721,15 +856,35 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
     try {
       const finalFornecedor = formData.fornecedor || (isPersonnelExpense ? 'Despesa com Pessoal (RH/DPE)' : 'Não informado');
       
+      // Montar informações bancárias / PIX
+      const bankParts = [];
+      if (dadosBancariosFornecedor) bankParts.push(`Dados Bancários: ${dadosBancariosFornecedor}`);
+      if (pixChave) bankParts.push(`PIX: ${pixChave}`);
+      const assembledBankInfo = bankParts.length > 0 ? bankParts.join(' | ') : formData.bankAccountInfo;
+
+      // Montar observações estruturadas com meta-dados de locação e seguro
+      const obsParts = [];
+      if (formData.observacoes && formData.observacoes.trim()) obsParts.push(formData.observacoes.trim());
+      if (periodoLocacao || placasVeiculos) {
+        obsParts.push(`[LOCAÇÃO] Período: ${periodoLocacao || 'N/I'} | Placa(s): ${placasVeiculos || 'N/I'}`);
+      }
+      if (apoliceNumber || endossoNumber) {
+        obsParts.push(`[SEGURO] Apólice: ${apoliceNumber || 'N/I'} | Endosso: ${endossoNumber || 'N/I'} | Veículos: ${qtdVeiculosSegurados || 'N/I'}`);
+      }
+      const assembledObs = obsParts.join(' | ');
+
+      const commonPayload = {
+        ...formData,
+        fornecedor: finalFornecedor,
+        companySigla: formData.companySigla || siglas[0] || undefined,
+        paymentMethod,
+        bankAccountInfo: assembledBankInfo,
+        observacoes: assembledObs,
+        nfeKey: nfeKey || undefined
+      };
+
       if (editMode && initialData?.id) {
-        const payloadData = {
-          ...formData,
-          fornecedor: finalFornecedor,
-          companySigla: formData.companySigla || siglas[0] || undefined,
-          paymentMethod,
-          nfeKey: nfeKey || undefined
-        };
-        await contasAPagarService.updateContaAPagar(initialData.id, payloadData);
+        await contasAPagarService.updateContaAPagar(initialData.id, commonPayload);
         toast({
           title: "Sucesso",
           description: "Conta a pagar atualizada com sucesso!"
@@ -739,16 +894,12 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
         for (let i = 0; i < parcelasDetails.length; i++) {
           const parc = parcelasDetails[i];
           const parcPayload = {
-            ...formData,
-            fornecedor: finalFornecedor,
-            companySigla: formData.companySigla || siglas[0] || undefined,
+            ...commonPayload,
             descricao: `${formData.descricao} (Parc. ${parc.seq}/${numParcelas})`,
             vencimento: parc.vencimento,
             valor: parc.valor,
-            paymentMethod,
             totalInstallments: numParcelas,
-            installmentSeq: parc.seq,
-            nfeKey: nfeKey || undefined
+            installmentSeq: parc.seq
           };
           await contasAPagarService.createContaAPagar(parcPayload);
         }
@@ -758,13 +909,9 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
         });
       } else {
         const payloadData = {
-          ...formData,
-          fornecedor: finalFornecedor,
-          companySigla: formData.companySigla || siglas[0] || undefined,
-          paymentMethod,
+          ...commonPayload,
           totalInstallments: 1,
-          installmentSeq: 1,
-          nfeKey: nfeKey || undefined
+          installmentSeq: 1
         };
         await contasAPagarService.createContaAPagar(payloadData);
         toast({
@@ -815,6 +962,45 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
 
         <form onSubmit={handleSubmit} className="space-y-5 pt-2">
           
+          {/* Barra de Acesso Rápido a Modelos / Presets de Despesas dos Documentos */}
+          {!editMode && (
+            <div className="bg-gradient-to-r from-amber-500/10 via-zinc-900 to-amber-500/10 border border-amber-500/30 rounded-xl p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-md">
+              <div className="flex items-center gap-2">
+                <Sparkles className="text-amber-400 shrink-0" size={16} />
+                <span className="text-xs font-bold text-amber-300">Modelos Rápidos (Preencher Documentos em Anexo):</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={fillADLocadoraPreset}
+                  className="text-[11px] h-7 bg-amber-500/20 hover:bg-amber-500/30 border-amber-500/40 text-amber-200 font-semibold rounded-lg"
+                >
+                  🚗 Locação A&D (R$ 9.555,00)
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={fillGlobalRVPreset}
+                  className="text-[11px] h-7 bg-blue-500/20 hover:bg-blue-500/30 border-blue-500/40 text-blue-200 font-semibold rounded-lg"
+                >
+                  📡 GlobalRV Rastreador (R$ 207,00)
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={fillEzzeSegurosPreset}
+                  className="text-[11px] h-7 bg-emerald-500/20 hover:bg-emerald-500/30 border-emerald-500/40 text-emerald-200 font-semibold rounded-lg"
+                >
+                  🛡️ Ezze Seguros (R$ 1.592,37)
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* PAINEL 1: Informações Financeiras Principais */}
           <div className="bg-zinc-950/40 border border-zinc-800/80 rounded-2xl p-4 sm:p-5 space-y-4 shadow-inner">
             <div className="flex items-center justify-between">
@@ -824,7 +1010,21 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
               <span className="text-[11px] text-zinc-500">* Campos obrigatórios</span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Nº da Fatura / Documento */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <FileText size={13} className="text-amber-400" />
+                  Nº Fatura / Doc
+                </label>
+                <Input
+                  value={formData.invoiceNumber || ''}
+                  onChange={(e) => handleInputChange('invoiceNumber', e.target.value)}
+                  placeholder="Ex: 193/2026, 99030068..."
+                  className="border-zinc-700/80 bg-zinc-950/80 text-zinc-100 placeholder:text-zinc-500 focus:border-amber-500 focus:ring-amber-500/20 rounded-xl h-10 font-mono text-xs"
+                />
+              </div>
+
               {/* Data de Emissão */}
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
@@ -1461,199 +1661,6 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
             </div>
           </div>
 
-          {/* PAINEL 3: Alocação Operacional & Contratos (Garagem, Cliente, Obra, Contrato) */}
-          <div className="bg-zinc-950/40 border border-zinc-800/80 rounded-2xl p-4 sm:p-5 space-y-4 shadow-inner">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-amber-400/90 flex items-center gap-1.5">
-                <Warehouse size={15} /> Alocação Operacional & Contratos
-              </span>
-              <span className="text-[11px] text-zinc-500">
-                Ao selecionar o cliente, Obra e Contrato são preenchidos automaticamente.
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              
-              {/* Garagem / Base */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
-                  <Warehouse size={13} className="text-amber-400" />
-                  Garagem (Base)
-                </label>
-                <Select
-                  value={formData.garagemId || 'NONE'}
-                  onValueChange={(value) => {
-                    if (value === 'NONE') {
-                      handleInputChange('garagemId', '');
-                      handleInputChange('garagem', '');
-                    } else {
-                      const g = garagens.find(item => String(item.id) === String(value));
-                      handleInputChange('garagemId', value);
-                      handleInputChange('garagem', g?.name || '');
-                    }
-                  }}
-                >
-                  <SelectTrigger className="border-zinc-700/80 bg-zinc-950/80 text-zinc-100 focus:border-amber-500 focus:ring-amber-500/20 rounded-xl h-10">
-                    <SelectValue placeholder="Selecione a garagem" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-zinc-900 border-zinc-700 text-zinc-100">
-                    <SelectItem value="NONE" className="text-zinc-400">Nenhuma / Sem Garagem</SelectItem>
-                    {garagens.map((g) => (
-                      <SelectItem key={g.id} value={String(g.id)} className="text-zinc-100 hover:bg-zinc-800">
-                        {g.name} {g.city ? `(${g.city})` : ''}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Cliente */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
-                  <Users size={13} className="text-blue-400" />
-                  Cliente
-                </label>
-                <Select
-                  value={formData.clienteId || 'NONE'}
-                  onValueChange={(value) => {
-                    if (value === 'NONE') {
-                      handleInputChange('clienteId', '');
-                      handleInputChange('cliente', '');
-                      handleInputChange('obraId', '');
-                      handleInputChange('obra', '');
-                      handleInputChange('contratoId', '');
-                      handleInputChange('contrato', '');
-                    } else {
-                      const c = clientes.find(item => item.id === value);
-                      const clientName = c?.name || '';
-
-                      // Buscar obras e contratos vinculados ao cliente selecionado
-                      const clientObras = obras.filter(o => o.clientId === value);
-                      const clientContratos = contratos.filter(ct => ct.clientId === value);
-
-                      // Preencher automaticamente a primeira obra e contrato do cliente
-                      const autoObra = clientObras.length > 0 ? clientObras[0] : null;
-                      const autoContrato = clientContratos.length > 0 ? clientContratos[0] : null;
-
-                      setFormData(prev => ({
-                        ...prev,
-                        clienteId: value,
-                        cliente: clientName,
-                        obraId: autoObra ? autoObra.id : '',
-                        obra: autoObra ? autoObra.name : '',
-                        contratoId: autoContrato ? autoContrato.id : '',
-                        contrato: autoContrato ? (autoContrato.contractNumber || '') : ''
-                      }));
-
-                      if (autoObra || autoContrato) {
-                        toast({
-                          title: "Cliente Selecionado",
-                          description: `${clientName} vinculado.${autoObra ? ` Obra: ${autoObra.name}.` : ''}${autoContrato ? ` Contrato: ${autoContrato.contractNumber}.` : ''}`,
-                        });
-                      }
-                    }
-                  }}
-                >
-                  <SelectTrigger className="border-zinc-700/80 bg-zinc-950/80 text-zinc-100 focus:border-amber-500 focus:ring-amber-500/20 rounded-xl h-10">
-                    <SelectValue placeholder="Selecione um cliente" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-zinc-900 border-zinc-700 text-zinc-100">
-                    <SelectItem value="NONE" className="text-zinc-400">Nenhum</SelectItem>
-                    {clientes.map((c) => (
-                      <SelectItem key={c.id} value={c.id} className="text-zinc-100 hover:bg-zinc-800">
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Obra / Setor de Trabalho */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
-                    <Building2 size={13} className="text-emerald-400" />
-                    Obra / Setor
-                  </label>
-                  {formData.clienteId && (
-                    <span className="text-[10px] text-emerald-400">
-                      {obras.filter(o => o.clientId === formData.clienteId).length} obra(s)
-                    </span>
-                  )}
-                </div>
-                <Select
-                  value={formData.obraId || 'NONE'}
-                  onValueChange={(value) => {
-                    if (value === 'NONE') {
-                      handleInputChange('obraId', '');
-                      handleInputChange('obra', '');
-                    } else {
-                      const o = obras.find(item => item.id === value);
-                      handleInputChange('obraId', value);
-                      handleInputChange('obra', o?.name || '');
-                    }
-                  }}
-                >
-                  <SelectTrigger className="border-zinc-700/80 bg-zinc-950/80 text-zinc-100 focus:border-amber-500 focus:ring-amber-500/20 rounded-xl h-10">
-                    <SelectValue placeholder="Selecione a obra/setor" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-zinc-900 border-zinc-700 text-zinc-100">
-                    <SelectItem value="NONE" className="text-zinc-400">Nenhuma</SelectItem>
-                    {obras
-                      .filter(o => !formData.clienteId || o.clientId === formData.clienteId)
-                      .map((o) => (
-                        <SelectItem key={o.id} value={o.id} className="text-zinc-100 hover:bg-zinc-800">
-                          {o.name}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Contrato */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
-                    <FileSignature size={13} className="text-purple-400" />
-                    Contrato
-                  </label>
-                  {formData.clienteId && (
-                    <span className="text-[10px] text-purple-400">
-                      {contratos.filter(c => c.clientId === formData.clienteId).length} contrato(s)
-                    </span>
-                  )}
-                </div>
-                <Select
-                  value={formData.contratoId || 'NONE'}
-                  onValueChange={(value) => {
-                    if (value === 'NONE') {
-                      handleInputChange('contratoId', '');
-                      handleInputChange('contrato', '');
-                    } else {
-                      const c = contratos.find(item => item.id === value);
-                      handleInputChange('contratoId', value);
-                      handleInputChange('contrato', c?.contractNumber || '');
-                    }
-                  }}
-                >
-                  <SelectTrigger className="border-zinc-700/80 bg-zinc-950/80 text-zinc-100 focus:border-amber-500 focus:ring-amber-500/20 rounded-xl h-10">
-                    <SelectValue placeholder="Selecione o contrato" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-zinc-900 border-zinc-700 text-zinc-100">
-                    <SelectItem value="NONE" className="text-zinc-400">Nenhum</SelectItem>
-                    {contratos
-                      .filter(c => !formData.clienteId || c.clientId === formData.clienteId)
-                      .map((c) => (
-                        <SelectItem key={c.id} value={c.id} className="text-zinc-100 hover:bg-zinc-800">
-                          {c.contractNumber} {c.description ? `- ${c.description}` : ''}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-
           {/* PAINEL 4: Plano de Contas com Pesquisa por Código e Descrição + Centro de Custo */}
           <div className="bg-zinc-950/40 border border-zinc-800/80 rounded-2xl p-4 sm:p-5 space-y-4 shadow-inner">
             <span className="text-xs font-bold uppercase tracking-wider text-amber-400/90 flex items-center gap-1.5">
@@ -1849,102 +1856,637 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
             </div>
           </div>
 
-          {/* PAINEL DE RASTREABILIDADE DE ORIGEM (LINHA DO TEMPO DA DESPESA) */}
-          <div className="bg-zinc-950/60 border border-blue-500/30 rounded-2xl p-4 sm:p-5 space-y-3 shadow-inner">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1">
-              <span className="text-xs font-bold uppercase tracking-wider text-blue-400 flex items-center gap-1.5">
-                <GitBranch size={15} /> Rastreabilidade & Origem do Lançamento
+          {/* PAINEL 3: Alocação Operacional & Contratos (Garagem, Cliente, Obra, Contrato) */}
+          <div className="bg-zinc-950/40 border border-zinc-800/80 rounded-2xl p-4 sm:p-5 space-y-4 shadow-inner">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-amber-400/90 flex items-center gap-1.5">
+                <Warehouse size={15} /> Alocação Operacional & Contratos
               </span>
-              <span className="text-[11px] text-zinc-400">
-                Linha do tempo: OS ➜ Requisição/Cotação ➜ Ordem de Compra ➜ Contas a Pagar ➜ Liquidação
+              <span className="text-[11px] text-zinc-500">
+                Ao selecionar o cliente, Obra e Contrato são preenchidos automaticamente.
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 pt-1">
-              {/* Step 1: OS */}
-              <div 
-                onClick={() => setLineageModalType('WORK_ORDER')}
-                className="bg-zinc-900/90 hover:bg-zinc-900 border border-blue-500/30 hover:border-blue-400 p-3 rounded-xl flex flex-col justify-between space-y-1 cursor-pointer transition-all hover:scale-[1.02] shadow-sm hover:shadow-blue-500/10 group"
-              >
-                <div className="text-[10px] font-bold text-blue-400 uppercase tracking-wider flex items-center justify-between">
-                  <span>1. Ordem de Serviço</span>
-                  <span className="text-blue-300 font-mono text-[10px] bg-blue-500/10 group-hover:bg-blue-500/20 px-1.5 py-0.5 rounded border border-blue-500/20">OS</span>
-                </div>
-                <div className="text-xs font-bold text-zinc-100 font-mono flex items-center gap-1">
-                  <Link2 size={12} className="text-blue-400 shrink-0" />
-                  <span className="truncate group-hover:underline">
-                    {formData.workOrderNumber || (formData.workOrderId ? `OS #${formData.workOrderId.slice(0, 8)}` : 'OS-2026-000105')}
-                  </span>
-                </div>
-                <div className="text-[10px] text-zinc-400 truncate flex items-center justify-between">
-                  <span>Manutenção Preventiva</span>
-                  <span className="text-blue-400 text-[9px] font-semibold">🔍 Ver</span>
-                </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              
+              {/* Garagem / Base */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <Warehouse size={13} className="text-amber-400" />
+                  Garagem (Base)
+                </label>
+                <Select
+                  value={formData.garagemId || 'NONE'}
+                  onValueChange={(value) => {
+                    if (value === 'NONE') {
+                      handleInputChange('garagemId', '');
+                      handleInputChange('garagem', '');
+                    } else {
+                      const g = garagens.find(item => String(item.id) === String(value));
+                      handleInputChange('garagemId', value);
+                      handleInputChange('garagem', g?.name || '');
+                    }
+                  }}
+                >
+                  <SelectTrigger className="border-zinc-700/80 bg-zinc-950/80 text-zinc-100 focus:border-amber-500 focus:ring-amber-500/20 rounded-xl h-10">
+                    <SelectValue placeholder="Selecione a garagem" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-900 border-zinc-700 text-zinc-100">
+                    <SelectItem value="NONE" className="text-zinc-400">Nenhuma / Sem Garagem</SelectItem>
+                    {garagens.map((g) => (
+                      <SelectItem key={g.id} value={String(g.id)} className="text-zinc-100 hover:bg-zinc-800">
+                        {g.name} {g.city ? `(${g.city})` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
-              {/* Step 2: Cotação / Requisição */}
-              <div 
-                onClick={() => setLineageModalType('REQUISITION')}
-                className="bg-zinc-900/90 hover:bg-zinc-900 border border-purple-500/30 hover:border-purple-400 p-3 rounded-xl flex flex-col justify-between space-y-1 cursor-pointer transition-all hover:scale-[1.02] shadow-sm hover:shadow-purple-500/10 group"
-              >
-                <div className="text-[10px] font-bold text-purple-400 uppercase tracking-wider flex items-center justify-between">
-                  <span>2. Cotação / Requisição</span>
-                  <span className="text-purple-300 font-mono text-[10px] bg-purple-500/10 group-hover:bg-purple-500/20 px-1.5 py-0.5 rounded border border-purple-500/20">COT/REQ</span>
-                </div>
-                <div className="text-xs font-bold text-zinc-100 font-mono flex items-center gap-1">
-                  <Link2 size={12} className="text-purple-400 shrink-0" />
-                  <span className="truncate group-hover:underline">
-                    {formData.requisitionNumber || (formData.requisitionId ? `REQ #${formData.requisitionId.slice(0, 8)}` : 'COT-2026-000215')}
-                  </span>
-                </div>
-                <div className="text-[10px] text-purple-300/80 font-medium truncate flex items-center justify-between">
-                  <span>3 Cotações</span>
-                  <span className="text-purple-400 text-[9px] font-semibold">🔍 Ver</span>
-                </div>
+              {/* Cliente */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <Users size={13} className="text-blue-400" />
+                  Cliente
+                </label>
+                <Select
+                  value={formData.clienteId || 'NONE'}
+                  onValueChange={(value) => {
+                    if (value === 'NONE') {
+                      handleInputChange('clienteId', '');
+                      handleInputChange('cliente', '');
+                      handleInputChange('obraId', '');
+                      handleInputChange('obra', '');
+                      handleInputChange('contratoId', '');
+                      handleInputChange('contrato', '');
+                    } else {
+                      const c = clientes.find(item => item.id === value);
+                      const clientName = c?.name || '';
+
+                      // Buscar obras e contratos vinculados ao cliente selecionado
+                      const clientObras = obras.filter(o => o.clientId === value);
+                      const clientContratos = contratos.filter(ct => ct.clientId === value);
+
+                      // Preencher automaticamente a primeira obra e contrato do cliente
+                      const autoObra = clientObras.length > 0 ? clientObras[0] : null;
+                      const autoContrato = clientContratos.length > 0 ? clientContratos[0] : null;
+
+                      setFormData(prev => ({
+                        ...prev,
+                        clienteId: value,
+                        cliente: clientName,
+                        obraId: autoObra ? autoObra.id : '',
+                        obra: autoObra ? autoObra.name : '',
+                        contratoId: autoContrato ? autoContrato.id : '',
+                        contrato: autoContrato ? (autoContrato.contractNumber || '') : ''
+                      }));
+
+                      if (autoObra || autoContrato) {
+                        toast({
+                          title: "Cliente Selecionado",
+                          description: `${clientName} vinculado.${autoObra ? ` Obra: ${autoObra.name}.` : ''}${autoContrato ? ` Contrato: ${autoContrato.contractNumber}.` : ''}`,
+                        });
+                      }
+                    }
+                  }}
+                >
+                  <SelectTrigger className="border-zinc-700/80 bg-zinc-950/80 text-zinc-100 focus:border-amber-500 focus:ring-amber-500/20 rounded-xl h-10">
+                    <SelectValue placeholder="Selecione um cliente" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-900 border-zinc-700 text-zinc-100">
+                    <SelectItem value="NONE" className="text-zinc-400">Nenhum</SelectItem>
+                    {clientes.map((c) => (
+                      <SelectItem key={c.id} value={c.id} className="text-zinc-100 hover:bg-zinc-800">
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
-              {/* Step 3: Ordem de Compra */}
-              <div 
-                onClick={() => setLineageModalType('PURCHASE_ORDER')}
-                className="bg-zinc-900/90 hover:bg-zinc-900 border border-amber-500/30 hover:border-amber-400 p-3 rounded-xl flex flex-col justify-between space-y-1 cursor-pointer transition-all hover:scale-[1.02] shadow-sm hover:shadow-amber-500/10 group"
-              >
-                <div className="text-[10px] font-bold text-amber-400 uppercase tracking-wider flex items-center justify-between">
-                  <span>3. Ordem de Compra (OC)</span>
-                  <span className="text-amber-300 font-mono text-[10px] bg-amber-500/10 group-hover:bg-amber-500/20 px-1.5 py-0.5 rounded border border-amber-500/20">OC</span>
+              {/* Obra / Setor de Trabalho */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <Building2 size={13} className="text-emerald-400" />
+                    Obra / Setor
+                  </label>
+                  {formData.clienteId && (
+                    <span className="text-[10px] text-emerald-400">
+                      {obras.filter(o => o.clientId === formData.clienteId).length} obra(s)
+                    </span>
+                  )}
                 </div>
-                <div className="text-xs font-bold text-zinc-100 font-mono flex items-center gap-1">
-                  <Link2 size={12} className="text-amber-400 shrink-0" />
-                  <span className="truncate group-hover:underline">
-                    {formData.purchaseOrderNumber || (formData.purchaseOrderId ? `OC #${formData.purchaseOrderId.slice(0, 8)}` : 'OC-2026-000098')}
-                  </span>
-                </div>
-                <div className="text-[10px] text-amber-300/80 font-medium truncate flex items-center justify-between">
-                  <span>Aprovado Financeiro</span>
-                  <span className="text-amber-400 text-[9px] font-semibold">🔍 Ver</span>
-                </div>
+                <Select
+                  value={formData.obraId || 'NONE'}
+                  onValueChange={(value) => {
+                    if (value === 'NONE') {
+                      handleInputChange('obraId', '');
+                      handleInputChange('obra', '');
+                    } else {
+                      const o = obras.find(item => item.id === value);
+                      handleInputChange('obraId', value);
+                      handleInputChange('obra', o?.name || '');
+                    }
+                  }}
+                >
+                  <SelectTrigger className="border-zinc-700/80 bg-zinc-950/80 text-zinc-100 focus:border-amber-500 focus:ring-amber-500/20 rounded-xl h-10">
+                    <SelectValue placeholder="Selecione a obra/setor" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-900 border-zinc-700 text-zinc-100">
+                    <SelectItem value="NONE" className="text-zinc-400">Nenhuma</SelectItem>
+                    {obras
+                      .filter(o => !formData.clienteId || o.clientId === formData.clienteId)
+                      .map((o) => (
+                        <SelectItem key={o.id} value={o.id} className="text-zinc-100 hover:bg-zinc-800">
+                          {o.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
               </div>
 
-              {/* Step 4: Liquidação / Pagamento */}
-              <div 
-                onClick={() => setLineageModalType('PAYMENT')}
-                className={`p-3 rounded-xl flex flex-col justify-between space-y-1 border cursor-pointer transition-all hover:scale-[1.02] shadow-sm group ${formData.status === 'PAGA' ? 'bg-emerald-500/10 border-emerald-500/40 hover:border-emerald-400 hover:shadow-emerald-500/10' : 'bg-zinc-900/90 border-zinc-700 hover:border-zinc-500'}`}
-              >
-                <div className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider flex items-center justify-between">
-                  <span>4. Status Liquidação</span>
-                  <span className="font-mono text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-500/30">
-                    {formData.status}
-                  </span>
+              {/* Contrato */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <FileSignature size={13} className="text-purple-400" />
+                    Contrato
+                  </label>
+                  {formData.clienteId && (
+                    <span className="text-[10px] text-purple-400">
+                      {contratos.filter(c => c.clientId === formData.clienteId).length} contrato(s)
+                    </span>
+                  )}
                 </div>
-                <div className="text-xs font-bold text-zinc-100 font-mono truncate group-hover:underline">
-                  {formData.status === 'PAGA' ? `R$ ${formatToBRL(formData.valor)}` : 'Pendente de Pagamento'}
-                </div>
-                <div className="text-[10px] text-zinc-400 truncate flex items-center justify-between">
-                  <span>{formData.status === 'PAGA' && formData.dataPagamento ? `Pago ${new Date(formData.dataPagamento).toLocaleDateString('pt-BR')}` : 'Aguardando quitação'}</span>
-                  <span className="text-emerald-400 text-[9px] font-semibold">🔍 Recibo</span>
-                </div>
+                <Select
+                  value={formData.contratoId || 'NONE'}
+                  onValueChange={(value) => {
+                    if (value === 'NONE') {
+                      handleInputChange('contratoId', '');
+                      handleInputChange('contrato', '');
+                    } else {
+                      const c = contratos.find(item => item.id === value);
+                      handleInputChange('contratoId', value);
+                      handleInputChange('contrato', c?.contractNumber || '');
+                    }
+                  }}
+                >
+                  <SelectTrigger className="border-zinc-700/80 bg-zinc-950/80 text-zinc-100 focus:border-amber-500 focus:ring-amber-500/20 rounded-xl h-10">
+                    <SelectValue placeholder="Selecione o contrato" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-900 border-zinc-700 text-zinc-100">
+                    <SelectItem value="NONE" className="text-zinc-400">Nenhum</SelectItem>
+                    {contratos
+                      .filter(c => !formData.clienteId || c.clientId === formData.clienteId)
+                      .map((c) => (
+                        <SelectItem key={c.id} value={c.id} className="text-zinc-100 hover:bg-zinc-800">
+                          {c.contractNumber} {c.description ? `- ${c.description}` : ''}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
+
+          {/* PAINEL ESPECIALIZADO: Detalhamento de Locação de Veículos, Rastreadores ou Seguros de Frota */}
+          {(isLocacaoVeiculos || isRastreadores || isSeguroFrota || periodoLocacao || placasVeiculos || apoliceNumber) && (
+            <div className="bg-gradient-to-br from-amber-950/20 via-zinc-950/80 to-zinc-950 border border-amber-500/40 rounded-2xl p-4 sm:p-5 space-y-4 shadow-lg">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                  <Tag size={15} /> Detalhamento Específico (Locação, Rastreadores & Seguros)
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-semibold border border-amber-500/30">
+                  Campos Estruturados
+                </span>
+              </div>
+
+              {/* Campos de Locação de Veículos */}
+              {(isLocacaoVeiculos || periodoLocacao || placasVeiculos || dadosBancariosFornecedor) && (
+                <div className="space-y-3 pt-1 border-t border-amber-500/20">
+                  <div className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                    🚗 Dados de Locação de Veículos (Ex: Fatura A&D Locadora)
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-zinc-300">Período de Referência</label>
+                      <Input
+                        value={periodoLocacao}
+                        onChange={(e) => setPeriodoLocacao(e.target.value)}
+                        placeholder="Ex: SETEMBRO/2026"
+                        className="bg-zinc-950 border-zinc-700 text-zinc-100 h-9 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-zinc-300">Placas dos Veículos Alugados</label>
+                      <Input
+                        value={placasVeiculos}
+                        onChange={(e) => setPlacasVeiculos(e.target.value)}
+                        placeholder="Ex: OPP0A67, ABC1D23..."
+                        className="bg-zinc-950 border-zinc-700 text-zinc-100 h-9 text-xs font-mono uppercase"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-zinc-300">Dados Bancários p/ Depósito</label>
+                      <Input
+                        value={dadosBancariosFornecedor}
+                        onChange={(e) => setDadosBancariosFornecedor(e.target.value)}
+                        placeholder="Ex: BANCO DO BRASIL, Ag: 750-1 CC: 207.779-5"
+                        className="bg-zinc-950 border-zinc-700 text-zinc-100 h-9 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-zinc-300">Chave PIX / CNPJ</label>
+                      <Input
+                        value={pixChave}
+                        onChange={(e) => setPixChave(e.target.value)}
+                        placeholder="Ex: 33.479.529/0001-99 ou Copia e Cola"
+                        className="bg-zinc-950 border-zinc-700 text-zinc-100 h-9 text-xs font-mono"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Campos de Seguro de Frota */}
+              {(isSeguroFrota || apoliceNumber || endossoNumber) && (
+                <div className="space-y-3 pt-2 border-t border-amber-500/20">
+                  <div className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
+                    🛡️ Dados de Apólice & Seguros de Frota (Ex: Ezze Seguros)
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-zinc-300">Nº Apólice de Seguro</label>
+                      <Input
+                        value={apoliceNumber}
+                        onChange={(e) => setApoliceNumber(e.target.value)}
+                        placeholder="Ex: 1062800034517"
+                        className="bg-zinc-950 border-zinc-700 text-zinc-100 h-9 text-xs font-mono"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-zinc-300">Nº do Endosso</label>
+                      <Input
+                        value={endossoNumber}
+                        onChange={(e) => setEndossoNumber(e.target.value)}
+                        placeholder="Ex: 1078611"
+                        className="bg-zinc-950 border-zinc-700 text-zinc-100 h-9 text-xs font-mono"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-zinc-300">Qtd. Veículos Segurados</label>
+                      <Input
+                        value={qtdVeiculosSegurados}
+                        onChange={(e) => setQtdVeiculosSegurados(e.target.value)}
+                        placeholder="Ex: 18 ônibus/vans"
+                        className="bg-zinc-950 border-zinc-700 text-zinc-100 h-9 text-xs font-mono"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* LÓGICA DE RASTREABILIDADE CONDICIONAL: SÓ APARECE SE HOUVER ORDEM DE SERVIÇO VINCULADA */}
+          {(() => {
+            const hasWorkOrder = Boolean(formData.workOrderNumber?.trim() || formData.workOrderId?.trim());
+            const matchedWorkOrder = workOrders.find(wo => 
+              (formData.workOrderId && String(wo.id).toLowerCase() === String(formData.workOrderId).toLowerCase()) ||
+              (formData.workOrderNumber && (wo.osNumber === formData.workOrderNumber || wo.osNumber?.toLowerCase() === formData.workOrderNumber.toLowerCase()))
+            );
+
+            const filteredOrders = workOrders.filter(wo => {
+              if (!osSearchQuery.trim()) return true;
+              const q = osSearchQuery.toLowerCase();
+              return (
+                (wo.osNumber || '').toLowerCase().includes(q) ||
+                (wo.vehiclePlate || '').toLowerCase().includes(q) ||
+                (wo.vehicleModel || '').toLowerCase().includes(q) ||
+                (wo.maintenanceType || '').toLowerCase().includes(q)
+              );
+            }).slice(0, 8);
+
+            const handleSelectWO = (wo: FleetWorkOrder) => {
+              setFormData(prev => ({
+                ...prev,
+                workOrderId: wo.id,
+                workOrderNumber: wo.osNumber || `OS #${wo.id.slice(0, 8)}`,
+                descricao: prev.descricao ? prev.descricao : `Manutenção OS ${wo.osNumber || ''} - Veículo ${wo.vehiclePlate || ''}`
+              }));
+              if (wo.vehiclePlate) {
+                setPlacasVeiculos(wo.vehiclePlate);
+              }
+              setOsDropdownOpen(false);
+              setOsSearchQuery('');
+              setIsLinkingWorkOrder(false);
+              toast({
+                title: 'Ordem de Serviço Vinculada!',
+                description: `OS ${wo.osNumber || ''} associada com sucesso. Rastreabilidade ativada.`
+              });
+            };
+
+            const handleUnlinkWO = () => {
+              setFormData(prev => ({
+                ...prev,
+                workOrderId: undefined,
+                workOrderNumber: undefined
+              }));
+              setIsLinkingWorkOrder(false);
+              toast({
+                title: 'Vínculo com OS Removido',
+                description: 'A despesa não possui mais vínculo com Ordem de Serviço.'
+              });
+            };
+
+            // Se NÃO houver OS vinculada: a rastreabilidade NÃO aparece
+            if (!hasWorkOrder) {
+              return (
+                <div className="bg-zinc-950/40 border border-zinc-800/80 rounded-2xl p-4 transition-all">
+                  {!isLinkingWorkOrder ? (
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20 shrink-0">
+                          <Wrench size={18} />
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-zinc-200">
+                            Esta despesa é referente a alguma Ordem de Serviço (OS) ou Manutenção?
+                          </p>
+                          <p className="text-[11px] text-zinc-400">
+                            Ao vincular uma OS, a rastreabilidade completa (peças, cotações e ordem de compra) é ativada automaticamente.
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsLinkingWorkOrder(true)}
+                        className="border-blue-500/40 text-blue-300 hover:bg-blue-500/10 hover:text-blue-100 text-xs shrink-0 h-9"
+                      >
+                        <Plus size={14} className="mr-1.5 text-blue-400" />
+                        Vincular Ordem de Serviço
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-blue-400 flex items-center gap-1.5 uppercase tracking-wider">
+                          <Wrench size={14} /> Selecionar Ordem de Serviço da Frota
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setIsLinkingWorkOrder(false);
+                            setOsDropdownOpen(false);
+                          }}
+                          className="h-7 px-2 text-zinc-400 hover:text-zinc-100 text-xs"
+                        >
+                          <X size={14} className="mr-1" /> Fechar
+                        </Button>
+                      </div>
+
+                      <div className="relative">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400" />
+                          <Input
+                            ref={osInputRef}
+                            value={osSearchQuery}
+                            onChange={(e) => {
+                              setOsSearchQuery(e.target.value);
+                              setOsDropdownOpen(true);
+                            }}
+                            onFocus={() => setOsDropdownOpen(true)}
+                            placeholder="Buscar OS por número (ex: OS-2026-000105), placa do veículo ou modelo..."
+                            className="pl-9 bg-zinc-900 border-zinc-700 text-zinc-100 text-xs h-9 rounded-xl placeholder:text-zinc-500"
+                          />
+                        </div>
+
+                        {/* Dropdown de OSs */}
+                        {osDropdownOpen && (
+                          <div
+                            ref={osDropdownRef}
+                            className="absolute z-50 left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl p-1.5 space-y-1"
+                          >
+                            {filteredOrders.length === 0 ? (
+                              <div className="p-3 text-center text-xs text-zinc-400">
+                                Nenhuma Ordem de Serviço encontrada.
+                                <div className="mt-2">
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    onClick={() => {
+                                      if (osSearchQuery.trim()) {
+                                        setFormData(prev => ({ ...prev, workOrderNumber: osSearchQuery.trim() }));
+                                        setIsLinkingWorkOrder(false);
+                                        setOsDropdownOpen(false);
+                                      }
+                                    }}
+                                    className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-7"
+                                  >
+                                    Usar &quot;{osSearchQuery}&quot; como Nº de OS manual
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              filteredOrders.map(wo => (
+                                <div
+                                  key={wo.id}
+                                  onClick={() => handleSelectWO(wo)}
+                                  className="p-2.5 rounded-lg hover:bg-zinc-800 cursor-pointer flex items-center justify-between gap-2 transition-colors border border-transparent hover:border-zinc-700"
+                                >
+                                  <div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-mono text-xs font-bold text-blue-400">
+                                        {wo.osNumber || `OS #${wo.id.slice(0, 8)}`}
+                                      </span>
+                                      {wo.maintenanceType && (
+                                        <span className="text-[10px] bg-zinc-800 text-zinc-300 px-1.5 py-0.5 rounded border border-zinc-700">
+                                          {wo.maintenanceType}
+                                        </span>
+                                      )}
+                                      <span className="text-[10px] bg-amber-500/10 text-amber-300 font-mono px-1.5 py-0.5 rounded">
+                                        {wo.vehiclePlate || 'Sem Placa'}
+                                      </span>
+                                    </div>
+                                    <p className="text-[11px] text-zinc-400 mt-0.5 truncate max-w-md">
+                                      {wo.vehicleModel ? `${wo.vehicleModel} • ` : ''}
+                                      {wo.anomaliesDescription || wo.maintenancePerformed || wo.notes || 'Sem descrição adicional'}
+                                    </p>
+                                  </div>
+                                  <div className="text-right shrink-0">
+                                    <span className="text-xs font-bold text-zinc-200">
+                                      R$ {formatToBRL(wo.totalCost || 0)}
+                                    </span>
+                                    <span className="block text-[10px] text-zinc-500 font-mono">
+                                      {wo.plannedDate ? new Date(wo.plannedDate).toLocaleDateString('pt-BR') : ''}
+                                    </span>
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            // Se HOUVER OS vinculada: Renderiza o painel completo de rastreabilidade
+            const osDisplay = formData.workOrderNumber || (matchedWorkOrder ? matchedWorkOrder.osNumber : `OS #${formData.workOrderId?.slice(0, 8)}`);
+            const plateDisplay = placasVeiculos || matchedWorkOrder?.vehiclePlate || 'Veículo Frota';
+            const typeDisplay = matchedWorkOrder?.maintenanceType || 'Manutenção';
+
+            return (
+              <div className="bg-zinc-950/70 border border-blue-500/40 rounded-2xl p-4 sm:p-5 space-y-3 shadow-inner">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-zinc-800/80 pb-3">
+                  <div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-blue-400 flex items-center gap-1.5">
+                      <GitBranch size={15} /> Rastreabilidade & Origem do Lançamento
+                    </span>
+                    <span className="text-[11px] text-zinc-400 block mt-0.5">
+                      Linha do tempo vinculada: OS ➜ Requisição/Cotação ➜ Ordem de Compra ➜ Contas a Pagar ➜ Liquidação
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1 text-[11px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-lg">
+                      <CheckCircle2 size={12} /> OS Vinculada
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleUnlinkWO}
+                      className="h-7 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 px-2"
+                      title="Desvincular Ordem de Serviço"
+                    >
+                      <X size={13} className="mr-1" /> Desvincular
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Dados da Ordem de Serviço e Veículo */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 pb-1">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <Wrench size={12} className="text-blue-400" />
+                      Nº da Ordem de Serviço (OS) / Manutenção
+                    </label>
+                    <Input
+                      value={formData.workOrderNumber || ''}
+                      onChange={(e) => handleInputChange('workOrderNumber', e.target.value)}
+                      placeholder="Ex: OS-2026-000105 ou #4501"
+                      className="border-zinc-700/80 bg-zinc-950 text-zinc-100 placeholder:text-zinc-500 rounded-xl h-9 text-xs font-mono"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <Truck size={12} className="text-amber-400" />
+                      Placa do Veículo / Equipamento
+                    </label>
+                    <Input
+                      value={placasVeiculos}
+                      onChange={(e) => setPlacasVeiculos(e.target.value.toUpperCase())}
+                      placeholder="Ex: BRA2E19 ou ABC-1234"
+                      className="border-zinc-700/80 bg-zinc-950 text-zinc-100 placeholder:text-zinc-500 rounded-xl h-9 text-xs font-mono uppercase"
+                    />
+                  </div>
+                </div>
+
+                {/* 4 Cards da Linha do Tempo da OS */}
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 pt-1">
+                  {/* Step 1: OS */}
+                  <div 
+                    onClick={() => setLineageModalType('WORK_ORDER')}
+                    className="bg-zinc-900/90 hover:bg-zinc-900 border border-blue-500/30 hover:border-blue-400 p-3 rounded-xl flex flex-col justify-between space-y-1 cursor-pointer transition-all hover:scale-[1.02] shadow-sm hover:shadow-blue-500/10 group"
+                  >
+                    <div className="text-[10px] font-bold text-blue-400 uppercase tracking-wider flex items-center justify-between">
+                      <span>1. Ordem de Serviço</span>
+                      <span className="text-blue-300 font-mono text-[10px] bg-blue-500/10 group-hover:bg-blue-500/20 px-1.5 py-0.5 rounded border border-blue-500/20">OS</span>
+                    </div>
+                    <div className="text-xs font-bold text-zinc-100 font-mono flex items-center gap-1">
+                      <Link2 size={12} className="text-blue-400 shrink-0" />
+                      <span className="truncate group-hover:underline">
+                        {osDisplay}
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-zinc-400 truncate flex items-center justify-between">
+                      <span className="truncate max-w-[110px]">{typeDisplay} • {plateDisplay}</span>
+                      <span className="text-blue-400 text-[9px] font-semibold shrink-0">🔍 Ver</span>
+                    </div>
+                  </div>
+
+                  {/* Step 2: Cotação / Requisição */}
+                  <div 
+                    onClick={() => setLineageModalType('REQUISITION')}
+                    className="bg-zinc-900/90 hover:bg-zinc-900 border border-purple-500/30 hover:border-purple-400 p-3 rounded-xl flex flex-col justify-between space-y-1 cursor-pointer transition-all hover:scale-[1.02] shadow-sm hover:shadow-purple-500/10 group"
+                  >
+                    <div className="text-[10px] font-bold text-purple-400 uppercase tracking-wider flex items-center justify-between">
+                      <span>2. Cotação / Requisição</span>
+                      <span className="text-purple-300 font-mono text-[10px] bg-purple-500/10 group-hover:bg-purple-500/20 px-1.5 py-0.5 rounded border border-purple-500/20">COT/REQ</span>
+                    </div>
+                    <div className="text-xs font-bold text-zinc-100 font-mono flex items-center gap-1">
+                      <Link2 size={12} className="text-purple-400 shrink-0" />
+                      <span className="truncate group-hover:underline">
+                        {formData.requisitionNumber || (formData.requisitionId ? `REQ #${formData.requisitionId.slice(0, 8)}` : `REQ-${formData.workOrderNumber || 'PEÇAS'}`)}
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-purple-300/80 font-medium truncate flex items-center justify-between">
+                      <span>Peças de Reposição</span>
+                      <span className="text-purple-400 text-[9px] font-semibold shrink-0">🔍 Ver</span>
+                    </div>
+                  </div>
+
+                  {/* Step 3: Ordem de Compra */}
+                  <div 
+                    onClick={() => setLineageModalType('PURCHASE_ORDER')}
+                    className="bg-zinc-900/90 hover:bg-zinc-900 border border-amber-500/30 hover:border-amber-400 p-3 rounded-xl flex flex-col justify-between space-y-1 cursor-pointer transition-all hover:scale-[1.02] shadow-sm hover:shadow-amber-500/10 group"
+                  >
+                    <div className="text-[10px] font-bold text-amber-400 uppercase tracking-wider flex items-center justify-between">
+                      <span>3. Ordem de Compra (OC)</span>
+                      <span className="text-amber-300 font-mono text-[10px] bg-amber-500/10 group-hover:bg-amber-500/20 px-1.5 py-0.5 rounded border border-amber-500/20">OC</span>
+                    </div>
+                    <div className="text-xs font-bold text-zinc-100 font-mono flex items-center gap-1">
+                      <Link2 size={12} className="text-amber-400 shrink-0" />
+                      <span className="truncate group-hover:underline">
+                        {formData.purchaseOrderNumber || (formData.purchaseOrderId ? `OC #${formData.purchaseOrderId.slice(0, 8)}` : `OC-${formData.workOrderNumber || 'DIRETA'}`)}
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-amber-300/80 font-medium truncate flex items-center justify-between">
+                      <span>Aprovado Financeiro</span>
+                      <span className="text-amber-400 text-[9px] font-semibold shrink-0">🔍 Ver</span>
+                    </div>
+                  </div>
+
+                  {/* Step 4: Liquidação / Pagamento */}
+                  <div 
+                    onClick={() => setLineageModalType('PAYMENT')}
+                    className={`p-3 rounded-xl flex flex-col justify-between space-y-1 border cursor-pointer transition-all hover:scale-[1.02] shadow-sm group ${formData.status === 'PAGA' ? 'bg-emerald-500/10 border-emerald-500/40 hover:border-emerald-400 hover:shadow-emerald-500/10' : 'bg-zinc-900/90 border-zinc-700 hover:border-zinc-500'}`}
+                  >
+                    <div className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider flex items-center justify-between">
+                      <span>4. Status Liquidação</span>
+                      <span className="font-mono text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-500/30">
+                        {formData.status}
+                      </span>
+                    </div>
+                    <div className="text-xs font-bold text-zinc-100 font-mono truncate group-hover:underline">
+                      {formData.status === 'PAGA' ? `R$ ${formatToBRL(formData.valor)}` : 'Pendente de Pagamento'}
+                    </div>
+                    <div className="text-[10px] text-zinc-400 truncate flex items-center justify-between">
+                      <span className="truncate">{formData.status === 'PAGA' && formData.dataPagamento ? `Pago ${new Date(formData.dataPagamento).toLocaleDateString('pt-BR')}` : 'Aguardando quitação'}</span>
+                      <span className="text-emerald-400 text-[9px] font-semibold shrink-0">🔍 Recibo</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Se a conta estiver com Status PAGA: Exibir Painel de Recibo PDF e Referência de Pagamento */}
           {formData.status === 'PAGA' && (

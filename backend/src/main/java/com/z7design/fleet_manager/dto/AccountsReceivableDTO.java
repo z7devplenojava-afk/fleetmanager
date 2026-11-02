@@ -72,6 +72,29 @@ public class AccountsReceivableDTO {
     private String contractNumber;
     private UUID workPostId;
     private String workPostName;
+
+    // NFS-e e Retenções
+    private BigDecimal grossAmount;
+    private BigDecimal netAmount;
+    private BigDecimal issqnRetido;
+    private BigDecimal inssRetido;
+    private BigDecimal irRetido;
+    private BigDecimal pisRetido;
+    private BigDecimal cofinsRetido;
+    private BigDecimal csllRetido;
+    private BigDecimal ibsCbsAmount;
+    private String nfseNumber;
+    private String nfseKey;
+    private String nfseIssueDate;
+    private String nfseXmlUrl;
+    private String nfsePdfUrl;
+    private String nfseServiceDescription;
+    private String nfseStatus;
+    private String faturaLocacaoNumber;
+    private String pedidoNumber;
+    private String periodoLocacao;
+    private String placasVeiculos;
+    private String dadosBancarios;
     
     // Constructors
     public AccountsReceivableDTO() {}
@@ -108,6 +131,28 @@ public class AccountsReceivableDTO {
             this.workPostId = entity.getWorkPost().getId();
             this.workPostName = entity.getWorkPost().getName();
         }
+
+        this.grossAmount = entity.getGrossAmount();
+        this.netAmount = entity.getNetAmount();
+        this.issqnRetido = entity.getIssqnRetido();
+        this.inssRetido = entity.getInssRetido();
+        this.irRetido = entity.getIrRetido();
+        this.pisRetido = entity.getPisRetido();
+        this.cofinsRetido = entity.getCofinsRetido();
+        this.csllRetido = entity.getCsllRetido();
+        this.ibsCbsAmount = entity.getIbsCbsAmount();
+        this.nfseNumber = entity.getNfseNumber();
+        this.nfseKey = entity.getNfseKey();
+        this.nfseIssueDate = entity.getNfseIssueDate() != null ? entity.getNfseIssueDate().toString() : null;
+        this.nfseXmlUrl = entity.getNfseXmlUrl();
+        this.nfsePdfUrl = entity.getNfsePdfUrl();
+        this.nfseServiceDescription = entity.getNfseServiceDescription();
+        this.nfseStatus = entity.getNfseStatus();
+        this.faturaLocacaoNumber = entity.getFaturaLocacaoNumber();
+        this.pedidoNumber = entity.getPedidoNumber();
+        this.periodoLocacao = entity.getPeriodoLocacao();
+        this.placasVeiculos = entity.getPlacasVeiculos();
+        this.dadosBancarios = entity.getDadosBancarios();
     }
 
     // Getters and Setters
@@ -188,6 +233,69 @@ public class AccountsReceivableDTO {
 
     public String getWorkPostName() { return workPostName; }
     public void setWorkPostName(String workPostName) { this.workPostName = workPostName; }
+
+    public BigDecimal getGrossAmount() { return grossAmount; }
+    public void setGrossAmount(BigDecimal grossAmount) { this.grossAmount = grossAmount; }
+
+    public BigDecimal getNetAmount() { return netAmount; }
+    public void setNetAmount(BigDecimal netAmount) { this.netAmount = netAmount; }
+
+    public BigDecimal getIssqnRetido() { return issqnRetido; }
+    public void setIssqnRetido(BigDecimal issqnRetido) { this.issqnRetido = issqnRetido; }
+
+    public BigDecimal getInssRetido() { return inssRetido; }
+    public void setInssRetido(BigDecimal inssRetido) { this.inssRetido = inssRetido; }
+
+    public BigDecimal getIrRetido() { return irRetido; }
+    public void setIrRetido(BigDecimal irRetido) { this.irRetido = irRetido; }
+
+    public BigDecimal getPisRetido() { return pisRetido; }
+    public void setPisRetido(BigDecimal pisRetido) { this.pisRetido = pisRetido; }
+
+    public BigDecimal getCofinsRetido() { return cofinsRetido; }
+    public void setCofinsRetido(BigDecimal cofinsRetido) { this.cofinsRetido = cofinsRetido; }
+
+    public BigDecimal getCsllRetido() { return csllRetido; }
+    public void setCsllRetido(BigDecimal csllRetido) { this.csllRetido = csllRetido; }
+
+    public BigDecimal getIbsCbsAmount() { return ibsCbsAmount; }
+    public void setIbsCbsAmount(BigDecimal ibsCbsAmount) { this.ibsCbsAmount = ibsCbsAmount; }
+
+    public String getNfseNumber() { return nfseNumber; }
+    public void setNfseNumber(String nfseNumber) { this.nfseNumber = nfseNumber; }
+
+    public String getNfseKey() { return nfseKey; }
+    public void setNfseKey(String nfseKey) { this.nfseKey = nfseKey; }
+
+    public String getNfseIssueDate() { return nfseIssueDate; }
+    public void setNfseIssueDate(String nfseIssueDate) { this.nfseIssueDate = nfseIssueDate; }
+
+    public String getNfseXmlUrl() { return nfseXmlUrl; }
+    public void setNfseXmlUrl(String nfseXmlUrl) { this.nfseXmlUrl = nfseXmlUrl; }
+
+    public String getNfsePdfUrl() { return nfsePdfUrl; }
+    public void setNfsePdfUrl(String nfsePdfUrl) { this.nfsePdfUrl = nfsePdfUrl; }
+
+    public String getNfseServiceDescription() { return nfseServiceDescription; }
+    public void setNfseServiceDescription(String nfseServiceDescription) { this.nfseServiceDescription = nfseServiceDescription; }
+
+    public String getNfseStatus() { return nfseStatus; }
+    public void setNfseStatus(String nfseStatus) { this.nfseStatus = nfseStatus; }
+
+    public String getFaturaLocacaoNumber() { return faturaLocacaoNumber; }
+    public void setFaturaLocacaoNumber(String faturaLocacaoNumber) { this.faturaLocacaoNumber = faturaLocacaoNumber; }
+
+    public String getPedidoNumber() { return pedidoNumber; }
+    public void setPedidoNumber(String pedidoNumber) { this.pedidoNumber = pedidoNumber; }
+
+    public String getPeriodoLocacao() { return periodoLocacao; }
+    public void setPeriodoLocacao(String periodoLocacao) { this.periodoLocacao = periodoLocacao; }
+
+    public String getPlacasVeiculos() { return placasVeiculos; }
+    public void setPlacasVeiculos(String placasVeiculos) { this.placasVeiculos = placasVeiculos; }
+
+    public String getDadosBancarios() { return dadosBancarios; }
+    public void setDadosBancarios(String dadosBancarios) { this.dadosBancarios = dadosBancarios; }
     
     // Static factory method
     public static AccountsReceivableDTO fromEntity(AccountsReceivable entity) {

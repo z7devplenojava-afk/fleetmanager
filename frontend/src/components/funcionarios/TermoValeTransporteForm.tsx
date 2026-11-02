@@ -41,12 +41,26 @@ const TermoValeTransporteForm = () => {
   const loadData = async () => {
     setLoadingData(true);
     try {
-      const [employeesData, companiesData] = await Promise.all([
+      const [employeesData, companiesData, myCompany] = await Promise.all([
         employeeService.getAllEmployees(),
-        companyService.getAllCompanies()
+        companyService.getAllCompanies(),
+        companyService.getMyCompany().catch(() => null),
       ]);
+
+      const list: any[] = Array.isArray(companiesData) ? [...companiesData] : [];
+      if (myCompany?.id && !list.some((c) => c.id === myCompany.id)) {
+        list.unshift(myCompany);
+      }
+
       setEmployees(employeesData);
-      setCompanies(companiesData);
+      setCompanies(list);
+
+      // Empresa padrão = empresa à qual o usuário logado pertence
+      if (myCompany?.id) {
+        setForm((prev) => ({ ...prev, empresaId: prev.empresaId || myCompany.id }));
+      } else if (list.length === 1) {
+        setForm((prev) => ({ ...prev, empresaId: prev.empresaId || list[0].id }));
+      }
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
       toast({

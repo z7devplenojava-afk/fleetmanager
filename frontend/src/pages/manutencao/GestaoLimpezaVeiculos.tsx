@@ -49,6 +49,8 @@ import {
   Eye,
   Droplets,
   FileText,
+  X,
+  SlidersHorizontal,
 } from 'lucide-react';
 import {
   Dialog,
@@ -135,6 +137,7 @@ const GestaoLimpezaVeiculos: React.FC = () => {
   const [garages, setGarages] = useState<Garage[]>([]);
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
+  const [mobileKanbanPhase, setMobileKanbanPhase] = useState<CleaningPhase>('AGUARDANDO');
 
   // Filtros de Relatórios
   const [reportStartDate, setReportStartDate] = useState('');
@@ -770,11 +773,21 @@ const GestaoLimpezaVeiculos: React.FC = () => {
 
   const renderOrderCard = (order: VehicleCleaningOrder) => {
     const isLiberado = order.status === 'COMPLETED' || order.phase === 'LIBERADO';
+    const delayed = isDelayed(order) && order.status !== 'COMPLETED';
+
     return (
-      <Card key={order.id} className="bg-seguranca-graphite border-gray-700 p-4 hover:border-seguranca-yellow transition-all flex flex-col justify-between">
+      <Card
+        key={order.id}
+        className={`group relative bg-slate-900/85 backdrop-blur-md border ${
+          delayed
+            ? 'border-red-500/60 shadow-lg shadow-red-950/30 ring-1 ring-red-500/30'
+            : 'border-white/10 hover:border-amber-400/50 shadow-black/40'
+        } p-3.5 sm:p-4 rounded-2xl shadow-md hover:shadow-xl transition-all flex flex-col justify-between overflow-hidden`}
+      >
         <div>
+          {/* Top Badges & Actions */}
           <div className="flex items-center justify-between mb-3 gap-2">
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5 flex-wrap">
               {renderPhaseBadge(order)}
               {renderPriorityBadge(order.priority)}
             </div>
@@ -785,7 +798,7 @@ const GestaoLimpezaVeiculos: React.FC = () => {
                     e.stopPropagation();
                     openCleaningReleasePDFPreview(order);
                   }}
-                  className="text-gray-400 hover:text-seguranca-yellow transition-colors p-1"
+                  className="text-gray-400 hover:text-amber-300 p-1.5 rounded-lg hover:bg-white/5 transition-colors"
                   title="Imprimir Comprovante de Liberação (PDF)"
                 >
                   <Printer size={15} />
@@ -793,7 +806,7 @@ const GestaoLimpezaVeiculos: React.FC = () => {
               )}
               <button
                 onClick={() => handleDelete(order.id)}
-                className="text-gray-500 hover:text-red-500 transition-colors p-1"
+                className="text-gray-500 hover:text-red-400 p-1.5 rounded-lg hover:bg-white/5 transition-colors"
                 title="Excluir ordem"
               >
                 <Trash2 size={15} />
@@ -801,50 +814,90 @@ const GestaoLimpezaVeiculos: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-lg bg-seguranca-yellow/10 flex items-center justify-center flex-shrink-0">
-              <Bus className="text-seguranca-yellow" size={20} />
+          {/* Vehicle Plate & Model Header */}
+          <div className="flex items-center gap-3 mb-3 bg-black/30 p-2.5 rounded-xl border border-white/5">
+            <div className="w-10 h-10 rounded-xl bg-amber-400/10 border border-amber-400/20 flex items-center justify-center flex-shrink-0">
+              <Bus className="text-amber-400" size={20} />
             </div>
-            <div className="min-w-0">
-              <p className="text-white font-semibold truncate">{order.vehiclePlate}</p>
-              <p className="text-gray-400 text-xs truncate">{order.vehicleModel || CLEANING_TYPE_LABELS[order.cleaningType]}</p>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded bg-black border border-amber-400/40 text-amber-300 font-mono font-bold tracking-wider text-xs sm:text-sm shadow-inner">
+                  {order.vehiclePlate}
+                </span>
+                {order.vehicleModel && (
+                  <span className="text-gray-300 text-xs truncate font-medium">
+                    {order.vehicleModel}
+                  </span>
+                )}
+              </div>
+              <p className="text-gray-400 text-[11px] truncate mt-0.5">
+                {CLEANING_TYPE_LABELS[order.cleaningType]}
+              </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 text-xs text-gray-400 mb-2 flex-wrap">
-            {order.driverName && (
-              <span className="flex items-center gap-1"><User size={12} /> {order.driverName}</span>
-            )}
-            <span className="flex items-center gap-1"><ClipboardCheck size={12} /> {CLEANING_TYPE_LABELS[order.cleaningType]}</span>
-            {order.vehicleGarageName && (
-              <span className="flex items-center gap-1"><Warehouse size={12} /> {order.vehicleGarageName}</span>
-            )}
+          {/* Details Metadata */}
+          <div className="space-y-1.5 text-xs text-gray-400 mb-3 bg-white/[0.02] p-2.5 rounded-xl border border-white/5">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              {order.driverName ? (
+                <span className="flex items-center gap-1.5 text-gray-300 truncate">
+                  <User size={13} className="text-gray-500 shrink-0" />
+                  <span className="truncate">{order.driverName}</span>
+                </span>
+              ) : (
+                <span className="text-gray-500 text-[11px] italic">Sem motorista vinculado</span>
+              )}
+              {order.vehicleGarageName && (
+                <span className="flex items-center gap-1 text-gray-400 text-[11px] bg-white/5 px-2 py-0.5 rounded-md">
+                  <Warehouse size={11} className="text-gray-500" /> {order.vehicleGarageName}
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between gap-2 pt-1 border-t border-white/5 flex-wrap">
+              {renderSlaInfo(order)}
+              {order.releaseSpot && (
+                <span className="flex items-center gap-1 text-emerald-400 font-medium text-[11px]">
+                  <MapPin size={11} /> Vaga {order.releaseSpot}
+                </span>
+              )}
+              {order.requesterSector && (
+                <span className="text-gray-500 text-[11px] ml-auto">
+                  via {SECTOR_LABELS[order.requesterSector]}
+                </span>
+              )}
+            </div>
           </div>
 
-          <div className="flex items-center gap-3 text-xs mb-3 flex-wrap">
-            {renderSlaInfo(order)}
-            {order.requesterSector && (
-              <span className="text-gray-500">via {SECTOR_LABELS[order.requesterSector]}</span>
-            )}
-            {order.releaseSpot && (
-              <span className="flex items-center gap-1 text-emerald-400"><MapPin size={12} /> {order.releaseSpot}</span>
-            )}
-          </div>
-
-          {isDelayed(order) && order.status !== 'COMPLETED' && (
-            <div className="flex items-center gap-1 text-xs text-red-400 mb-3 bg-red-500/10 border border-red-500/30 rounded-md p-2">
-              <AlertTriangle size={12} /> Previsão acima do horário de saída — avaliar troca de carro
+          {delayed && (
+            <div className="flex items-center gap-2 text-xs text-red-300 mb-3 bg-red-950/40 border border-red-500/40 rounded-xl p-2.5">
+              <AlertTriangle size={14} className="text-red-400 shrink-0 animate-pulse" />
+              <span className="leading-tight">Atraso de SLA — priorizar saída ou avaliar veículo reserva.</span>
             </div>
           )}
         </div>
 
+        {/* Touch-Friendly Action Button */}
         <div className="pt-2">
           <Button
             onClick={() => openDetail(order)}
-            variant="outline"
-            className="w-full border-gray-600 text-gray-300 hover:text-white"
+            className={`w-full h-10 sm:h-11 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-1.5 ${
+              isLiberado
+                ? 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/40'
+                : 'bg-white/10 hover:bg-amber-400 hover:text-black text-white border border-white/15'
+            }`}
           >
-            {order.status === 'COMPLETED' ? 'Ver detalhes & Comprovante' : 'Executar checklist'}
+            {isLiberado ? (
+              <>
+                <CheckCircle2 size={16} className="text-emerald-400" />
+                Ver Detalhes & Comprovante
+              </>
+            ) : (
+              <>
+                <Play size={15} className="text-amber-400 fill-amber-400" />
+                Executar Checklist de Limpeza
+              </>
+            )}
           </Button>
         </div>
       </Card>
@@ -865,133 +918,159 @@ const GestaoLimpezaVeiculos: React.FC = () => {
       title="Gestão de Limpeza e Higienização de Veículos"
       subtitle="Fila inteligente por SLA, execução em fases, auditoria de qualidade, insumos e liberação de frota"
     >
-      <div className="p-6 space-y-6">
+      <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl mx-auto pb-24 sm:pb-6">
         {/* KPI Cards no Topo */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3.5">
           <Card
             onClick={() => { setStatusFilter('ALL'); setActiveMainTab('operacional'); }}
-            className="bg-seguranca-graphite border-gray-700 hover:border-seguranca-yellow/60 transition-all cursor-pointer p-3.5"
+            className={`transition-all duration-200 cursor-pointer p-3 sm:p-4 rounded-2xl border backdrop-blur-md ${
+              statusFilter === 'ALL' && activeMainTab === 'operacional'
+                ? 'bg-gradient-to-b from-slate-800 to-slate-900 border-amber-400/80 shadow-lg shadow-amber-500/10 ring-2 ring-amber-400/30'
+                : 'bg-slate-900/80 border-white/10 hover:border-amber-400/40 hover:bg-slate-850'
+            }`}
           >
             <div className="flex items-center justify-between">
-              <p className="text-xs text-gray-400 font-medium">Total Geral</p>
-              <Bus size={16} className="text-seguranca-yellow" />
+              <p className="text-[11px] sm:text-xs text-gray-400 font-medium">Total Geral</p>
+              <div className="w-7 h-7 rounded-xl bg-amber-400/10 border border-amber-400/20 flex items-center justify-center text-amber-400">
+                <Bus size={14} />
+              </div>
             </div>
-            <p className="text-2xl font-bold text-white mt-1">{kpiStats.total}</p>
-            <p className="text-[10px] text-gray-500 mt-0.5">Veículos no fluxo</p>
+            <p className="text-xl sm:text-2xl font-bold text-white mt-1.5">{kpiStats.total}</p>
+            <p className="text-[10px] text-gray-500 mt-0.5 truncate">Veículos no fluxo</p>
           </Card>
 
           <Card
             onClick={() => { setStatusFilter('PENDING'); setActiveMainTab('operacional'); }}
-            className="bg-seguranca-graphite border-gray-700 hover:border-amber-500/60 transition-all cursor-pointer p-3.5"
+            className={`transition-all duration-200 cursor-pointer p-3 sm:p-4 rounded-2xl border backdrop-blur-md ${
+              statusFilter === 'PENDING' && activeMainTab === 'operacional'
+                ? 'bg-gradient-to-b from-slate-800 to-slate-900 border-amber-400/80 shadow-lg shadow-amber-500/10 ring-2 ring-amber-400/30'
+                : 'bg-slate-900/80 border-white/10 hover:border-amber-400/40 hover:bg-slate-850'
+            }`}
           >
             <div className="flex items-center justify-between">
-              <p className="text-xs text-gray-400 font-medium">Aguardando</p>
-              <Clock size={16} className="text-amber-400" />
+              <p className="text-[11px] sm:text-xs text-gray-400 font-medium">Aguardando</p>
+              <div className="w-7 h-7 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                <Clock size={14} />
+              </div>
             </div>
-            <p className="text-2xl font-bold text-amber-400 mt-1">{kpiStats.aguardando}</p>
-            <p className="text-[10px] text-gray-500 mt-0.5">Fila de entrada</p>
+            <p className="text-xl sm:text-2xl font-bold text-amber-400 mt-1.5">{kpiStats.aguardando}</p>
+            <p className="text-[10px] text-gray-500 mt-0.5 truncate">Fila de entrada</p>
           </Card>
 
           <Card
             onClick={() => { setStatusFilter('IN_PROGRESS'); setActiveMainTab('operacional'); }}
-            className="bg-seguranca-graphite border-gray-700 hover:border-sky-500/60 transition-all cursor-pointer p-3.5"
+            className={`transition-all duration-200 cursor-pointer p-3 sm:p-4 rounded-2xl border backdrop-blur-md ${
+              statusFilter === 'IN_PROGRESS' && activeMainTab === 'operacional'
+                ? 'bg-gradient-to-b from-slate-800 to-slate-900 border-sky-400/80 shadow-lg shadow-sky-500/10 ring-2 ring-sky-400/30'
+                : 'bg-slate-900/80 border-white/10 hover:border-sky-400/40 hover:bg-slate-850'
+            }`}
           >
             <div className="flex items-center justify-between">
-              <p className="text-xs text-gray-400 font-medium">Em Higienização</p>
-              <Sparkles size={16} className="text-sky-400" />
+              <p className="text-[11px] sm:text-xs text-gray-400 font-medium">Em Higienização</p>
+              <div className="w-7 h-7 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
+                <Sparkles size={14} />
+              </div>
             </div>
-            <p className="text-2xl font-bold text-sky-400 mt-1">{kpiStats.emLavagem}</p>
-            <p className="text-[10px] text-gray-500 mt-0.5">Externa / Interna</p>
+            <p className="text-xl sm:text-2xl font-bold text-sky-400 mt-1.5">{kpiStats.emLavagem}</p>
+            <p className="text-[10px] text-gray-500 mt-0.5 truncate">Externa / Interna</p>
           </Card>
 
           <Card
             onClick={() => { setStatusFilter('IN_PROGRESS'); setActiveMainTab('operacional'); }}
-            className="bg-seguranca-graphite border-gray-700 hover:border-cyan-500/60 transition-all cursor-pointer p-3.5"
+            className={`transition-all duration-200 cursor-pointer p-3 sm:p-4 rounded-2xl border backdrop-blur-md ${
+              statusFilter === 'IN_PROGRESS' && activeMainTab === 'operacional'
+                ? 'bg-gradient-to-b from-slate-800 to-slate-900 border-cyan-400/80 shadow-lg shadow-cyan-500/10 ring-2 ring-cyan-400/30'
+                : 'bg-slate-900/80 border-white/10 hover:border-cyan-400/40 hover:bg-slate-850'
+            }`}
           >
             <div className="flex items-center justify-between">
-              <p className="text-xs text-gray-400 font-medium">Em Inspeção</p>
-              <ShieldCheck size={16} className="text-cyan-400" />
+              <p className="text-[11px] sm:text-xs text-gray-400 font-medium">Em Inspeção</p>
+              <div className="w-7 h-7 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+                <ShieldCheck size={14} />
+              </div>
             </div>
-            <p className="text-2xl font-bold text-cyan-400 mt-1">{kpiStats.inspecao}</p>
-            <p className="text-[10px] text-gray-500 mt-0.5">Auditoria CCO</p>
+            <p className="text-xl sm:text-2xl font-bold text-cyan-400 mt-1.5">{kpiStats.inspecao}</p>
+            <p className="text-[10px] text-gray-500 mt-0.5 truncate">Auditoria CCO</p>
           </Card>
 
           <Card
             onClick={() => { setStatusFilter('COMPLETED'); setActiveMainTab('operacional'); }}
-            className="bg-seguranca-graphite border-gray-700 hover:border-emerald-500/60 transition-all cursor-pointer p-3.5"
+            className={`transition-all duration-200 cursor-pointer p-3 sm:p-4 rounded-2xl border backdrop-blur-md ${
+              statusFilter === 'COMPLETED' && activeMainTab === 'operacional'
+                ? 'bg-gradient-to-b from-slate-800 to-slate-900 border-emerald-400/80 shadow-lg shadow-emerald-500/10 ring-2 ring-emerald-400/30'
+                : 'bg-slate-900/80 border-white/10 hover:border-emerald-400/40 hover:bg-slate-850'
+            }`}
           >
             <div className="flex items-center justify-between">
-              <p className="text-xs text-gray-400 font-medium">Liberados Hoje</p>
-              <CheckCircle2 size={16} className="text-emerald-400" />
+              <p className="text-[11px] sm:text-xs text-gray-400 font-medium">Liberados Hoje</p>
+              <div className="w-7 h-7 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                <CheckCircle2 size={14} />
+              </div>
             </div>
-            <p className="text-2xl font-bold text-emerald-400 mt-1">{kpiStats.liberadosHoje}</p>
-            <p className="text-[10px] text-gray-500 mt-0.5">Prontos para viagem</p>
+            <p className="text-xl sm:text-2xl font-bold text-emerald-400 mt-1.5">{kpiStats.liberadosHoje}</p>
+            <p className="text-[10px] text-gray-500 mt-0.5 truncate">Prontos p/ viagem</p>
           </Card>
 
           <Card
             onClick={() => { setStatusFilter('ALL'); setActiveMainTab('operacional'); }}
-            className={`border transition-all cursor-pointer p-3.5 ${
+            className={`transition-all duration-200 cursor-pointer p-3 sm:p-4 rounded-2xl border backdrop-blur-md ${
               kpiStats.atrasados > 0
-                ? 'bg-red-950/20 border-red-500/50 hover:border-red-500'
-                : 'bg-seguranca-graphite border-gray-700 hover:border-gray-500'
+                ? 'bg-red-950/30 border-red-500/50 hover:border-red-500 ring-2 ring-red-500/20'
+                : 'bg-slate-900/80 border-white/10 hover:border-white/20'
             }`}
           >
             <div className="flex items-center justify-between">
-              <p className="text-xs text-gray-400 font-medium">Risco / SLA</p>
-              <AlertTriangle size={16} className={kpiStats.atrasados > 0 ? 'text-red-400' : 'text-gray-500'} />
+              <p className="text-[11px] sm:text-xs text-gray-400 font-medium">Risco / SLA</p>
+              <div className={`w-7 h-7 rounded-xl flex items-center justify-center ${
+                kpiStats.atrasados > 0 ? 'bg-red-500/10 border border-red-500/30 text-red-400' : 'bg-white/5 border border-white/10 text-gray-400'
+              }`}>
+                <AlertTriangle size={14} />
+              </div>
             </div>
-            <p className={`text-2xl font-bold mt-1 ${kpiStats.atrasados > 0 ? 'text-red-400' : 'text-gray-300'}`}>
+            <p className={`text-xl sm:text-2xl font-bold mt-1.5 ${kpiStats.atrasados > 0 ? 'text-red-400' : 'text-gray-300'}`}>
               {kpiStats.atrasados}
             </p>
-            <p className="text-[10px] text-gray-500 mt-0.5">Atraso de saída</p>
+            <p className="text-[10px] text-gray-500 mt-0.5 truncate">Atraso de saída</p>
           </Card>
         </div>
 
-        {/* Abas Principais */}
-        <Tabs value={activeMainTab} onValueChange={(v) => setActiveMainTab(v as any)} className="w-full">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-gray-700/60 pb-3">
-            <TabsList className="bg-seguranca-graphite border border-gray-700 p-1">
-              <TabsTrigger value="operacional" className="text-xs sm:text-sm data-[state='active']:bg-seguranca-red data-[state='active']:text-white flex items-center gap-1.5">
-                <KanbanSquare size={15} /> Painel Operacional
-              </TabsTrigger>
-              <TabsTrigger value="relatorios" className="text-xs sm:text-sm data-[state='active']:bg-seguranca-red data-[state='active']:text-white flex items-center gap-1.5">
-                <FileSpreadsheet size={15} /> Histórico & Relatórios
-              </TabsTrigger>
-              <TabsTrigger value="estatisticas" className="text-xs sm:text-sm data-[state='active']:bg-seguranca-red data-[state='active']:text-white flex items-center gap-1.5">
-                <BarChart3 size={15} /> Produtividade & Métricas
-              </TabsTrigger>
-              <TabsTrigger value="lavajato" className="text-xs sm:text-sm data-[state='active']:bg-sky-600 data-[state='active']:text-white flex items-center gap-1.5">
-                <Droplets size={15} /> Lavajato
-              </TabsTrigger>
-              <TabsTrigger value="os-higienizacao" className="text-xs sm:text-sm data-[state='active']:bg-blue-600 data-[state='active']:text-white flex items-center gap-1.5">
-                <FileText size={15} /> OS Higienização
-              </TabsTrigger>
-            </TabsList>
+        {/* Barra Superior de Ações Rápidas */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900/40 p-2.5 sm:p-3 rounded-2xl border border-white/5">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-xs text-gray-300 font-medium">
+              Fila em Tempo Real: <strong className="text-white">{filteredOrders.length}</strong> {filteredOrders.length === 1 ? 'veículo listado' : 'veículos listados'}
+            </span>
+          </div>
 
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowCarWashModal(true)}
-                className="bg-seguranca-graphite border-gray-700 text-sky-400 border-sky-600/50 hover:bg-sky-950/30 hover:text-sky-300 font-medium"
-              >
-                <Droplets size={14} className="mr-1.5" /> Gerenciar Lava-Jatos
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={loadOrders}
-                className="bg-seguranca-graphite border-gray-700 text-gray-300 hover:text-white"
-              >
-                <RefreshCw size={14} className={`mr-1.5 ${isLoading ? 'animate-spin' : ''}`} /> Atualizar
-              </Button>
-              <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
-                <DialogTrigger asChild>
-                  <Button className="bg-seguranca-yellow text-black hover:bg-yellow-500 font-semibold shadow-md shadow-amber-950/20">
-                    <Plus size={16} className="mr-1" /> Nova Solicitação
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="bg-seguranca-graphite border-gray-700 text-white max-h-[90vh] overflow-y-auto">
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowCarWashModal(true)}
+              className="bg-sky-950/30 border-sky-600/40 text-sky-400 hover:bg-sky-900/40 hover:text-sky-300 font-medium rounded-xl text-xs sm:text-sm h-9"
+            >
+              <Droplets size={14} className="mr-1.5 text-sky-400" /> Gerenciar Lava-Jatos
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={loadOrders}
+              className="bg-slate-800/80 border-white/10 text-gray-300 hover:text-white rounded-xl text-xs sm:text-sm h-9"
+            >
+              <RefreshCw size={14} className={`mr-1.5 ${isLoading ? 'animate-spin text-amber-400' : ''}`} /> Atualizar
+            </Button>
+
+            <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
+              <DialogTrigger asChild>
+                <Button className="relative group overflow-hidden bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-slate-950 font-bold px-3.5 sm:px-4 py-2 rounded-xl shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 border border-amber-300/40 flex items-center gap-2 h-9 text-xs sm:text-sm">
+                  <span className="w-5 h-5 rounded-lg bg-black/15 flex items-center justify-center group-hover:rotate-90 transition-transform duration-300">
+                    <Plus size={14} className="text-slate-950 stroke-[2.5]" />
+                  </span>
+                  <span className="tracking-tight font-bold">Nova Solicitação</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="bg-seguranca-graphite border-gray-700 text-white max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                       <Sparkles size={18} className="text-seguranca-yellow" /> Nova Solicitação de Limpeza
@@ -1199,9 +1278,9 @@ const GestaoLimpezaVeiculos: React.FC = () => {
                     <Button
                       onClick={handleCreate}
                       disabled={saving}
-                      className="w-full bg-seguranca-yellow text-black hover:bg-yellow-500 font-semibold"
+                      className="w-full bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-slate-950 font-bold py-2.5 rounded-xl shadow-md"
                     >
-                      {saving ? <Loader2 size={18} className="animate-spin mr-1" /> : <Plus size={18} className="mr-1" />}
+                      {saving ? <Loader2 size={18} className="animate-spin mr-1" /> : <Plus size={18} className="mr-1 stroke-[2.5]" />}
                       Abrir Solicitação
                     </Button>
                   </div>
@@ -1210,97 +1289,244 @@ const GestaoLimpezaVeiculos: React.FC = () => {
             </div>
           </div>
 
+        {/* Abas Principais com Rolagem Suave */}
+        <Tabs value={activeMainTab} onValueChange={(v) => setActiveMainTab(v as any)} className="w-full">
+          <div className="overflow-x-auto no-scrollbar -mx-3 px-3 sm:mx-0 sm:px-0">
+            <TabsList className="bg-slate-900/90 backdrop-blur border border-white/10 p-1.5 rounded-2xl inline-flex gap-1 min-w-full sm:min-w-0">
+              <TabsTrigger value="operacional" className="rounded-xl px-3 sm:px-3.5 py-2 text-xs sm:text-sm font-medium data-[state='active']:bg-seguranca-red data-[state='active']:text-white data-[state='active']:shadow-md text-gray-400 hover:text-white transition-all flex items-center gap-1.5">
+                <KanbanSquare size={15} /> Painel Operacional
+              </TabsTrigger>
+              <TabsTrigger value="relatorios" className="rounded-xl px-3 sm:px-3.5 py-2 text-xs sm:text-sm font-medium data-[state='active']:bg-seguranca-red data-[state='active']:text-white data-[state='active']:shadow-md text-gray-400 hover:text-white transition-all flex items-center gap-1.5">
+                <FileSpreadsheet size={15} /> Histórico & Relatórios
+              </TabsTrigger>
+              <TabsTrigger value="estatisticas" className="rounded-xl px-3 sm:px-3.5 py-2 text-xs sm:text-sm font-medium data-[state='active']:bg-seguranca-red data-[state='active']:text-white data-[state='active']:shadow-md text-gray-400 hover:text-white transition-all flex items-center gap-1.5">
+                <BarChart3 size={15} /> Produtividade & Métricas
+              </TabsTrigger>
+              <TabsTrigger value="lavajato" className="rounded-xl px-3 sm:px-3.5 py-2 text-xs sm:text-sm font-medium data-[state='active']:bg-sky-600 data-[state='active']:text-white data-[state='active']:shadow-md text-gray-400 hover:text-white transition-all flex items-center gap-1.5">
+                <Droplets size={15} /> Lavajato
+              </TabsTrigger>
+              <TabsTrigger value="os-higienizacao" className="rounded-xl px-3 sm:px-3.5 py-2 text-xs sm:text-sm font-medium data-[state='active']:bg-blue-600 data-[state='active']:text-white data-[state='active']:shadow-md text-gray-400 hover:text-white transition-all flex items-center gap-1.5">
+                <FileText size={15} /> OS Higienização
+              </TabsTrigger>
+            </TabsList>
+          </div>
+
           {/* TAB 1: PAINEL OPERACIONAL */}
-          <TabsContent value="operacional" className="space-y-4 mt-4">
-            {/* Barra de Filtros */}
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="relative flex-1 max-w-xs">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                <Input
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  placeholder="Buscar placa, modelo, motorista..."
-                  className="pl-9 bg-seguranca-graphite border-gray-700 text-white"
-                />
+          <TabsContent value="operacional" className="space-y-4 mt-3 sm:mt-4">
+            {/* Barra de Filtros & Controles */}
+            <div className="bg-slate-900/60 backdrop-blur-sm p-3 rounded-2xl border border-white/5 space-y-3">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+                <div className="relative flex-1 min-w-[200px]">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                  <Input
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    placeholder="Buscar placa, modelo, motorista..."
+                    className="pl-9 pr-9 bg-slate-950/80 border-white/10 text-white rounded-xl focus:border-amber-400/60 focus:ring-1 focus:ring-amber-400/40 text-xs sm:text-sm h-10 placeholder:text-gray-500"
+                  />
+                  {search && (
+                    <button
+                      onClick={() => setSearch('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors"
+                      title="Limpar busca"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="bg-slate-950/80 border-white/10 text-white rounded-xl h-10 text-xs sm:text-sm flex-1 sm:w-44">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-slate-900 border-gray-700 text-white rounded-xl">
+                      <SelectItem value="ALL">Todos os status</SelectItem>
+                      <SelectItem value="PENDING">Pendentes</SelectItem>
+                      <SelectItem value="IN_PROGRESS">Em andamento</SelectItem>
+                      <SelectItem value="COMPLETED">Finalizadas</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={garageFilter} onValueChange={setGarageFilter}>
+                    <SelectTrigger className="bg-slate-950/80 border-white/10 text-white rounded-xl h-10 text-xs sm:text-sm flex-1 sm:w-44">
+                      <SelectValue placeholder="Garagem" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-slate-900 border-gray-700 text-white rounded-xl">
+                      <SelectItem value="ALL">Todas as garagens</SelectItem>
+                      {garages.filter(g => g.active !== false).map(g => (
+                        <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <div className="bg-slate-950/90 border border-white/10 p-1 rounded-xl flex items-center flex-shrink-0">
+                    <button
+                      onClick={() => setViewMode('kanban')}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        viewMode === 'kanban'
+                          ? 'bg-amber-400 text-slate-950 shadow-sm'
+                          : 'text-gray-400 hover:text-white'
+                      }`}
+                      title="Visualização Kanban"
+                    >
+                      <KanbanSquare size={14} />
+                      <span className="hidden sm:inline">Kanban</span>
+                    </button>
+                    <button
+                      onClick={() => setViewMode('list')}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        viewMode === 'list'
+                          ? 'bg-amber-400 text-slate-950 shadow-sm'
+                          : 'text-gray-400 hover:text-white'
+                      }`}
+                      title="Visualização em Lista"
+                    >
+                      <List size={14} />
+                      <span className="hidden sm:inline">Lista</span>
+                    </button>
+                  </div>
+                </div>
               </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="bg-seguranca-graphite border-gray-700 text-white w-44">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent className="bg-seguranca-graphite border-gray-700 text-white">
-                  <SelectItem value="ALL">Todos os status</SelectItem>
-                  <SelectItem value="PENDING">Pendentes</SelectItem>
-                  <SelectItem value="IN_PROGRESS">Em andamento</SelectItem>
-                  <SelectItem value="COMPLETED">Finalizadas</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={garageFilter} onValueChange={setGarageFilter}>
-                <SelectTrigger className="bg-seguranca-graphite border-gray-700 text-white w-44">
-                  <SelectValue placeholder="Garagem" />
-                </SelectTrigger>
-                <SelectContent className="bg-seguranca-graphite border-gray-700 text-white">
-                  <SelectItem value="ALL">Todas as garagens</SelectItem>
-                  {garages.filter(g => g.active !== false).map(g => (
-                    <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                variant={viewMode === 'kanban' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setViewMode('kanban')}
-                className={viewMode === 'kanban' ? 'bg-seguranca-yellow text-black' : 'border-gray-600 text-gray-300'}
-              >
-                <KanbanSquare size={16} className="mr-1" /> Kanban
-              </Button>
-              <Button
-                variant={viewMode === 'list' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setViewMode('list')}
-                className={viewMode === 'list' ? 'bg-seguranca-yellow text-black' : 'border-gray-600 text-gray-300'}
-              >
-                <List size={16} className="mr-1" /> Lista
-              </Button>
+
+              {/* Quick Status Chips */}
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1 text-xs">
+                <span className="text-[11px] text-gray-500 font-medium mr-1 hidden sm:inline flex-shrink-0">Filtro rápido:</span>
+                {[
+                  { id: 'ALL', label: 'Todos', count: kpiStats.total },
+                  { id: 'PENDING', label: 'Aguardando', count: kpiStats.aguardando },
+                  { id: 'IN_PROGRESS', label: 'Em Higienização', count: kpiStats.emLavagem + kpiStats.inspecao },
+                  { id: 'COMPLETED', label: 'Liberados', count: kpiStats.liberadosHoje },
+                ].map(chip => (
+                  <button
+                    key={chip.id}
+                    onClick={() => setStatusFilter(chip.id)}
+                    className={`px-2.5 py-1 rounded-lg font-medium text-xs whitespace-nowrap transition-all flex items-center gap-1.5 border ${
+                      statusFilter === chip.id
+                        ? 'bg-amber-400/15 border-amber-400/50 text-amber-300'
+                        : 'bg-white/5 border-white/5 text-gray-400 hover:text-gray-200 hover:bg-white/10'
+                    }`}
+                  >
+                    <span>{chip.label}</span>
+                    <span className="text-[10px] font-mono px-1 py-0.2 bg-black/40 rounded-full text-gray-300">
+                      {chip.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Conteúdo Kanban / Lista */}
             {isLoading ? (
-              <div className="flex items-center justify-center py-16">
-                <Loader2 className="w-8 h-8 text-seguranca-yellow animate-spin" />
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="w-8 h-8 text-amber-400 animate-spin" />
               </div>
             ) : filteredOrders.length === 0 ? (
-              <div className="text-center py-16 text-gray-400 bg-seguranca-graphite/40 border border-dashed border-gray-700 rounded-lg">
-                <Sparkles className="mx-auto mb-2 text-gray-500" size={36} />
-                <p>Nenhuma ordem de limpeza encontrada para os filtros selecionados</p>
+              <div className="text-center py-16 px-4 bg-slate-900/40 backdrop-blur-sm border border-dashed border-white/10 rounded-2xl space-y-3">
+                <div className="w-14 h-14 rounded-2xl bg-amber-400/10 border border-amber-400/20 flex items-center justify-center mx-auto text-amber-400 shadow-inner">
+                  <Sparkles size={26} />
+                </div>
+                <h4 className="text-base font-semibold text-white">Nenhuma ordem de limpeza encontrada</h4>
+                <p className="text-xs sm:text-sm text-gray-400 max-w-md mx-auto">
+                  Não há veículos com os filtros selecionados. Abra uma nova solicitação ou limpe a busca.
+                </p>
+                <Button
+                  onClick={() => setShowNewDialog(true)}
+                  className="bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs shadow-md shadow-amber-500/20 mt-2"
+                >
+                  <Plus size={14} className="mr-1 stroke-[2.5]" /> Criar Nova Solicitação
+                </Button>
               </div>
             ) : viewMode === 'kanban' ? (
-              <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-4">
-                {kanban.map(col => (
-                  <div key={col.phase} className="space-y-3">
-                    <div className="flex items-center gap-2 px-1">
-                      <span className={`inline-block w-2.5 h-2.5 rounded-full ${
-                        col.phase === 'AGUARDANDO' ? 'bg-amber-400' :
-                        col.phase === 'EXTERNA' ? 'bg-sky-400' :
-                        col.phase === 'INTERNA' ? 'bg-purple-400' :
-                        col.phase === 'INSPECAO' ? 'bg-cyan-400' : 'bg-emerald-400'
-                      }`} />
-                      <h3 className="text-sm font-semibold text-gray-300">{PHASE_LABELS[col.phase]}</h3>
-                      <span className="text-xs text-gray-500 ml-auto font-mono bg-seguranca-graphite px-1.5 py-0.5 rounded border border-gray-700">
-                        {col.orders.length}
-                      </span>
-                    </div>
-                    {col.orders.length === 0 ? (
-                      <div className="text-center text-xs text-gray-600 py-6 border border-dashed border-gray-800 rounded-lg">
-                        Nenhum veículo
-                      </div>
-                    ) : (
-                      col.orders.map(renderOrderCard)
-                    )}
+              <>
+                {/* Mobile Kanban Phase Switcher (Telas pequenas < md) */}
+                <div className="md:hidden space-y-3">
+                  <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
+                    {kanban.map(col => {
+                      const isActive = mobileKanbanPhase === col.phase;
+                      return (
+                        <button
+                          key={col.phase}
+                          onClick={() => setMobileKanbanPhase(col.phase)}
+                          className={`flex-1 min-w-[105px] p-2 rounded-xl border text-center transition-all ${
+                            isActive
+                              ? 'bg-slate-800/90 border-amber-400/80 ring-1 ring-amber-400/40 shadow-sm'
+                              : 'bg-slate-900/60 border-white/5 text-gray-400'
+                          }`}
+                        >
+                          <div className="flex items-center justify-center gap-1.5 mb-0.5">
+                            <span className={`w-2 h-2 rounded-full ${
+                              col.phase === 'AGUARDANDO' ? 'bg-amber-400' :
+                              col.phase === 'EXTERNA' ? 'bg-sky-400' :
+                              col.phase === 'INTERNA' ? 'bg-purple-400' :
+                              col.phase === 'INSPECAO' ? 'bg-cyan-400' : 'bg-emerald-400'
+                            }`} />
+                            <span className={`text-[11px] font-semibold truncate ${isActive ? 'text-white' : 'text-gray-400'}`}>
+                              {PHASE_LABELS[col.phase]}
+                            </span>
+                          </div>
+                          <span className="text-xs font-mono font-bold text-amber-300">
+                            {col.orders.length}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
-                ))}
-              </div>
+
+                  {/* Mostra apenas a coluna selecionada no mobile */}
+                  {(() => {
+                    const activeCol = kanban.find(c => c.phase === mobileKanbanPhase) || kanban[0];
+                    return (
+                      <div className="space-y-3 pt-1">
+                        <div className="flex items-center justify-between px-1">
+                          <span className="text-xs font-semibold text-gray-300 uppercase tracking-wide">
+                            Fase: {PHASE_LABELS[activeCol.phase]}
+                          </span>
+                          <span className="text-xs text-gray-400 font-mono">
+                            {activeCol.orders.length} {activeCol.orders.length === 1 ? 'veículo' : 'veículos'}
+                          </span>
+                        </div>
+                        {activeCol.orders.length === 0 ? (
+                          <div className="text-center text-xs text-gray-500 py-10 bg-slate-900/30 border border-dashed border-white/5 rounded-2xl">
+                            Nenhum veículo nesta fase no momento
+                          </div>
+                        ) : (
+                          activeCol.orders.map(renderOrderCard)
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* Desktop 5-Columns Grid (Telas md+) */}
+                <div className="hidden md:grid md:grid-cols-3 xl:grid-cols-5 gap-3.5">
+                  {kanban.map(col => (
+                    <div key={col.phase} className="space-y-3 bg-slate-900/30 p-2.5 rounded-2xl border border-white/5">
+                      <div className="flex items-center gap-2 px-1">
+                        <span className={`inline-block w-2.5 h-2.5 rounded-full ${
+                          col.phase === 'AGUARDANDO' ? 'bg-amber-400' :
+                          col.phase === 'EXTERNA' ? 'bg-sky-400' :
+                          col.phase === 'INTERNA' ? 'bg-purple-400' :
+                          col.phase === 'INSPECAO' ? 'bg-cyan-400' : 'bg-emerald-400'
+                        }`} />
+                        <h3 className="text-xs font-semibold text-gray-300 truncate">{PHASE_LABELS[col.phase]}</h3>
+                        <span className="text-[11px] text-gray-400 ml-auto font-mono bg-black/40 px-2 py-0.5 rounded-lg border border-white/5">
+                          {col.orders.length}
+                        </span>
+                      </div>
+                      {col.orders.length === 0 ? (
+                        <div className="text-center text-xs text-gray-600 py-8 border border-dashed border-white/5 rounded-xl">
+                          Nenhum veículo
+                        </div>
+                      ) : (
+                        col.orders.map(renderOrderCard)
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
                 {filteredOrders.map(renderOrderCard)}
               </div>
             )}
@@ -1778,6 +2004,18 @@ const GestaoLimpezaVeiculos: React.FC = () => {
           }}
           onSelectCarWash={(cw) => handleCarWashSelect(cw.id, newCleaningType)}
         />
+
+        {/* Floating Action Button (FAB) no Mobile */}
+        {activeMainTab === 'operacional' && (
+          <button
+            onClick={() => setShowNewDialog(true)}
+            className="sm:hidden fixed bottom-6 right-4 z-40 w-14 h-14 rounded-full bg-gradient-to-tr from-amber-500 via-amber-400 to-yellow-300 text-slate-950 shadow-2xl shadow-amber-500/50 flex items-center justify-center border-2 border-white/20 active:scale-90 transition-transform"
+            title="Nova Solicitação"
+            aria-label="Nova Solicitação"
+          >
+            <Plus size={26} className="stroke-[2.5]" />
+          </button>
+        )}
       </div>
     </StandardLayout>
   );

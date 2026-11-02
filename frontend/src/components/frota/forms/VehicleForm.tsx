@@ -249,9 +249,13 @@ export const VehicleForm: React.FC<VehicleFormProps> = ({
         }
     };
 
-    // Load initial data
+    // Load initial data only when the vehicle reference actually changes
+    const lastLoadedIdRef = React.useRef<string | undefined>(undefined);
     useEffect(() => {
-        if (initialData) {
+        if (!initialData) return;
+        const idKey = initialData.vehicleId || initialData.placa || 'initial';
+        if (idKey !== lastLoadedIdRef.current) {
+            lastLoadedIdRef.current = idKey;
             setFormData(prev => ({
                 ...prev,
                 ...initialData,
@@ -259,7 +263,7 @@ export const VehicleForm: React.FC<VehicleFormProps> = ({
                 photosToDelete: initialData.photosToDelete || new Set()
             }));
         }
-    }, [initialData]);
+    }, [initialData?.vehicleId, initialData?.placa]);
 
     const handleInputChange = (field: keyof VehicleFormData, value: any) => {
         setFormData(prev => ({ ...prev, [field]: value }));

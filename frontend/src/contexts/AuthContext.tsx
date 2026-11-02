@@ -4,7 +4,7 @@ import { useToast } from '@/components/ui/use-toast';
 import api from '@/lib/axios';
 import { User, AuthContextType, UserGroupData, UserRole, EmpresaInfo } from '@/types/user';
 import { generatePermissions, generatePermissionsFromGroups, combinePermissions } from '@/utils/permissions';
-import { getDashboardRouteForRole } from '@/utils/roleRouting';
+import { getDashboardRouteForRole, isDriverUser } from '@/utils/roleRouting';
 import { groupService } from '@/services/groupService';
 import { companyService } from '@/services/companyService';
 import { getApiUrl } from '@/config/environment';
@@ -87,16 +87,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const savedEmpresa = localStorage.getItem('empresa');
           const empresaData = savedEmpresa ? JSON.parse(savedEmpresa) : null;
           if (empresaData) {
+            if (empresaData.logoUrl && empresaData.logoUrl.includes('e9654118-53a8-4dd8-b57c-bc50997f081b')) {
+              empresaData.logoUrl = null;
+              try {
+                localStorage.setItem('empresa', JSON.stringify(empresaData));
+              } catch (_) { }
+            }
             console.log('🔍 AuthContext: Empresa carregada do localStorage:', empresaData);
             setEmpresa(empresaData);
-          } else if (userData.companyId) {
+          }
+
+          if (userData?.company?.logoUrl && userData.company.logoUrl.includes('e9654118-53a8-4dd8-b57c-bc50997f081b')) {
+            userData.company.logoUrl = null;
+          }
+
+          if (userData.companyId) {
             companyService.getCompanyById(userData.companyId)
               .then((comp) => {
                 if (comp) {
+                  const cleanLogoUrl = (comp.logoUrl && comp.logoUrl.includes('e9654118-53a8-4dd8-b57c-bc50997f081b')) ? null : comp.logoUrl;
                   const fetchedEmpresa: EmpresaInfo = {
                     id: comp.id || userData.companyId,
                     nome: comp.name || comp.nome || '',
-                    logoUrl: comp.logoUrl,
+                    logoUrl: cleanLogoUrl,
                     temaCor: comp.temaCor,
                     branchName: comp.branchName,
                     unitName: comp.unitName,
@@ -104,14 +117,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                   };
                   setEmpresa(fetchedEmpresa);
                   localStorage.setItem('empresa', JSON.stringify(fetchedEmpresa));
-                  console.log('✅ AuthContext: Empresa obtida do backend:', fetchedEmpresa);
+                  console.log('✅ AuthContext: Empresa atualizada do backend:', fetchedEmpresa);
                 }
               })
               .catch((err) => {
                 console.warn('⚠️ AuthContext: Não foi possível obter dados da empresa do backend:', err);
               });
-          } else {
-            // Se não houver empresa no localStorage, mas o usuário for um papel administrativo forte, apenas informa
+          } else if (!empresaData) {
+            // Se não houver empresa no localStorage nem companyId
             if (userData.role === 'SUPER_ADMIN' || userData.role === 'FLEX_ADMIN') {
               console.log('ℹ️ AuthContext: Usuário administrativo carregado sem empresa (comportamento esperado).');
             } else {
@@ -151,11 +164,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             void loadUserGroups(userWithPermissions.id);
           }
 
-          // Verificar se precisa redirecionar para primeiro acesso
-          if (!userWithPermissions.firstAccessCompleted) {
-            const currentPath = window.location.pathname;
-            const firstAccessPaths = ['/first-access/change-password', '/first-access/activate-2fa'];
-            if (!firstAccessPaths.includes(currentPath)) {
+          // Verificar se precisa redirecionar para primeiro acesso / LGPD
+          const currentPath = window.location.pathname;
+          const protectedPaths = ['/first-access/change-password', '/first-access/activate-2fa', '/lgpd-consent'];
+          if (!protectedPaths.includes(currentPath)) {
+            const isSuperAdminRole = (userWithPermissions.role ?? '').toUpperCase().includes('SUPER_ADMIN');
+            if (!isSuperAdminRole && userWithPermissions.requiresLgpdConsent) {
+              console.log('🔒 Usuário precisa aceitar termos LGPD, redirecionando...');
+              setTimeout(() => {
+                navigate('/lgpd-consent', { replace: true });
+              }, 100);
+            } else if (!isSuperAdminRole && !userWithPermissions.firstAccessCompleted) {
               console.log('🔒 Usuário precisa completar primeiro acesso, redirecionando...');
               setTimeout(() => {
                 navigate('/first-access/change-password', { replace: true });
@@ -189,8 +208,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const groupPermissions = generatePermissionsFromGroups(groups);
         const combinedPermissions = combinePermissions(rolePermissions, groupPermissions);
 
-        // Ajustar função exibida de acordo com os grupos (ex.: GRUPO_DPE -> Departamento Pessoal)
-        const effectiveRole = determineEffectiveRole(updatedUser.role as UserRole, groups);
+        // Ajustar função exibida de acordo com os grupos — mas NUNCA rebaixa um SUPER_ADMIN
+        // (determineEffectiveRole só promove COLABORADOR; manter o role atual se já for forte)
+        const effectiveRole = updatedUser.role && updatedUser.role !== 'COLABORADOR'
+          ? (updatedUser.role as UserRole)
+          : determineEffectiveRole(updatedUser.role as UserRole, groups);
         const userWithPermissions = { ...updatedUser, role: effectiveRole, permissions: combinedPermissions };
 
         setUser(userWithPermissions);
@@ -277,11 +299,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         'ALMOXARIFADO',
         'GESTOR_DE_MANUTENCAO',
         'ENCARREGADO_DE_MANUTENCAO',
+        'ANALISTA_DE_FROTA',
+        'ANALISTA_FROTA',
         'MANUTENCAO',
         'MECANICO',
         'GESTOR_OPERACIONAL',
         'GESTOR_TRAFEGO',
         'GESTOR_DE_TRAFEGO',
+        'ENCARREGADO_DE_TRANSPORTES',
+        'ENCARREGADO_TRANSPORTES',
+        'ENCARREGADO_DE_TRAFEGO',
+        'ENCARREGADO_TRAFEGO',
         'OPERACIONAL',
         'ASSISTENTE_OPERACIONAL',
         'MOTORISTA',
@@ -291,6 +319,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         'RH',
         'ASSISTENCIA_RH',
         'AUXILIAR_DE_RH',
+        'SST',
+        'SEGURANCA_DO_TRABALHO',
         'DEPARTAMENTO_PESSOAL',
         'AUXILIAR_DE_DEPARTAMENTO_PESSOAL',
         'AUX_DEP',
@@ -307,6 +337,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         'EMPLOYEE',
         'CLIENTE',
         'CLIENT_USER',
+        'PASSAGEIRO',
       ];
       let userRole: User['role'] = 'COLABORADOR';
       for (const role of rolePriority) {
@@ -337,20 +368,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.log('Permissões combinadas:', combinedPermissions);
       }
 
+      const isDriver = isDriverUser({
+        role: userRole,
+        roles: userRoles,
+        position: response.data.user?.position,
+        isDriver: response.data.user?.isDriver,
+      });
+
+      const effectiveUserRole = isDriver ? 'MOTORISTA' : userRole;
+
       const userData: User = {
         id: response.data.user?.id || '',
         name: response.data.user?.fullName || response.data.user?.name || 'Usuário Teste',
         email: response.data.user?.email || email,
         username: response.data.user?.username || email, // CPF usado no login
-        role: userRole,
-        roles: userRoles, // Adicionar a propriedade roles
+        role: effectiveUserRole,
+        roles: isDriver && !userRoles.includes('MOTORISTA') ? [...userRoles, 'MOTORISTA'] : userRoles,
         groups: userGroups,
         permissions: combinedPermissions,
         avatar: response.data.user?.avatar,
         department: response.data.user?.department,
         position: response.data.user?.position,
         employeeCode: response.data.user?.employeeCode,
+        employeeId: response.data.user?.employeeId || response.data.employeeId,
         firstAccessCompleted: response.data.user?.firstAccessCompleted ?? response.data.firstAccessCompleted ?? false,
+        requiresLgpdConsent: response.data?.requiresLgpdConsent === true,
+        isDriver: isDriver,
+        passengerId: response.data.user?.passengerId,
+        passengerCategory: response.data.user?.passengerCategory,
+        isPcd: response.data.user?.isPcd,
+        disabilityType: response.data.user?.disabilityType,
+        disabilityDescription: response.data.user?.disabilityDescription,
       };
 
       // Validar que o ID foi fornecido
@@ -407,14 +455,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       });
 
       // Definir para onde navegar
-      let destination = getDashboardRouteForRole(userRole);
+      // ORDEM OBRIGATÓRIA: 1) LGPD → 2) Troca de senha → 3) 2FA → 4) Dashboard
+      let destination = getDashboardRouteForRole(effectiveUserRole, userData);
       const isSuperAdmin = (userRole ?? '').toUpperCase().includes('SUPER_ADMIN');
-      if (!isSuperAdmin && (requiresPasswordChange || !firstAccessCompleted)) {
+      if (!isSuperAdmin && requiresLgpdConsent) {
+        // 1º: Aceitar LGPD/Termos
+        destination = '/lgpd-consent';
+      } else if (!isSuperAdmin && (requiresPasswordChange || !firstAccessCompleted)) {
+        // 2º: Trocar senha no primeiro acesso
         destination = '/first-access/change-password';
       } else if (!isSuperAdmin && requires2FA) {
+        // 3º: Configurar 2FA
         destination = '/first-access/activate-2fa';
-      } else if (!isSuperAdmin && requiresLgpdConsent) {
-        destination = '/lgpd-consent';
       }
 
       // ORDEM CRÍTICA: setar user e isLoading=false juntos, navegar depois
@@ -509,9 +561,56 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (response.data) {
         const savedUser = localStorage.getItem('user');
         const userData = savedUser ? JSON.parse(savedUser) : {};
-        const primaryRole = (response.data.roles && response.data.roles.length > 0)
-          ? (typeof response.data.roles[0] === 'string' ? response.data.roles[0] : response.data.roles[0].name)
-          : userData.role;
+
+        // Aplicar prioridade de roles — garante que SUPER_ADMIN sempre vença ADMIN, etc.
+        const rolesFromServer: string[] = (response.data.roles || []).map(
+          (r: any) => (typeof r === 'string' ? r : r.name)
+        );
+        const ROLE_PRIORITY: UserRole[] = [
+          'SUPER_ADMIN', 'FLEX_ADMIN', 'COMPANY_ADMIN', 'ADMIN',
+          'GESTOR', 'GESTOR_COMERCIAL', 'COMERCIAL', 'VENDAS',
+          'GESTOR_DE_COMPRAS', 'COMPRAS', 'ALMOXARIFADO',
+          'GESTOR_DE_MANUTENCAO', 'ENCARREGADO_DE_MANUTENCAO', 'ANALISTA_DE_FROTA', 'ANALISTA_FROTA', 'MANUTENCAO', 'MECANICO',
+          'GESTOR_OPERACIONAL', 'GESTOR_TRAFEGO', 'GESTOR_DE_TRAFEGO', 'ENCARREGADO_DE_TRANSPORTES', 'ENCARREGADO_TRANSPORTES', 'ENCARREGADO_DE_TRAFEGO', 'ENCARREGADO_TRAFEGO',
+          'OPERACIONAL', 'ASSISTENTE_OPERACIONAL', 'MOTORISTA',
+          'GESTOR_FINANCEIRO', 'FINANCEIRO', 'ASSISTENTE_FINANCEIRO',
+          'RH', 'ASSISTENCIA_RH', 'AUXILIAR_DE_RH',
+          'SST', 'SEGURANCA_DO_TRABALHO',
+          'DEPARTAMENTO_PESSOAL', 'AUXILIAR_DE_DEPARTAMENTO_PESSOAL', 'AUX_DEP',
+          'SUPERVISOR', 'TI_SUPORTE', 'AUDITOR', 'PORTARIA', 'VIGILANTE',
+          'AUXI_ADMINISTRATIVO', 'AUXILIAR_ADMINISTRATIVO',
+          'ASSISTENTE_LIMPEZA', 'LAVADOR',
+          'COLABORADOR', 'EMPLOYEE', 'CLIENTE', 'CLIENT_USER', 'PASSAGEIRO',
+        ];
+        let primaryRole: User['role'] = userData.role || 'COLABORADOR';
+        if (rolesFromServer.length > 0) {
+          for (const p of ROLE_PRIORITY) {
+            if (rolesFromServer.includes(p)) {
+              primaryRole = p as User['role'];
+              break;
+            }
+          }
+        }
+        console.log('🔄 refreshUser: roles do servidor:', rolesFromServer, '→ role principal:', primaryRole);
+
+        const position = response.data.position || userData.position;
+        const department = response.data.department || userData.department;
+        const isDriver = isDriverUser({
+          role: primaryRole,
+          roles: rolesFromServer,
+          position: position,
+          isDriver: response.data.isDriver ?? userData.isDriver,
+        });
+
+        // Se for motorista e não for perfil administrativo privilegiado, garante a role MOTORISTA
+        const isSuperOrAdmin = ['SUPER_ADMIN', 'FLEX_ADMIN', 'COMPANY_ADMIN', 'ADMIN'].includes(primaryRole);
+        if (isDriver && !isSuperOrAdmin) {
+          primaryRole = 'MOTORISTA';
+        }
+
+        const newCompanyId = response.data.companyId !== undefined
+          ? response.data.companyId
+          : (response.data.company?.id || null);
 
         const updatedUser = {
           ...userData,
@@ -521,9 +620,47 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           email: response.data.email || userData.email,
           whatsapp: response.data.whatsapp || userData.whatsapp,
           active: response.data.active !== undefined ? response.data.active : userData.active,
-          roles: response.data.roles || userData.roles,
-          role: primaryRole || userData.role,
+          roles: rolesFromServer.length > 0 ? rolesFromServer : userData.roles,
+          role: primaryRole,
+          position: position,
+          department: department,
+          isDriver: isDriver,
+          employeeId: response.data.employeeId !== undefined ? response.data.employeeId : userData.employeeId,
+          companyId: newCompanyId,
+          company: response.data.company || null,
+          firstAccessCompleted: response.data.firstAccessCompleted !== undefined
+            ? response.data.firstAccessCompleted
+            : userData.firstAccessCompleted,
+          requiresLgpdConsent: response.data.requiresLgpdConsent !== undefined
+            ? response.data.requiresLgpdConsent
+            : userData.requiresLgpdConsent,
+          passengerId: response.data.passengerId !== undefined ? response.data.passengerId : userData.passengerId,
+          passengerCategory: response.data.passengerCategory !== undefined ? response.data.passengerCategory : userData.passengerCategory,
+          isPcd: response.data.isPcd !== undefined ? response.data.isPcd : userData.isPcd,
+          disabilityType: response.data.disabilityType !== undefined ? response.data.disabilityType : userData.disabilityType,
+          disabilityDescription: response.data.disabilityDescription !== undefined ? response.data.disabilityDescription : userData.disabilityDescription,
         };
+
+        // Atualizar estado da empresa local se a empresa do usuário mudou ou foi desvinculada
+        if (!newCompanyId) {
+          setEmpresa(null);
+          localStorage.removeItem('empresa');
+        } else if (response.data.company) {
+          const comp = response.data.company;
+          const cleanLogoUrl = (comp.logoUrl && comp.logoUrl.includes('e9654118-53a8-4dd8-b57c-bc50997f081b')) ? null : comp.logoUrl;
+          const empresaData: EmpresaInfo = {
+            id: comp.id || newCompanyId,
+            nome: comp.name || comp.nome || '',
+            logoUrl: cleanLogoUrl,
+            temaCor: comp.temaCor,
+            branchName: comp.branchName,
+            unitName: comp.unitName,
+            enabledFeatures: comp.enabledFeatures || []
+          };
+          setEmpresa(empresaData);
+          localStorage.setItem('empresa', JSON.stringify(empresaData));
+        }
+
         const rolePermissions = generatePermissions(updatedUser.role);
         const userWithPermissions = {
           ...updatedUser,
@@ -534,13 +671,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         localStorage.setItem('user', JSON.stringify(userWithPermissions));
       }
     } catch (error) {
-      console.error('Erro ao atualizar dados do usuário:', error);
+      console.warn('⚠️ refreshUser: Não foi possível sincronizar perfil em segundo plano com o servidor (usando dados locais da sessão):', error);
     }
   };
 
   const setFirstAccessCompleted = (completed: boolean) => {
     if (!user) return;
     const updatedUser = { ...user, firstAccessCompleted: completed };
+    setUser(updatedUser);
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+  };
+
+  const setRequiresLgpdConsent = (required: boolean) => {
+    if (!user) return;
+    const updatedUser = { ...user, requiresLgpdConsent: required };
     setUser(updatedUser);
     localStorage.setItem('user', JSON.stringify(updatedUser));
   };
@@ -586,11 +730,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     },
     refreshUser,
     setFirstAccessCompleted,
+    setRequiresLgpdConsent,
     hasRole: (role: UserRole | string) => {
       if (!user) return false;
-      // Trata tanto o papel principal (role) quanto a lista de papéis (roles)
+      const normalize = (r: any): string => {
+        if (!r) return '';
+        const name = typeof r === 'string' ? r : (r.name || r.authority || '');
+        return name.replace(/^ROLE_/, '').toUpperCase();
+      };
+      const targetRole = normalize(role);
+      if (normalize(user.role) === targetRole) return true;
       const rolesToMatch = Array.isArray((user as any).roles) ? (user as any).roles : [];
-      return user.role === role || rolesToMatch.includes(role);
+      return rolesToMatch.some((r: any) => normalize(r) === targetRole);
     },
   };
 

@@ -27,6 +27,16 @@ public class DriverController {
         return ResponseEntity.ok(driverService.getAllDrivers());
     }
 
+    @PostMapping("/sync")
+    public ResponseEntity<Map<String, Object>> syncDrivers() {
+        try {
+            driverService.syncDriversFromEmployees();
+            return ResponseEntity.ok(Map.of("success", true, "message", "Motoristas sincronizados com sucesso."));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", e.getMessage()));
+        }
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<DriverDTO> getDriverById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(driverService.getDriverById(id));

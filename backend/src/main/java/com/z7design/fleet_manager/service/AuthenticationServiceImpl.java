@@ -2,8 +2,10 @@ package com.z7design.fleet_manager.service;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.time.LocalDateTime;
 import java.util.stream.Collectors;
 
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -12,6 +14,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
 
 import com.z7design.fleet_manager.dto.AuthenticationRequest;
 import com.z7design.fleet_manager.dto.AuthenticationResponse;
@@ -22,10 +25,14 @@ import com.z7design.fleet_manager.dto.UserResponse;
 import com.z7design.fleet_manager.model.Company;
 import com.z7design.fleet_manager.model.User;
 import com.z7design.fleet_manager.model.Role;
+import com.z7design.fleet_manager.model.Employee;
 import com.z7design.fleet_manager.model.enums.UserStatus;
 import com.z7design.fleet_manager.repository.UserRepository;
 import com.z7design.fleet_manager.repository.RoleRepository;
 import com.z7design.fleet_manager.repository.EmployeeRepository;
+import com.z7design.fleet_manager.repository.CompanyRepository;
+import com.z7design.fleet_manager.repository.PassengerRepository;
+import com.z7design.fleet_manager.model.Passenger;
 import com.z7design.fleet_manager.security.JwtService;
 
 import lombok.RequiredArgsConstructor;
@@ -39,8 +46,11 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final EmployeeRepository employeeRepository;
+    private final PassengerRepository passengerRepository;
+    private final CompanyRepository companyRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    @Lazy
     private final AuthenticationManager authenticationManager;
     private final UserDetailsService userDetailsService;
     private final UserCustomPermissionService customPermissionService;
@@ -127,23 +137,90 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public AuthenticationResponse authenticate(AuthenticationRequest request) {
         try {
-            log.info("ðŸ” Tentando autenticar usuÃ¡rio: {}", request.getUsername());
-
-            authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword()));
+            log.info("🔍 Tentando autenticar com identificador: {}", request.getUsername());
 
             String target = request.getUsername() != null ? request.getUsername().trim() : "";
-            User user = userRepository.findByUsername(target)
+            String cleanDigits = target.replaceAll("\\D", "");
+
+            User user = userRepository.findByIdentifierNative(target, cleanDigits)
+                    .or(() -> userRepository.findByUsernameOrEmailIgnoreCase(target))
+                    .or(() -> userRepository.findByUsername(target))
                     .or(() -> userRepository.findByEmail(target))
-                    .orElseThrow(() -> new org.springframework.security.core.userdetails.UsernameNotFoundException("Usuário não encontrado: " + target));
+                    .orElse(null);
+
+            if (user == null) {
+                // 1. Verificar se é passageiro (colaborador de cliente contratante)
+                var passOpt = (cleanDigits.length() >= 11 ? passengerRepository.findByCleanCpfNative(cleanDigits) : java.util.Optional.<Passenger>empty())
+                        .or(() -> passengerRepository.findByRegistrationIgnoreCase(target));
+                if (passOpt.isPresent()) {
+                    Passenger pass = passOpt.get();
+                    if ("DEMITIDO".equalsIgnoreCase(pass.getStatus()) || "BLOQUEADO".equalsIgnoreCase(pass.getStatus()) || Boolean.FALSE.equals(pass.getActive())) {
+                        throw new org.springframework.security.authentication.LockedException(
+                                "Acesso bloqueado: o cadastro do passageiro " + pass.getName() + " está " + (pass.getStatus() != null ? pass.getStatus() : "INATIVO") + " no sistema.");
+                    }
+                    user = createOrLinkPassengerUser(pass, request.getPassword());
+                }
+
+                // 2. Verificar se é funcionário da transportadora cadastrado no RH sem usuário/senha criada
+                if (user == null && cleanDigits.length() >= 11) {
+                    var empOpt = employeeRepository.findByCpf(cleanDigits);
+                    if (empOpt.isPresent()) {
+                        var emp = empOpt.get();
+                        log.warn("⚠️ Colaborador {} (CPF {}) cadastrado no RH, mas sem senha configurada.", emp.getName(), cleanDigits);
+                        throw new org.springframework.security.authentication.AccountStatusException(
+                                "Colaborador " + emp.getName() + " cadastrado, mas sua senha de acesso ainda não foi configurada. Por favor, realize o Primeiro Acesso para definir sua senha.") {};
+                    }
+                }
+
+                if (user == null) {
+                    throw new org.springframework.security.core.userdetails.UsernameNotFoundException("Usuário não encontrado: " + target);
+                }
+            }
+
+            // Usar o username canônico do User no authenticationManager
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(user.getUsername(), request.getPassword()));
 
             log.info("✅ Usuário encontrado: {} (ID: {})", user.getUsername(), user.getId());
             // SEGURANÇA: log do hash BCrypt da senha removido (vazava credencial em logs)
             log.info("🔐 Login - Active: {}, Status: {}, CompanyID: {}", user.isActive(), user.getStatus(),
                     user.getCompanyId());
+
+            // Sincronizar companyId se o usuário ainda não tiver vínculo direto mas o funcionário tiver
+            if (user.getCompanyId() == null && user.getId() != null) {
+                try {
+                    Optional<UUID> employeeCompanyId = employeeRepository.findCompanyIdByUserIdNative(user.getId());
+                    if (employeeCompanyId.isPresent()) {
+                        user.setCompanyId(employeeCompanyId.get());
+                        userRepository.save(user);
+                        log.info("🏢 Sincronizado companyId {} para o usuário {} a partir do Employee", employeeCompanyId.get(), user.getUsername());
+                    }
+                } catch (Exception ex) {
+                    log.warn("⚠️ Erro ao sincronizar companyId do Employee para o User: {}", ex.getMessage());
+                }
+            }
+
+            // BLOQUEIO ADMINISTRATIVO: usuário bloqueado (permanente ou temporário vigente)
+            // recebe mensagem clara para procurar o Administrador do sistema.
+            if (Boolean.TRUE.equals(user.getBlocked())) {
+                java.time.LocalDateTime blockedUntil = user.getBlockedUntil();
+                boolean bloqueioVigente = (blockedUntil == null || blockedUntil.isAfter(java.time.LocalDateTime.now()));
+                if (bloqueioVigente) {
+                    String ate = (blockedUntil != null)
+                            ? " até " + blockedUntil.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
+                            : " de forma permanente";
+                    log.warn("🚫 Tentativa de login de usuário bloqueado: {} (bloqueado {})", user.getUsername(), ate);
+                    throw new org.springframework.security.authentication.LockedException(
+                            "Seu acesso está bloqueado" + ate + ". Procure o Administrador do sistema para mais informações.");
+                }
+                // Prazo expirou — desbloqueia automaticamente
+                user.setBlocked(false);
+                userRepository.save(user);
+                log.info("🔓 Bloqueio temporário expirado, usuário desbloqueado automaticamente: {}", user.getUsername());
+            }
 
             // Valida se o usuário tem permissão de login (exige empresa ou ser Admin)
             validateUserCompanyAccess(user, request.getCompanyId());
@@ -218,14 +295,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             return AuthenticationResponse.builder()
                     .token(jwtToken)
                     .refreshToken(refreshToken)
-                    .user(UserResponse.builder()
-                            .id(user.getId().toString())
-                            .username(user.getUsername())
-                            .email(user.getEmail())
-                            .fullName(user.getName())
-                            .roles(roles)
-                            .customPermissions(customPermissions)
-                            .build())
+                    .user(buildUserResponse(user, roles, customPermissions))
                     .empresa(buildEmpresaResponse(user, request.getCompanyId()))
                     .requiresLgpdConsent(requiresLgpdConsent)
                     .requires2FA(requires2FA)
@@ -235,7 +305,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         } catch (org.springframework.security.core.AuthenticationException e) {
             log.warn("❌ Falha na autenticação para usuário {}: {}", request.getUsername(), e.getMessage());
             throw e;
-        } catch (Exception e) {
+        } catch (Throwable e) {
             log.error("💥 ERRO CRÍTICO NO LOGIN para usuário {}: {}", request.getUsername(), e.getMessage(), e);
             throw new RuntimeException("Erro ao processar autenticação: " + e.getMessage(), e);
         }
@@ -258,17 +328,14 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 // Buscar permissões customizadas
                 java.util.List<String> customPermissions = customPermissionService.getActivePermissions(user.getId());
 
+                java.util.List<String> userRoles = user.getRoles() != null
+                        ? user.getRoles().stream().map(Role::getName).collect(Collectors.toList())
+                        : java.util.Collections.emptyList();
+
                 return AuthenticationResponse.builder()
                         .token(accessToken)
                         .refreshToken(newRefreshToken)
-                        .user(UserResponse.builder()
-                                .id(user.getId() != null ? user.getId().toString() : null)
-                                .username(user.getUsername())
-                                .email(user.getEmail())
-                                .fullName(user.getName())
-                                .roles(user.getRoles().stream().map(Role::getName).collect(Collectors.toList()))
-                                .customPermissions(customPermissions)
-                                .build())
+                        .user(buildUserResponse(user, userRoles, customPermissions))
                         .empresa(buildEmpresaResponse(user, null))
                         .build();
             }
@@ -288,38 +355,70 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             throw new RuntimeException("No authentication found");
         }
 
+        // 1. Se o principal já for a entidade User, recarrega do banco ou usa diretamente
+        if (authentication.getPrincipal() instanceof User userPrincipal) {
+            if (userPrincipal.getId() != null) {
+                return userRepository.findById(userPrincipal.getId()).orElse(userPrincipal);
+            }
+            return userPrincipal;
+        }
+
         String username = authentication.getName();
-        return userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        if (username == null || username.isBlank()) {
+            throw new RuntimeException("No username found in authentication");
+        }
+
+        String target = username.trim();
+        String cleanDigits = target.replaceAll("\\D", "");
+
+        // 2. Busca abrangente por identificador, email ou username
+        return userRepository.findByIdentifierNative(target, cleanDigits)
+                .or(() -> userRepository.findByUsernameOrEmailIgnoreCase(target))
+                .or(() -> userRepository.findByUsername(target))
+                .or(() -> userRepository.findByEmail(target))
+                .or(() -> {
+                    try {
+                        return userRepository.findById(UUID.fromString(target));
+                    } catch (IllegalArgumentException e) {
+                        return Optional.empty();
+                    }
+                })
+                .orElseThrow(() -> new RuntimeException("User not found: " + username));
+    }
+
+    private boolean isSuperAdmin(User user) {
+        return userCompanyResolver.isPrivilegedUser(user);
     }
 
     private void validateUserCompanyAccess(User user, UUID requestedCompanyId) {
-        // 1. Se for Flex Admin, Super Admin, Admin ou TI Suporte, permitir acesso direto (Bypass)
-        boolean isPrivileged = user.getRoles() != null && user.getRoles().stream()
-                .anyMatch(role -> role != null && role.getName() != null && (
-                        "FLEX_ADMIN".equalsIgnoreCase(role.getName()) ||
-                        "SUPER_ADMIN".equalsIgnoreCase(role.getName()) ||
-                        "TI_SUPORTE".equalsIgnoreCase(role.getName()) ||
-                        "ADMIN".equalsIgnoreCase(role.getName()) ||
-                        "ROLE_SUPER_ADMIN".equalsIgnoreCase(role.getName()) ||
-                        "ROLE_ADMIN".equalsIgnoreCase(role.getName()) ||
-                        "ROLE_FLEX_ADMIN".equalsIgnoreCase(role.getName()) ||
-                        "ROLE_TI_SUPORTE".equalsIgnoreCase(role.getName())
-                ));
-
-        if (isPrivileged) {
-            log.info("ℹ️ Login permitido por regra de privilégio para usuário: {}", user.getUsername());
+        // 1. Se for Super Admin, Admin ou TI Suporte, NÃO é obrigado a pertencer a nenhuma empresa
+        if (isSuperAdmin(user)) {
+            log.info("ℹ️ Login liberado: usuário {} é privilegiado/SUPER_ADMIN (não exige vínculo com empresa)", user.getUsername());
             return;
         }
 
         // 2. Se uma empresa específica foi solicitada, validar o acesso
         if (requestedCompanyId != null) {
-            boolean hasAccess = false;
-            try {
-                hasAccess = employeeRepository.findByUser(user).stream()
-                        .anyMatch(emp -> emp != null && requestedCompanyId.equals(emp.getCompanyId()));
-            } catch (Exception e) {
-                log.warn("⚠️ Erro ao verificar employee por usuário: {}", e.getMessage());
+            boolean hasAccess = requestedCompanyId.equals(user.getCompanyId()) ||
+                    (user.getCompany() != null && requestedCompanyId.equals(user.getCompany().getId()));
+
+            if (!hasAccess && user.getId() != null) {
+                try {
+                    hasAccess = employeeRepository.findCompanyIdsByUserIdNative(user.getId()).contains(requestedCompanyId);
+                } catch (Throwable e) {
+                    log.warn("⚠️ Erro ao verificar employee por usuário (nativo): {}", e.getMessage());
+                }
+            }
+
+            if (!hasAccess) {
+                // Fallback se só existir uma empresa cadastrada no sistema
+                try {
+                    if (companyRepository != null && companyRepository.count() <= 1) {
+                        hasAccess = true;
+                    }
+                } catch (Throwable ignored) {
+                    hasAccess = true;
+                }
             }
 
             if (!hasAccess) {
@@ -332,61 +431,386 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             return;
         }
 
-        // 3. Se nenhuma empresa foi solicitada (legado ou erro), tentar resolver via resolver
+        // 3. Se nenhuma empresa foi solicitada, tentar resolver empresa padrão
         UUID resolvedCompanyId = userCompanyResolver.resolveCompanyId(user);
         if (resolvedCompanyId == null) {
-            log.warn("⛔ Bloqueio de Login: Usuário {} tentou logar sem empresa vinculada.",
-                    user.getUsername());
-            throw new org.springframework.security.authentication.BadCredentialsException(
-                    "Acesso negado: Usuário não possui empresa vinculada. Contate o suporte.");
+            log.warn("⚠️ Usuário {} logando sem empresa vinculada.", user.getUsername());
+            return;
         }
     }
 
     private EmpresaResponse buildEmpresaResponse(User user, UUID requestedCompanyId) {
         try {
+            boolean privileged = isSuperAdmin(user);
+
             Optional<Company> companyOpt = requestedCompanyId != null
                     ? userCompanyResolver.resolveSpecificCompany(user, requestedCompanyId)
                     : userCompanyResolver.resolveCompany(user);
 
-            return companyOpt.map(c -> {
-                // Definir funcionalidades habilitadas (por enquanto, todas habilitadas)
-                java.util.List<String> enabledFeatures = java.util.List.of(
-                        "dashboard",
-                        "operacional",
-                        "manutencao",
-                        "financeiro",
-                        "rotas",
-                        "relatorios");
-
-                EmpresaResponse.EmpresaResponseBuilder builder = EmpresaResponse.builder()
-                        .id(c.getId() != null ? c.getId().toString() : null)
-                        .nome(c.getName())
-                        .logoUrl(c.getLogoUrl())
-                        .temaCor(c.getTemaCor() != null ? c.getTemaCor() : "dark")
-                        .enabledFeatures(enabledFeatures);
-
-                try {
-                    employeeRepository.findByUser(user).stream()
-                            .filter(emp -> emp != null && emp.getUnit() != null)
-                            .findFirst()
-                            .ifPresent(emp -> {
-                                try {
-                                    builder.unitName(emp.getUnit().getName());
-                                    if (emp.getUnit().getBranch() != null) {
-                                        builder.branchName(emp.getUnit().getBranch().getName());
-                                    }
-                                } catch (Exception ignored) {}
-                            });
-                } catch (Exception e) {
-                    log.warn("⚠️ Não foi possível obter detalhes hierárquicos do funcionário: {}", e.getMessage());
+            if (companyOpt.isEmpty()) {
+                if (privileged) {
+                    return EmpresaResponse.builder()
+                            .id(null)
+                            .nome("FluxBus Global")
+                            .temaCor("dark")
+                            .enabledFeatures(java.util.List.of(
+                                    "dashboard", "operacional", "manutencao", "financeiro", "rotas", "relatorios"
+                            ))
+                            .build();
                 }
+                return null;
+            }
 
-                return builder.build();
-            }).orElse(null);
-        } catch (Exception e) {
+            Company c = companyOpt.get();
+            java.util.List<String> enabledFeatures = java.util.List.of(
+                    "dashboard",
+                    "operacional",
+                    "manutencao",
+                    "financeiro",
+                    "rotas",
+                    "relatorios");
+
+            EmpresaResponse.EmpresaResponseBuilder builder = EmpresaResponse.builder()
+                    .id(c.getId() != null ? c.getId().toString() : null)
+                    .nome(c.getName())
+                    .logoUrl(c.getLogoUrl())
+                    .temaCor(c.getTemaCor() != null ? c.getTemaCor() : "dark")
+                    .enabledFeatures(enabledFeatures);
+
+            // Apenas para usuários NÃO privilegiados tenta consultar unidade/filial (query nativa leve)
+            if (!privileged && user.getId() != null) {
+                try {
+                    java.util.List<Object[]> rows = employeeRepository.findUnitAndBranchNamesByUserIdNative(user.getId());
+                    if (rows != null && !rows.isEmpty()) {
+                        Object[] row = rows.get(0);
+                        if (row.length > 0 && row[0] != null) {
+                            builder.unitName(row[0].toString());
+                        }
+                        if (row.length > 1 && row[1] != null) {
+                            builder.branchName(row[1].toString());
+                        }
+                    }
+                } catch (Throwable e) {
+                    log.warn("⚠️ Não foi possível obter detalhes hierárquicos do funcionário (nativo): {}", e.getMessage());
+                }
+            }
+
+            return builder.build();
+        } catch (Throwable e) {
             log.warn("⚠️ Erro ao montar dados da empresa no login (prosseguindo sem empresa): {}", e.getMessage());
             return null;
         }
     }
-}
 
+    private UserResponse buildUserResponse(User user, java.util.List<String> roles, java.util.List<String> customPermissions) {
+        UUID employeeId = null;
+        String position = null;
+        String department = null;
+        try {
+            Employee emp = employeeRepository.findByUserId(user.getId()).orElse(null);
+            if (emp == null && user.getUsername() != null) {
+                String cleanCpf = user.getUsername().replaceAll("\\D", "");
+                if (cleanCpf.length() >= 11) {
+                    emp = employeeRepository.findByCpf(cleanCpf).orElse(null);
+                }
+            }
+            if (emp == null && user.getName() != null && !user.getName().isBlank()) {
+                var emps = employeeRepository.findByNameContainingIgnoreCase(user.getName().trim());
+                if (!emps.isEmpty()) {
+                    emp = emps.get(0);
+                }
+            }
+            if (emp == null && user.getEmail() != null && !user.getEmail().isBlank()) {
+                emp = employeeRepository.findByEmail(user.getEmail().trim()).orElse(null);
+            }
+            if (emp != null) {
+                employeeId = emp.getId();
+                if (emp.getUser() == null || !user.getId().equals(emp.getUser().getId())) {
+                    try {
+                        emp.setUser(user);
+                        employeeRepository.save(emp);
+                    } catch (Exception ignored) {}
+                }
+                if (emp.getPosition() != null) {
+                    position = emp.getPosition().getName();
+                }
+                if (emp.getDepartment() != null) {
+                    department = emp.getDepartment().getName();
+                }
+            }
+        } catch (Exception ex) {
+            log.warn("⚠️ Erro ao resolver vínculo de funcionário para UserResponse: {}", ex.getMessage());
+        }
+
+        java.util.List<String> effectiveRoles = roles != null ? new java.util.ArrayList<>(roles) : new java.util.ArrayList<>();
+        boolean hasDriverRole = effectiveRoles.stream().anyMatch(r ->
+            r.equalsIgnoreCase("MOTORISTA") || r.equalsIgnoreCase("ROLE_MOTORISTA")
+        );
+        boolean hasDriverPosition = position != null && (
+            position.toLowerCase().contains("motorista") ||
+            position.toLowerCase().contains("condutor") ||
+            position.toLowerCase().contains("driver")
+        );
+        boolean isDriver = hasDriverRole || hasDriverPosition;
+        if (hasDriverPosition && !hasDriverRole) {
+            effectiveRoles.add("MOTORISTA");
+        }
+
+        UUID passengerId = null;
+        UUID clientId = null;
+        String clientName = null;
+        String passengerCategory = null;
+        Boolean isPcd = null;
+        String disabilityType = null;
+        try {
+            var passOpt = passengerRepository.findByUserIdNative(user.getId());
+            if (passOpt.isEmpty() && user.getCpf() != null) {
+                String clean = user.getCpf().replaceAll("\\D", "");
+                if (!clean.isEmpty()) {
+                    passOpt = passengerRepository.findByCleanCpfNative(clean);
+                }
+            }
+            if (passOpt.isPresent()) {
+                Passenger p = passOpt.get();
+                passengerId = p.getId();
+                clientId = p.getClientId();
+                if (p.getClient() != null) {
+                    clientName = p.getClient().getName();
+                }
+                passengerCategory = p.getPassengerCategory() != null ? p.getPassengerCategory() : (clientId != null ? "FRETADO" : "PUBLICO_ALEATORIO");
+                isPcd = p.getIsPcd();
+                disabilityType = p.getDisabilityType();
+                if (!effectiveRoles.contains("PASSAGEIRO")) {
+                    effectiveRoles.add("PASSAGEIRO");
+                }
+            }
+        } catch (Exception ex) {
+            log.warn("⚠️ Erro ao resolver vínculo de passageiro para UserResponse: {}", ex.getMessage());
+        }
+
+        return UserResponse.builder()
+                .id(user.getId() != null ? user.getId().toString() : null)
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .fullName(user.getName())
+                .roles(effectiveRoles)
+                .customPermissions(customPermissions)
+                .employeeId(employeeId)
+                .position(position)
+                .department(department)
+                .isDriver(isDriver)
+                .requirePasswordChange(user.getRequirePasswordChange())
+                .firstAccessCompleted(user.getFirstAccessCompleted())
+                .passengerId(passengerId)
+                .clientId(clientId)
+                .clientName(clientName)
+                .passengerCategory(passengerCategory)
+                .isPcd(isPcd)
+                .disabilityType(disabilityType)
+                .build();
+    }
+
+    private User createOrLinkPassengerUser(Passenger pass, String rawPassword) {
+        String cleanCpf = pass.getCpf() != null ? pass.getCpf().replaceAll("\\D", "") : null;
+        String username = (cleanCpf != null && !cleanCpf.isBlank()) ? cleanCpf : (pass.getRegistration() != null ? pass.getRegistration().trim() : "pass_" + pass.getId().toString().substring(0, 8));
+        String email = (pass.getEmail() != null && !pass.getEmail().isBlank()) ? pass.getEmail() : (username + "@passageiro.local");
+
+        User user = userRepository.findByUsernameOrEmailIgnoreCase(username)
+                .or(() -> userRepository.findByUsername(username))
+                .or(() -> userRepository.findByEmail(email))
+                .orElse(null);
+
+        if (user == null) {
+            Role passRole = roleRepository.findByName("PASSAGEIRO")
+                    .or(() -> roleRepository.findByName("COLABORADOR"))
+                    .orElse(null);
+            java.util.Set<Role> roles = passRole != null ? java.util.Set.of(passRole) : java.util.Collections.emptySet();
+
+            String rawPass = rawPassword != null && !rawPassword.isBlank()
+                    ? rawPassword
+                    : (cleanCpf != null && cleanCpf.length() >= 6 ? cleanCpf.substring(0, 6) : "123456");
+
+            user = User.builder()
+                    .username(username)
+                    .name(pass.getName() != null ? pass.getName() : "Passageiro")
+                    .email(email)
+                    .cpf(cleanCpf)
+                    .password(passwordEncoder.encode(rawPass))
+                    .roles(roles)
+                    .status(UserStatus.ACTIVE)
+                    .active(true)
+                    .companyId(pass.getCompanyId())
+                    .clientId(pass.getClientId())
+                    .requirePasswordChange(true)
+                    .firstAccessCompleted(false)
+                    .build();
+
+            user = userRepository.save(user);
+        }
+
+        if (pass.getUserId() == null) {
+            pass.setUserId(user.getId());
+            passengerRepository.save(pass);
+        }
+
+        return user;
+    }
+
+    @Override
+    @Transactional
+    public AuthenticationResponse registerPassenger(com.z7design.fleet_manager.dto.PassengerRegistrationRequestDTO request) {
+        log.info("Iniciando auto-cadastro de passageiro público: {} (CPF: {})", request.getName(), request.getCpf());
+
+        if (Boolean.FALSE.equals(request.getLgpdAccepted())) {
+            throw new com.z7design.fleet_manager.exception.BusinessException("É obrigatório ler e aceitar os termos da LGPD para realizar o cadastro.");
+        }
+
+        String rawPhone = request.getEffectivePhone();
+        if (rawPhone == null || rawPhone.replaceAll("\\D", "").isBlank()) {
+            throw new com.z7design.fleet_manager.exception.BusinessException("WhatsApp / Telefone é obrigatório.");
+        }
+        String cleanPhone = rawPhone.replaceAll("\\D", "");
+
+        String cleanCpf = request.getCpf() != null ? request.getCpf().replaceAll("\\D", "") : "";
+        if (cleanCpf.length() != 11) {
+            throw new com.z7design.fleet_manager.exception.BusinessException("CPF inválido. Deve conter 11 dígitos.");
+        }
+
+        // Validação matemática do CPF
+        if (!isValidCpf(cleanCpf)) {
+            throw new com.z7design.fleet_manager.exception.BusinessException("O CPF informado é inválido. Por favor, confira os números digitados.");
+        }
+
+        String cleanUsername = request.getUsername().trim().toLowerCase();
+        if (userRepository.existsByUsername(cleanUsername)) {
+            throw new com.z7design.fleet_manager.exception.BusinessException("O nome de usuário '" + cleanUsername + "' já está em uso. Por favor, escolha outro.");
+        }
+
+        if (userRepository.existsByEmail(request.getEmail().trim().toLowerCase())) {
+            throw new com.z7design.fleet_manager.exception.BusinessException("O e-mail '" + request.getEmail() + "' já está cadastrado.");
+        }
+
+        if (passengerRepository.findByCleanCpfNative(cleanCpf).isPresent()) {
+            throw new com.z7design.fleet_manager.exception.BusinessException("Já existe um passageiro cadastrado com este CPF. Faça login diretamente.");
+        }
+
+        // Resolver companyId (empresa padrão ou primeira ativa)
+        UUID companyId = request.getCompanyId();
+        if (companyId == null) {
+            var allComps = companyRepository.findAll();
+            if (!allComps.isEmpty()) {
+                companyId = allComps.get(0).getId();
+            }
+        }
+
+        Role passRole = roleRepository.findByName("PASSAGEIRO")
+                .or(() -> roleRepository.findByName("COLABORADOR"))
+                .orElseGet(() -> {
+                    try {
+                        Role r = new Role();
+                        r.setName("PASSAGEIRO");
+                        r.setDescription("Passageiro / Transporte Público");
+                        return roleRepository.save(r);
+                    } catch (Exception e) {
+                        return null;
+                    }
+                });
+        java.util.Set<Role> roles = passRole != null ? java.util.Set.of(passRole) : java.util.Collections.emptySet();
+
+        // 1. Criar User
+        User user = User.builder()
+                .username(cleanUsername)
+                .name(request.getName().trim())
+                .email(request.getEmail().trim().toLowerCase())
+                .phone(cleanPhone)
+                .whatsapp(cleanPhone)
+                .whatsappConsent(true)
+                .whatsappConsentDate(LocalDateTime.now())
+                .cpf(cleanCpf)
+                .password(passwordEncoder.encode(request.getPassword()))
+                .roles(roles)
+                .status(UserStatus.ACTIVE)
+                .active(true)
+                .companyId(companyId)
+                .clientId(null) // Passageiro avulso do transporte público
+                .requirePasswordChange(false)
+                .firstAccessCompleted(true)
+                .build();
+        user = userRepository.save(user);
+
+        // 2. Criar Passenger
+        String registration = "PUB-" + cleanCpf.substring(0, 3) + cleanCpf.substring(9, 11) + (int)(Math.random() * 900 + 100);
+        String qrToken = "FLUXBUS-PUB-" + UUID.randomUUID().toString();
+
+        Passenger pass = new Passenger();
+        pass.setName(request.getName().trim());
+        pass.setCpf(cleanCpf);
+        pass.setPhone(rawPhone.trim());
+        pass.setEmail(request.getEmail().trim().toLowerCase());
+        pass.setRegistration(registration);
+        pass.setCompanyId(companyId);
+        pass.setClientId(null);
+        pass.setUserId(user.getId());
+        pass.setPassengerCategory("PUBLICO_ALEATORIO");
+        pass.setPassengerType(Boolean.TRUE.equals(request.getIsPcd()) ? "PCD" : "COMUM");
+        pass.setIsPcd(Boolean.TRUE.equals(request.getIsPcd()));
+        pass.setDisabilityType(request.getDisabilityType());
+        pass.setDisabilityDescription(request.getDisabilityDescription());
+        pass.setCep(request.getCep());
+        pass.setStreet(request.getStreet());
+        pass.setNumber(request.getNumber());
+        pass.setComplement(request.getComplement());
+        pass.setNeighborhood(request.getNeighborhood());
+        pass.setCity(request.getCity());
+        pass.setState(request.getState());
+        pass.setLgpdAccepted(true);
+        pass.setLgpdAcceptedAt(LocalDateTime.now());
+        pass.setStatus("ATIVO");
+        pass.setActive(true);
+        pass.setMultipleRoutesAllowed(true);
+        pass.setQrCodeToken(qrToken);
+        pass = passengerRepository.save(pass);
+
+        // 3. Gerar tokens JWT e retornar autenticado
+        String jwtToken = jwtService.generateToken(user);
+        String refreshToken = jwtService.generateRefreshToken(user);
+
+        EmpresaResponse empresaResponse = buildEmpresaResponse(user, companyId);
+
+        java.util.List<String> roleNames = roles.stream().map(Role::getName).collect(Collectors.toList());
+        UserResponse userResponse = buildUserResponse(user, roleNames, java.util.Collections.emptyList());
+        userResponse.setPassengerId(pass.getId());
+        userResponse.setPassengerCategory("PUBLICO_ALEATORIO");
+        userResponse.setIsPcd(pass.getIsPcd());
+        userResponse.setDisabilityType(pass.getDisabilityType());
+
+        return AuthenticationResponse.builder()
+                .token(jwtToken)
+                .refreshToken(refreshToken)
+                .user(userResponse)
+                .empresa(empresaResponse)
+                .requiresLgpdConsent(false)
+                .requiresPasswordChange(false)
+                .firstAccessCompleted(true)
+                .build();
+    }
+
+    private boolean isValidCpf(String cpf) {
+        if (cpf == null || cpf.length() != 11 || cpf.matches("(\\d)\\1{10}")) return false;
+        try {
+            int sum = 0, weight = 10;
+            for (int i = 0; i < 9; i++) sum += (cpf.charAt(i) - '0') * weight--;
+            int r = 11 - (sum % 11);
+            int d1 = (r == 10 || r == 11) ? 0 : r;
+            if (d1 != (cpf.charAt(9) - '0')) return false;
+
+            sum = 0; weight = 11;
+            for (int i = 0; i < 10; i++) sum += (cpf.charAt(i) - '0') * weight--;
+            r = 11 - (sum % 11);
+            int d2 = (r == 10 || r == 11) ? 0 : r;
+            return d2 == (cpf.charAt(10) - '0');
+        } catch (Exception e) {
+            return false;
+        }
+    }
+}

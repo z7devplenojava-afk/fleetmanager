@@ -1,30 +1,19 @@
 -- Migration V446: Add company_id to remaining financial tables
 -- Supporting multi-tenant isolation for Billing and Purchases
 
--- 1. invoices
-ALTER TABLE invoices ADD COLUMN IF NOT EXISTS company_id UUID;
-CREATE INDEX IF NOT EXISTS idx_invoices_company_id ON invoices(company_id);
-
--- 2. purchase_requests
-ALTER TABLE purchase_requests ADD COLUMN IF NOT EXISTS company_id UUID;
-CREATE INDEX IF NOT EXISTS idx_purchase_requests_company_id ON purchase_requests(company_id);
-
--- 3. purchase_quotations
-ALTER TABLE purchase_quotations ADD COLUMN IF NOT EXISTS company_id UUID;
-CREATE INDEX IF NOT EXISTS idx_purchase_quotations_company_id ON purchase_quotations(company_id);
-
--- Add foreign keys for data integrity
 DO $$ 
+DECLARE
+    tbl TEXT;
+    tables TEXT[] := ARRAY['invoices', 'purchase_requests', 'purchase_quotations'];
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_invoices_company') THEN
-        ALTER TABLE invoices ADD CONSTRAINT fk_invoices_company FOREIGN KEY (company_id) REFERENCES companies(id);
-    END IF;
-    
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_purchase_requests_company') THEN
-        ALTER TABLE purchase_requests ADD CONSTRAINT fk_purchase_requests_company FOREIGN KEY (company_id) REFERENCES companies(id);
-    END IF;
-    
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_purchase_quotations_company') THEN
-        ALTER TABLE purchase_quotations ADD CONSTRAINT fk_purchase_quotations_company FOREIGN KEY (company_id) REFERENCES companies(id);
-    END IF;
+    FOREACH tbl IN ARRAY tables
+    LOOP
+        IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = tbl) THEN
+            EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS company_id UUID', tbl);
+            EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I (company_id)', 'idx_' || tbl || '_company_id', tbl);
+            IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_' || tbl || '_company') THEN
+                EXECUTE format('ALTER TABLE %I ADD CONSTRAINT %I FOREIGN KEY (company_id) REFERENCES companies(id)', tbl, 'fk_' || tbl || '_company');
+            END IF;
+        END IF;
+    END LOOP;
 END $$;

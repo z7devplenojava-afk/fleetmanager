@@ -42,8 +42,16 @@ class EmployeeExcelImportTest {
     @Mock
     private EmployeeRepository employeeRepository;
 
+    @Mock
+    private UserCompanyResolver userCompanyResolver;
+
     @InjectMocks
     private EmployeeExcelImportService employeeExcelImportService;
+
+    @org.junit.jupiter.api.BeforeEach
+    void setUp() {
+        when(userCompanyResolver.resolveCurrentCompany()).thenReturn(Optional.empty());
+    }
 
     @Test
     @DisplayName("Deve importar funcionário com dados de benefícios e descontos via planilha Excel")

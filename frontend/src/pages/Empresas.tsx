@@ -41,12 +41,15 @@ import { Company360Dashboard } from '@/components/empresa/Company360Dashboard';
 import { companyService } from '@/services/companyService';
 import { Company } from '@/types/company';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import { getApiUrl } from '@/config/environment';
 import { resolveCompanyLogoUrl } from '@/utils/logoUtils';
 import { Sparkles, PieChart as PieChartIcon } from 'lucide-react';
 
 export const Empresas: React.FC = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'FLEX_ADMIN';
   const [mainTab, setMainTab] = useState<'empresas' | 'overview360'>('empresas');
   const [open, setOpen] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
@@ -373,15 +376,17 @@ export const Empresas: React.FC = () => {
                 Atualizar
               </Button>
 
-              <Button
-                className="h-10 bg-gradient-to-r from-seguranca-red to-red-600 hover:from-red-600 hover:to-seguranca-darkred text-white shadow-md shadow-red-950/20"
-                onClick={() => {
-                  setEditing(null);
-                  setOpen(true);
-                }}
-              >
-                <Plus className="mr-1.5 w-4 h-4" /> Nova Empresa
-              </Button>
+              {isSuperAdmin && (
+                <Button
+                  className="h-10 bg-gradient-to-r from-seguranca-red to-red-600 hover:from-red-600 hover:to-seguranca-darkred text-white shadow-md shadow-red-950/20"
+                  onClick={() => {
+                    setEditing(null);
+                    setOpen(true);
+                  }}
+                >
+                  <Plus className="mr-1.5 w-4 h-4" /> Nova Empresa
+                </Button>
+              )}
             </div>
           </div>
         </Card>
@@ -553,39 +558,43 @@ export const Empresas: React.FC = () => {
                               <Eye className="w-4 h-4" />
                             </Button>
 
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 text-blue-600 dark:text-blue-400 hover:text-blue-700 hover:bg-blue-500/10 rounded-lg"
-                              title="Editar Empresa"
-                              onClick={() => {
-                                setEditing(c);
-                                setOpen(true);
-                              }}
-                            >
-                              <Edit3 className="w-4 h-4" />
-                            </Button>
+                            {isSuperAdmin && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0 text-blue-600 dark:text-blue-400 hover:text-blue-700 hover:bg-blue-500/10 rounded-lg"
+                                  title="Editar Empresa"
+                                  onClick={() => {
+                                    setEditing(c);
+                                    setOpen(true);
+                                  }}
+                                >
+                                  <Edit3 className="w-4 h-4" />
+                                </Button>
 
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 text-amber-600 dark:text-amber-400 hover:text-amber-700 hover:bg-amber-500/10 rounded-lg"
-                              title={isActive ? 'Desativar Empresa' : 'Ativar Empresa'}
-                              onClick={() => handleToggleStatus(c)}
-                              disabled={togglingStatusId === c.id}
-                            >
-                              <Power className="w-4 h-4" />
-                            </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0 text-amber-600 dark:text-amber-400 hover:text-amber-700 hover:bg-amber-500/10 rounded-lg"
+                                  title={isActive ? 'Desativar Empresa' : 'Ativar Empresa'}
+                                  onClick={() => handleToggleStatus(c)}
+                                  disabled={togglingStatusId === c.id}
+                                >
+                                  <Power className="w-4 h-4" />
+                                </Button>
 
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 text-red-600 dark:text-red-400 hover:text-red-700 hover:bg-red-500/10 rounded-lg"
-                              title="Gerenciar Exclusão / Desativação"
-                              onClick={() => openDeleteModal(c)}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0 text-red-600 dark:text-red-400 hover:text-red-700 hover:bg-red-500/10 rounded-lg"
+                                  title="Gerenciar Exclusão / Desativação"
+                                  onClick={() => openDeleteModal(c)}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -713,26 +722,30 @@ export const Empresas: React.FC = () => {
                       <Eye className="w-3.5 h-3.5 mr-1" /> Detalhes
                     </Button>
 
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-8 border-border bg-background hover:bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs px-2.5"
-                      onClick={() => {
-                        setEditing(c);
-                        setOpen(true);
-                      }}
-                    >
-                      <Edit3 className="w-3.5 h-3.5" />
-                    </Button>
+                    {isSuperAdmin && (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 border-border bg-background hover:bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs px-2.5"
+                          onClick={() => {
+                            setEditing(c);
+                            setOpen(true);
+                          }}
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </Button>
 
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-8 border-border bg-background hover:bg-red-500/10 text-red-600 dark:text-red-400 text-xs px-2.5"
-                      onClick={() => openDeleteModal(c)}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 border-border bg-background hover:bg-red-500/10 text-red-600 dark:text-red-400 text-xs px-2.5"
+                          onClick={() => openDeleteModal(c)}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </Card>
               );

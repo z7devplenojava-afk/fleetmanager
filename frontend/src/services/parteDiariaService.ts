@@ -6,8 +6,11 @@ export interface ParteDiariaAtividade {
   endTime?: string;
   description?: string;
   activityType?: string;
+  routeCode?: string;
+  companyName?: string;
   startKm?: number;
   endKm?: number;
+  passengersCount?: number;
   notes?: string;
 }
 
@@ -48,10 +51,11 @@ export const parteDiariaService = {
     return response.data;
   },
 
-  async getPartesDiarias(start?: string, end?: string): Promise<ParteDiaria[]> {
+  async getPartesDiarias(start?: string, end?: string, clientId?: string): Promise<ParteDiaria[]> {
     const params = new URLSearchParams();
     if (start) params.append('start', start);
     if (end) params.append('end', end);
+    if (clientId) params.append('clientId', clientId);
     const query = params.toString() ? `?${params.toString()}` : '';
     const response = await api.get(`/api/partes-diarias${query}`);
     return response.data;
@@ -60,5 +64,14 @@ export const parteDiariaService = {
   async getParteDiariaById(id: string): Promise<ParteDiaria> {
     const response = await api.get(`/api/partes-diarias/${id}`);
     return response.data;
+  },
+
+  async updateParteDiaria(id: string, data: ParteDiaria): Promise<ParteDiaria> {
+    const response = await api.put(`/api/partes-diarias/${id}`, data);
+    return response.data;
+  },
+
+  async deleteParteDiaria(id: string): Promise<void> {
+    await api.delete(`/api/partes-diarias/${id}`);
   }
 };

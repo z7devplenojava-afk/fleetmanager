@@ -1,6 +1,8 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, Truck, ClipboardList, Menu } from 'lucide-react';
+import { Home, Menu, User, MessageSquare } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { isDriverUser } from '@/utils/roleRouting';
 
 interface BottomNavProps {
     onToggleSidebar: () => void;
@@ -9,41 +11,64 @@ interface BottomNavProps {
 export const BottomNav: React.FC<BottomNavProps> = ({ onToggleSidebar }) => {
     const navigate = useNavigate();
     const location = useLocation();
+    const { user } = useAuth();
+    const isDriver = isDriverUser(user);
 
-    const items = [
-        { icon: Home, label: 'Início', path: '/dashboard' },
-        { icon: Truck, label: 'Frota', path: '/frota' },
-        { icon: ClipboardList, label: 'Operacional', path: '/operacional' },
+    const homePath = isDriver ? '/driver-dashboard' : '/dashboard';
+
+    const navItems = [
+        {
+            id: 'home',
+            icon: Home,
+            label: 'Início',
+            onClick: () => navigate(homePath),
+            isActive: location.pathname === homePath || (location.pathname === '/' && !isDriver),
+        },
+        {
+            id: 'menu',
+            icon: Menu,
+            label: 'Menu',
+            onClick: onToggleSidebar,
+            isActive: false,
+        },
+        {
+            id: 'profile',
+            icon: User,
+            label: 'Perfil',
+            onClick: () => navigate('/perfil'),
+            isActive: location.pathname === '/perfil',
+        },
+        {
+            id: 'messages',
+            icon: MessageSquare,
+            label: 'Mensagens',
+            onClick: () => navigate('/mensagens'),
+            isActive: location.pathname === '/mensagens',
+        },
     ];
 
-    const isActive = (path: string) => {
-        if (path === '/dashboard' && (location.pathname === '/' || location.pathname === '/dashboard')) return true;
-        return location.pathname.startsWith(path);
-    };
-
     return (
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-seguranca-graphite border-t border-gray-700 z-40 pb-[env(safe-area-inset-bottom)]">
-            <div className="flex justify-around items-center h-16">
-                {items.map((item) => (
+        <nav
+            role="navigation"
+            aria-label="Navegação inferior mobile"
+            className="md:hidden fixed bottom-0 left-0 right-0 bg-background/95 dark:bg-[#0c0e14]/95 backdrop-blur-md border-t border-border z-40 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_20px_rgba(0,0,0,0.3)]"
+        >
+            <div className="grid grid-cols-4 items-center h-16 px-1">
+                {navItems.map((item) => (
                     <button
-                        key={item.path}
-                        onClick={() => navigate(item.path)}
-                        className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${isActive(item.path)
-                                ? 'text-seguranca-yellow'
-                                : 'text-gray-400 hover:text-seguranca-lightgray'
-                            }`}
+                        key={item.id}
+                        onClick={item.onClick}
+                        className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-all active:scale-95 ${
+                            item.isActive
+                                ? 'text-primary font-bold'
+                                : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                        aria-label={item.label}
                     >
-                        <item.icon size={24} strokeWidth={isActive(item.path) ? 2.5 : 2} />
-                        <span className="text-[10px] font-medium">{item.label}</span>
+                        <item.icon size={21} strokeWidth={item.isActive ? 2.5 : 2} />
+                        <span className="text-[11px] tracking-tight">{item.label}</span>
                     </button>
                 ))}
-                <button
-                    onClick={onToggleSidebar}
-                    className="flex flex-col items-center justify-center w-full h-full space-y-1 text-gray-400 hover:text-seguranca-lightgray transition-colors"
-                >
-                    <Menu size={24} />
-                    <span className="text-[10px] font-medium">Menu</span>
-                </button>
             </div>
         </nav>
     );

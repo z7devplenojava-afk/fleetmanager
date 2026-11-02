@@ -10,6 +10,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import org.hibernate.annotations.Filter;
 
 @Entity
 @Table(name = "vehicle_query_cache")
@@ -17,6 +18,7 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Filter(name = "tenantFilter", condition = "company_id = :companyId")
 public class VehicleQueryCache {
 
     @Id

@@ -42,11 +42,15 @@ const Toast = React.forwardRef<
   React.ElementRef<typeof ToastPrimitives.Root>,
   React.ComponentPropsWithoutRef<typeof ToastPrimitives.Root> &
     VariantProps<typeof toastVariants>
->(({ className, variant, ...props }, ref) => {
+>(({ className, variant, onPointerDown, ...props }, ref) => {
   return (
     <ToastPrimitives.Root
       ref={ref}
       className={cn(toastVariants({ variant }), className)}
+      onPointerDown={(e) => {
+        e.stopPropagation();
+        onPointerDown?.(e);
+      }}
       {...props}
     />
   )
@@ -71,7 +75,7 @@ ToastAction.displayName = ToastPrimitives.Action.displayName
 const ToastClose = React.forwardRef<
   React.ElementRef<typeof ToastPrimitives.Close>,
   React.ComponentPropsWithoutRef<typeof ToastPrimitives.Close>
->(({ className, ...props }, ref) => (
+>(({ className, onPointerDown, onClick, ...props }, ref) => (
   <ToastPrimitives.Close
     ref={ref}
     className={cn(
@@ -79,6 +83,14 @@ const ToastClose = React.forwardRef<
       className
     )}
     toast-close=""
+    onPointerDown={(e) => {
+      e.stopPropagation();
+      onPointerDown?.(e);
+    }}
+    onClick={(e) => {
+      e.stopPropagation();
+      onClick?.(e);
+    }}
     {...props}
   >
     <X className="h-4 w-4" />

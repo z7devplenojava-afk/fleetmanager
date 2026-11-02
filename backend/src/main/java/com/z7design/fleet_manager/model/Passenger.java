@@ -96,6 +96,86 @@ public class Passenger implements TenantAware {
     @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
     private RoutePoint disembarkPoint; // Ponto de desembarque autorizado
 
+    @Column(name = "client_id")
+    private UUID clientId;
+
+    @Column(name = "passenger_category", length = 30)
+    private String passengerCategory = "FRETADO"; // FRETADO ou PUBLICO_ALEATORIO
+
+    @Column(name = "cep", length = 10)
+    private String cep;
+
+    @Column(name = "street", length = 150)
+    private String street;
+
+    @Column(name = "number", length = 20)
+    private String number;
+
+    @Column(name = "complement", length = 100)
+    private String complement;
+
+    @Column(name = "neighborhood", length = 100)
+    private String neighborhood;
+
+    @Column(name = "city", length = 100)
+    private String city;
+
+    @Column(name = "state", length = 2)
+    private String state;
+
+    @Column(name = "is_pcd")
+    private Boolean isPcd = false;
+
+    @Column(name = "disability_type", length = 50)
+    private String disabilityType;
+
+    @Column(name = "disability_description", columnDefinition = "TEXT")
+    private String disabilityDescription;
+
+    @Column(name = "lgpd_accepted")
+    private Boolean lgpdAccepted = false;
+
+    @Column(name = "lgpd_accepted_at")
+    private LocalDateTime lgpdAcceptedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @NotFound(action = NotFoundAction.IGNORE)
+    @JoinColumn(name = "client_id", insertable = false, updatable = false)
+    @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler", "company" })
+    private Client client;
+
+    @Column(name = "user_id")
+    private UUID userId;
+
+    @OneToOne(fetch = FetchType.LAZY, optional = true)
+    @NotFound(action = NotFoundAction.IGNORE)
+    @JoinColumn(name = "user_id", insertable = false, updatable = false)
+    @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler", "password" })
+    private User user;
+
+    /** Status do passageiro: ATIVO, BLOQUEADO, DEMITIDO, INATIVO */
+    @Column(name = "status", length = 30)
+    private String status = "ATIVO";
+
+    /** Permite embarcar em múltiplas linhas do cliente */
+    @Column(name = "multiple_routes_allowed")
+    private Boolean multipleRoutesAllowed = false;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @NotFound(action = NotFoundAction.IGNORE)
+    @JoinColumn(name = "return_route_id")
+    @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
+    private Route returnRoute;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @NotFound(action = NotFoundAction.IGNORE)
+    @JoinColumn(name = "return_boarding_point_id")
+    @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
+    private RoutePoint returnBoardingPoint;
+
+    @Column(name = "qr_code_token", length = 255)
+    private String qrCodeToken;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 

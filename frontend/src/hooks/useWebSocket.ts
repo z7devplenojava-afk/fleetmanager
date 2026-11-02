@@ -1,6 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { Client } from '@stomp/stompjs';
-import SockJS from 'sockjs-client';
 import { useMessageStore } from '../stores/messageStore';
 import { ChatMessage } from '../stores/messageStore';
 import { getWsUrl } from '../config/environment';
@@ -58,16 +57,17 @@ export const useWebSocket = (config: WebSocketConfig) => {
     }
 
     try {
-      const wsUrl = getWsUrl();
-      const httpWsUrl = wsUrl ? wsUrl.replace(/^wss:\/\//i, 'https://').replace(/^ws:\/\//i, 'http://') : '/ws';
+      // WebSocket nativo (sem SockJS): backend registra /ws nativo e /ws SockJS
+      const wsUrl = getWsUrl() || `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`;
+      // reconnectDelay: 0 desativa o loop interno síncrono do stompjs em favor do handleReconnect com backoff
       const client = new Client({
-        webSocketFactory: () => new SockJS(httpWsUrl),
+        brokerURL: wsUrl,
         connectHeaders: {
           Authorization: `Bearer ${token}`,
           'X-Username': username
         },
         debug: () => {},
-        reconnectDelay: reconnectDelay,
+        reconnectDelay: 0,
         heartbeatIncoming: 4000,
         heartbeatOutgoing: 4000
       });
@@ -194,7 +194,6 @@ export const useWebSocket = (config: WebSocketConfig) => {
       };
 
       client.onStompError = (frame) => {
-        console.error('[WebSocket] Erro STOMP:', frame);
         setError('Erro na comunicação em tempo real.');
         configRef.current.onError?.(frame);
         handleReconnect();
@@ -203,6 +202,7 @@ export const useWebSocket = (config: WebSocketConfig) => {
       client.onWebSocketClose = () => {
         setIsConnected(false);
         configRef.current.onDisconnect?.();
+        handleReconnect();
       };
 
       client.onWebSocketError = (event) => {

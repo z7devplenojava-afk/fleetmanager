@@ -59,9 +59,20 @@ const toBody = (payload: EscalaPayload) => ({
 });
 
 const escalaService = {
+  isEscalasForbidden(): boolean {
+    return false;
+  },
+
   async list(date?: string): Promise<Escala[]> {
-    const response = await api.get('/api/escalas', { params: date ? { date } : {} });
-    return response.data;
+    try {
+      const response = await api.get('/api/escalas', {
+        params: date ? { date } : {},
+        silentErrorLog: true,
+      } as any);
+      return Array.isArray(response.data) ? response.data : [];
+    } catch {
+      return [];
+    }
   },
 
   async getById(id: string): Promise<Escala> {

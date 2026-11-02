@@ -39,7 +39,7 @@ public class CIPAMeetingController {
     @GetMapping("/{id}")
     @Operation(summary = "Buscar reunião da CIPA por ID")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<Map<String, Object>> findById(@PathVariable UUID id) {
+    public ResponseEntity<Map<String, Object>> findById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(cipaMeetingService.findById(id));
     }
 
@@ -59,7 +59,7 @@ public class CIPAMeetingController {
     @PutMapping("/{id}")
     @Operation(summary = "Atualizar reunião da CIPA")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<Map<String, Object>> update(@PathVariable UUID id, @RequestBody Map<String, Object> body) {
+    public ResponseEntity<Map<String, Object>> update(@PathVariable("id") UUID id, @RequestBody Map<String, Object> body) {
         try {
             return ResponseEntity.ok(cipaMeetingService.update(id, body));
         } catch (IllegalArgumentException e) {
@@ -71,7 +71,7 @@ public class CIPAMeetingController {
     @DeleteMapping("/{id}")
     @Operation(summary = "Excluir reunião da CIPA")
     @PreAuthorize("hasAnyAuthority('ROLE_RH', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
         try {
             cipaMeetingService.delete(id);
             return ResponseEntity.noContent().build();

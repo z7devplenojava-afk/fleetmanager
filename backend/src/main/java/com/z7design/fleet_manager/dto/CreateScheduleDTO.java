@@ -37,4 +37,24 @@ public class CreateScheduleDTO {
     private UUID routeId;
 
     private UUID vehicleId;
+
+    private String startTime;
+
+    private String endTime;
+
+    private Double initialKm;
+
+    private Double finalKm;
+
+    private String pointStatus;
+
+    private String pointJustification;
+
+    private String tripPhotosJson;
+
+    private String clientName;
+
+    private String routeCode;
+
+    private Integer passengersCount;
 }

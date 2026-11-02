@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -36,6 +37,7 @@ import ViewMessageModal from './ViewMessageModal';
 import DeleteMessageModal from './DeleteMessageModal';
 
 const MessageDashboard: React.FC = () => {
+  const location = useLocation();
   // Estado local para UI
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('received');
@@ -109,6 +111,20 @@ const MessageDashboard: React.FC = () => {
   useEffect(() => {
     loadDashboard();
   }, []);
+
+  // Abrir mensagem vinda da notificação automaticamente
+  useEffect(() => {
+    const state = location.state as { selectedMessageId?: string; messageId?: string } | null;
+    const targetId = state?.selectedMessageId || state?.messageId;
+    if (!targetId || systemMessages.length === 0) return;
+
+    const targetMsg = systemMessages.find(m => m.id === targetId);
+    if (targetMsg) {
+      setSelectedMessage(targetMsg);
+      setShowViewModal(true);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state, systemMessages]);
 
   const loadMessages = async (tab: string, page = 0) => {
     try {

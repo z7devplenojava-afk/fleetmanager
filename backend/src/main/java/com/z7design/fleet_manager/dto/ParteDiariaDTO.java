@@ -45,6 +45,11 @@ public class ParteDiariaDTO {
         private String endTime;
         private String description;
         private String activityType;
+        private String routeCode;
+        private String companyName;
+        private Integer startKm;
+        private Integer endKm;
+        private Integer passengersCount;
         private String notes;
     }
 }

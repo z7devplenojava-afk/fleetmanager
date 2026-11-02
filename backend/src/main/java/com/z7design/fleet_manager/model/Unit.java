@@ -6,6 +6,7 @@ import java.util.UUID;
 import java.util.ArrayList;
 
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
@@ -27,6 +28,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "units")
+@Filter(name = "tenantFilter", condition = "company_id = :companyId")
 @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
 public class Unit {
 
@@ -108,6 +110,9 @@ public class Unit {
     @JoinColumn(name = "branch_id")
     @JsonIgnoreProperties("units")
     private Branch branch;
+
+    @Column(name = "company_id")
+    private UUID companyId;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

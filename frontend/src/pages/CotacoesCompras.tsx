@@ -20,9 +20,10 @@ import { QuotationReportModal } from '@/components/compras/QuotationReportModal'
 import { QuotationReportViewModal } from '@/components/compras/QuotationReportViewModal';
 import { quotationReportGenerator, QuotationReportFilters } from '@/utils/quotationReportGenerator';
 import { QuotationBudgetUploadModal } from '@/components/compras/QuotationBudgetUploadModal';
+import { GroupServiceOrderItemsModal, PendingServiceOrderItem } from '@/components/compras/GroupServiceOrderItemsModal';
 import { ParsedBudgetData } from '@/utils/quotationBudgetParser';
 import { PurchaseOrdersFinancialManager } from '@/components/financeiro/PurchaseOrdersFinancialManager';
-import { CreditCard, ShoppingCart } from 'lucide-react';
+import { CreditCard, ShoppingCart, Layers } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -67,6 +68,7 @@ const CotacoesCompras: React.FC = () => {
   const [reportPdfBlob, setReportPdfBlob] = useState<Blob | null>(null);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [isBudgetUploadModalOpen, setIsBudgetUploadModalOpen] = useState(false);
+  const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
   const [parsedBudgetData, setParsedBudgetData] = useState<ParsedBudgetData | null>(null);
   const { toast } = useToast();
   const [filters, setFilters] = useState<QuotationFilters>({
@@ -411,6 +413,14 @@ const CotacoesCompras: React.FC = () => {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsGroupModalOpen(true)}
+              className="border-amber-500/50 bg-amber-950/40 text-amber-300 hover:bg-amber-900/60 hover:text-white font-semibold"
+            >
+              <Layers className="mr-2 h-4 w-4 text-amber-400" />
+              ⚡ Agrupar Peças (Multi-OS)
+            </Button>
             <Button
               variant="outline"
               onClick={() => setIsBudgetUploadModalOpen(true)}
@@ -960,6 +970,18 @@ const CotacoesCompras: React.FC = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Modal de Agrupar Peças Multi-OS */}
+      <GroupServiceOrderItemsModal
+        isOpen={isGroupModalOpen}
+        onClose={() => setIsGroupModalOpen(false)}
+        onGroupSelected={(items) => {
+          console.log('Itens agrupados para cotação:', items);
+          // Preencher formulário de nova cotação com os itens selecionados
+          setSelectedQuotation(null);
+          setShowModal(true);
+        }}
+      />
 
       {/* Modal de Relatório */}
       <QuotationReportModal

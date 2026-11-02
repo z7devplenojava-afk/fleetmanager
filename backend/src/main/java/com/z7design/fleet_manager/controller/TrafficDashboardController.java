@@ -26,7 +26,7 @@ public class TrafficDashboardController {
     private final TrafficDashboardService trafficDashboardService;
 
     @GetMapping("/stats")
-    @PreAuthorize("hasAnyAuthority('TRAFFIC_MANAGEMENT_READ', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR')")
+    @PreAuthorize("hasAnyAuthority('TRAFFIC_MANAGEMENT_READ', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR', 'ENCARREGADO_DE_TRANSPORTES', 'ROLE_ENCARREGADO_DE_TRANSPORTES', 'ENCARREGADO_TRANSPORTES', 'ROLE_ENCARREGADO_TRANSPORTES', 'GESTOR_TRAFEGO', 'ROLE_GESTOR_TRAFEGO', 'GESTOR_DE_TRAFEGO', 'ROLE_GESTOR_DE_TRAFEGO', 'COMPANY_ADMIN', 'ROLE_COMPANY_ADMIN')")
     @Operation(summary = "Obter estatísticas do dashboard de tráfego",
             description = "Retorna todas as métricas para os cards do painel de Gestão de Tráfego")
     public ResponseEntity<TrafficDashboardStatsDTO> getStats() {

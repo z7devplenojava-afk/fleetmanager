@@ -1123,7 +1123,7 @@ export default function EmailModule() {
   };
 
   const unreadTotal = useMemo(
-    () => accounts.reduce((sum, a) => sum + a.unreadCount, 0),
+    () => (Array.isArray(accounts) ? accounts.reduce((sum, a) => sum + (a?.unreadCount || 0), 0) : 0),
     [accounts]
   );
 

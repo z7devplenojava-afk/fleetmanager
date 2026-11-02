@@ -29,7 +29,7 @@ export interface ContaAReceber {
   empresa?: string;
   empresaId?: string;
   descricao: string;
-  tipo: 'FATURA' | 'MEDICAO' | 'SERVICO' | 'PRODUTO';
+  tipo: 'FATURA' | 'MEDICAO' | 'LOCACAO_VEICULOS' | 'FRETAMENTO_TURISMO' | 'SERVICO' | 'PRODUTO';
   valor: number;
   codigoBarras?: string;
   status: 'ABERTA' | 'RECEBIDA' | 'VENCIDA' | 'CANCELADA';
@@ -40,6 +40,11 @@ export interface ContaAReceber {
   categoria?: string | undefined;
   centroCusto?: string | undefined;
   paymentMethod?: string; // PaymentMethod enum: PIX, BOLETO, TRANSFER, CASH, CARD
+  faturaLocacaoNumber?: string;
+  pedidoNumber?: string;
+  periodoLocacao?: string;
+  placasVeiculos?: string;
+  dadosBancarios?: string;
   createdAt?: Date;
 }
 
@@ -115,7 +120,12 @@ export const ContasAReceberFormModal: React.FC<ContasAReceberFormModalProps> = (
     observacoes: '',
     categoria: 'INVOICE', // Valor padrão - enum ReceivableCategory
     centroCusto: undefined,
-    paymentMethod: 'PIX' // Valor padrão - enum PaymentMethod
+    paymentMethod: 'PIX', // Valor padrão - enum PaymentMethod
+    faturaLocacaoNumber: '',
+    pedidoNumber: '',
+    periodoLocacao: '',
+    placasVeiculos: '',
+    dadosBancarios: ''
   });
 
   const [categories, setCategories] = useState<string[]>([]);
@@ -123,9 +133,9 @@ export const ContasAReceberFormModal: React.FC<ContasAReceberFormModalProps> = (
   const [newCategoryModalOpen, setNewCategoryModalOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
 
-  // Auto-selecionar empresa do usuário se não for super admin
+  // Auto-selecionar empresa a qual o usuário pertence no sistema
   useEffect(() => {
-    if (open && !editMode && !isSuperAdmin && displayEmpresas.length > 0) {
+    if (open && !editMode && displayEmpresas.length > 0) {
       if (!formData.empresaId || !displayEmpresas.some(e => String(e.id) === String(formData.empresaId))) {
         const selected = displayEmpresas[0];
         setFormData(prev => ({
@@ -135,7 +145,7 @@ export const ContasAReceberFormModal: React.FC<ContasAReceberFormModalProps> = (
         }));
       }
     }
-  }, [open, editMode, isSuperAdmin, displayEmpresas, formData.empresaId]);
+  }, [open, editMode, displayEmpresas, formData.empresaId]);
 
   // Carregar dados quando o modal abrir
   useEffect(() => {
@@ -263,7 +273,12 @@ export const ContasAReceberFormModal: React.FC<ContasAReceberFormModalProps> = (
           observacoes: initialData.observacoes || '',
           categoria: categoriaMapeada,
           centroCusto: initialData.centroCusto ? String(initialData.centroCusto).trim() : undefined,
-          paymentMethod: initialData.paymentMethod || 'PIX'
+          paymentMethod: initialData.paymentMethod || 'PIX',
+          faturaLocacaoNumber: initialData.faturaLocacaoNumber || '',
+          pedidoNumber: initialData.pedidoNumber || '',
+          periodoLocacao: initialData.periodoLocacao || '',
+          placasVeiculos: initialData.placasVeiculos || '',
+          dadosBancarios: initialData.dadosBancarios || ''
         });
         
         console.log('✅ FormData preenchido:', {
@@ -307,7 +322,12 @@ export const ContasAReceberFormModal: React.FC<ContasAReceberFormModalProps> = (
           observacoes: '',
           categoria: undefined,
           centroCusto: undefined,
-          paymentMethod: 'PIX'
+          paymentMethod: 'PIX',
+          faturaLocacaoNumber: '',
+          pedidoNumber: '',
+          periodoLocacao: '',
+          placasVeiculos: '',
+          dadosBancarios: ''
         });
       }
     }
@@ -671,7 +691,11 @@ export const ContasAReceberFormModal: React.FC<ContasAReceberFormModalProps> = (
                   <SelectContent className="bg-seguranca-black border-gray-600">
                     <SelectItem value="NONE" className="text-gray-400">Nenhuma</SelectItem>
                     {obras
-                      .filter(o => !formData.clienteId || o.clientId === formData.clienteId)
+                      .filter(o => {
+                        if (!formData.clienteId) return true;
+                        const oClientId = (o as any).clientId || (o as any).client?.id;
+                        return String(oClientId || '') === String(formData.clienteId);
+                      })
                       .map((obra) => (
                         <SelectItem
                           key={obra.id}
@@ -710,7 +734,11 @@ export const ContasAReceberFormModal: React.FC<ContasAReceberFormModalProps> = (
                   <SelectContent className="bg-seguranca-black border-gray-600">
                     <SelectItem value="NONE" className="text-gray-400">Nenhum</SelectItem>
                     {contratos
-                      .filter(c => !formData.clienteId || c.clientId === formData.clienteId)
+                      .filter(c => {
+                        if (!formData.clienteId) return true;
+                        const cClientId = (c as any).clientId || (c as any).client?.id;
+                        return String(cClientId || '') === String(formData.clienteId);
+                      })
                       .map((contrato) => (
                         <SelectItem
                           key={contrato.id}
@@ -788,16 +816,22 @@ export const ContasAReceberFormModal: React.FC<ContasAReceberFormModalProps> = (
                   </SelectTrigger>
                   <SelectContent className="bg-seguranca-black border-gray-600">
                     <SelectItem value="FATURA" className="text-seguranca-lightgray hover:bg-seguranca-graphite">
-                      Fatura
+                      Fatura Direta
                     </SelectItem>
                     <SelectItem value="MEDICAO" className="text-seguranca-lightgray hover:bg-seguranca-graphite">
-                      Medição
+                      Medição de Contratos
+                    </SelectItem>
+                    <SelectItem value="LOCACAO_VEICULOS" className="text-seguranca-lightgray hover:bg-seguranca-graphite">
+                      Locação de Veículos
+                    </SelectItem>
+                    <SelectItem value="FRETAMENTO_TURISMO" className="text-seguranca-lightgray hover:bg-seguranca-graphite">
+                      Fretamento Eventual / Turismo
                     </SelectItem>
                     <SelectItem value="SERVICO" className="text-seguranca-lightgray hover:bg-seguranca-graphite">
-                      Serviço
+                      Prestação de Serviços
                     </SelectItem>
                     <SelectItem value="PRODUTO" className="text-seguranca-lightgray hover:bg-seguranca-graphite">
-                      Produto
+                      Venda de Produtos / Ativos
                     </SelectItem>
                   </SelectContent>
                 </Select>
@@ -822,6 +856,98 @@ export const ContasAReceberFormModal: React.FC<ContasAReceberFormModalProps> = (
               </div>
             </div>
           </div>
+
+          {/* Seção Condicional: Fatura de Locação de Veículos */}
+          {formData.tipo === 'LOCACAO_VEICULOS' && (
+            <div className="space-y-4 p-4 rounded-lg bg-blue-950/40 border border-blue-500/30">
+              <h3 className="text-lg font-semibold text-blue-400 flex items-center gap-2">
+                <FileText size={18} />
+                Detalhamento da Fatura de Locação de Veículos
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-seguranca-lightgray">Nº da Fatura de Locação</label>
+                  <Input
+                    value={formData.faturaLocacaoNumber || ''}
+                    onChange={(e) => handleInputChange('faturaLocacaoNumber', e.target.value)}
+                    placeholder="Ex: LOC-2026/08"
+                    className="border-gray-600 bg-white text-black"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-seguranca-lightgray">Nº do Pedido / Ordem de Compra</label>
+                  <Input
+                    value={formData.pedidoNumber || ''}
+                    onChange={(e) => handleInputChange('pedidoNumber', e.target.value)}
+                    placeholder="Ex: 4500123456"
+                    className="border-gray-600 bg-white text-black"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-seguranca-lightgray">Período da Locação</label>
+                  <Input
+                    value={formData.periodoLocacao || ''}
+                    onChange={(e) => handleInputChange('periodoLocacao', e.target.value)}
+                    placeholder="Ex: 01/08/2026 a 31/08/2026"
+                    className="border-gray-600 bg-white text-black"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-seguranca-lightgray">Placas dos Veículos Locados</label>
+                  <Input
+                    value={formData.placasVeiculos || ''}
+                    onChange={(e) => handleInputChange('placasVeiculos', e.target.value)}
+                    placeholder="Ex: ABC-1234, DEF-5678, GHI-9012"
+                    className="border-gray-600 bg-white text-black"
+                  />
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-sm font-medium text-seguranca-lightgray">Dados Bancários para Depósito/PIX</label>
+                  <Input
+                    value={formData.dadosBancarios || ''}
+                    onChange={(e) => handleInputChange('dadosBancarios', e.target.value)}
+                    placeholder="Ex: Banco Itaú - Ag 1234 C/C 56789-0 - CHAVE PIX: CNPJ 00.000.000/0001-00"
+                    className="border-gray-600 bg-white text-black"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Seção Condicional: Medição de Contratos */}
+          {formData.tipo === 'MEDICAO' && (
+            <div className="space-y-4 p-4 rounded-lg bg-yellow-950/40 border border-yellow-500/30">
+              <h3 className="text-lg font-semibold text-yellow-400 flex items-center gap-2">
+                <FileText size={18} />
+                Detalhamento da Medição de Contratos
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-seguranca-lightgray">Período de Medição</label>
+                  <Input
+                    value={formData.periodoLocacao || ''}
+                    onChange={(e) => handleInputChange('periodoLocacao', e.target.value)}
+                    placeholder="Ex: 01/08/2026 a 31/08/2026"
+                    className="border-gray-600 bg-white text-black"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-seguranca-lightgray">Nº do Pedido / Boletim</label>
+                  <Input
+                    value={formData.pedidoNumber || ''}
+                    onChange={(e) => handleInputChange('pedidoNumber', e.target.value)}
+                    placeholder="Ex: BM-2026/08"
+                    className="border-gray-600 bg-white text-black"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Seção 5: Classificação */}
           <div className="space-y-4">

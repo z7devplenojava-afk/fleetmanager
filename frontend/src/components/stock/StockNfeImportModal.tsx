@@ -46,13 +46,20 @@ import {
   PlusCircle,
   Link2,
   Loader2,
-  Hash
+  Hash,
+  UserCheck
 } from 'lucide-react';
 
 interface StockNfeImportModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  /** NF-e já analisada (evita pedir o arquivo novamente). */
+  initialData?: StockNfeParsedDTO | null;
+  /** Índices dos itens da NF que devem ser ignorados (ex.: item já preenchido no formulário atual). */
+  excludeItemIndexes?: number[];
+  /** Quando true, processa apenas o estoque (não gera contas a pagar). */
+  itemsOnly?: boolean;
 }
 
 interface EditableItemRow {
@@ -68,6 +75,7 @@ interface EditableItemRow {
   unitOfMeasure: string;
   barcode: string;
   ncm: string;
+  cst?: string;
   cfop: string;
   isBattery: boolean;
   isTire: boolean;
@@ -76,13 +84,17 @@ interface EditableItemRow {
 export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
   open,
   onOpenChange,
-  onSuccess
+  onSuccess,
+  initialData,
+  excludeItemIndexes,
+  itemsOnly = false
 }) => {
   const { toast } = useToast();
 
   const [file, setFile] = useState<File | null>(null);
   const [parsing, setParsing] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [forceImport, setForceImport] = useState(false);
   const [parsedData, setParsedData] = useState<StockNfeParsedDTO | null>(null);
   const [existingItems, setExistingItems] = useState<StockItem[]>([]);
   const [loadingItems, setLoadingItems] = useState(false);
@@ -95,13 +107,63 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
   useEffect(() => {
     if (open) {
       loadStockItems();
+      setCreateFinancialAccounts(!itemsOnly);
+      setForceImport(false);
+      if (initialData) {
+        applyParsedData(initialData);
+      }
     } else {
       // Resetar estado ao fechar
       setFile(null);
       setParsedData(null);
       setItemsRows([]);
+      setForceImport(false);
     }
-  }, [open]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialData ? JSON.stringify(initialData) : '', itemsOnly]);
+
+  const applyParsedData = (data: StockNfeParsedDTO) => {
+    setParsedData(data);
+    const excluded = new Set(excludeItemIndexes || []);
+    const isJunkContact = (it: any) => {
+      const text = ((it.description || '') + ' ' + (it.productCode || '')).toLowerCase();
+      return text.includes('@') ||
+        text.includes('telefone') ||
+        text.includes('e-mail') ||
+        text.includes('email') ||
+        text.includes('.gov.br') ||
+        text.includes('gov. valadares') ||
+        text.includes('tributos@') ||
+        (text.startsWith('av.') && text.includes('centro')) ||
+        (text.startsWith('rua') && text.includes('centro'));
+    };
+    const validItems = (data.items || []).filter((it) => !isJunkContact(it));
+    const rows: EditableItemRow[] = validItems
+      .map((it, index) => ({ it, index }))
+      .filter(({ index }) => !excluded.has(index))
+      .map(({ it }) => {
+        const hasMatch = !!it.matchedStockItemId;
+        return {
+          selected: true,
+          action: hasMatch ? 'LINK_EXISTING' : 'CREATE_NEW',
+          matchedStockItemId: it.matchedStockItemId || undefined,
+          productCode: it.productCode || '',
+          name: it.description || '',
+          category: (it.suggestedCategory as StockCategory) || StockCategory.PECAS_MECANICA,
+          quantity: it.quantity || 1,
+          unitCost: it.unitPrice || 0,
+          totalPrice: it.totalPrice || 0,
+          unitOfMeasure: it.unitOfMeasure || 'UN',
+          barcode: it.barcode || '',
+          ncm: it.ncm || '',
+          cst: it.cst || '',
+          cfop: it.cfop || '',
+          isBattery: it.isBattery || false,
+          isTire: it.isTire || false
+        };
+      });
+    setItemsRows(rows);
+  };
 
   const loadStockItems = async () => {
     try {
@@ -137,31 +199,7 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
     try {
       setParsing(true);
       const data = await stockNfeService.parseNfe(fileToParse);
-      setParsedData(data);
-
-      // Preencher linhas de itens adaptáveis
-      const rows: EditableItemRow[] = data.items.map((it) => {
-        const hasMatch = !!it.matchedStockItemId;
-        return {
-          selected: true,
-          action: hasMatch ? 'LINK_EXISTING' : 'CREATE_NEW',
-          matchedStockItemId: it.matchedStockItemId || undefined,
-          productCode: it.productCode || '',
-          name: it.description || '',
-          category: (it.suggestedCategory as StockCategory) || StockCategory.PECAS_MECANICA,
-          quantity: it.quantity || 1,
-          unitCost: it.unitPrice || 0,
-          totalPrice: it.totalPrice || 0,
-          unitOfMeasure: it.unitOfMeasure || 'UN',
-          barcode: it.barcode || '',
-          ncm: it.ncm || '',
-          cfop: it.cfop || '',
-          isBattery: it.isBattery || false,
-          isTire: it.isTire || false
-        };
-      });
-
-      setItemsRows(rows);
+      applyParsedData(data);
 
       if (data.alreadyImported) {
         toast({
@@ -177,9 +215,10 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
       }
     } catch (err: any) {
       console.error('Erro ao ler NF-e:', err);
+      const serverMsg = err.response?.data?.message || err.response?.data?.error;
       toast({
         title: 'Erro no processamento da NF-e',
-        description: err.response?.data?.message || err.message || 'Verifique se o arquivo é uma NF-e SEFAZ válida.',
+        description: serverMsg || err.message || 'Verifique se o arquivo é uma NF-e SEFAZ válida (ou envie o arquivo .xml).',
         variant: 'destructive'
       });
       setParsedData(null);
@@ -200,6 +239,24 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
     });
   };
 
+  const handleQuantityChange = (index: number, val: number) => {
+    const q = isNaN(val) || val < 0 ? 0 : val;
+    const cost = itemsRows[index]?.unitCost || 0;
+    updateItemRow(index, {
+      quantity: q,
+      totalPrice: Math.round(q * cost * 100) / 100
+    });
+  };
+
+  const handleUnitCostChange = (index: number, val: number) => {
+    const c = isNaN(val) || val < 0 ? 0 : val;
+    const q = itemsRows[index]?.quantity || 0;
+    updateItemRow(index, {
+      unitCost: c,
+      totalPrice: Math.round(q * c * 100) / 100
+    });
+  };
+
   const selectedCount = useMemo(() => {
     return itemsRows.filter((r) => r.selected).length;
   }, [itemsRows]);
@@ -215,8 +272,8 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
 
     if (parsedData.alreadyImported) {
       toast({
-        title: 'Operação bloqueada',
-        description: 'Não é possível importar uma nota fiscal que já foi processada anteriormente.',
+        title: 'Operação Bloqueada',
+        description: parsedData.duplicateWarning || 'Esta nota fiscal já foi importada anteriormente no sistema. A importação está bloqueada para não alterar a quantidade dos itens no estoque.',
         variant: 'destructive'
       });
       return;
@@ -227,14 +284,22 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
       .map((r) => ({
         action: r.action,
         stockItemId: r.action === 'LINK_EXISTING' ? r.matchedStockItemId : undefined,
-        code: r.productCode,
-        name: r.name,
+        code: r.productCode?.trim() || '',
+        name: r.name?.trim() || '',
         category: r.category,
         quantity: r.quantity,
         unitCost: r.unitCost,
-        unitName: r.unitOfMeasure,
-        barcode: r.barcode,
-        description: `NCM: ${r.ncm} | CFOP: ${r.cfop}`
+        unitName: r.unitOfMeasure?.trim() || 'UN',
+        unitMeasure: r.unitOfMeasure?.trim() || 'UN',
+        ncm: r.ncm || '',
+        cst: r.cst || '',
+        cfop: r.cfop || '',
+        barcode: r.barcode || '',
+        description: [
+          r.ncm ? `NCM: ${r.ncm}` : '',
+          r.cst ? `CST: ${r.cst}` : '',
+          r.cfop ? `CFOP: ${r.cfop}` : ''
+        ].filter(Boolean).join(' | ')
       }));
 
     if (itemsToProcess.length === 0) {
@@ -247,13 +312,15 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
     }
 
     // Parcelas financeiras
-    const installmentsPayload: ProcessInstallmentPayload[] = (parsedData.installments || []).map((inst) => ({
-      installmentNumber: inst.installmentNumber,
-      dueDate: inst.dueDate,
-      amount: inst.amount,
-      barcode: inst.barcode,
-      notes: `NF ${parsedData.invoiceNumber} - Parcela ${inst.installmentNumber}`
-    }));
+    const installmentsPayload: ProcessInstallmentPayload[] = itemsOnly
+      ? []
+      : (parsedData.installments || []).map((inst) => ({
+          installmentNumber: inst.installmentNumber,
+          dueDate: inst.dueDate,
+          amount: inst.amount,
+          barcode: inst.barcode,
+          notes: `NF ${parsedData.invoiceNumber} - Parcela ${inst.installmentNumber}`
+        }));
 
     const payload: StockNfeProcessRequestDTO = {
       accessKey: parsedData.accessKey,
@@ -272,6 +339,7 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
       supplierEmail: parsedData.supplierEmail,
       supplierId: parsedData.existingSupplierId,
       createFinancialAccounts,
+      forceImport,
       items: itemsToProcess,
       installments: installmentsPayload
     };
@@ -282,7 +350,9 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
 
       toast({
         title: 'Importação concluída com sucesso!',
-        description: `${res.itemsCreated} novo(s) item(ns), ${res.itemsUpdated} atualizado(s), ${res.batteriesCreated} bateria(s), ${res.tiresCreated} pneu(s) e ${res.financialAccountsCreated} conta(s) a pagar gerada(s).`
+        description: itemsOnly
+          ? `${res.itemsCreated} novo(s) item(ns) cadastrado(s) e ${res.itemsUpdated} atualizado(s) no estoque.`
+          : `${res.itemsCreated} novo(s) item(ns), ${res.itemsUpdated} atualizado(s), ${res.batteriesCreated} bateria(s), ${res.tiresCreated} pneu(s) e ${res.financialAccountsCreated} conta(s) a pagar gerada(s).`
       });
 
       // Disparar sincronização global
@@ -309,14 +379,34 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl w-[96vw] max-h-[92vh] overflow-y-auto bg-seguranca-graphite border-gray-700 text-white p-4 sm:p-6">
+      <DialogContent 
+        className="max-w-5xl w-[96vw] max-h-[92vh] overflow-y-auto bg-seguranca-graphite border-gray-700 text-white p-4 sm:p-6"
+        onPointerDownOutside={(e) => {
+          // Impede que clicar fora ou interagir com toasts/notificações feche o modal de importação
+          e.preventDefault();
+        }}
+        onInteractOutside={(e) => {
+          // Impede que interações externas (como fechar toasts ou notificações) fechem o modal
+          e.preventDefault();
+        }}
+        onEscapeKeyDown={(e) => {
+          // Se houver dados carregados ou processamento em andamento, não fecha por ESC acidental
+          if (parsedData || processing || parsing) {
+            e.preventDefault();
+          }
+        }}
+      >
         <DialogHeader>
           <DialogTitle className="text-xl sm:text-2xl font-bold flex items-center gap-2 text-white">
             <FileText className="h-6 w-6 text-seguranca-yellow" />
-            Importar XML/PDF de Nota Fiscal (Estoque & Financeiro)
+            {itemsOnly
+              ? 'Cadastrar Itens Restantes da Nota Fiscal no Estoque'
+              : 'Importar XML/PDF de Nota Fiscal (Estoque & Financeiro)'}
           </DialogTitle>
           <DialogDescription className="text-gray-300 text-xs sm:text-sm">
-            Importe o XML ou o PDF (DANFE) da NF-e para alimentar automaticamente o estoque geral, abas de Baterias/Pneus e criar as parcelas no Contas a Pagar.
+            {itemsOnly
+              ? 'Os demais itens da NF-e serão cadastrados no estoque. O financeiro é tratado no item principal do formulário.'
+              : 'Importe o XML ou o PDF (DANFE) da NF-e para alimentar automaticamente o estoque geral, abas de Baterias/Pneus e criar as parcelas no Contas a Pagar.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -354,11 +444,25 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
           <div className="space-y-5 py-2">
             {/* Aviso de Duplicidade */}
             {parsedData.alreadyImported && (
-              <div className="p-4 bg-red-500/20 border border-red-500/50 rounded-lg flex items-start gap-3 text-red-200 text-sm">
-                <AlertTriangle className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
-                <div>
-                  <strong className="block font-semibold text-red-300">Nota Fiscal já importada!</strong>
-                  <span>{parsedData.duplicateWarning || 'Esta nota fiscal já possui lançamentos no sistema.'}</span>
+              <div className="p-4 bg-red-950/60 border border-red-500/80 rounded-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-red-200 text-sm shadow-xl">
+                <div className="flex items-start gap-3">
+                  <div className="p-2.5 rounded-lg bg-red-500/20 text-red-400 flex-shrink-0 mt-0.5">
+                    <AlertTriangle className="h-6 w-6 text-red-400" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <strong className="font-bold text-red-200 text-base">Nota Fiscal já importada anteriormente!</strong>
+                      <Badge className="bg-red-500/30 text-red-200 border border-red-500/60 text-xs font-bold">
+                        Importação Bloqueada
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-red-200/90 mt-1 leading-relaxed">
+                      {parsedData.duplicateWarning || 'Esta nota fiscal já possui lançamentos anteriores no sistema (Estoque ou Financeiro).'}
+                    </p>
+                    <p className="text-xs text-amber-300 font-semibold mt-1">
+                      ⚠️ A reimportação está bloqueada para proteger o saldo de estoque e evitar que as quantidades dos itens sejam alteradas em duplicidade.
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
@@ -395,6 +499,7 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
                     onClick={() => {
                       setParsedData(null);
                       setFile(null);
+                      setForceImport(false);
                     }}
                   >
                     Trocar arquivo
@@ -402,11 +507,22 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
                 </div>
               </div>
 
-              {/* Dados do Fornecedor */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs sm:text-sm text-gray-300">
-                <div className="flex items-start gap-2">
+              {/* Chave de Acesso (44 dígitos) */}
+              {parsedData.accessKey && (
+                <div className="flex items-center gap-2 text-xs text-gray-400 bg-gray-900/60 px-3 py-1.5 rounded-lg border border-gray-800 font-mono break-all mb-3.5">
+                  <Hash className="h-3.5 w-3.5 text-seguranca-yellow flex-shrink-0" />
+                  <span className="text-gray-400 text-[11px] font-sans font-medium">Chave de Acesso:</span>
+                  <span className="text-gray-200 select-all font-semibold tracking-wider">{parsedData.accessKey}</span>
+                </div>
+              )}
+
+              {/* Dados do Fornecedor e do Cliente */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs sm:text-sm text-gray-300">
+                {/* Fornecedor / Emitente */}
+                <div className="flex items-start gap-2.5">
                   <Building2 className="h-4 w-4 text-seguranca-yellow flex-shrink-0 mt-0.5" />
                   <div>
+                    <span className="text-[10px] uppercase font-bold text-gray-400 block tracking-wider">Fornecedor / Emitente</span>
                     <span className="font-semibold text-white">{parsedData.supplierName}</span>
                     <span className="block text-gray-400 text-xs">
                       CNPJ: {parsedData.supplierCnpj}
@@ -417,26 +533,50 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
                     {parsedData.supplierEmail && (
                       <span className="block text-gray-400 text-xs">Email: {parsedData.supplierEmail}</span>
                     )}
-                    <span className="block mt-1">
+                    {parsedData.supplierAddress && (
+                      <span className="block text-gray-400 text-xs mt-0.5">
+                        {parsedData.supplierAddress}
+                        {parsedData.supplierCity && ` • ${parsedData.supplierCity}/${parsedData.supplierState || ''}`}
+                      </span>
+                    )}
+                    <span className="block mt-1.5">
                       {parsedData.existingSupplierId ? (
                         <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-semibold">
                           Fornecedor já cadastrado no sistema
                         </Badge>
                       ) : (
                         <Badge className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-semibold">
-                          Novo fornecedor — será cadastrado automaticamente com os dados da nota
+                          Novo fornecedor — será cadastrado automaticamente
                         </Badge>
                       )}
                     </span>
                   </div>
                 </div>
 
-                {parsedData.supplierAddress && (
-                  <div className="text-xs text-gray-400">
-                    <span>{parsedData.supplierAddress}</span>
-                    <span> • {parsedData.supplierCity}/{parsedData.supplierState}</span>
+                {/* Cliente / Destinatário */}
+                <div className="flex items-start gap-2.5 border-t md:border-t-0 md:border-l border-gray-700/60 pt-3 md:pt-0 md:pl-4">
+                  <UserCheck className="h-4 w-4 text-seguranca-yellow flex-shrink-0 mt-0.5" />
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-gray-400 block tracking-wider">Cliente / Destinatário</span>
+                    <span className="font-semibold text-white">
+                      {parsedData.customerName || 'Destinatário da Nota Fiscal'}
+                    </span>
+                    {parsedData.customerCnpj && (
+                      <span className="block text-gray-400 text-xs">
+                        CNPJ/CPF: {parsedData.customerCnpj}
+                      </span>
+                    )}
+                    {parsedData.customerPhone && (
+                      <span className="block text-gray-400 text-xs">Tel: {parsedData.customerPhone}</span>
+                    )}
+                    {parsedData.customerAddress && (
+                      <span className="block text-gray-400 text-xs mt-0.5">
+                        {parsedData.customerAddress}
+                        {parsedData.customerCity && ` • ${parsedData.customerCity}/${parsedData.customerState || ''}`}
+                      </span>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
             </Card>
 
@@ -467,148 +607,236 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
                 </div>
               </div>
 
-              <div className="border border-gray-700 rounded-lg overflow-x-auto bg-seguranca-black/30">
-                <table className="w-full text-left text-xs sm:text-sm">
-                  <thead className="bg-gray-800/80 text-gray-300 text-xs uppercase font-medium border-b border-gray-700">
-                    <tr>
-                      <th className="p-3 w-10 text-center">Sel.</th>
-                      <th className="p-3">Item / Descrição</th>
-                      <th className="p-3">Ação no Estoque</th>
-                      <th className="p-3">Categoria</th>
-                      <th className="p-3 text-center">Qtd</th>
-                      <th className="p-3 text-right">Vlr. Unitário</th>
-                      <th className="p-3 text-right">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-700/60">
-                    {itemsRows.map((row, index) => (
-                      <tr key={index} className={`hover:bg-gray-800/40 transition-colors ${row.selected ? '' : 'opacity-50'}`}>
-                        {/* Checkbox */}
-                        <td className="p-3 text-center">
+              {/* Lista Responsiva de Itens da NF-e (Sem scroll horizontal) */}
+              <div className="space-y-3">
+                {itemsRows.map((row, index) => (
+                  <div
+                    key={index}
+                    className={`p-3.5 sm:p-4 rounded-xl border transition-all duration-200 ${
+                      row.selected
+                        ? 'bg-seguranca-black/70 border-gray-700/80 shadow-md shadow-black/20 hover:border-gray-600'
+                        : 'bg-seguranca-black/30 border-gray-800/60 opacity-60'
+                    }`}
+                  >
+                    {/* Top Bar: Checkbox + Contador + Badges (Cód, NCM, CFOP, Tags) + Preço Total */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-gray-800">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
                           <input
                             type="checkbox"
-                            className="rounded border-gray-600 text-seguranca-red focus:ring-seguranca-red h-4 w-4"
+                            className="rounded border-gray-600 text-seguranca-red focus:ring-seguranca-red h-4 w-4 cursor-pointer"
                             checked={row.selected}
                             onChange={(e) => updateItemRow(index, { selected: e.target.checked })}
                           />
-                        </td>
+                          <Badge variant="outline" className="bg-gray-800/80 text-gray-200 text-xs font-bold border-gray-700">
+                            Item #{index + 1}
+                          </Badge>
+                        </label>
 
-                        {/* Nome / Descrição */}
-                        <td className="p-3 max-w-[260px]">
-                          <div className="flex flex-col gap-1">
-                            <Input
-                              value={row.name}
-                              onChange={(e) => updateItemRow(index, { name: e.target.value })}
-                              className="h-8 text-xs bg-gray-900/60 border-gray-700 text-white font-medium"
-                            />
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="text-[11px] text-gray-400 font-mono">
-                                Cód: {row.productCode}
-                              </span>
-                              {row.isBattery && (
-                                <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40 text-[10px] py-0 px-1.5 flex items-center gap-1">
-                                  <Zap className="h-2.5 w-2.5" /> Bateria Frota
-                                </Badge>
-                              )}
-                              {row.isTire && (
-                                <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/40 text-[10px] py-0 px-1.5 flex items-center gap-1">
-                                  <CircleDot className="h-2.5 w-2.5" /> Pneu Frota
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                        </td>
+                        {/* Código do Item */}
+                        <div className="flex items-center gap-1 bg-gray-900/90 px-2 py-0.5 rounded border border-gray-700">
+                          <span className="text-[10px] text-gray-400 font-medium">Cód:</span>
+                          <input
+                            value={row.productCode}
+                            onChange={(e) => updateItemRow(index, { productCode: e.target.value })}
+                            placeholder="Cód."
+                            className="w-20 text-xs font-mono bg-transparent text-gray-200 focus:outline-none"
+                          />
+                        </div>
 
-                        {/* Ação: Criar Novo ou Vincular */}
-                        <td className="p-3 min-w-[210px]">
-                          <div className="space-y-1.5">
-                            <Select
-                              value={row.action}
-                              onValueChange={(val: any) => updateItemRow(index, { action: val })}
-                            >
-                              <SelectTrigger className="h-7 text-xs bg-gray-900 border-gray-700">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent className="bg-seguranca-graphite border-gray-700 text-white">
-                                <SelectItem value="CREATE_NEW">
-                                  <span className="flex items-center gap-1.5 text-green-400">
-                                    <PlusCircle className="h-3 w-3" /> Cadastrar como Novo
-                                  </span>
-                                </SelectItem>
-                                <SelectItem value="LINK_EXISTING">
-                                  <span className="flex items-center gap-1.5 text-blue-400">
-                                    <Link2 className="h-3 w-3" /> Vincular a Existente
-                                  </span>
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
+                        {/* NCM */}
+                        <div className="flex items-center gap-1 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30">
+                          <span className="text-[10px] text-amber-400 font-medium">NCM:</span>
+                          <input
+                            value={row.ncm || ''}
+                            onChange={(e) => updateItemRow(index, { ncm: e.target.value.replace(/\D/g, '') })}
+                            maxLength={10}
+                            placeholder="NCM"
+                            className="w-16 text-xs font-mono text-amber-300 font-semibold bg-transparent focus:outline-none text-center"
+                          />
+                        </div>
 
-                            {row.action === 'LINK_EXISTING' && (
-                              <Select
-                                value={row.matchedStockItemId || ''}
-                                onValueChange={(val) => updateItemRow(index, { matchedStockItemId: val })}
-                              >
-                                <SelectTrigger className="h-7 text-xs bg-gray-900 border-blue-600/50 text-blue-200">
-                                  <SelectValue placeholder="Selecione o item..." />
-                                </SelectTrigger>
-                                <SelectContent className="bg-seguranca-graphite border-gray-700 text-white max-h-56">
-                                  {existingItems.map((ex) => (
-                                    <SelectItem key={ex.id} value={ex.id} className="text-xs">
-                                      {ex.code} - {ex.name} (Atual: {ex.currentQuantity})
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            )}
-                          </div>
-                        </td>
+                        {/* CST */}
+                        <div className="flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">
+                          <span className="text-[10px] text-emerald-400 font-medium">CST:</span>
+                          <input
+                            value={row.cst || ''}
+                            onChange={(e) => updateItemRow(index, { cst: e.target.value.replace(/\D/g, '') })}
+                            maxLength={4}
+                            placeholder="CST"
+                            className="w-12 text-xs font-mono text-emerald-300 font-semibold bg-transparent focus:outline-none text-center"
+                          />
+                        </div>
 
-                        {/* Categoria */}
-                        <td className="p-3 min-w-[170px]">
+                        {/* CFOP */}
+                        <div className="flex items-center gap-1 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/30">
+                          <span className="text-[10px] text-blue-400 font-medium">CFOP:</span>
+                          <input
+                            value={row.cfop || ''}
+                            onChange={(e) => updateItemRow(index, { cfop: e.target.value.replace(/\D/g, '') })}
+                            maxLength={5}
+                            placeholder="CFOP"
+                            className="w-12 text-xs font-mono text-blue-300 font-semibold bg-transparent focus:outline-none text-center"
+                          />
+                        </div>
+
+                        {/* Tags de Bateria ou Pneu */}
+                        {row.isBattery && (
+                          <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40 text-[10px] py-0 px-1.5 flex items-center gap-1">
+                            <Zap className="h-2.5 w-2.5" /> Bateria Frota
+                          </Badge>
+                        )}
+                        {row.isTire && (
+                          <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/40 text-[10px] py-0 px-1.5 flex items-center gap-1">
+                            <CircleDot className="h-2.5 w-2.5" /> Pneu Frota
+                          </Badge>
+                        )}
+                      </div>
+
+                      {/* Total do Item */}
+                      <div className="flex items-center gap-1.5 bg-green-500/10 px-2.5 py-1 rounded-lg border border-green-500/20">
+                        <span className="text-[11px] text-gray-300">Total:</span>
+                        <span className="text-sm sm:text-base font-bold text-green-400 font-mono">
+                          R$ {row.totalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Descrição do Produto / Serviço (largura total) */}
+                    <div className="mt-2.5">
+                      <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">
+                        Descrição do Produto / Serviço
+                      </label>
+                      <Input
+                        value={row.name}
+                        onChange={(e) => updateItemRow(index, { name: e.target.value })}
+                        placeholder="Descrição do item"
+                        className="h-8 text-xs bg-gray-900/90 border-gray-700 text-white font-medium focus:border-seguranca-yellow"
+                      />
+                    </div>
+
+                    {/* Grid Adaptativo de Controles: 1 col em mobile, 2 em tablet, 4 em desktop */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 mt-2.5">
+                      {/* Ação no Estoque */}
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">
+                          Ação no Estoque
+                        </label>
+                        <div className="space-y-1">
                           <Select
-                            value={row.category}
-                            onValueChange={(val: any) => updateItemRow(index, { category: val })}
+                            value={row.action}
+                            onValueChange={(val: any) => updateItemRow(index, { action: val })}
                           >
                             <SelectTrigger className="h-8 text-xs bg-gray-900 border-gray-700">
                               <SelectValue />
                             </SelectTrigger>
-                            <SelectContent className="bg-seguranca-graphite border-gray-700 text-white max-h-56">
-                              <SelectItem value={StockCategory.PECAS_MECANICA}>Peças Mecânicas</SelectItem>
-                              <SelectItem value={StockCategory.PECAS_ELETRICA}>Elétrica e Baterias</SelectItem>
-                              <SelectItem value={StockCategory.PNEUS_RODAS}>Pneus, Câmaras e Rodas</SelectItem>
-                              <SelectItem value={StockCategory.SISTEMA_FREIOS}>Freios e Suspensão</SelectItem>
-                              <SelectItem value={StockCategory.LUBRIFICANTES_FLUIDOS}>Óleos e Fluidos</SelectItem>
-                              <SelectItem value={StockCategory.AR_CONDICIONADO}>Ar Condicionado</SelectItem>
-                              <SelectItem value={StockCategory.LIMPEZA_HIGIENIZACAO}>Limpeza de Frota</SelectItem>
-                              <SelectItem value={StockCategory.FERRAMENTAS}>Ferramentas</SelectItem>
-                              <SelectItem value={StockCategory.EPI}>EPIs e Uniformes</SelectItem>
-                              <SelectItem value={StockCategory.OUTROS}>Outros</SelectItem>
+                            <SelectContent className="bg-seguranca-graphite border-gray-700 text-white">
+                              <SelectItem value="CREATE_NEW">
+                                <span className="flex items-center gap-1.5 text-green-400">
+                                  <PlusCircle className="h-3 w-3" /> Cadastrar como Novo
+                                </span>
+                              </SelectItem>
+                              <SelectItem value="LINK_EXISTING">
+                                <span className="flex items-center gap-1.5 text-blue-400">
+                                  <Link2 className="h-3 w-3" /> Vincular a Existente
+                                </span>
+                              </SelectItem>
                             </SelectContent>
                           </Select>
-                        </td>
 
-                        {/* Qtd */}
-                        <td className="p-3 text-center font-bold text-white">
-                          {row.quantity} <span className="text-[11px] text-gray-400 font-normal">{row.unitOfMeasure}</span>
-                        </td>
+                          {row.action === 'LINK_EXISTING' && (
+                            <Select
+                              value={row.matchedStockItemId || ''}
+                              onValueChange={(val) => updateItemRow(index, { matchedStockItemId: val })}
+                            >
+                              <SelectTrigger className="h-7 text-xs bg-gray-900 border-blue-600/50 text-blue-200">
+                                <SelectValue placeholder="Selecione o item..." />
+                              </SelectTrigger>
+                              <SelectContent className="bg-seguranca-graphite border-gray-700 text-white max-h-56">
+                                {existingItems.map((ex) => (
+                                  <SelectItem key={ex.id} value={ex.id} className="text-xs">
+                                    {ex.code} - {ex.name} (Atual: {ex.currentQuantity})
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </div>
+                      </div>
 
-                        {/* Custo Unit */}
-                        <td className="p-3 text-right text-gray-300 font-mono">
-                          R$ {row.unitCost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </td>
+                      {/* Categoria */}
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">
+                          Categoria
+                        </label>
+                        <Select
+                          value={row.category}
+                          onValueChange={(val: any) => updateItemRow(index, { category: val })}
+                        >
+                          <SelectTrigger className="h-8 text-xs bg-gray-900 border-gray-700">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-seguranca-graphite border-gray-700 text-white max-h-56">
+                            <SelectItem value={StockCategory.PECAS_MECANICA}>Peças Mecânicas</SelectItem>
+                            <SelectItem value={StockCategory.PECAS_ELETRICA}>Elétrica e Baterias</SelectItem>
+                            <SelectItem value={StockCategory.PNEUS_RODAS}>Pneus, Câmaras e Rodas</SelectItem>
+                            <SelectItem value={StockCategory.SISTEMA_FREIOS}>Freios e Suspensão</SelectItem>
+                            <SelectItem value={StockCategory.LUBRIFICANTES_FLUIDOS}>Óleos e Fluidos</SelectItem>
+                            <SelectItem value={StockCategory.AR_CONDICIONADO}>Ar Condicionado</SelectItem>
+                            <SelectItem value={StockCategory.LIMPEZA_HIGIENIZACAO}>Limpeza de Frota</SelectItem>
+                            <SelectItem value={StockCategory.FERRAMENTAS}>Ferramentas</SelectItem>
+                            <SelectItem value={StockCategory.EPI}>EPIs e Uniformes</SelectItem>
+                            <SelectItem value={StockCategory.OUTROS}>Outros</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-                        {/* Total */}
-                        <td className="p-3 text-right font-semibold text-green-400 font-mono">
-                          R$ {row.totalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                      {/* Quantidade e Unidade */}
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">
+                          Qtd & Unidade
+                        </label>
+                        <div className="flex items-center gap-1.5">
+                          <Input
+                            type="number"
+                            min="1"
+                            step="1"
+                            value={row.quantity}
+                            onChange={(e) => handleQuantityChange(index, parseFloat(e.target.value))}
+                            className="h-8 text-xs text-center font-bold bg-gray-900 border-gray-700 text-white w-20"
+                          />
+                          <Input
+                            value={row.unitOfMeasure || 'UN'}
+                            onChange={(e) => updateItemRow(index, { unitOfMeasure: e.target.value.toUpperCase() })}
+                            maxLength={6}
+                            placeholder="UN"
+                            className="h-8 text-xs text-center font-mono uppercase bg-gray-900 border-gray-700 text-gray-300 flex-1"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Custo Unitário */}
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">
+                          Custo Unitário (R$)
+                        </label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={row.unitCost}
+                          onChange={(e) => handleUnitCostChange(index, parseFloat(e.target.value))}
+                          className="h-8 text-xs text-right font-mono bg-gray-900 border-gray-700 text-gray-200"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
             {/* Passo 3: Integração Financeira (Contas a Pagar) */}
+            {!itemsOnly && (
             <Card className="bg-seguranca-black/40 border-gray-700 p-4">
               <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
                 <div className="flex items-center gap-2">
@@ -660,6 +888,7 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
                 </div>
               )}
             </Card>
+            )}
           </div>
         )}
 

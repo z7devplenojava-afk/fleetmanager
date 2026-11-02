@@ -1,4 +1,4 @@
-CREATE TABLE orders_of_service (
+CREATE TABLE IF NOT EXISTS orders_of_service (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     employee_id UUID NOT NULL,
     employee_name VARCHAR(255) NOT NULL,
@@ -16,8 +16,8 @@ CREATE TABLE orders_of_service (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_employee_id ON orders_of_service (employee_id);
-CREATE INDEX idx_signed ON orders_of_service (signed);
-CREATE INDEX idx_start_date ON orders_of_service (start_date);
-CREATE INDEX idx_company ON orders_of_service (company);
-CREATE INDEX idx_client ON orders_of_service (client); 
+CREATE INDEX IF NOT EXISTS idx_employee_id ON orders_of_service (employee_id);
+CREATE INDEX IF NOT EXISTS idx_signed ON orders_of_service (signed);
+CREATE INDEX IF NOT EXISTS idx_start_date ON orders_of_service (start_date);
+CREATE INDEX IF NOT EXISTS idx_company ON orders_of_service (company);
+CREATE INDEX IF NOT EXISTS idx_client ON orders_of_service (client); 

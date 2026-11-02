@@ -63,8 +63,21 @@ public class TransportMobilizationController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<TransportMobilizationDTO> findById(@PathVariable("id") UUID id) {
-        return ResponseEntity.ok(service.findById(id));
+    public ResponseEntity<TransportMobilizationDTO> findById(@PathVariable("id") String idStr) {
+        if (idStr == null || idStr.trim().isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        try {
+            UUID id = UUID.fromString(idStr.trim());
+            TransportMobilizationDTO dto = service.findById(id);
+            return dto != null ? ResponseEntity.ok(dto) : ResponseEntity.notFound().build();
+        } catch (IllegalArgumentException e) {
+            log.debug("ID de mobilização não é um UUID válido: {}", idStr);
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            log.warn("Erro ao buscar mobilização por ID {}: {}", idStr, e.getMessage());
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @PostMapping

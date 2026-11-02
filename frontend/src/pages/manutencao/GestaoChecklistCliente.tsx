@@ -636,14 +636,14 @@ const GestaoChecklistCliente: React.FC = () => {
                 </Select>
               </div>
               <div>
-                <Label>Modelo *</Label>
+                <Label>Modelo de Checklist *</Label>
                 <Select
                   value={formData.templateId}
                   onValueChange={(v) => setFormData((f) => ({ ...f, templateId: v }))}
                   disabled={!formData.clientId}
                 >
                   <SelectTrigger className="bg-seguranca-black border-gray-600">
-                    <SelectValue placeholder="Selecione o modelo" />
+                    <SelectValue placeholder="Selecione o modelo de checklist" />
                   </SelectTrigger>
                   <SelectContent>
                     {templates.map((t) => (
@@ -665,11 +665,23 @@ const GestaoChecklistCliente: React.FC = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Nenhum</SelectItem>
-                    {vehicles.map((v) => (
-                      <SelectItem key={v.id} value={v.id}>
-                        {v.plate} - {v.brand} {v.model}
-                      </SelectItem>
-                    ))}
+                    {vehicles.map((v) => {
+                      const brand = (v.brand || '').trim();
+                      const model = (v.model || '').trim();
+                      let vehicleLabel = v.plate;
+                      if (brand && model) {
+                        vehicleLabel = model.toLowerCase().includes(brand.toLowerCase())
+                          ? `${v.plate} - ${model}`
+                          : `${v.plate} - ${brand} ${model}`;
+                      } else if (brand || model) {
+                        vehicleLabel = `${v.plate} - ${brand || model}`;
+                      }
+                      return (
+                        <SelectItem key={v.id} value={v.id}>
+                          {vehicleLabel}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>

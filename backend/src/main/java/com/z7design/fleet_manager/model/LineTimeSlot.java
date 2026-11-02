@@ -45,7 +45,7 @@ public class LineTimeSlot implements TenantAware {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "route_id", nullable = false)
-    @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
+    @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler", "company" })
     private Route route;
 
     /** DIA_UTIL, SABADO ou DOMINGO_FERIADO */

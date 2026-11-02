@@ -10,6 +10,8 @@ public enum UserRole {
     RH, // 🟨 Gerencia informações contratuais e pessoais
     ASSISTENCIA_RH, // 🟨 Assistência de RH
     DEPARTAMENTO_PESSOAL, // 🟨 Gestão completa de DP
+    SST, // 🛡️ Segurança do Trabalho
+    SEGURANCA_DO_TRABALHO, // 🛡️ Segurança do Trabalho (Alias)
     FINANCEIRO, // 🟧 Controla relatórios financeiros
     OPERACIONAL, // 🟦 Departamento Operacional
     VIGILANTE, // 🟦 Colaborador operacional
@@ -23,9 +25,15 @@ public enum UserRole {
     PORTARIA, // 🔘 Controle de acesso
     GESTOR_TRAFEGO, // 🚦 Gestão de escalas e tráfego
     GESTOR_DE_TRAFEGO, // 🚦 Gestão de escalas e tráfego
+    ENCARREGADO_DE_TRANSPORTES, // 🚦 Encarregado de Transportes
+    ENCARREGADO_TRANSPORTES, // 🚦 Encarregado de Transportes
+    ENCARREGADO_DE_TRAFEGO, // 🚦 Encarregado de Tráfego
+    ENCARREGADO_TRAFEGO, // 🚦 Encarregado de Tráfego
     MANUTENCAO, // 🛠️ Manutenção
     GESTOR_DE_MANUTENCAO, // 🛠️ Gestor de Manutenção
     ENCARREGADO_DE_MANUTENCAO, // 🛠️ Encarregado de Manutenção
+    ANALISTA_DE_FROTA, // 🛠️ Analista de Frota
+    ANALISTA_FROTA, // 🛠️ Analista de Frota
     ALMOXARIFADO, // 📦 Almoxarifado
     COMPRAS, // 🛒 Compras
     GESTOR_DE_COMPRAS, // 🛒 Gestor de Compras
@@ -38,5 +46,10 @@ public enum UserRole {
     ASSISTENTE_LIMPEZA, // 🧹 Assistente de Limpeza
     LAVADOR, // 🚿 Lavador
     ASSISTENTE_FINANCEIRO, // 💰 Assistente Financeiro
-    CLIENT_MANAGER // 📱 Gestor de Contrato (Cliente Final)
+    CLIENT_MANAGER, // 📱 Gestor de Contrato (Cliente Final)
+    PASSAGEIRO, // 🎟️ Passageiro / Funcionário do Cliente
+    PASSENGER, // 🎟️ Alias Passageiro
+    GESTOR_RH, // 👥 Gestor de RH
+    ASSISTENTE_RH, // 👥 Assistente de RH
+    ASSISTENTE_DP // 📄 Assistente de Departamento Pessoal
 }

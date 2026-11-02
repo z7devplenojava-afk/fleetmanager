@@ -49,6 +49,7 @@ import { MeasurementWizardModal } from '@/components/financeiro/MeasurementWizar
 import { MeasurementVersionDrawer } from '@/components/financeiro/MeasurementVersionDrawer';
 import { ParteDiariaModal } from '@/components/financeiro/ParteDiariaModal';
 import { ParteDiariaFinanceiroTab } from '@/components/financeiro/ParteDiariaFinanceiroTab';
+import ClientContractMeasurementManager from '@/components/financeiro/ClientContractMeasurementManager';
 import { useToast } from '@/hooks/use-toast';
 import { measurementService } from '@/services/measurementService';
 import { MeasurementBulletin, MeasurementStatus } from '@/types/measurement';
@@ -407,8 +408,11 @@ const Medicao: React.FC = () => {
         </div>
 
         {/* Tabs Principais */}
-        <Tabs defaultValue="dashboard" className="space-y-4">
+        <Tabs defaultValue="contrato-cliente" className="space-y-4">
           <TabsList className="bg-seguranca-black/90 border border-gray-700/80 p-1.5 rounded-xl flex flex-wrap gap-1">
+            <TabsTrigger value="contrato-cliente" className="data-[state='active']:bg-emerald-500 data-[state='active']:text-black text-xs font-black px-4 py-2 rounded-lg transition-all shadow-md">
+              🏢 Medição por Contrato de Cliente & NF
+            </TabsTrigger>
             <TabsTrigger value="dashboard" className="data-[state='active']:bg-amber-500 data-[state='active']:text-seguranca-black text-xs font-extrabold px-4 py-2 rounded-lg transition-all">
               📊 Dashboard Geral
             </TabsTrigger>
@@ -422,6 +426,10 @@ const Medicao: React.FC = () => {
               ⚡ Medições Simplificadas
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="contrato-cliente">
+            <ClientContractMeasurementManager />
+          </TabsContent>
 
           <TabsContent value="dashboard">
             <div className="space-y-6">

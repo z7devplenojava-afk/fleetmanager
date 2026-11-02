@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Table,
     TableBody,
@@ -11,17 +11,45 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Trash2, Eye, Calendar, Clock, User, MapPin, Bus, Footprints, Building2 } from 'lucide-react';
-import { Schedule } from '@/services/scheduleService';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import {
+    Edit,
+    Trash2,
+    Eye,
+    Calendar,
+    Clock,
+    User,
+    MapPin,
+    Bus,
+    Footprints,
+    Building2,
+    Camera,
+    Gauge,
+    Users,
+    CheckCircle2,
+    XCircle,
+    AlertTriangle
+} from 'lucide-react';
+import {
+    Schedule,
+    scheduleService,
+    resolveScheduleRecurrence,
+    resolveScheduleStartTime,
+    resolveScheduleEndTime,
+} from '@/services/scheduleService';
+import { DriverActivityInspectorModal } from '@/components/driver/DriverActivityInspectorModal';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { parseLocalDate } from '@/utils/date-utils';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ScheduleTableProps {
     data: Schedule[];
     onView: (schedule: Schedule) => void;
     onEdit: (schedule: Schedule) => void;
     onDelete: (schedule: Schedule) => void;
+    onRefresh?: () => void;
 }
 
 const getShiftBadge = (shift: string) => {
@@ -54,17 +82,61 @@ const getTripTypeBadge = (tripType?: string) => {
     }
 };
 
-export const ScheduleTable: React.FC<ScheduleTableProps> = ({ data, onView, onEdit, onDelete }) => {
+export const ScheduleTable: React.FC<ScheduleTableProps> = ({ data, onView, onEdit, onDelete, onRefresh }) => {
+    const { toast } = useToast();
+    const { user } = useAuth();
+    const [selectedScheduleForPhotos, setSelectedScheduleForPhotos] = useState<Schedule | null>(null);
+    const [approvingId, setApprovingId] = useState<string | null>(null);
+    const [inspectedDriver, setInspectedDriver] = useState<{ id?: string; name: string } | null>(null);
+
+    useEffect(() => {
+        const handleRealtimeDriverUpdate = () => {
+            if (onRefresh) onRefresh();
+        };
+        window.addEventListener('fluxbus:driver-records-updated', handleRealtimeDriverUpdate);
+        window.addEventListener('storage', handleRealtimeDriverUpdate);
+        return () => {
+            window.removeEventListener('fluxbus:driver-records-updated', handleRealtimeDriverUpdate);
+            window.removeEventListener('storage', handleRealtimeDriverUpdate);
+        };
+    }, [onRefresh]);
+
+    const handleApprovePoint = async (schedule: Schedule, approved: boolean) => {
+        setApprovingId(schedule.id);
+        try {
+            await scheduleService.approvePoint(schedule.id, {
+                approved,
+                approvedBy: user?.name || user?.email || 'Gestor de Tráfego'
+            });
+            toast({
+                title: approved ? 'Ponto Aprovado pelo Tráfego!' : 'Ponto Rejeitado',
+                description: approved
+                    ? `O registro de ponto de ${schedule.employee?.name || 'motorista'} foi aprovado e o horário liberado.`
+                    : `O registro de ponto de ${schedule.employee?.name || 'motorista'} foi rejeitado.`,
+                variant: approved ? 'default' : 'destructive',
+            });
+            if (onRefresh) onRefresh();
+        } catch (err: any) {
+            toast({
+                title: 'Erro ao processar aprovação',
+                description: err?.message || 'Não foi possível concluir a operação.',
+                variant: 'destructive',
+            });
+        } finally {
+            setApprovingId(null);
+        }
+    };
+
     return (
         <div className="bg-seguranca-black border border-gray-600 rounded-lg overflow-hidden">
             <Table>
                 <TableHeader className="bg-seguranca-graphite">
                     <TableRow className="border-gray-600">
-                        <TableHead className="text-seguranca-lightgray font-semibold">Funcionário</TableHead>
+                        <TableHead className="text-seguranca-lightgray font-semibold">Motorista</TableHead>
                         <TableHead className="text-seguranca-lightgray font-semibold">Cliente</TableHead>
-                        <TableHead className="text-seguranca-lightgray font-semibold">Viagem / Posto</TableHead>
-                        <TableHead className="text-seguranca-lightgray font-semibold">Data</TableHead>
-                        <TableHead className="text-seguranca-lightgray font-semibold">Turno</TableHead>
+                        <TableHead className="text-seguranca-lightgray font-semibold">Percurso / Veículo</TableHead>
+                        <TableHead className="text-seguranca-lightgray font-semibold">Data & Horário</TableHead>
+                        <TableHead className="text-seguranca-lightgray font-semibold">Ponto, KM, Passag. & Fotos</TableHead>
                         <TableHead className="text-seguranca-lightgray font-semibold text-center">Pegadas</TableHead>
                         <TableHead className="text-seguranca-lightgray font-semibold">Status</TableHead>
                         <TableHead className="text-seguranca-lightgray font-semibold text-right">Ações</TableHead>
@@ -73,43 +145,67 @@ export const ScheduleTable: React.FC<ScheduleTableProps> = ({ data, onView, onEd
                 <TableBody>
                     {data.length > 0 ? (
                         data.map((schedule) => {
-                            // Determinar nome do local/viagem/posto
-                            const tripName = schedule.travelTrip?.name;
+                            const tripName = schedule.routeCode || schedule.route?.name || schedule.travelTrip?.name;
                             const postName = schedule.workPost?.name;
                             const locationName = schedule.location?.name;
                             const displayName = tripName || postName || locationName || 'Não informado';
 
-                            // Cliente pode vir da viagem ou do posto
-                            const clientName = schedule.client?.name
+                            const clientName = schedule.clientName
+                                || schedule.client?.name
                                 || schedule.travelTrip?.client?.name
                                 || (schedule.workPost as any)?.client?.name
                                 || '—';
 
-                            // Pegadas
                             const legs = schedule.legs || schedule.travelTrip?.legs || null;
+                            const isPendingPoint = schedule.pointStatus === 'PENDING_TRAFFIC_APPROVAL';
+
+                            let photosCount = 0;
+                            if (schedule.tripPhotosJson) {
+                                try {
+                                    const parsed = JSON.parse(schedule.tripPhotosJson);
+                                    if (Array.isArray(parsed)) photosCount = parsed.length;
+                                } catch {
+                                    photosCount = 0;
+                                }
+                            }
 
                             return (
                                 <TableRow key={schedule.id} className="border-gray-600 hover:bg-seguranca-graphite/50 transition-colors">
-                                    {/* Funcionário */}
+                                    {/* Motorista (Clicável pelo Gestor de Tráfego / Encarregado) */}
                                     <TableCell className="text-seguranca-lightgray">
-                                        <div className="flex items-center gap-2">
-                                            <User size={14} className="text-gray-400 flex-shrink-0" />
-                                            <span className="font-bold truncate max-w-[150px]">
-                                                {schedule.employee?.name || 'Não informado'}
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setInspectedDriver({
+                                                    id: schedule.employeeId || schedule.employee?.id,
+                                                    name: schedule.employee?.name || 'Motorista',
+                                                })
+                                            }
+                                            title="Clique no nome do motorista para ver todas as atividades, fotos, endereços GPS e mapa do trajeto (Ida/Retorno)"
+                                            className="flex flex-col items-start gap-0.5 text-left group hover:bg-seguranca-yellow/10 p-1.5 -m-1.5 rounded-lg transition-colors"
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <User size={14} className="text-seguranca-yellow flex-shrink-0" />
+                                                <span className="font-bold truncate max-w-[150px] group-hover:text-seguranca-yellow underline decoration-dotted underline-offset-4">
+                                                    {schedule.employee?.name || 'Não informado'}
+                                                </span>
+                                            </div>
+                                            <span className="text-[10px] text-emerald-400 flex items-center gap-1 pl-5">
+                                                <MapPin size={10} /> Ver atividades & trajeto
                                             </span>
-                                        </div>
+                                        </button>
                                     </TableCell>
 
                                     {/* Cliente */}
                                     <TableCell className="text-seguranca-lightgray">
                                         <div className="flex items-center gap-2">
                                             <Building2 size={14} className="text-gray-400 flex-shrink-0" />
-                                            <span className="text-sm truncate max-w-[120px]">{clientName}</span>
+                                            <span className="text-sm truncate max-w-[140px]">{clientName}</span>
                                         </div>
                                     </TableCell>
 
-                                    {/* Viagem / Posto */}
-                                    <TableCell className="text-seguranca-lightgray max-w-[200px]">
+                                    {/* Percurso / Veículo */}
+                                    <TableCell className="text-seguranca-lightgray max-w-[220px]">
                                         <div className="flex flex-col gap-1">
                                             <div className="flex items-center gap-2">
                                                 {tripName ? (
@@ -119,6 +215,11 @@ export const ScheduleTable: React.FC<ScheduleTableProps> = ({ data, onView, onEd
                                                 )}
                                                 <span className="font-semibold text-sm truncate">{displayName}</span>
                                             </div>
+                                            {(schedule.vehicle?.plate || schedule.vehiclePlate) && (
+                                                <span className="text-xs text-emerald-400 font-mono">
+                                                    🚌 {schedule.vehicle?.plate || schedule.vehiclePlate}
+                                                </span>
+                                            )}
                                             <div className="flex items-center gap-1">
                                                 {tripName && getTripTypeBadge(schedule.travelTrip?.tripType)}
                                                 {schedule.travelTrip?.code && (
@@ -126,35 +227,167 @@ export const ScheduleTable: React.FC<ScheduleTableProps> = ({ data, onView, onEd
                                                         {schedule.travelTrip.code}
                                                     </span>
                                                 )}
-                                                {!tripName && schedule.workPost?.postCode && (
-                                                    <span className="text-[10px] text-gray-500 font-mono">
-                                                        Cód: {schedule.workPost.postCode}
-                                                    </span>
-                                                )}
                                             </div>
                                         </div>
                                     </TableCell>
 
-                                    {/* Data */}
+                                    {/* Data & Horário */}
                                     <TableCell className="text-seguranca-lightgray">
-                                        <div className="flex items-center gap-2">
-                                            <Calendar size={14} className="text-gray-400 flex-shrink-0" />
-                                            <span className="text-sm">
-                                                {format(parseLocalDate(schedule.scheduleDate), 'dd/MM/yyyy', { locale: ptBR })}
-                                            </span>
+                                        <div className="flex flex-col gap-1">
+                                            <div className="flex items-center gap-1.5">
+                                                <Calendar size={13} className="text-gray-400 flex-shrink-0" />
+                                                <span className="text-xs font-semibold">
+                                                    {format(parseLocalDate(schedule.scheduleDate), 'dd/MM/yyyy', { locale: ptBR })}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5 text-xs text-amber-300 font-mono">
+                                                <Clock size={12} />
+                                                <span>
+                                                    {isPendingPoint
+                                                        ? 'Aguard. Gestor'
+                                                        : `${resolveScheduleStartTime(schedule)} às ${resolveScheduleEndTime(schedule)}`}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-1 flex-wrap">
+                                                {getShiftBadge(schedule.shift)}
+                                                {(() => {
+                                                    const rec = resolveScheduleRecurrence(schedule);
+                                                    if (rec === 'WEEKEND') {
+                                                        return (
+                                                            <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40 text-[10px]">
+                                                                🗓️ FDS
+                                                            </Badge>
+                                                        );
+                                                    }
+                                                    if (rec === 'SINGLE_DAY') {
+                                                        return (
+                                                            <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/40 text-[10px]">
+                                                                📌 Data Única
+                                                            </Badge>
+                                                        );
+                                                    }
+                                                    return (
+                                                        <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40 text-[10px]">
+                                                            📅 Fixa Semanal
+                                                        </Badge>
+                                                    );
+                                                })()}
+                                            </div>
                                         </div>
                                     </TableCell>
 
-                                    {/* Turno */}
-                                    <TableCell>
-                                        <div className="flex flex-col gap-1">
-                                            {getShiftBadge(schedule.shift)}
-                                            {schedule.workPost?.shiftStart && (
-                                                <span className="text-[10px] text-gray-500 font-mono">
-                                                    {schedule.workPost.shiftStart} - {schedule.workPost.shiftEnd}
-                                                </span>
-                                            )}
-                                        </div>
+                                    {/* Ponto, KM, Passageiros & Fotos no Ônibus */}
+                                    <TableCell className="text-seguranca-lightgray">
+                                        {(() => {
+                                            const hasPoint =
+                                                Boolean(schedule.pointRegisteredAt) ||
+                                                schedule.pointStatus === 'APPROVED' ||
+                                                schedule.status === 'IN_PROGRESS' ||
+                                                schedule.status === 'COMPLETED' ||
+                                                schedule.initialKm != null;
+                                            const pointTimeStr = schedule.pointRegisteredAt
+                                                ? (() => {
+                                                      try {
+                                                          return new Date(schedule.pointRegisteredAt).toLocaleTimeString('pt-BR', {
+                                                              hour: '2-digit',
+                                                              minute: '2-digit',
+                                                          });
+                                                      } catch {
+                                                          return resolveScheduleStartTime(schedule);
+                                                      }
+                                                  })()
+                                                : resolveScheduleStartTime(schedule);
+                                            const hasKm = schedule.initialKm != null || schedule.finalKm != null;
+                                            const hasPax = schedule.passengersCount != null && (schedule.passengersCount > 0 || hasKm || hasPoint);
+                                            const hasGps = Boolean(schedule.startAddress || schedule.endAddress);
+                                            const hasAnyExecutionData =
+                                                hasPoint || hasKm || hasPax || photosCount > 0 || hasGps || isPendingPoint;
+
+                                            return (
+                                                <div className="space-y-1 text-xs">
+                                                    {hasPoint && !isPendingPoint && (
+                                                        <div className="flex items-center gap-1 text-emerald-300 font-semibold">
+                                                            <CheckCircle2 size={13} className="text-emerald-400 shrink-0" />
+                                                            <span>Ponto: {pointTimeStr} • Registrado</span>
+                                                        </div>
+                                                    )}
+                                                    {hasKm && (
+                                                        <div className="flex items-center gap-1 text-gray-200 font-mono">
+                                                            <Gauge size={13} className="text-blue-400 shrink-0" />
+                                                            <span>
+                                                                KM: {schedule.initialKm ?? '-'} → {schedule.finalKm ?? 'em curso'}
+                                                                {schedule.initialKm != null &&
+                                                                    schedule.finalKm != null &&
+                                                                    schedule.finalKm >= schedule.initialKm && (
+                                                                        <span className="text-emerald-400 ml-1">
+                                                                            (+{schedule.finalKm - schedule.initialKm} km)
+                                                                        </span>
+                                                                    )}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                    {hasPax && (
+                                                        <div className="flex items-center gap-1 text-purple-300">
+                                                            <Users size={13} className="text-purple-400 shrink-0" />
+                                                            <span>Passageiros: {schedule.passengersCount ?? 0}</span>
+                                                        </div>
+                                                    )}
+                                                    {hasGps && (
+                                                        <div
+                                                            className="flex items-center gap-1 text-[11px] text-emerald-300/90 max-w-[210px] truncate"
+                                                            title={schedule.endAddress || schedule.startAddress}
+                                                        >
+                                                            <MapPin size={11} className="text-emerald-400 shrink-0" />
+                                                            <span className="truncate">
+                                                                {schedule.endAddress || schedule.startAddress}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                    {photosCount > 0 && (
+                                                        <Button
+                                                            type="button"
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => setSelectedScheduleForPhotos(schedule)}
+                                                            className="h-6 px-2 text-[11px] border-cyan-500/50 text-cyan-300 hover:bg-cyan-500/20"
+                                                        >
+                                                            <Camera size={12} className="mr-1" />
+                                                            Fotos no Ônibus ({photosCount})
+                                                        </Button>
+                                                    )}
+                                                    {isPendingPoint && (
+                                                        <div className="pt-1 space-y-1">
+                                                            <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40 text-[10px]">
+                                                                <AlertTriangle size={11} className="mr-1" />
+                                                                Aprovar Ponto
+                                                            </Badge>
+                                                            <div className="flex gap-1">
+                                                                <Button
+                                                                    size="sm"
+                                                                    disabled={approvingId === schedule.id}
+                                                                    onClick={() => handleApprovePoint(schedule, true)}
+                                                                    className="h-6 px-2 text-[10px] bg-emerald-600 hover:bg-emerald-500 text-white"
+                                                                >
+                                                                    Aprovar
+                                                                </Button>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    disabled={approvingId === schedule.id}
+                                                                    onClick={() => handleApprovePoint(schedule, false)}
+                                                                    className="h-6 px-2 text-[10px] border-red-500/50 text-red-300"
+                                                                >
+                                                                    Rejeitar
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    {!hasAnyExecutionData && (
+                                                        <span className="text-gray-500 text-[11px]">Aguardando registro</span>
+                                                    )}
+                                                </div>
+                                            );
+                                        })()}
                                     </TableCell>
 
                                     {/* Pegadas */}
@@ -170,7 +403,15 @@ export const ScheduleTable: React.FC<ScheduleTableProps> = ({ data, onView, onEd
                                     </TableCell>
 
                                     {/* Status */}
-                                    <TableCell>{getStatusBadge(schedule.status)}</TableCell>
+                                    <TableCell>
+                                        {isPendingPoint ? (
+                                            <Badge variant="outline" className="text-amber-400 border-amber-500/40">
+                                                Aguard. Tráfego
+                                            </Badge>
+                                        ) : (
+                                            getStatusBadge(schedule.status)
+                                        )}
+                                    </TableCell>
 
                                     {/* Ações */}
                                     <TableCell className="text-right">
@@ -220,6 +461,98 @@ export const ScheduleTable: React.FC<ScheduleTableProps> = ({ data, onView, onEd
                     )}
                 </TableBody>
             </Table>
+
+            {/* Modal de Verificação de Fotos no Ônibus pelo Gestor de Tráfego */}
+            <Dialog
+                open={Boolean(selectedScheduleForPhotos)}
+                onOpenChange={(open) => !open && setSelectedScheduleForPhotos(null)}
+            >
+                <DialogContent className="bg-seguranca-graphite border-gray-700 text-white max-w-3xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-seguranca-yellow">
+                            <Camera className="h-5 w-5" />
+                            Verificação do Gestor de Tráfego • Fotos do Motorista no Ônibus
+                        </DialogTitle>
+                        <DialogDescription className="text-gray-300">
+                            Fotos capturadas pela câmera do celular no Ponto Eletrônico do Motorista.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {selectedScheduleForPhotos && (() => {
+                        let photosList: string[] = [];
+                        if (selectedScheduleForPhotos.tripPhotosJson) {
+                            try {
+                                const parsed = JSON.parse(selectedScheduleForPhotos.tripPhotosJson);
+                                if (Array.isArray(parsed)) photosList = parsed;
+                            } catch {
+                                photosList = [];
+                            }
+                        }
+                        return (
+                            <div className="space-y-4">
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3 rounded-xl bg-black/50 border border-gray-800 text-xs">
+                                    <div>
+                                        <span className="text-gray-400 block">Motorista</span>
+                                        <span className="font-bold text-white">{selectedScheduleForPhotos.employee?.name}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-gray-400 block">Cliente</span>
+                                        <span className="font-bold text-white">
+                                            {selectedScheduleForPhotos.clientName || selectedScheduleForPhotos.location?.name || '-'}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <span className="text-gray-400 block">Percurso</span>
+                                        <span className="font-bold text-blue-300">
+                                            {selectedScheduleForPhotos.routeCode || selectedScheduleForPhotos.route?.name || '-'}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <span className="text-gray-400 block">Horário</span>
+                                        <span className="font-bold text-amber-300">
+                                            {selectedScheduleForPhotos.startTime || '--:--'} às {selectedScheduleForPhotos.endTime || 'em curso'}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <span className="text-gray-400 block">KM Inicial → Final</span>
+                                        <span className="font-bold text-white">
+                                            {selectedScheduleForPhotos.initialKm ?? '-'} → {selectedScheduleForPhotos.finalKm ?? 'em curso'} km
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <span className="text-gray-400 block">Passageiros</span>
+                                        <span className="font-bold text-purple-300">
+                                            {selectedScheduleForPhotos.passengersCount ?? 0}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {photosList.map((src, i) => (
+                                        <div key={i} className="rounded-xl overflow-hidden border border-gray-700 bg-black">
+                                            <img src={src} alt={`Foto ${i + 1}`} className="w-full h-56 object-cover" />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        );
+                    })()}
+                </DialogContent>
+            </Dialog>
+
+            {/* Dossiê Completo por Motorista (Ao clicar no nome do motorista: Atividades, Fotos, Informações e Mapa de Trajeto Ida/Retorno) */}
+            <DriverActivityInspectorModal
+                isOpen={Boolean(inspectedDriver)}
+                onClose={() => setInspectedDriver(null)}
+                driverId={inspectedDriver?.id}
+                driverName={inspectedDriver?.name || ''}
+                initialSchedules={data.filter(
+                    (s) =>
+                        (inspectedDriver?.id && (s.employeeId === inspectedDriver.id || s.employee?.id === inspectedDriver.id)) ||
+                        (inspectedDriver?.name &&
+                            (s.employee?.name || '').trim().toLowerCase() === inspectedDriver.name.trim().toLowerCase())
+                )}
+                onScheduleUpdated={onRefresh}
+            />
         </div>
     );
 };

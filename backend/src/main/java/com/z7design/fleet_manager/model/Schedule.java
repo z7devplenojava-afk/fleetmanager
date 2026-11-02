@@ -42,7 +42,7 @@ import com.z7design.fleet_manager.tenant.TenantAware;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "schedules")
-@Filter(name = "tenantFilter", condition = "company_id = :companyId")
+@Filter(name = "tenantFilter", condition = "(company_id = :companyId OR company_id IS NULL)")
 public class Schedule implements TenantAware {
 
         @Id
@@ -87,13 +87,13 @@ public class Schedule implements TenantAware {
 
         @ManyToOne
         @JoinColumn(name = "work_post_id")
-        @JsonIgnoreProperties({ "schedules", "hibernateLazyInitializer", "handler" })
+        @JsonIgnoreProperties({ "schedules", "hibernateLazyInitializer", "handler", "client", "contract", "responsible", "nrs", "epis", "trainings", "workSchedules" })
         private WorkPost workPost;
 
         /** Viagem associada (substitui Posto de Trabalho no módulo de tráfego) */
         @ManyToOne(fetch = FetchType.EAGER)
         @JoinColumn(name = "travel_trip_id")
-        @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
+        @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler", "route", "client" })
         private TravelTrip travelTrip;
 
         /** Número de pegadas (1 a 4) */
@@ -105,17 +105,62 @@ public class Schedule implements TenantAware {
         @Column(nullable = false)
         private ScheduleStatus status;
 
-        @ManyToOne
+        @ManyToOne(fetch = FetchType.EAGER)
         @JoinColumn(name = "route_id")
+        @NotFound(action = NotFoundAction.IGNORE)
+        @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler", "points", "unit", "location", "client", "company" })
         private Route route;
 
         @ManyToOne
         @JoinColumn(name = "patrol_id")
+        @NotFound(action = NotFoundAction.IGNORE)
+        @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
         private Patrol patrol;
 
-        @ManyToOne
+        @ManyToOne(fetch = FetchType.EAGER)
         @JoinColumn(name = "vehicle_id")
+        @NotFound(action = NotFoundAction.IGNORE)
+        @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler", "garage", "responsibleEmployee", "department", "workPost", "client", "company" })
         private Vehicle vehicle;
+
+        @Column(name = "start_time", length = 10)
+        private String startTime;
+
+        @Column(name = "end_time", length = 10)
+        private String endTime;
+
+        @Column(name = "initial_km")
+        private Double initialKm;
+
+        @Column(name = "final_km")
+        private Double finalKm;
+
+        @Column(name = "point_registered_at")
+        private LocalDateTime pointRegisteredAt;
+
+        @Column(name = "point_status", length = 40)
+        private String pointStatus;
+
+        @Column(name = "point_justification", columnDefinition = "TEXT")
+        private String pointJustification;
+
+        @Column(name = "point_approved_by", length = 150)
+        private String pointApprovedBy;
+
+        @Column(name = "point_approved_at")
+        private LocalDateTime pointApprovedAt;
+
+        @Column(name = "trip_photos_json", columnDefinition = "TEXT")
+        private String tripPhotosJson;
+
+        @Column(name = "client_name", length = 200)
+        private String clientName;
+
+        @Column(name = "route_code", length = 120)
+        private String routeCode;
+
+        @Column(name = "passengers_count")
+        private Integer passengersCount;
 
         @Size(max = 500, message = "Observations cannot exceed 500 characters")
         @Column(length = 500)

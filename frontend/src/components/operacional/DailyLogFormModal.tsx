@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Save, Loader2, Gauge, AlertCircle, CheckCircle2, Route, Calendar, Clock, Car, MapPin, UserCheck, ShieldAlert } from 'lucide-react';
 import { DailyLog } from '@/services/dailyLogService';
 import { clientService, Client } from '@/services/clientService';
+import { contractService, Contract } from '@/services/contractService';
 import { toast } from 'sonner';
 import { VehicleCombobox } from '@/components/ui/vehicle-combobox';
 
@@ -28,17 +29,25 @@ const DailyLogFormModal: React.FC<DailyLogFormProps> = ({ open, onOpenChange, lo
         notes: ''
     });
     const [clients, setClients] = useState<Client[]>([]);
+    const [clientContracts, setClientContracts] = useState<any[]>([]);
+    const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         if (open) {
             loadClients();
+            if (formData.clientId) {
+                loadContractsForClient(formData.clientId);
+            }
         }
     }, [open]);
 
     useEffect(() => {
         if (log) {
             setFormData(log);
+            if (log.clientId) {
+                loadContractsForClient(log.clientId);
+            }
         } else {
             setFormData({
                 date: new Date().toISOString().split('T')[0],
@@ -49,6 +58,8 @@ const DailyLogFormModal: React.FC<DailyLogFormProps> = ({ open, onOpenChange, lo
                 allowance: 0,
                 notes: ''
             });
+            setClientContracts([]);
+            setSelectedContractId(null);
         }
     }, [log, open]);
 
@@ -58,6 +69,26 @@ const DailyLogFormModal: React.FC<DailyLogFormProps> = ({ open, onOpenChange, lo
             setClients(data || []);
         } catch (error) {
             console.error('Erro ao carregar clientes:', error);
+        }
+    };
+
+    const loadContractsForClient = async (clientId?: string) => {
+        if (!clientId || clientId === 'ALL') {
+            try {
+                const all = await contractService.getAllContracts();
+                setClientContracts(all || []);
+            } catch (e) {
+                setClientContracts([]);
+            }
+            return;
+        }
+
+        try {
+            const data = await contractService.getContractsByClient(clientId);
+            setClientContracts(data || []);
+        } catch (error) {
+            console.warn('⚠️ Não foi possível carregar contratos do cliente:', error);
+            setClientContracts([]);
         }
     };
 
@@ -151,6 +182,7 @@ const DailyLogFormModal: React.FC<DailyLogFormProps> = ({ open, onOpenChange, lo
                                 onValueChange={(val) => {
                                     const selectedId = val === 'ALL' ? undefined : val;
                                     handleChange('clientId', selectedId);
+                                    loadContractsForClient(selectedId);
                                 }}
                             >
                                 <SelectTrigger className="bg-slate-950 border-slate-700/80 text-white font-medium focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 rounded-xl h-10 px-3 text-sm shadow-inner">
@@ -179,9 +211,20 @@ const DailyLogFormModal: React.FC<DailyLogFormProps> = ({ open, onOpenChange, lo
                                 onChange={(id, selectedVehicle) => {
                                     handleChange('vehicleId', id);
                                     if (selectedVehicle) {
+                                        const plate = selectedVehicle.plate || selectedVehicle.placa;
+                                        if (plate) handleChange('vehiclePlate', plate);
                                         const vClientId = selectedVehicle.clientId || selectedVehicle.client?.id;
                                         if (vClientId && !formData.clientId) {
                                             handleChange('clientId', vClientId);
+                                            loadContractsForClient(vClientId);
+                                        }
+                                        // Pré-preenche KM inicial com a quilometragem atual do veículo se for 0
+                                        const currKm = selectedVehicle.currentMileage || selectedVehicle.mileage || selectedVehicle.quilometragem;
+                                        if (currKm && (!formData.initialKm || formData.initialKm === 0)) {
+                                            handleChange('initialKm', Number(currKm));
+                                            if (!formData.finalKm || formData.finalKm === 0) {
+                                                handleChange('finalKm', Number(currKm));
+                                            }
                                         }
                                     }
                                 }}
@@ -189,19 +232,58 @@ const DailyLogFormModal: React.FC<DailyLogFormProps> = ({ open, onOpenChange, lo
                         </div>
                     </div>
 
-                    {/* Rota / Trajeto */}
-                    <div className="space-y-1.5">
-                        <Label htmlFor="route" className="text-xs uppercase text-slate-300 font-semibold tracking-wider flex items-center gap-1.5">
-                            <MapPin className="w-3.5 h-3.5 text-amber-400" />
-                            Rota / Trajeto
-                        </Label>
-                        <Input
-                            id="route"
-                            className="bg-slate-950 border-slate-700/80 text-white placeholder:text-slate-500 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 rounded-xl h-10 px-3 text-sm font-medium shadow-inner"
-                            placeholder="Ex: Rota Ibirité - BH"
-                            value={formData.route || ''}
-                            onChange={(e) => handleChange('route', e.target.value)}
-                        />
+                    {/* Obra / Contrato do Cliente & Rota / Trajeto */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                        <div className="space-y-1.5">
+                            <Label className="text-xs uppercase text-slate-300 font-semibold tracking-wider flex items-center gap-1.5">
+                                <Route className="w-3.5 h-3.5 text-amber-400" />
+                                Obra / Contrato
+                            </Label>
+                            <Select
+                                value={selectedContractId || 'NONE'}
+                                onValueChange={(val) => {
+                                    if (val === 'NONE') {
+                                        setSelectedContractId(null);
+                                    } else {
+                                        setSelectedContractId(val);
+                                        const found = clientContracts.find(c => c.id === val);
+                                        if (found) {
+                                            const obra = found.obraName || found.description || '';
+                                            if (obra && !formData.route) {
+                                                handleChange('route', obra);
+                                            }
+                                        }
+                                    }
+                                }}
+                            >
+                                <SelectTrigger className="bg-slate-950 border-slate-700/80 text-white font-medium focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 rounded-xl h-10 px-3 text-sm shadow-inner">
+                                    <SelectValue placeholder={clientContracts.length === 0 ? "Nenhuma obra vinculada" : "Selecione a obra/contrato..."} />
+                                </SelectTrigger>
+                                <SelectContent className="bg-slate-900 border-slate-700 text-white max-h-[220px]">
+                                    <SelectItem value="NONE">Sem Obra Específica</SelectItem>
+                                    {clientContracts.map((ct) => (
+                                        <SelectItem key={ct.id} value={ct.id}>
+                                            {ct.obraName ? `🏗️ ${ct.obraName}` : `📄 ${ct.contractNumber || 'Contrato'} - ${ct.description || ''}`}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        {/* Rota / Trajeto */}
+                        <div className="space-y-1.5">
+                            <Label htmlFor="route" className="text-xs uppercase text-slate-300 font-semibold tracking-wider flex items-center gap-1.5">
+                                <MapPin className="w-3.5 h-3.5 text-amber-400" />
+                                Rota / Trajeto
+                            </Label>
+                            <Input
+                                id="route"
+                                className="bg-slate-950 border-slate-700/80 text-white placeholder:text-slate-500 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 rounded-xl h-10 px-3 text-sm font-medium shadow-inner"
+                                placeholder="Ex: Rota Ibirité - BH"
+                                value={formData.route || ''}
+                                onChange={(e) => handleChange('route', e.target.value)}
+                            />
+                        </div>
                     </div>
 
                     {/* Bloco de Leitura de Odômetro */}

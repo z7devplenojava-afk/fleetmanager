@@ -18,21 +18,12 @@ import { EmpresaThemeSync } from '@/components/EmpresaThemeSync';
 import ThemeToggle from '@/components/ThemeToggle';
 import '@/styles/gsap-animations.css';
 
-// Registrar plugins GSAP
-if (typeof window !== 'undefined') {
+// Registrar plugins GSAP apenas em desktop para máxima fluidez e economia de bateria no mobile
+if (typeof window !== 'undefined' && window.innerWidth >= 768 && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
   gsap.registerPlugin(ScrollTrigger);
 }
 
-// Portal Público - Carregamento imediato (página inicial)
-import PortalHome from '@/pages/PortalHome';
-import PortalVagas from '@/pages/PortalVagas';
-import QuemSomos from '@/pages/QuemSomos';
-import ServicosPublico from '@/pages/Servicos';
-import PoliticasPrivacidade from '@/pages/PoliticasPrivacidade';
-import TermosCondicoes from '@/pages/TermosCondicoes';
-import Contato from '@/pages/Contato';
 import CookieConsent from '@/components/CookieConsent';
-import UnificadosPorSetor from '@/pages/UnificadosPorSetor';
 
 // Helper function para lazy loading com retry (Vite HMR / ERR_EMPTY_RESPONSE)
 const lazyWithRetry = (componentImport: () => Promise<any>, componentName: string, maxRetries = 3) => {
@@ -71,42 +62,23 @@ const lazyWithRetry = (componentImport: () => Promise<any>, componentName: strin
         }
       }
     }
-
-    // Último recurso após rebuild do Vite: um reload único da página
-    const reloadKey = `lazy-reload:${componentName}`;
-    if (!sessionStorage.getItem(reloadKey)) {
-      sessionStorage.setItem(reloadKey, '1');
-      window.location.reload();
-      return new Promise(() => { });
-    }
-    sessionStorage.removeItem(reloadKey);
-
-    return {
-      default: () => (
-        <div className="flex items-center justify-center min-h-screen bg-seguranca-black">
-          <div className="text-center p-8 bg-seguranca-graphite rounded-lg border border-red-500 max-w-md">
-            <h2 className="text-xl font-bold text-red-500 mb-4">Erro ao carregar {componentName}</h2>
-            <p className="text-seguranca-lightgray mb-4">
-              Não foi possível carregar o módulo após {maxRetries} tentativas.
-              {lastError?.message && (
-                <span className="block mt-2 text-sm text-gray-400">{lastError.message}</span>
-              )}
-            </p>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-seguranca-red text-white rounded hover:bg-seguranca-darkred"
-            >
-              Recarregar página
-            </button>
-          </div>
-        </div>
-      ),
-    };
+    throw lastError;
   });
 };
 
+// Portal Público - Carregamento sob demanda (reduz drasticamente o bundle inicial no mobile)
+const PortalHome = lazyWithRetry(() => import('@/pages/PortalHome'), 'PortalHome');
+const PortalVagas = lazyWithRetry(() => import('@/pages/PortalVagas'), 'PortalVagas');
+const QuemSomos = lazyWithRetry(() => import('@/pages/QuemSomos'), 'QuemSomos');
+const ServicosPublico = lazyWithRetry(() => import('@/pages/Servicos'), 'ServicosPublico');
+const PoliticasPrivacidade = lazyWithRetry(() => import('@/pages/PoliticasPrivacidade'), 'PoliticasPrivacidade');
+const TermosCondicoes = lazyWithRetry(() => import('@/pages/TermosCondicoes'), 'TermosCondicoes');
+const Contato = lazyWithRetry(() => import('@/pages/Contato'), 'Contato');
+const UnificadosPorSetor = lazyWithRetry(() => import('@/pages/UnificadosPorSetor'), 'UnificadosPorSetor');
+
 // Sistema Administrativo - Lazy loading para páginas administrativas
 const Login = lazy(() => import('@/pages/Login').catch(() => ({ default: () => <div>Erro ao carregar Login</div> })));
+const PassengerRegisterPage = lazy(() => import('@/pages/passenger/PassengerRegisterPage').catch(() => ({ default: () => <div>Erro ao carregar Cadastro de Passageiro</div> })));
 const ForgotPassword = lazy(() => import('@/pages/ForgotPassword').catch(() => ({ default: () => <div>Erro ao carregar Recuperação de Senha</div> })));
 const ResetPassword = lazy(() => import('@/pages/ResetPassword').catch(() => ({ default: () => <div>Erro ao carregar Redefinição de Senha</div> })));
 const FirstAccessChangePassword = lazy(() => import('@/pages/FirstAccessChangePassword').catch(() => ({ default: () => <div>Erro ao carregar Primeiro Acesso</div> })));
@@ -117,6 +89,7 @@ const Dashboard = lazy(() => import('@/pages/Dashboard').catch(() => ({ default:
 const DashboardColaborador = lazy(() => import('@/pages/DashboardColaborador'));
 const DriverDashboard = lazy(() => import('@/pages/DriverDashboard'));
 const DriverChecklist = lazy(() => import('@/pages/driver/DriverChecklist'));
+const DriverWorkOrdersPage = lazy(() => import('@/pages/driver/DriverWorkOrdersPage'));
 const DashboardVigilante = lazy(() => import('@/pages/DashboardVigilante'));
 const EmployeePortal = lazy(() => import('@/pages/employee/EmployeePortal'));
 const ClientPortal = lazy(() => import('@/pages/client/ClientPortal'));
@@ -151,6 +124,7 @@ const GestaoLimpezaVeiculos = lazy(() => import('@/pages/manutencao/GestaoLimpez
 const Garagens = lazy(() => import('@/pages/Garagens'));
 const Lavajato = lazy(() => import('@/pages/manutencao/Lavajato'));
 const GestaoCertificacoesCFME = lazy(() => import('@/pages/manutencao/GestaoCertificacoesCFME'));
+const TransportOperationalDashboardPage = lazy(() => import('@/pages/fretamento/TransportOperationalDashboardPage'));
 const TrafficManagementDashboard = lazy(() => import('@/pages/fretamento/TrafficManagementDashboard'));
 const RoutesAndPoints = lazy(() => import('@/pages/fretamento/RoutesAndPoints'));
 const Horarios = lazy(() => import('@/pages/fretamento/Horarios'));
@@ -241,6 +215,8 @@ const AdmissaoDemissao = lazy(() => import('@/pages/AdmissaoDemissao'));
 const CentrosDeCusto = lazy(() => import('@/pages/CentrosDeCusto'));
 const ImportarDadosBancarios = lazy(() => import('@/pages/ImportarDadosBancarios'));
 const ImportarWhatsappPDF = lazy(() => import('@/pages/ImportarWhatsappPDF'));
+const GestaoAtestados = lazy(() => import('@/pages/RH/GestaoAtestados'));
+const ModuloDespesasPage = lazy(() => import('@/pages/financeiro/ModuloDespesasPage'));
 
 // Páginas adicionais
 const Filiais = lazy(() => import('@/pages/Filiais'));
@@ -325,6 +301,42 @@ function App() {
     window.addEventListener('error', handleMessageChannelError);
     window.addEventListener('unhandledrejection', handleUnhandledRejection);
 
+    // Salvaguarda global para evitar que diálogos Radix travem a tela com pointer-events: none ou overflow: hidden
+    let isCleaning = false;
+    let cleanupTimer: any = null;
+
+    const cleanupStuckBodyStyles = () => {
+      if (isCleaning) return;
+      clearTimeout(cleanupTimer);
+      cleanupTimer = setTimeout(() => {
+        isCleaning = true;
+        try {
+          const hasOpenDialog = document.querySelector('[role="dialog"], [role="alertdialog"], [data-state="open"]');
+          if (!hasOpenDialog) {
+            if (document.body.style.pointerEvents === 'none') {
+              document.body.style.pointerEvents = '';
+            }
+            if (document.body.style.overflow === 'hidden') {
+              document.body.style.overflow = '';
+            }
+          }
+        } finally {
+          setTimeout(() => { isCleaning = false; }, 50);
+        }
+      }, 150);
+    };
+
+    const bodyObserver = new MutationObserver(() => {
+      cleanupStuckBodyStyles();
+    });
+
+    bodyObserver.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['style', 'class']
+    });
+
+    window.addEventListener('popstate', cleanupStuckBodyStyles);
+
     // GSAP já está registrado no import acima
     // ScrollTrigger será configurado nos componentes individuais via useGSAP hook
     console.log('✅ GSAP e ScrollTrigger registrados!');
@@ -332,6 +344,9 @@ function App() {
     return () => {
       window.removeEventListener('error', handleMessageChannelError);
       window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+      window.removeEventListener('popstate', cleanupStuckBodyStyles);
+      clearTimeout(cleanupTimer);
+      bodyObserver.disconnect();
     };
   }, []);
 
@@ -352,14 +367,14 @@ function App() {
                     <EmpresaThemeSync />
                     <Routes>
                       {/* Portal Público */}
-                      <Route path="/" element={<PortalHome />} />
-                      <Route path="/portal" element={<PortalHome />} />
-                      <Route path="/quem-somos" element={<QuemSomos />} />
-                      <Route path="/servicos-publico" element={<ServicosPublico />} />
-                      <Route path="/trabalhe-conosco" element={<PortalVagas />} />
-                      <Route path="/contato" element={<Contato />} />
-                      <Route path="/politicas-privacidade" element={<PoliticasPrivacidade />} />
-                      <Route path="/termos-condicoes" element={<TermosCondicoes />} />
+                      <Route path="/" element={<Suspense fallback={<LoadingSpinner />}><PortalHome /></Suspense>} />
+                      <Route path="/portal" element={<Suspense fallback={<LoadingSpinner />}><PortalHome /></Suspense>} />
+                      <Route path="/quem-somos" element={<Suspense fallback={<LoadingSpinner />}><QuemSomos /></Suspense>} />
+                      <Route path="/servicos-publico" element={<Suspense fallback={<LoadingSpinner />}><ServicosPublico /></Suspense>} />
+                      <Route path="/trabalhe-conosco" element={<Suspense fallback={<LoadingSpinner />}><PortalVagas /></Suspense>} />
+                      <Route path="/contato" element={<Suspense fallback={<LoadingSpinner />}><Contato /></Suspense>} />
+                      <Route path="/politicas-privacidade" element={<Suspense fallback={<LoadingSpinner />}><PoliticasPrivacidade /></Suspense>} />
+                      <Route path="/termos-condicoes" element={<Suspense fallback={<LoadingSpinner />}><TermosCondicoes /></Suspense>} />
 
                       {/* Sistema Administrativo */}
                       <Route path="/admin" element={<Navigate to="/admin/companies" replace />} />
@@ -453,6 +468,16 @@ function App() {
                           <Login />
                         </Suspense>
                       } />
+                      <Route path="/cadastro-passageiro" element={
+                        <Suspense fallback={
+                          <div className="min-h-screen w-full bg-slate-950 flex flex-col items-center justify-center p-4">
+                            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500"></div>
+                            <p className="mt-4 text-slate-400">Carregando cadastro de passageiro...</p>
+                          </div>
+                        }>
+                          <PassengerRegisterPage />
+                        </Suspense>
+                      } />
                       <Route path="/forgot-password" element={
                         <Suspense fallback={
                           <div className="min-h-screen w-full bg-seguranca-black flex flex-col items-center justify-center p-4">
@@ -496,14 +521,16 @@ function App() {
                         </Suspense>
                       } />
                       <Route path="/lgpd-consent" element={
-                        <Suspense fallback={
-                          <div className="min-h-screen w-full bg-seguranca-black flex flex-col items-center justify-center p-4">
-                            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-seguranca-yellow"></div>
-                            <p className="mt-4 text-seguranca-lightgray">Carregando consentimento LGPD...</p>
-                          </div>
-                        }>
-                          <LgpdConsent />
-                        </Suspense>
+                        <ProtectedRoute allowWithoutFirstAccess={true}>
+                          <Suspense fallback={
+                            <div className="min-h-screen w-full bg-seguranca-black flex flex-col items-center justify-center p-4">
+                              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-seguranca-yellow"></div>
+                              <p className="mt-4 text-seguranca-lightgray">Carregando consentimento LGPD...</p>
+                            </div>
+                          }>
+                            <LgpdConsent />
+                          </Suspense>
+                        </ProtectedRoute>
                       } />
                       <Route path="/request-access" element={
                         <Suspense fallback={<LoadingSpinner />}>
@@ -547,6 +574,13 @@ function App() {
                           </Suspense>
                         </ProtectedRoute>
                       } />
+                      <Route path="/driver/work-orders" element={
+                        <ProtectedRoute>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <DriverWorkOrdersPage />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
                       <Route path="/dashboard-vigilante" element={
                         <ProtectedRoute>
                           <Suspense fallback={<LoadingSpinner />}>
@@ -576,7 +610,7 @@ function App() {
                         </ProtectedRoute>
                       } />
                       <Route path="/mensagens" element={
-                        <ProtectedRoute requiredPermissions={['MESSAGES_READ']}>
+                        <ProtectedRoute>
                           <Suspense fallback={<LoadingSpinner />}>
                             <Mensagens />
                           </Suspense>
@@ -600,14 +634,14 @@ function App() {
 
                       {/* Módulo de Gestão de Atendimento com rotas aninhadas */}
                       <Route path="/gestao-atendimento" element={
-                        <ProtectedRoute requiredPermissions={['ATTENDANCE_READ']}>
+                        <ProtectedRoute>
                           <Suspense fallback={<LoadingSpinner />}>
                             <GestaoAtendimento />
                           </Suspense>
                         </ProtectedRoute>
                       } />
                       <Route path="/gestao-atendimento/:page" element={
-                        <ProtectedRoute requiredPermissions={['ATTENDANCE_READ']}>
+                        <ProtectedRoute>
                           <Suspense fallback={<LoadingSpinner />}>
                             <GestaoAtendimento />
                           </Suspense>
@@ -653,9 +687,30 @@ function App() {
                           <Postos />
                         </ProtectedRoute>
                       } />
+                      <Route path="/rh/despesas" element={
+                        <ProtectedRoute requiredPermissions={['EMPLOYEES_READ']}>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <ModuloDespesasPage modulo="RH" />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/dp/despesas" element={
+                        <ProtectedRoute requiredPermissions={['EMPLOYEES_READ']}>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <ModuloDespesasPage modulo="DP" />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
                       <Route path="/operacional" element={
                         <ProtectedRoute requiredPermissions={['EMPLOYEES_READ']}>
                           <Operacional />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/operacional/despesas" element={
+                        <ProtectedRoute requiredPermissions={['EMPLOYEES_READ']}>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <ModuloDespesasPage modulo="OPERACIONAL" />
+                          </Suspense>
                         </ProtectedRoute>
                       } />
                       <Route path="/operacional/medicao" element={
@@ -851,6 +906,20 @@ function App() {
                           </Suspense>
                         </ProtectedRoute>
                       } />
+                      <Route path="/manutencao/despesas" element={
+                        <ProtectedRoute requiredPermissions={['EQUIPMENTS_READ']}>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <ModuloDespesasPage modulo="MANUTENCAO" />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/frota/despesas" element={
+                        <ProtectedRoute requiredPermissions={['EQUIPMENTS_READ']}>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <ModuloDespesasPage modulo="FROTA" />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
                       <Route path="/frota/ordens-servico" element={
                         <ProtectedRoute requiredPermissions={['EQUIPMENTS_READ']}>
                           <Suspense fallback={<LoadingSpinner />}>
@@ -958,6 +1027,20 @@ function App() {
                           </Suspense>
                         </ProtectedRoute>
                       } />
+                      <Route path="/gestao-trafego/painel-operacional" element={
+                        <ProtectedRoute>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <TransportOperationalDashboardPage />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/transporte/painel" element={
+                        <ProtectedRoute>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <TransportOperationalDashboardPage />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
                       <Route path="/fretamento" element={
                         <ProtectedRoute>
                           <Suspense fallback={<LoadingSpinner />}>
@@ -1021,6 +1104,7 @@ function App() {
                           </Suspense>
                         </ProtectedRoute>
                       } />
+                      <Route path="/fretamento/minhas-escalas" element={<Navigate to="/driver/trips" replace />} />
                       <Route path="/fretamento/:page" element={
                         <ProtectedRoute>
                           <Suspense fallback={<LoadingSpinner />}>
@@ -1121,6 +1205,13 @@ function App() {
                           </Suspense>
                         </ProtectedRoute>
                       } />
+                      <Route path="/almoxarifado/despesas" element={
+                        <ProtectedRoute requiredPermissions={['EQUIPMENTS_READ']}>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <ModuloDespesasPage modulo="ALMOXARIFADO" />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
                       <Route path="/compras/requisicoes" element={
                         <ProtectedRoute>
                           <Suspense fallback={<LoadingSpinner />}>
@@ -1205,7 +1296,9 @@ function App() {
                       {/* Unificados por Setor */}
                       <Route path="/unificados-por-setor" element={
                         <ProtectedRoute>
-                          <UnificadosPorSetor />
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <UnificadosPorSetor />
+                          </Suspense>
                         </ProtectedRoute>
                       } />
 
@@ -1288,6 +1381,13 @@ function App() {
                           <SSTTreinamentos />
                         </ProtectedRoute>
                       } />
+                      <Route path="/rh/sst/despesas" element={
+                        <ProtectedRoute requiredPermissions={['EMPLOYEES_READ']}>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <ModuloDespesasPage modulo="SST" />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
                       <Route path="/rh/treinamentos" element={
                         <ProtectedRoute>
                           <Treinamentos />
@@ -1300,6 +1400,14 @@ function App() {
                           </Suspense>
                         </ProtectedRoute>
                       } />
+                      <Route path="/ponto-eletronico" element={
+                        <ProtectedRoute>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <PontoEletronico />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/ponto" element={<Navigate to="/rh/ponto-eletronico" replace />} />
                       <Route path="/rh/ponto-admin/dashboard" element={
                         <ProtectedRoute requiredPermissions={['TIME_RECORD_MANAGE']}>
                           <Suspense fallback={<LoadingSpinner />}>
@@ -1436,6 +1544,20 @@ function App() {
                       <Route path="/rh/vagas" element={
                         <ProtectedRoute>
                           <Vagas />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/rh/atestados" element={
+                        <ProtectedRoute>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <GestaoAtestados />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/atestados" element={
+                        <ProtectedRoute>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <GestaoAtestados />
+                          </Suspense>
                         </ProtectedRoute>
                       } />
 
@@ -1654,7 +1776,7 @@ function App() {
 
                       {/* Usuarios */}
                       <Route path="/usuarios" element={
-                        <ProtectedRoute>
+                        <ProtectedRoute requiredRoles={['SUPER_ADMIN', 'FLEX_ADMIN', 'COMPANY_ADMIN', 'ADMIN']}>
                           <Usuarios />
                         </ProtectedRoute>
                       } />                      {/* Roles */}
@@ -1771,7 +1893,7 @@ function App() {
 
                       {/* Usuarios */}
                       <Route path="/usuarios" element={
-                        <ProtectedRoute>
+                        <ProtectedRoute requiredRoles={['SUPER_ADMIN', 'FLEX_ADMIN', 'COMPANY_ADMIN', 'ADMIN']}>
                           <Usuarios />
                         </ProtectedRoute>
                       } />                      {/* Roles */}

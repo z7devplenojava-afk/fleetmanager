@@ -119,3 +119,12 @@ DESCOBRIR_SENHAS*.md
 ATUALIZAR_*SENHA*.sql
 qr-temp.json
 .secrets-rotation.local
+test_*.py
+inspect_*.py
+*.sql
+!backend/src/**/*.sql
+despesas-manutencao-modulos.md
+gestao-atestados.md
+
+backend/.gradle_cache/
+.gradle_cache/

@@ -153,7 +153,35 @@ export const QuotationDetailModal: React.FC<QuotationDetailModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl w-[95vw] sm:w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-2xl shadow-2xl p-4 sm:p-6 max-h-[92vh] overflow-y-auto">
+      <DialogContent
+        onPointerDownOutside={(e) => {
+          const target = e.target as HTMLElement;
+          if (
+            !target ||
+            target.closest('[toast-close]') ||
+            target.closest('[role="status"]') ||
+            target.closest('[data-radix-toast-announce-exclude]') ||
+            target.closest('ol') ||
+            target.closest('.toast')
+          ) {
+            e.preventDefault();
+          }
+        }}
+        onInteractOutside={(e) => {
+          const target = e.target as HTMLElement;
+          if (
+            !target ||
+            target.closest('[toast-close]') ||
+            target.closest('[role="status"]') ||
+            target.closest('[data-radix-toast-announce-exclude]') ||
+            target.closest('ol') ||
+            target.closest('.toast')
+          ) {
+            e.preventDefault();
+          }
+        }}
+        className="max-w-4xl w-[95vw] sm:w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-2xl shadow-2xl p-4 sm:p-6 max-h-[92vh] overflow-y-auto"
+      >
         <DialogHeader className="pb-4 border-b border-slate-800">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">

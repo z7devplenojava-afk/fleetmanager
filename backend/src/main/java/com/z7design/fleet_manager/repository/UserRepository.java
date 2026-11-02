@@ -15,6 +15,9 @@ import com.z7design.fleet_manager.model.User;
 public interface UserRepository extends JpaRepository<User, UUID> {
        Optional<User> findByUsername(String username);
 
+       @Query("SELECT u FROM User u WHERE LOWER(u.username) = LOWER(:input) OR LOWER(u.email) = LOWER(:input)")
+       Optional<User> findByUsernameOrEmailIgnoreCase(@Param("input") String input);
+
        boolean existsByUsername(String username);
 
        Optional<User> findByEmail(String email);
@@ -82,10 +85,48 @@ public interface UserRepository extends JpaRepository<User, UUID> {
        List<User> searchUsers(@Param("query") String query);
 
        /**
-        * Busca usuÃ¡rio atravÃ©s do CPF do funcionÃ¡rio associado
+        * Busca usuário através do CPF do funcionário associado
         */
        @Query("SELECT u FROM User u " +
                      "JOIN Employee e ON e.user.id = u.id " +
                      "WHERE e.document = :cpf")
        Optional<User> findByEmployeeCpf(@Param("cpf") String cpf);
+
+       /**
+        * Busca usuário por username, email, CPF ou matrícula de funcionário
+        */
+       @Query(value = "SELECT u.* FROM users u " +
+                     "LEFT JOIN employees e ON e.user_id = u.id " +
+                     "LEFT JOIN passengers p ON p.user_id = u.id " +
+                     "WHERE LOWER(u.username) = LOWER(:identifier) " +
+                     "   OR LOWER(u.email) = LOWER(:identifier) " +
+                     "   OR (LENGTH(:cleanDigits) >= 11 AND (" +
+                     "         REGEXP_REPLACE(COALESCE(u.username, ''), '[^0-9]', '', 'g') = :cleanDigits " +
+                     "      OR REGEXP_REPLACE(COALESCE(u.cpf, ''), '[^0-9]', '', 'g') = :cleanDigits " +
+                     "      OR REGEXP_REPLACE(COALESCE(e.document, ''), '[^0-9]', '', 'g') = :cleanDigits " +
+                     "      OR REGEXP_REPLACE(COALESCE(p.cpf, ''), '[^0-9]', '', 'g') = :cleanDigits" +
+                     "   )) " +
+                     "   OR (LENGTH(TRIM(:identifier)) >= 2 AND (" +
+                     "         LOWER(TRIM(COALESCE(u.employee_code, ''))) = LOWER(TRIM(:identifier)) " +
+                     "      OR LOWER(TRIM(COALESCE(e.registration_number, ''))) = LOWER(TRIM(:identifier)) " +
+                     "      OR LOWER(TRIM(COALESCE(e.matricula_esocial, ''))) = LOWER(TRIM(:identifier)) " +
+                     "      OR LOWER(TRIM(COALESCE(p.registration, ''))) = LOWER(TRIM(:identifier))" +
+                     "   )) " +
+                     "LIMIT 1", nativeQuery = true)
+       Optional<User> findByIdentifierNative(@Param("identifier") String identifier, @Param("cleanDigits") String cleanDigits);
+
+       @Query(value = "SELECT * FROM users WHERE REGEXP_REPLACE(COALESCE(cpf, ''), '[^0-9]', '', 'g') = :cleanCpf LIMIT 1", nativeQuery = true)
+       Optional<User> findByCpfNative(@Param("cleanCpf") String cleanCpf);
+
+       /**
+        * Busca usuário por ID ignorando filtros de tenant do Hibernate (garante busca consistente de entidade)
+        */
+       @Query(value = "SELECT * FROM users WHERE id = :id", nativeQuery = true)
+       Optional<User> findByIdNative(@Param("id") UUID id);
+
+       @Query(value = "SELECT * FROM users WHERE LOWER(username) = LOWER(:username) LIMIT 1", nativeQuery = true)
+       Optional<User> findByUsernameNative(@Param("username") String username);
+
+       @Query(value = "SELECT * FROM users WHERE LOWER(email) = LOWER(:email) LIMIT 1", nativeQuery = true)
+       Optional<User> findByEmailNative(@Param("email") String email);
 }

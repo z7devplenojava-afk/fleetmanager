@@ -39,6 +39,8 @@ http:
       middlewares:
         - prod-cors
         - prod-allow-all-methods
+      tls:
+        certResolver: letsencryptresolver
       priority: 2000
 
     # Chamadas /api e /ws feitas em fluxbus.com.br roteadas diretamente ao backend (evita 405 do frontend)
@@ -51,6 +53,8 @@ http:
       middlewares:
         - prod-cors
         - prod-allow-all-methods
+      tls:
+        certResolver: letsencryptresolver
       priority: 2000
 
     # Frontend SPA para o domínio principal e www
@@ -60,6 +64,8 @@ http:
         - websecure
         - web
       service: prod-frontend-service
+      tls:
+        certResolver: letsencryptresolver
       priority: 1000
 
   services:

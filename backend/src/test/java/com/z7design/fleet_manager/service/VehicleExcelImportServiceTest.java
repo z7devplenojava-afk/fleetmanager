@@ -15,6 +15,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionStatus;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -33,12 +34,20 @@ class VehicleExcelImportServiceTest {
     @Mock
     private PlatformTransactionManager transactionManager;
 
+    @Mock
+    private TransactionStatus transactionStatus;
+
+    @Mock
+    private UserCompanyResolver userCompanyResolver;
+
     @InjectMocks
     private VehicleExcelImportService importService;
 
     @BeforeEach
     void setUp() {
+        when(userCompanyResolver.resolveCurrentCompanyId()).thenReturn(null);
         when(vehicleRepository.findAll()).thenReturn(Collections.emptyList());
+        lenient().when(transactionManager.getTransaction(any())).thenReturn(transactionStatus);
     }
 
     @Test
@@ -73,7 +82,7 @@ class VehicleExcelImportServiceTest {
         ImportResultDto result = importService.importVehiclesFromExcel(file);
 
         assertEquals(1, result.getInserted());
-        verify(vehicleRepository, times(1)).saveAll(any());
+        verify(vehicleRepository, times(1)).save(any());
     }
 
     @Test

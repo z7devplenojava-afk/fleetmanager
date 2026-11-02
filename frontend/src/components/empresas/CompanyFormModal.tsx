@@ -298,6 +298,7 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
                       src={logoPreview}
                       alt="Ícone da empresa"
                       className="w-full h-full object-contain rounded-xl"
+                      onError={() => setLogoPreview(null)}
                     />
                   ) : (
                     <div className="flex flex-col items-center justify-center text-center text-gray-400 p-1">

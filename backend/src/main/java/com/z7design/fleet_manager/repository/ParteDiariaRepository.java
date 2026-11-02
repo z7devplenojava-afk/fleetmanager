@@ -16,6 +16,9 @@ public interface ParteDiariaRepository extends JpaRepository<ParteDiaria, UUID> 
     List<ParteDiaria> findByContractIdAndDateBetween(UUID contractId, LocalDate start, LocalDate end);
     List<ParteDiaria> findByVehiclePlateAndDateBetween(String vehiclePlate, LocalDate start, LocalDate end);
 
+    List<ParteDiaria> findByClientId(UUID clientId);
+    List<ParteDiaria> findByClientIdAndDateBetween(UUID clientId, LocalDate start, LocalDate end);
+
     @Query("SELECT p FROM ParteDiaria p WHERE p.contract.id = :contractId AND p.date >= :start AND p.date <= :end AND p.status IN ('LANÇADA', 'VALIDADA')")
     List<ParteDiaria> findValidPartesForMeasurement(@Param("contractId") UUID contractId, @Param("start") LocalDate start, @Param("end") LocalDate end);
 }

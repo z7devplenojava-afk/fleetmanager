@@ -312,31 +312,25 @@ const DriverShifts: React.FC = () => {
     return (
         <StandardLayout title="Gestão de Turnos" subtitle="Gerencie turnos, acompanhe execuções e realoque motoristas">
         <div className="p-6">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-6">
-                <div>
-                    <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-                        <Clock className="w-7 h-7 text-red-500" />
-                        Gestão de Turnos
-                    </h1>
-                    <p className="text-gray-400 mt-1">Gerencie turnos, acompanhe execuções e realoque motoristas</p>
+            {/* Header Toolbar */}
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+                <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-gray-400" />
+                    <span className="text-sm text-gray-400">Data selecionada:</span>
+                    <Input
+                        type="date"
+                        value={selectedDate}
+                        onChange={(e) => setSelectedDate(e.target.value)}
+                        className="bg-seguranca-graphite border-gray-600 text-gray-200 w-44"
+                    />
                 </div>
                 <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-gray-400" />
-                        <Input
-                            type="date"
-                            value={selectedDate}
-                            onChange={(e) => setSelectedDate(e.target.value)}
-                            className="bg-seguranca-graphite border-gray-600 text-gray-200 w-44"
-                        />
-                    </div>
                     <Button
                         onClick={() => {
                             setFormData(prev => ({ ...prev, shiftDate: selectedDate }));
                             setShowCreateModal(true);
                         }}
-                        className="bg-red-600 hover:bg-red-700 text-white"
+                        className="bg-red-600 hover:bg-red-700 text-white font-medium"
                     >
                         <Plus className="w-4 h-4 mr-1" /> Novo Turno
                     </Button>

@@ -58,37 +58,60 @@ export default defineConfig(({ mode }) => {
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
+        globPatterns: ['**/*.{js,css,html,png,svg,ico,woff2}'],
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         skipWaiting: true,
         clientsClaim: true,
-        // Limpar caches antigos automaticamente
         cleanupOutdatedCaches: true,
-        // Ignorar erros de precache (arquivos 404 não quebram o service worker)
-        // O Workbox irá apenas logar o erro mas continuar funcionando
+        inlineWorkboxRuntime: true,
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/api/, /^\/ws/, /^\/uploads/],
         runtimeCaching: [
+          // Fontes e estilos de terceiros
           {
-            urlPattern: /^https:\/\/.*\.js$/,
-            handler: 'NetworkFirst',
+            urlPattern: /^https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/i,
+            handler: 'CacheFirst',
             options: {
-              cacheName: 'js-cache',
+              cacheName: 'google-fonts-cache',
               expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 60 * 24 // 24 horas
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 * 365,
               },
               cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
-          }
+                statuses: [0, 200],
+              },
+            },
+          },
+          // Imagens locais
+          {
+            urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|ico)$/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'images-cache',
+              expiration: {
+                maxEntries: 60,
+                maxAgeSeconds: 60 * 60 * 24 * 30,
+              },
+            },
+          },
+          // Suporte Offline Área do Motorista: NetworkFirst com fallback para cache
+          {
+            urlPattern: /\/api\/(vehicles|drivers|frota\/checklist-configs|frota\/vehicles|schedules|vehicle-gate-checklists|fines)/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'driver-offline-api-cache',
+              networkTimeoutSeconds: 3,
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24 * 7, // 7 dias
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
         ],
-        // Não cachear arquivos JS dinamicamente importados
-        navigateFallback: null,
-        navigateFallbackDenylist: [/^\/api/, /^\/ws/]
       },
-      // Tratar erros de precache graciosamente
-      injectManifest: {
-        globPatterns: ['**/*.{js,css,html,png,svg,ico}']
-      }
     }),
   ];
 
@@ -112,6 +135,11 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: false,
         },
+        '/uploads': {
+          target: 'http://localhost:8081',
+          changeOrigin: true,
+          secure: false,
+        },
         '/ws': {
           target: 'http://localhost:8081',
           changeOrigin: true,
@@ -127,7 +155,8 @@ export default defineConfig(({ mode }) => {
       minify: 'terser', // Usar terser para melhor minificação
       terserOptions: {
         compress: {
-          drop_console: false, // Manter console.logs para debug
+          drop_console: true,
+          drop_debugger: true, // Manter console.logs para debug
         },
       },
       rollupOptions: {
@@ -193,7 +222,7 @@ export default defineConfig(({ mode }) => {
             'pdf': ['html2pdf.js', 'pdf-lib'],
 
             // WebSocket
-            'websocket': ['@stomp/stompjs', 'sockjs-client'],
+            'websocket': ['@stomp/stompjs'],
 
             // Other UI
             'ui-other': [

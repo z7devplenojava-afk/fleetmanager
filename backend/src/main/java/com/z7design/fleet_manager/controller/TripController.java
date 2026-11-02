@@ -22,23 +22,31 @@ public class TripController {
 
     private static final String READ_AUTH =
             "hasAnyAuthority('TRAFFIC_MANAGEMENT_READ', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', "
-                    + "'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR')";
+                    + "'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR', "
+                    + "'ENCARREGADO_DE_TRANSPORTES', 'ROLE_ENCARREGADO_DE_TRANSPORTES', 'ENCARREGADO_TRANSPORTES', 'ROLE_ENCARREGADO_TRANSPORTES', "
+                    + "'ENCARREGADO_DE_TRAFEGO', 'ROLE_ENCARREGADO_DE_TRAFEGO', 'ENCARREGADO_TRAFEGO', 'ROLE_ENCARREGADO_TRAFEGO', "
+                    + "'GESTOR_TRAFEGO', 'ROLE_GESTOR_TRAFEGO', 'GESTOR_DE_TRAFEGO', 'ROLE_GESTOR_DE_TRAFEGO', "
+                    + "'COMPANY_ADMIN', 'ROLE_COMPANY_ADMIN', "
+                    + "'MOTORISTA', 'ROLE_MOTORISTA', 'DRIVER', 'ROLE_DRIVER', 'COLABORADOR', 'ROLE_COLABORADOR')";
     private static final String WRITE_AUTH =
-            "hasAnyAuthority('TRAFFIC_MANAGEMENT_WRITE', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', "
-                    + "'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR')";
+            "hasAnyAuthority('TRAFFIC_MANAGEMENT_WRITE', 'TRIPS_EXECUTE', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', "
+                    + "'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR', "
+                    + "'ENCARREGADO_DE_TRANSPORTES', 'ROLE_ENCARREGADO_DE_TRANSPORTES', 'ENCARREGADO_TRANSPORTES', 'ROLE_ENCARREGADO_TRANSPORTES', "
+                    + "'ENCARREGADO_DE_TRAFEGO', 'ROLE_ENCARREGADO_DE_TRAFEGO', 'ENCARREGADO_TRAFEGO', 'ROLE_ENCARREGADO_TRAFEGO', "
+                    + "'GESTOR_TRAFEGO', 'ROLE_GESTOR_TRAFEGO', 'GESTOR_DE_TRAFEGO', 'ROLE_GESTOR_DE_TRAFEGO', "
+                    + "'COMPANY_ADMIN', 'ROLE_COMPANY_ADMIN', "
+                    + "'MOTORISTA', 'ROLE_MOTORISTA', 'DRIVER', 'ROLE_DRIVER')";
 
     private final TripService tripService;
 
     @PostMapping("/start/{scheduleId}")
-    @PreAuthorize("hasAnyAuthority('TRIPS_EXECUTE', 'TRAFFIC_MANAGEMENT_WRITE', 'ROLE_MANAGER_TRAFEGO', "
-            + "'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR')")
+    @PreAuthorize(WRITE_AUTH)
     public ResponseEntity<Trip> startTrip(@PathVariable("scheduleId") UUID scheduleId) {
         return ResponseEntity.ok(tripService.startTrip(scheduleId));
     }
 
     @GetMapping("/events")
-    @PreAuthorize("hasAnyAuthority('TRIPS_READ', 'TRAFFIC_MANAGEMENT_READ', 'ROLE_MANAGER_TRAFEGO', "
-            + "'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR')")
+    @PreAuthorize(READ_AUTH)
     public ResponseEntity<?> getEvents() {
         return ResponseEntity.ok(tripService.getEvents());
     }

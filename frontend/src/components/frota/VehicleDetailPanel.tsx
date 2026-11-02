@@ -10,7 +10,7 @@ import {
   Gauge, ClipboardList, CircleDot, Hash, Plus, Bus, DoorOpen,
   Wifi, Camera, Accessibility, Thermometer, Route, Settings,
   CreditCard, UserCheck, QrCode, Droplets, MoreHorizontal, Pencil,
-  Trash2, Copy, RefreshCw
+  Trash2, Copy, RefreshCw, Search
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -37,6 +37,7 @@ import VehicleQRCodeModal from '@/components/frota/VehicleQRCodeModal';
 import ManutencaoFormModal from '@/components/frota/ManutencaoFormModal';
 import { ManutencaoViewModal } from '@/components/frota/ManutencaoViewModal';
 import { ManutencaoDeleteDialog } from '@/components/frota/ManutencaoDeleteDialog';
+import { VehicleFineQueryModal } from '@/components/frota/VehicleFineQueryModal';
 import { generateFleetWorkOrderPDFBlob } from '@/utils/fleetWorkOrderPDFGenerator';
 import maintenanceService from '@/services/maintenanceService';
 import fleetService from '@/services/fleetService';
@@ -225,6 +226,7 @@ const VehicleDetailPanel: React.FC<VehicleDetailPanelProps> = ({ veiculo, isOpen
   const queryClient = useQueryClient();
   const [isOsFormOpen, setIsOsFormOpen] = useState(false);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+  const [isFineQueryModalOpen, setIsFineQueryModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<VehicleDetail | null>(null);
@@ -520,7 +522,19 @@ const VehicleDetailPanel: React.FC<VehicleDetailPanelProps> = ({ veiculo, isOpen
                 </p>
               </div>
             </div>
-            <div className="flex gap-2 shrink-0">
+            <div className="flex flex-wrap gap-2 shrink-0">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setActiveTab('multas');
+                  setIsFineQueryModalOpen(true);
+                }}
+                className="border-sky-500/80 bg-sky-950/40 text-sky-400 hover:bg-sky-500 hover:text-black h-9 font-medium shadow-sm transition-all"
+                title="Consultar novas multas, impedimentos no Detran e débitos (IPVA/licenciamento)"
+              >
+                <Search className="mr-1.5 h-4 w-4 text-sky-400 group-hover:text-black" /> Multas & Débitos
+              </Button>
               <Button
                 size="sm"
                 variant="outline"
@@ -658,11 +672,40 @@ const VehicleDetailPanel: React.FC<VehicleDetailPanelProps> = ({ veiculo, isOpen
                           </h4>
                           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                             {String(merged.photos).split(',').filter(Boolean).map((photo, i) => {
-                              const url = photo.startsWith('http') ? photo : `${getApiUrl().replace('/api', '')}${photo}`;
+                              const trimmed = photo.trim();
+                              const url = trimmed.startsWith('http') || trimmed.startsWith('data:')
+                                ? trimmed
+                                : (trimmed.startsWith('/api/') || trimmed.startsWith('/uploads/')
+                                  ? (trimmed.startsWith('/uploads/') ? `/api${trimmed}` : trimmed)
+                                  : (trimmed.startsWith('/') ? `/api/uploads${trimmed}` : `/api/uploads/vehicles/${trimmed}`));
+
                               return (
-                                <div key={i} className="relative group rounded-lg overflow-hidden border border-gray-600 bg-seguranca-graphite h-36">
-                                  <img src={url} alt={`Foto ${i + 1}`} className="w-full h-full object-cover"
-                                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                                <div key={i} className="relative group rounded-lg overflow-hidden border border-gray-600 bg-seguranca-graphite h-36 flex items-center justify-center">
+                                  <img
+                                    src={url}
+                                    alt={`Foto ${i + 1}`}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      const target = e.currentTarget;
+                                      if (!target.dataset.fallbackTried && !trimmed.startsWith('http') && !trimmed.startsWith('data:')) {
+                                        target.dataset.fallbackTried = '1';
+                                        target.src = `/api/uploads/${trimmed.replace(/^\/+/, '')}`;
+                                        return;
+                                      }
+                                      target.style.display = 'none';
+                                      const parent = target.parentElement;
+                                      if (parent) {
+                                        const fb = parent.querySelector('.photo-ph') as HTMLElement;
+                                        if (fb) fb.style.display = 'flex';
+                                      }
+                                    }}
+                                  />
+                                  <div className="photo-ph hidden w-full h-full flex-col items-center justify-center bg-gray-900/90 text-gray-400 p-2 text-center">
+                                    <Car className="h-6 w-6 text-gray-500 mb-1" />
+                                    <span className="text-[10px] truncate max-w-full text-gray-300 font-mono">
+                                      {trimmed.split('/').pop() || `Foto ${i + 1}`}
+                                    </span>
+                                  </div>
                                   <button
                                     className="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/40 transition-colors"
                                     onClick={() => window.open(url, '_blank')}
@@ -1433,11 +1476,38 @@ const VehicleDetailPanel: React.FC<VehicleDetailPanelProps> = ({ veiculo, isOpen
                 </TabsContent>
 
                 {/* ---------- MULTAS ---------- */}
-                <TabsContent value="multas" className="mt-4 space-y-3">
+                <TabsContent value="multas" className="mt-4 space-y-4">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 bg-seguranca-graphite border border-gray-600 rounded-lg">
+                    <div>
+                      <h4 className="text-sm font-semibold text-seguranca-lightgray flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4 text-amber-400" />
+                        Histórico de Multas e Infrações
+                      </h4>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        Consulte em tempo real novas multas, impedimentos no Detran e débitos de IPVA/licenciamento deste veículo.
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => setIsFineQueryModalOpen(true)}
+                      className="bg-sky-600 hover:bg-sky-700 text-white font-medium flex items-center gap-1.5 shrink-0 shadow-sm"
+                    >
+                      <Search className="h-4 w-4" /> Consultar Multas, Detran & IPVA
+                    </Button>
+                  </div>
+
                   {fines.length === 0 ? (
                     <Alert className="bg-seguranca-graphite border-gray-600">
-                      <AlertDescription className="text-sm text-gray-400">
-                        Nenhuma multa registrada para este veículo.
+                      <AlertDescription className="text-sm text-gray-400 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <span>Nenhuma multa registrada para este veículo no sistema.</span>
+                        <Button
+                          variant="link"
+                          size="sm"
+                          onClick={() => setIsFineQueryModalOpen(true)}
+                          className="text-sky-400 hover:text-sky-300 p-0 h-auto font-medium"
+                        >
+                          Fazer consulta no Detran agora &rarr;
+                        </Button>
                       </AlertDescription>
                     </Alert>
                   ) : (
@@ -1646,6 +1716,23 @@ const VehicleDetailPanel: React.FC<VehicleDetailPanelProps> = ({ veiculo, isOpen
         plateFallback={merged.placa}
         isOpen={isQrModalOpen}
         onClose={() => setIsQrModalOpen(false)}
+      />
+
+      {/* ===== MODAL DE CONSULTA DE MULTAS & RESTRIÇÕES (DETRAN/GOVERNO) ===== */}
+      <VehicleFineQueryModal
+        isOpen={isFineQueryModalOpen}
+        onClose={() => {
+          setIsFineQueryModalOpen(false);
+          loadAll();
+        }}
+        initialPlate={merged.placa || veiculo.placa || ''}
+        initialRenavam={(merged as any).renavam || (veiculo as any).renavam || ''}
+        initialUf={(merged as any).uf || (veiculo as any).uf || 'MG'}
+        onFinesUpdated={() => {
+          loadAll();
+          queryClient.invalidateQueries({ queryKey: ['fines'] });
+          queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+        }}
       />
 
       {/* ===== FORMULÁRIO NOVA OS (com veículo pré-selecionado) ===== */}

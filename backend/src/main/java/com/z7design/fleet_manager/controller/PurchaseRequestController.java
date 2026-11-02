@@ -20,7 +20,7 @@ public class PurchaseRequestController {
     private final PurchaseRequestService purchaseRequestService;
 
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'ROLE_COMPRAS', 'ROLE_FINANCEIRO', 'ROLE_ALMOXARIFADO', 'ROLE_SST', 'ROLE_ESTOQUE', 'ROLE_RH', 'ROLE_COORDENADOR_ALMOXARIFADO')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'ROLE_COMPRAS', 'ROLE_FINANCEIRO', 'ROLE_ALMOXARIFADO', 'ROLE_SST', 'ROLE_ESTOQUE', 'ROLE_RH', 'ROLE_COORDENADOR_ALMOXARIFADO', 'ROLE_GESTOR_TRAFEGO', 'ROLE_GESTOR_DE_TRAFEGO', 'ROLE_ENCARREGADO_DE_TRANSPORTES', 'ROLE_ENCARREGADO_TRANSPORTES', 'ROLE_ENCARREGADO_DE_TRAFEGO', 'ROLE_ENCARREGADO_TRAFEGO', 'ROLE_OPERACIONAL', 'ROLE_MANUTENCAO')")
     public ResponseEntity<List<PurchaseRequestDTO>> getAllPurchaseRequests() {
         log.info("Buscando todas as requisições de compra");
         List<PurchaseRequestDTO> requests = purchaseRequestService.getAllPurchaseRequests();
@@ -28,7 +28,7 @@ public class PurchaseRequestController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'ROLE_COMPRAS', 'ROLE_FINANCEIRO', 'ROLE_ALMOXARIFADO', 'ROLE_SST', 'ROLE_ESTOQUE', 'ROLE_RH', 'ROLE_COORDENADOR_ALMOXARIFADO')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'ROLE_COMPRAS', 'ROLE_FINANCEIRO', 'ROLE_ALMOXARIFADO', 'ROLE_SST', 'ROLE_ESTOQUE', 'ROLE_RH', 'ROLE_COORDENADOR_ALMOXARIFADO', 'ROLE_GESTOR_TRAFEGO', 'ROLE_GESTOR_DE_TRAFEGO', 'ROLE_ENCARREGADO_DE_TRANSPORTES', 'ROLE_ENCARREGADO_TRANSPORTES', 'ROLE_ENCARREGADO_DE_TRAFEGO', 'ROLE_ENCARREGADO_TRAFEGO', 'ROLE_OPERACIONAL', 'ROLE_MANUTENCAO')")
     public ResponseEntity<PurchaseRequestDTO> getPurchaseRequestById(@PathVariable("id") UUID id) {
         log.info("Buscando requisição de compra com ID: {}", id);
         return purchaseRequestService.getPurchaseRequestById(id)
@@ -37,7 +37,7 @@ public class PurchaseRequestController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'ROLE_COMPRAS', 'ROLE_ALMOXARIFADO', 'ROLE_SST', 'ROLE_ESTOQUE', 'ROLE_RH', 'ROLE_COORDENADOR_ALMOXARIFADO')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'ROLE_COMPRAS', 'ROLE_ALMOXARIFADO', 'ROLE_SST', 'ROLE_ESTOQUE', 'ROLE_RH', 'ROLE_COORDENADOR_ALMOXARIFADO', 'ROLE_GESTOR_TRAFEGO', 'ROLE_GESTOR_DE_TRAFEGO', 'ROLE_ENCARREGADO_DE_TRANSPORTES', 'ROLE_ENCARREGADO_TRANSPORTES', 'ROLE_ENCARREGADO_DE_TRAFEGO', 'ROLE_ENCARREGADO_TRAFEGO', 'ROLE_OPERACIONAL', 'ROLE_MANUTENCAO')")
     public ResponseEntity<PurchaseRequestDTO> createPurchaseRequest(@RequestBody PurchaseRequestDTO requestDTO) {
         log.info("Criando nova requisição de compra: {}", requestDTO.getTitle());
         PurchaseRequestDTO createdRequest = purchaseRequestService.createPurchaseRequest(requestDTO);

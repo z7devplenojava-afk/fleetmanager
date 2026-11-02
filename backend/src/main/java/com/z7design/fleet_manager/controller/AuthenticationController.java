@@ -78,6 +78,26 @@ public class AuthenticationController {
         } catch (org.springframework.security.core.AuthenticationException e) {
             String errorMessage = e.getMessage();
 
+            // Tratamento específico para conta bloqueada pelo Administrador:
+            // devolve 403 com código USER_BLOCKED e mensagem orientando procurar o Administrador
+            if (errorMessage != null && (errorMessage.contains("bloqueado") || errorMessage.contains("bloqueada"))) {
+                return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN)
+                        .body(Map.of(
+                                "error", "Forbidden",
+                                "message", errorMessage,
+                                "code", "USER_BLOCKED"));
+            }
+
+            // Tratamento específico para Primeiro Acesso necessário (colaborador cadastrado no RH sem senha)
+            if (errorMessage != null && (errorMessage.contains("Primeiro Acesso") || errorMessage.contains("sem senha configurada") || errorMessage.contains("não foi configurada"))) {
+                log.warn("ℹ️ Colaborador {} necessita realizar primeiro acesso.", username);
+                return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN)
+                        .body(Map.of(
+                                "error", "Forbidden",
+                                "message", errorMessage,
+                                "code", "FIRST_ACCESS_REQUIRED"));
+            }
+
             // Tratamento específico para usuário sem empresa
             if (errorMessage != null && errorMessage.contains("não possui empresa vinculada")) {
                 log.warn("⛔ Usuário {} sem empresa vinculada. Retornando 403 específico.", username);
@@ -139,6 +159,28 @@ public class AuthenticationController {
         return ResponseEntity.ok(response);
     }
 
+    @Operation(summary = "Auto-cadastro público de passageiro", description = "Cria uma conta de passageiro para uso no transporte público ou fretado, aceitando termos da LGPD, PCD e endereço ViaCEP.")
+    @PostMapping("/register-passenger")
+    public ResponseEntity<?> registerPassenger(@jakarta.validation.Valid @RequestBody com.z7design.fleet_manager.dto.PassengerRegistrationRequestDTO request) {
+        log.info("Recebida solicitação de auto-cadastro de passageiro: {} ({})", request.getName(), request.getCpf());
+        try {
+            AuthenticationResponse response = authenticationService.registerPassenger(request);
+            try {
+                logService.logUserActivity(request.getUsername(), "REGISTER_PASSENGER",
+                        "Auto-cadastro de passageiro realizado: " + request.getName());
+            } catch (Exception ignored) {
+            }
+            return ResponseEntity.ok(response);
+        } catch (com.z7design.fleet_manager.exception.BusinessException be) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.BAD_REQUEST)
+                    .body(Map.of("message", be.getMessage(), "error", "Bad Request"));
+        } catch (Exception ex) {
+            log.error("Erro no auto-cadastro de passageiro: {}", ex.getMessage(), ex);
+            return ResponseEntity.status(org.springframework.http.HttpStatus.BAD_REQUEST)
+                    .body(Map.of("message", ex.getMessage() != null ? ex.getMessage() : "Falha ao realizar cadastro.", "error", "Bad Request"));
+        }
+    }
+
     @Operation(summary = "Renova o token de acesso usando um token de refresh", description = "Fornece um token de refresh para obter um novo token de acesso e um novo token de refresh.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Token renovado com sucesso", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthenticationResponse.class), examples = @ExampleObject(value = "{\"token\": \"eyJhbGci...\", \"refreshToken\": \"eyJhbGci...\", \"user\": {\"username\": \"testuser\", \"email\": \"test@example.com\", \"fullName\": \"Test User\", \"role\": \"VIGILANTE\"}}"))),
@@ -146,16 +188,22 @@ public class AuthenticationController {
     })
     @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Objeto de requisiÃ§Ã£o para renovaÃ§Ã£o de token", content = @Content(mediaType = "application/json", schema = @Schema(implementation = RefreshTokenRequest.class), examples = @ExampleObject(value = "{\"refreshToken\": \"eyJhbGci...\"}")))
     @PostMapping("/refresh-token")
-    public ResponseEntity<AuthenticationResponse> refreshToken(@RequestBody RefreshTokenRequest request) {
-        AuthenticationResponse response = authenticationService.refreshToken(request);
+    public ResponseEntity<?> refreshToken(@RequestBody RefreshTokenRequest request) {
+        try {
+            AuthenticationResponse response = authenticationService.refreshToken(request);
 
-        // Log da atividade de refresh token
-        if (response.getUser() != null) {
-            logService.logUserActivity(response.getUser().getUsername(), "REFRESH_TOKEN",
-                    "Token de acesso renovado");
+            // Log da atividade de refresh token
+            if (response.getUser() != null) {
+                logService.logUserActivity(response.getUser().getUsername(), "REFRESH_TOKEN",
+                        "Token de acesso renovado");
+            }
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.warn("Falha ao renovar token de acesso via refresh-token: {}", e.getMessage());
+            return ResponseEntity.status(org.springframework.http.HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Unauthorized", "message", "Token de refresh inválido ou expirado"));
         }
-
-        return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "Teste de saÃºde da API", description = "Endpoint simples para testar se a API estÃ¡ funcionando.")

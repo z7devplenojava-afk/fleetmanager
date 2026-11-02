@@ -156,10 +156,10 @@ export const epiDeliveryFormService = {
   async getByEmployeeId(employeeId: string): Promise<EPIDeliveryForm[]> {
     try {
       const response = await api.get(`/api/epi-delivery-forms/employee/${employeeId}`);
-      return response.data;
+      return Array.isArray(response.data) ? response.data : [];
     } catch (error) {
-      console.error('Erro ao buscar fichas por funcionário:', error);
-      throw error;
+      console.warn('⚠️ Não foi possível carregar fichas de EPI do funcionário:', error);
+      return [];
     }
   },
 

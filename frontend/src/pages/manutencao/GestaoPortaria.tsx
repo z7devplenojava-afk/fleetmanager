@@ -21,7 +21,12 @@ import {
     Trash2,
     Gauge,
     ImageIcon,
-    QrCode
+    QrCode,
+    Eye,
+    FileDown,
+    FileSpreadsheet,
+    FileText,
+    Printer
 } from 'lucide-react';
 import { CameraCapture } from '@/components/frota/CameraCapture';
 import { QRCodeScanner } from '@/components/frota/QRCodeScanner';
@@ -45,9 +50,13 @@ import checklistConfigService from '@/services/checklistConfigService';
 import { getApiUrl } from '@/config/environment';
 import fleetService from '@/services/fleetService';
 import driverService from '@/services/driverService';
-import type { ChecklistType, ChecklistItem } from '@/types/portaria';
+import type { ChecklistType, ChecklistItem, VehicleGateChecklist } from '@/types/portaria';
 import { DEFAULT_CHECKLIST_ITEMS, CATEGORY_LABELS, configToChecklistItem } from '@/utils/checklistConfig';
+import { ChecklistDetailsModal } from '@/components/frota/ChecklistDetailsModal';
 import { useToast } from '@/hooks/use-toast';
+import * as XLSX from 'xlsx';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 import accessRecordService, { AccessRecord } from '@/services/accessRecordService';
 
@@ -77,10 +86,13 @@ const GestaoPortaria: React.FC = () => {
     );
     const [filters, setFilters] = useState({
         vehicleId: 'all',
+        driverId: 'all',
         type: 'all' as ChecklistType | 'all',
         dateFrom: '',
         dateTo: '',
     });
+    const [selectedChecklistForView, setSelectedChecklistForView] = useState<VehicleGateChecklist | null>(null);
+    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
 
     const { data: vehicles = [] } = useQuery({
@@ -94,10 +106,11 @@ const GestaoPortaria: React.FC = () => {
     });
 
     const { data: checklists = [], isLoading } = useQuery({
-        queryKey: ['vehicle-gate-checklists', filters.vehicleId, filters.type, filters.dateFrom, filters.dateTo],
+        queryKey: ['vehicle-gate-checklists', filters.vehicleId, filters.driverId, filters.type, filters.dateFrom, filters.dateTo],
         queryFn: () =>
             vehicleGateChecklistService.findAll({
                 vehicleId: filters.vehicleId && filters.vehicleId !== 'all' ? filters.vehicleId : undefined,
+                driverId: filters.driverId && filters.driverId !== 'all' ? filters.driverId : undefined,
                 type: filters.type && filters.type !== 'all' ? filters.type : undefined,
                 dateFrom: filters.dateFrom || undefined,
                 dateTo: filters.dateTo || undefined,
@@ -279,6 +292,73 @@ const GestaoPortaria: React.FC = () => {
     };
 
     const filteredChecklists = checklists;
+
+    const handleExportListPDF = () => {
+        if (filteredChecklists.length === 0) {
+            toast({ title: 'Nenhum registro', description: 'Não há registros para exportar com os filtros atuais.', variant: 'destructive' });
+            return;
+        }
+        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+        doc.setFillColor(15, 23, 42);
+        doc.rect(0, 0, 297, 26, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text('FLUXBUS - RELATÓRIO CONSOLIDADO DE PORTARIA E CHECKLISTS', 14, 13);
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(203, 213, 225);
+        doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')} • Total de Registros: ${filteredChecklists.length}`, 14, 20);
+
+        const rows = filteredChecklists.map((c) => [
+            new Date(c.occurredAt).toLocaleString('pt-BR'),
+            c.type === 'EXIT' ? 'Saída' : 'Chegada',
+            c.vehiclePlate || '-',
+            c.driverName || '-',
+            `${c.kmReading.toLocaleString('pt-BR')} km`,
+            c.distanceTravelled != null ? `${c.distanceTravelled} km` : '-',
+            c.driverProblemReport || 'Nenhum',
+        ]);
+
+        autoTable(doc, {
+            startY: 32,
+            head: [['Data/Hora', 'Tipo', 'Veículo', 'Motorista', 'Odômetro', 'Distância Viagem', 'Problemas / Avarias']],
+            body: rows,
+            theme: 'grid',
+            headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontSize: 8, fontStyle: 'bold' },
+            styles: { fontSize: 8, cellPadding: 2.5 },
+        });
+
+        doc.save(`relatorio-portaria-checklists-${new Date().toISOString().slice(0, 10)}.pdf`);
+        toast({ title: 'Relatório PDF gerado', description: 'O download foi iniciado com sucesso.' });
+    };
+
+    const handleExportListExcel = () => {
+        if (filteredChecklists.length === 0) {
+            toast({ title: 'Nenhum registro', description: 'Não há registros para exportar com os filtros atuais.', variant: 'destructive' });
+            return;
+        }
+        const exportData = filteredChecklists.map((c) => ({
+            'Data e Hora': new Date(c.occurredAt).toLocaleString('pt-BR'),
+            'Tipo': c.type === 'EXIT' ? 'Saída' : 'Chegada',
+            'Placa do Veículo': c.vehiclePlate || '',
+            'Motorista': c.driverName || '',
+            'Odômetro (KM)': c.kmReading,
+            'KM Inicial Origem': c.initialKm || '',
+            'KM Final Destino': c.finalKm || '',
+            'Distância Percorrida (KM)': c.distanceTravelled || '',
+            'Deslocamento Garagem (KM)': c.displacementDistance || '',
+            'Total Percorrido (KM)': c.totalKmTravelled || '',
+            'Problemas / Avarias Relatadas': c.driverProblemReport || '',
+            'Observações': c.observations || '',
+        }));
+        const worksheet = XLSX.utils.json_to_sheet(exportData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Portaria e Checklists');
+        XLSX.writeFile(workbook, `relatorio-portaria-${new Date().toISOString().slice(0, 10)}.xlsx`);
+        toast({ title: 'Planilha Excel gerada', description: 'O download foi iniciado com sucesso.' });
+    };
+
     const stats = {
         todayExit: checklists.filter(
             (c) => c.type === 'EXIT' && new Date(c.occurredAt).toDateString() === new Date().toDateString()
@@ -506,15 +586,43 @@ const GestaoPortaria: React.FC = () => {
 
                 {activeTab === 'list' && (
                     <Card className="bg-seguranca-graphite border-gray-600">
-                        <CardHeader>
-                            <CardTitle className="text-seguranca-lightgray">Registros de Portaria</CardTitle>
-                            <div className="flex flex-wrap gap-2 mt-4">
+                        <CardHeader className="space-y-4">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <div>
+                                    <CardTitle className="text-seguranca-lightgray text-xl">Registros de Portaria & Checklists</CardTitle>
+                                    <p className="text-xs text-gray-400 mt-1">
+                                        Histórico completo de entradas, saídas e inspeções detalhadas dos veículos
+                                    </p>
+                                </div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleExportListPDF}
+                                        className="gap-1.5 border-seguranca-yellow/40 text-seguranca-yellow hover:bg-seguranca-yellow/10 h-8 text-xs font-semibold"
+                                    >
+                                        <FileDown className="h-3.5 w-3.5" />
+                                        Relatório PDF
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleExportListExcel}
+                                        className="gap-1.5 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 h-8 text-xs font-semibold"
+                                    >
+                                        <FileSpreadsheet className="h-3.5 w-3.5" />
+                                        Planilha Excel
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-700/60">
                                 <Select value={filters.vehicleId} onValueChange={(v) => setFilters((f) => ({ ...f, vehicleId: v }))}>
-                                    <SelectTrigger className="w-[180px] bg-seguranca-black border-gray-600">
+                                    <SelectTrigger className="w-[170px] bg-seguranca-black border-gray-600 text-xs">
                                         <SelectValue placeholder="Veículo" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="all">Todos</SelectItem>
+                                        <SelectItem value="all">Todos os Veículos</SelectItem>
                                         {vehicles.map((v) => (
                                             <SelectItem key={v.id} value={v.id}>
                                                 {v.plate} - {v.brand} {v.model}
@@ -522,29 +630,45 @@ const GestaoPortaria: React.FC = () => {
                                         ))}
                                     </SelectContent>
                                 </Select>
+
+                                <Select value={filters.driverId} onValueChange={(v) => setFilters((f) => ({ ...f, driverId: v }))}>
+                                    <SelectTrigger className="w-[170px] bg-seguranca-black border-gray-600 text-xs">
+                                        <SelectValue placeholder="Motorista" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Todos os Motoristas</SelectItem>
+                                        {drivers.map((d) => (
+                                            <SelectItem key={d.id} value={d.id}>
+                                                {d.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+
                                 <Select value={filters.type} onValueChange={(v) => setFilters((f) => ({ ...f, type: v as ChecklistType | 'all' }))}>
-                                    <SelectTrigger className="w-[140px] bg-seguranca-black border-gray-600">
+                                    <SelectTrigger className="w-[130px] bg-seguranca-black border-gray-600 text-xs">
                                         <SelectValue placeholder="Tipo" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="all">Todos</SelectItem>
+                                        <SelectItem value="all">Todos os Tipos</SelectItem>
                                         <SelectItem value="EXIT">Saída</SelectItem>
                                         <SelectItem value="ARRIVAL">Chegada</SelectItem>
                                     </SelectContent>
                                 </Select>
+
                                 <Input
                                     type="date"
                                     placeholder="Data inicial"
                                     value={filters.dateFrom}
                                     onChange={(e) => setFilters((f) => ({ ...f, dateFrom: e.target.value }))}
-                                    className="w-[140px] bg-seguranca-black border-gray-600"
+                                    className="w-[135px] bg-seguranca-black border-gray-600 text-xs"
                                 />
                                 <Input
                                     type="date"
                                     placeholder="Data final"
                                     value={filters.dateTo}
                                     onChange={(e) => setFilters((f) => ({ ...f, dateTo: e.target.value }))}
-                                    className="w-[140px] bg-seguranca-black border-gray-600"
+                                    className="w-[135px] bg-seguranca-black border-gray-600 text-xs"
                                 />
                             </div>
                         </CardHeader>
@@ -644,18 +768,34 @@ const GestaoPortaria: React.FC = () => {
                                                         )}
                                                     </td>
                                                     <td className="p-4 text-center">
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            className="text-red-500 hover:text-red-400 hover:bg-red-500/10"
-                                                            onClick={() => {
-                                                                if (globalThis.confirm('Excluir este registro?')) {
-                                                                    deleteMutation.mutate(c.id);
-                                                                }
-                                                            }}
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
+                                                        <div className="flex items-center justify-center gap-1">
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="text-seguranca-yellow hover:text-seguranca-yellow hover:bg-seguranca-yellow/10 h-8 px-2 gap-1"
+                                                                title="Ver Inspeção Completa & Itens do Checklist"
+                                                                onClick={() => {
+                                                                    setSelectedChecklistForView(c);
+                                                                    setIsDetailsModalOpen(true);
+                                                                }}
+                                                            >
+                                                                <Eye className="h-4 w-4" />
+                                                                <span className="text-xs hidden sm:inline">Detalhes</span>
+                                                            </Button>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="text-red-500 hover:text-red-400 hover:bg-red-500/10 h-8 px-2"
+                                                                title="Excluir Registro"
+                                                                onClick={() => {
+                                                                    if (globalThis.confirm('Excluir este registro?')) {
+                                                                        deleteMutation.mutate(c.id);
+                                                                    }
+                                                                }}
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             ))
@@ -931,6 +1071,12 @@ const GestaoPortaria: React.FC = () => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <ChecklistDetailsModal
+                checklist={selectedChecklistForView}
+                open={isDetailsModalOpen}
+                onOpenChange={setIsDetailsModalOpen}
+            />
         </StandardLayout>
     );
 };

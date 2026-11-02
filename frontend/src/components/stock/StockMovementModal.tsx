@@ -71,14 +71,18 @@ interface StockMovementModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   item?: StockItem | null;
+  initialMovementType?: MovementType;
   onSave: () => void;
+  onOpenNewItem?: (item?: StockItem | null) => void;
 }
 
 const StockMovementModal: React.FC<StockMovementModalProps> = ({
   open,
   onOpenChange,
   item,
-  onSave
+  initialMovementType,
+  onSave,
+  onOpenNewItem
 }) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -109,8 +113,8 @@ const StockMovementModal: React.FC<StockMovementModalProps> = ({
   });
   const [formData, setFormData] = useState<CreateStockMovementDTO>({
     stockItemId: '',
-    movementType: MovementType.ENTRADA,
-    reason: MovementReason.COMPRA,
+    movementType: initialMovementType || MovementType.SAIDA,
+    reason: (initialMovementType || MovementType.SAIDA) === MovementType.ENTRADA ? MovementReason.COMPRA : MovementReason.ENTREGA_INICIAL,
     quantity: 1,
     employeeId: '',
     documentNumber: '',
@@ -157,11 +161,22 @@ const StockMovementModal: React.FC<StockMovementModalProps> = ({
 
   useEffect(() => {
     if (open) {
+      const targetType = initialMovementType || MovementType.SAIDA;
+      if (targetType === MovementType.ENTRADA && onOpenNewItem) {
+        onOpenChange(false);
+        onOpenNewItem(item || null);
+        return;
+      }
       loadEmployees();
       loadSuppliers();
       loadAllItems();
+      setFormData(prev => ({
+        ...prev,
+        movementType: targetType,
+        reason: targetType === MovementType.ENTRADA ? MovementReason.COMPRA : MovementReason.ENTREGA_INICIAL
+      }));
     }
-  }, [open]);
+  }, [open, initialMovementType]);
 
   // Filtrar itens baseado no termo de busca
   const filteredItems = React.useMemo(() => {
@@ -310,6 +325,15 @@ const StockMovementModal: React.FC<StockMovementModalProps> = ({
   };
 
   const handleMovementTypeChange = (type: MovementType) => {
+    if (type === MovementType.ENTRADA && onOpenNewItem) {
+      onOpenChange(false);
+      onOpenNewItem(selectedItem || null);
+      toast({
+        title: 'Entrada de Estoque',
+        description: 'Redirecionando para a tela de Item de Estoque.',
+      });
+      return;
+    }
     setFormData(prev => ({
       ...prev,
       movementType: type,
@@ -453,8 +477,8 @@ const StockMovementModal: React.FC<StockMovementModalProps> = ({
       // Reset form
       setFormData({
         stockItemId: item?.id || '',
-        movementType: MovementType.ENTRADA,
-        reason: MovementReason.COMPRA,
+        movementType: MovementType.SAIDA,
+        reason: MovementReason.ENTREGA_INICIAL,
         quantity: 1,
         employeeId: '',
         documentNumber: '',
@@ -910,24 +934,39 @@ const StockMovementModal: React.FC<StockMovementModalProps> = ({
                         <Plus className="h-4 w-4 text-seguranca-red flex-shrink-0" />
                         <span className="truncate">Cadastrar Novo Item de Estoque</span>
                       </h4>
-                      {selectedItem && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            const previousCode = selectedItem?.code || '';
-                            setSelectedItem(null);
-                            setFormData(prev => ({ ...prev, stockItemId: '' }));
-                            setNewItem(prev => (prev.code ? prev : { ...prev, code: previousCode }));
-                            setItemCodeSearch(previousCode);
-                          }}
-                          className="border-seguranca-red/50 text-seguranca-red hover:bg-seguranca-red/10 hover:text-white h-8 text-xs"
-                        >
-                          <Plus className="h-3 w-3 mr-1" />
-                          Novo item em vez deste
-                        </Button>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {onOpenNewItem && (
+                          <Button
+                            type="button"
+                            onClick={() => {
+                              onOpenChange(false);
+                              onOpenNewItem(selectedItem || null);
+                            }}
+                            className="bg-seguranca-red hover:bg-seguranca-darkred text-white h-8 text-xs font-semibold shadow-md"
+                          >
+                            <Plus className="h-3.5 w-3.5 mr-1" />
+                            Abrir Tela de Novo Item
+                          </Button>
+                        )}
+                        {selectedItem && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const previousCode = selectedItem?.code || '';
+                              setSelectedItem(null);
+                              setFormData(prev => ({ ...prev, stockItemId: '' }));
+                              setNewItem(prev => (prev.code ? prev : { ...prev, code: previousCode }));
+                              setItemCodeSearch(previousCode);
+                            }}
+                            className="border-seguranca-red/50 text-seguranca-red hover:bg-seguranca-red/10 hover:text-white h-8 text-xs"
+                          >
+                            <Plus className="h-3.5 w-3.5 mr-1" />
+                            Novo item em vez deste
+                          </Button>
+                        )}
+                      </div>
                     </div>
 
                     {selectedItem ? (

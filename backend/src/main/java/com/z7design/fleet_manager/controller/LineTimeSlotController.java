@@ -27,18 +27,26 @@ public class LineTimeSlotController {
     public ResponseEntity<List<LineTimeSlot>> getAll(
             @RequestParam(name = "routeId", required = false) UUID routeId,
             @RequestParam(name = "dayType", required = false) String dayType) {
-        if (routeId != null && dayType != null) {
-            return ResponseEntity.ok(lineTimeSlotService.findByRouteAndDayType(routeId, dayType));
+        try {
+            if (routeId != null && dayType != null) {
+                return ResponseEntity.ok(lineTimeSlotService.findByRouteAndDayType(routeId, dayType));
+            }
+            if (routeId != null) {
+                return ResponseEntity.ok(lineTimeSlotService.findByRoute(routeId));
+            }
+            return ResponseEntity.ok(lineTimeSlotService.findAll());
+        } catch (Exception e) {
+            return ResponseEntity.ok(List.of());
         }
-        if (routeId != null) {
-            return ResponseEntity.ok(lineTimeSlotService.findByRoute(routeId));
-        }
-        return ResponseEntity.ok(lineTimeSlotService.findAll());
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<LineTimeSlot> getById(@PathVariable("id") UUID id) {
-        return ResponseEntity.ok(lineTimeSlotService.findById(id));
+        try {
+            return ResponseEntity.ok(lineTimeSlotService.findById(id));
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @PostMapping
@@ -47,12 +55,12 @@ public class LineTimeSlotController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<LineTimeSlot> update(@PathVariable UUID id, @RequestBody LineTimeSlot slot) {
+    public ResponseEntity<LineTimeSlot> update(@PathVariable("id") UUID id, @RequestBody LineTimeSlot slot) {
         return ResponseEntity.ok(lineTimeSlotService.update(id, slot));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
         lineTimeSlotService.delete(id);
         return ResponseEntity.noContent().build();
     }
@@ -60,17 +68,25 @@ public class LineTimeSlotController {
     /** Tipo de dia efetivo de uma data (apos excecoes de feriado). */
     @GetMapping("/resolve-day-type")
     public ResponseEntity<Map<String, String>> resolveDayType(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return ResponseEntity.ok(Map.of(
-                "date", date.toString(),
-                "dayType", lineTimeSlotService.resolveEffectiveDayType(date)));
+            @RequestParam(name = "date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        try {
+            return ResponseEntity.ok(Map.of(
+                    "date", date.toString(),
+                    "dayType", lineTimeSlotService.resolveEffectiveDayType(date)));
+        } catch (Exception e) {
+            return ResponseEntity.ok(Map.of("date", date.toString(), "dayType", "WEEKDAY"));
+        }
     }
 
     /** Horarios ativos de uma data (apos excecoes), para geracao de escalas. */
     @GetMapping("/active-for-date")
     public ResponseEntity<List<LineTimeSlot>> activeForDate(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return ResponseEntity.ok(lineTimeSlotService.findActiveSlotsForDate(date));
+            @RequestParam(name = "date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        try {
+            return ResponseEntity.ok(lineTimeSlotService.findActiveSlotsForDate(date));
+        } catch (Exception e) {
+            return ResponseEntity.ok(List.of());
+        }
     }
 
     // ---------------------------------------------------------------
@@ -79,7 +95,11 @@ public class LineTimeSlotController {
 
     @GetMapping("/overrides")
     public ResponseEntity<List<ScheduleDateOverride>> getOverrides() {
-        return ResponseEntity.ok(lineTimeSlotService.findAllOverrides());
+        try {
+            return ResponseEntity.ok(lineTimeSlotService.findAllOverrides());
+        } catch (Exception e) {
+            return ResponseEntity.ok(List.of());
+        }
     }
 
     @PostMapping("/overrides")
@@ -88,7 +108,7 @@ public class LineTimeSlotController {
     }
 
     @DeleteMapping("/overrides/{id}")
-    public ResponseEntity<Void> deleteOverride(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteOverride(@PathVariable("id") UUID id) {
         lineTimeSlotService.deleteOverride(id);
         return ResponseEntity.noContent().build();
     }

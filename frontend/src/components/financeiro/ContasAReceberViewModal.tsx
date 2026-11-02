@@ -254,6 +254,99 @@ export const ContasAReceberViewModal: React.FC<ContasAReceberViewModalProps> = (
             </Card>
           )}
 
+          {/* Detalhamento NFS-e e Retenções */}
+          <Card className="bg-seguranca-black border-gray-600">
+            <CardHeader className="flex justify-between items-center">
+              <CardTitle className="text-seguranca-yellow flex items-center gap-2 text-base">
+                <FileText size={16} />
+                Detalhamento NFS-e e Retenções de Impostos
+              </CardTitle>
+              <Badge className={conta.nfseNumber ? "bg-green-600 text-white" : "bg-yellow-600 text-white"}>
+                {conta.nfseNumber ? `NFS-e Nº ${conta.nfseNumber}` : 'Pendente de NFS-e'}
+              </Badge>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+                <div className="bg-seguranca-graphite/50 p-2.5 rounded">
+                  <div className="text-xs text-gray-400">Valor Bruto</div>
+                  <div className="text-sm font-bold text-white">{formatCurrency(conta.grossAmount || conta.valor)}</div>
+                </div>
+                <div className="bg-seguranca-graphite/50 p-2.5 rounded">
+                  <div className="text-xs text-gray-400">ISSQN Retido</div>
+                  <div className="text-sm font-bold text-yellow-400">{formatCurrency(conta.issqnRetido || 0)}</div>
+                </div>
+                <div className="bg-seguranca-graphite/50 p-2.5 rounded">
+                  <div className="text-xs text-gray-400">INSS Retido</div>
+                  <div className="text-sm font-bold text-yellow-400">{formatCurrency(conta.inssRetido || 0)}</div>
+                </div>
+                <div className="bg-green-950/70 border border-green-700 p-2.5 rounded">
+                  <div className="text-xs text-green-300 font-medium">Valor Líquido a Receber</div>
+                  <div className="text-base font-black text-green-400">{formatCurrency(conta.netAmount || conta.valor)}</div>
+                </div>
+              </div>
+
+              {conta.nfseKey && (
+                <div className="text-xs text-gray-400 break-all bg-seguranca-graphite/30 p-2 rounded">
+                  <span className="font-semibold text-gray-300">Chave de Acesso da NFS-e:</span> {conta.nfseKey}
+                </div>
+              )}
+
+              {conta.nfseServiceDescription && (
+                <div className="text-xs text-gray-300 bg-seguranca-graphite/30 p-2 rounded max-h-24 overflow-y-auto">
+                  <span className="font-semibold text-gray-200">Descrição do Serviço:</span> {conta.nfseServiceDescription}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Fatura de Locação de Veículos */}
+          {(conta.faturaLocacaoNumber || conta.pedidoNumber || conta.periodoLocacao || conta.placasVeiculos || conta.dadosBancarios) && (
+            <Card className="bg-seguranca-black border-gray-600">
+              <CardHeader>
+                <CardTitle className="text-seguranca-yellow flex items-center gap-2 text-base">
+                  <FileText size={16} />
+                  Dados da Fatura de Locação de Veículos
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                  {conta.faturaLocacaoNumber && (
+                    <div className="bg-seguranca-graphite/40 p-2.5 rounded border border-gray-700">
+                      <span className="text-xs text-gray-400 block">Nº Fatura de Locação:</span>
+                      <span className="font-bold text-amber-400">{conta.faturaLocacaoNumber}</span>
+                    </div>
+                  )}
+                  {conta.pedidoNumber && (
+                    <div className="bg-seguranca-graphite/40 p-2.5 rounded border border-gray-700">
+                      <span className="text-xs text-gray-400 block">Nº do Pedido:</span>
+                      <span className="font-semibold text-white">{conta.pedidoNumber}</span>
+                    </div>
+                  )}
+                  {conta.periodoLocacao && (
+                    <div className="bg-seguranca-graphite/40 p-2.5 rounded border border-gray-700">
+                      <span className="text-xs text-gray-400 block">Período de Locação:</span>
+                      <span className="font-semibold text-white">{conta.periodoLocacao}</span>
+                    </div>
+                  )}
+                </div>
+
+                {conta.placasVeiculos && (
+                  <div className="bg-seguranca-graphite/40 p-3 rounded border border-gray-700 space-y-1">
+                    <span className="text-xs text-gray-400 font-semibold block">Veículos / Placas Locados:</span>
+                    <span className="text-sm font-mono text-blue-300 font-bold break-all">{conta.placasVeiculos}</span>
+                  </div>
+                )}
+
+                {conta.dadosBancarios && (
+                  <div className="bg-seguranca-graphite/40 p-3 rounded border border-gray-700 space-y-1">
+                    <span className="text-xs text-gray-400 font-semibold block">Dados Bancários para Depósito:</span>
+                    <span className="text-sm text-green-300 font-medium">{conta.dadosBancarios}</span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Observações */}
           {conta.observacoes && (
             <Card className="bg-seguranca-black border-gray-600">
@@ -270,20 +363,32 @@ export const ContasAReceberViewModal: React.FC<ContasAReceberViewModalProps> = (
           )}
 
           {/* Ações */}
-          <div className="flex justify-end gap-3 pt-6 border-t border-gray-600">
-            <Button
-              variant="outline"
-              onClick={onClose}
-              className="border-gray-600 text-white hover:bg-seguranca-black"
-            >
-              Fechar
-            </Button>
-            <Button
-              className="bg-green-600 hover:bg-green-700"
-            >
-              <Download size={16} className="mr-2" />
-              Exportar
-            </Button>
+          <div className="flex flex-wrap justify-between items-center gap-3 pt-6 border-t border-gray-600">
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  try {
+                    await contasAReceberService.sendClientEmail(conta.id);
+                    alert('Fatura enviada por e-mail para o cliente com sucesso!');
+                  } catch (err: any) {
+                    alert(err.response?.data?.message || 'Erro ao enviar e-mail ao cliente.');
+                  }
+                }}
+                className="bg-blue-600 hover:bg-blue-700 text-white border-blue-500 flex items-center gap-2"
+              >
+                ✉️ Enviar Fatura e XML ao Cliente
+              </Button>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={onClose}
+                className="border-gray-600 text-white hover:bg-seguranca-black"
+              >
+                Fechar
+              </Button>
+            </div>
           </div>
         </div>
       </DialogContent>

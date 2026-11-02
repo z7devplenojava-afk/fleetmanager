@@ -70,19 +70,31 @@ public class EvolutionApiService {
 
     public boolean createInstance() {
         try {
-            String url = evolutionApiUrl + "/instance/create/" + instanceName;
-            HttpEntity<String> request = new HttpEntity<>(createHeaders());
-            logger.info("Criando instância Evolution API: {}", instanceName);
-            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, request, String.class);
+            String url = evolutionApiUrl + "/instance/create";
+            ObjectNode payload = objectMapper.createObjectNode();
+            payload.put("instanceName", instanceName);
+            payload.put("qrcode", true);
+            payload.put("integration", "WHATSAPP-BAILEYS");
+
+            HttpEntity<String> request = new HttpEntity<>(payload.toString(), createHeaders());
+            logger.info("Criando/verificando instância Evolution API: {}", instanceName);
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, request, String.class);
             if (response.getStatusCode() == HttpStatus.CREATED || response.getStatusCode() == HttpStatus.OK) {
                 logger.info("Instância criada/verificada com sucesso: {}", instanceName);
                 return true;
             }
             logger.warn("Resposta inesperada ao criar instância: {}", response.getStatusCode());
             return false;
-        } catch (HttpClientErrorException.Conflict e) {
-            logger.info("Instância já existe: {}", instanceName);
-            return true;
+        } catch (HttpClientErrorException e) {
+            String body = e.getResponseBodyAsString();
+            if (e.getStatusCode() == HttpStatus.CONFLICT || e.getStatusCode() == HttpStatus.FORBIDDEN
+                    || (body != null && (body.contains("already in use") || body.contains("already exists")))) {
+                logger.info("Instância já existe na Evolution API: {}", instanceName);
+                return true;
+            }
+            logger.error("Erro HTTP ao criar instância Evolution: {} - {}", e.getStatusCode(), body);
+            lastErrorMessage = "Erro ao criar instância: " + e.getMessage();
+            return false;
         } catch (Exception e) {
             logger.error("Erro ao criar instância: {}", e.getMessage());
             lastErrorMessage = "Erro ao criar instância: " + e.getMessage();

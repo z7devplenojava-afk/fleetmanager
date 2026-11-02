@@ -53,8 +53,13 @@ public class VisitControlController {
 
     @GetMapping("/recent")
     public ResponseEntity<List<VisitControlDTO>> getRecentVisits() {
-        List<VisitControlDTO> visits = visitControlService.getRecentVisits();
-        return ResponseEntity.ok(visits);
+        try {
+            List<VisitControlDTO> visits = visitControlService.getRecentVisits();
+            return ResponseEntity.ok(visits != null ? visits : java.util.Collections.emptyList());
+        } catch (Exception e) {
+            log.warn("⚠️ Aviso ao buscar visitas recentes: {}", e.getMessage());
+            return ResponseEntity.ok(java.util.Collections.emptyList());
+        }
     }
 
     @GetMapping("/stats")

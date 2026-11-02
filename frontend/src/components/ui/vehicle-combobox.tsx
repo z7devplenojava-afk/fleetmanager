@@ -121,7 +121,7 @@ export function VehicleCombobox({ value, onChange, clientId, className }: Vehicl
                                 return (
                                     <CommandItem
                                         key={vehicle.id}
-                                        value={`${plate} ${model}`}
+                                        value={`${plate} ${model} ${vehicle.id}`}
                                         onSelect={() => {
                                             onChange(vehicle.id, vehicle)
                                             setOpen(false)

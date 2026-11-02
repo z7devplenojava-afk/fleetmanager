@@ -20,8 +20,14 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, UU
     @Query("SELECT sm.stockItem.id, COUNT(sm) FROM StockMovement sm GROUP BY sm.stockItem.id")
     List<Object[]> countMovementsByItem();
 
-// Buscar movimentações por item
+    // Buscar movimentações por item
     List<StockMovement> findByStockItemIdOrderByMovementDateDesc(UUID stockItemId);
+
+    // Buscar movimentações por número de documento da nota
+    List<StockMovement> findByDocumentNumber(String documentNumber);
+
+    // Buscar movimentações por texto em notas
+    List<StockMovement> findByNotesContaining(String text);
 
     // Verificar se item possui movimentações registradas
     boolean existsByStockItemId(UUID stockItemId);

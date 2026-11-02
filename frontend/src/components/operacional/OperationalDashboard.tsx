@@ -117,11 +117,13 @@ const OperationalDashboard: React.FC = () => {
 
   const loadEmployees = async (): Promise<Array<{ id: string; name: string }>> => {
     try {
-      const response = await fetch('/api/employees/basic');
-      const data = await response.json();
-      return data.employees || [];
+      const response = await api.get('/api/employees/basic');
+      const data = response.data;
+      if (Array.isArray(data)) return data;
+      if (Array.isArray(data?.employees)) return data.employees;
+      return [];
     } catch (error) {
-      console.error('Erro ao carregar funcionários:', error);
+      console.warn('⚠️ Aviso ao carregar funcionários básicos:', error);
       return [];
     }
   };

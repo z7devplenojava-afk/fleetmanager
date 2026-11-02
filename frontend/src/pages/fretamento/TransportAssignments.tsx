@@ -349,15 +349,6 @@ const TransportAssignments: React.FC = () => {
         <StandardLayout
             title="Atribuições de Transportes"
             subtitle="Gestão de alocação de veículos e motoristas"
-            actions={
-                <Button
-                    onClick={handleCreate}
-                    className="bg-seguranca-yellow text-seguranca-black hover:bg-seguranca-yellow/90 font-semibold"
-                >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Nova Atribuição
-                </Button>
-            }
         >
             <div className="p-6 space-y-6">
                 <div className="flex flex-col gap-1">
@@ -372,7 +363,7 @@ const TransportAssignments: React.FC = () => {
                                 <Filter className="w-5 h-5 text-seguranca-yellow" />
                                 Filtros
                             </h3>
-                            <div className="flex gap-2">
+                            <div className="flex items-center gap-2">
                                 <Button
                                     variant="outline"
                                     size="sm"
@@ -381,6 +372,14 @@ const TransportAssignments: React.FC = () => {
                                 >
                                     <RefreshCw className="w-4 h-4 mr-2" />
                                     Limpar
+                                </Button>
+                                <Button
+                                    onClick={handleCreate}
+                                    size="sm"
+                                    className="bg-seguranca-yellow text-seguranca-black hover:bg-seguranca-yellow/90 font-semibold shadow-sm"
+                                >
+                                    <Plus className="w-4 h-4 mr-1.5" />
+                                    Nova Atribuição
                                 </Button>
                             </div>
                         </div>

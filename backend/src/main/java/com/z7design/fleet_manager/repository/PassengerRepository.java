@@ -12,4 +12,18 @@ public interface PassengerRepository extends JpaRepository<Passenger, UUID> {
     List<Passenger> findByCompanyId(UUID companyId);
     List<Passenger> findByRouteId(UUID routeId);
     List<Passenger> findByActiveTrueAndCompanyId(UUID companyId);
+    List<Passenger> findByClientId(UUID clientId);
+    List<Passenger> findByClientIdAndActiveTrue(UUID clientId);
+    java.util.Optional<Passenger> findByRegistration(String registration);
+    java.util.Optional<Passenger> findByCpf(String cpf);
+    java.util.Optional<Passenger> findByUserId(UUID userId);
+
+    @org.springframework.data.jpa.repository.Query(value = "SELECT * FROM passengers WHERE REGEXP_REPLACE(COALESCE(cpf, ''), '[^0-9]', '', 'g') = :cleanCpf LIMIT 1", nativeQuery = true)
+    java.util.Optional<Passenger> findByCleanCpfNative(@org.springframework.data.repository.query.Param("cleanCpf") String cleanCpf);
+
+    @org.springframework.data.jpa.repository.Query(value = "SELECT * FROM passengers WHERE LOWER(TRIM(registration)) = LOWER(TRIM(:reg)) LIMIT 1", nativeQuery = true)
+    java.util.Optional<Passenger> findByRegistrationIgnoreCase(@org.springframework.data.repository.query.Param("reg") String reg);
+
+    @org.springframework.data.jpa.repository.Query(value = "SELECT * FROM passengers WHERE user_id = :userId LIMIT 1", nativeQuery = true)
+    java.util.Optional<Passenger> findByUserIdNative(@org.springframework.data.repository.query.Param("userId") UUID userId);
 }

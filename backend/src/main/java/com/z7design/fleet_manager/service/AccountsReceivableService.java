@@ -29,6 +29,10 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.z7design.fleet_manager.dto.NfseParsedDataDTO;
+import com.z7design.fleet_manager.model.MeasurementBulletin;
+import org.springframework.web.multipart.MultipartFile;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -40,6 +44,10 @@ public class AccountsReceivableService {
     private final UnitRepository unitRepository;
     private final ContractRepository contractRepository;
     private final WorkPostRepository workPostRepository;
+    private final NfseParserService nfseParserService;
+    private final EmailService emailService;
+    private final com.z7design.fleet_manager.repository.MeasurementBulletinRepository measurementBulletinRepository;
+    private final com.z7design.fleet_manager.repository.CharterContractRepository charterContractRepository;
     
     /**
      * Buscar todas as contas a receber com paginaÃ§Ã£o
@@ -469,6 +477,214 @@ public class AccountsReceivableService {
         
         // TODO: Implementar envio de notificaÃ§Ã£o via NotificationService
         // notificationService.createNotification(...);
+    }
+
+    /**
+     * Importa arquivo NFS-e (XML ou PDF) e vincula ao título do Contas a Receber.
+     */
+    public AccountsReceivableDTO importNfse(UUID id, MultipartFile file) {
+        log.info("Importando NFS-e para conta a receber ID: {}", id);
+        AccountsReceivable receivable = accountsReceivableRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Conta a receber não encontrada com ID: " + id));
+
+        String filename = file.getOriginalFilename() != null ? file.getOriginalFilename().toLowerCase() : "";
+        NfseParsedDataDTO parsed;
+
+        try {
+            if (filename.endsWith(".xml")) {
+                parsed = nfseParserService.parseXml(file.getInputStream());
+            } else {
+                parsed = nfseParserService.parsePdf(file.getInputStream());
+            }
+        } catch (Exception e) {
+            log.error("Erro ao importar NFS-e: {}", e.getMessage(), e);
+            throw new IllegalArgumentException("Erro no processamento da NFS-e: " + e.getMessage(), e);
+        }
+
+        if (parsed.getNfseNumber() != null && !parsed.getNfseNumber().isBlank()) {
+            receivable.setNfseNumber(parsed.getNfseNumber());
+            receivable.setInvoiceNumber("NFS-e " + parsed.getNfseNumber());
+        }
+        if (parsed.getNfseKey() != null) {
+            receivable.setNfseKey(parsed.getNfseKey());
+        }
+        if (parsed.getIssueDate() != null) {
+            receivable.setNfseIssueDate(parsed.getIssueDate());
+            receivable.setIssueDate(parsed.getIssueDate().toLocalDate());
+        }
+
+        if (parsed.getGrossAmount() != null && parsed.getGrossAmount().compareTo(BigDecimal.ZERO) > 0) {
+            receivable.setGrossAmount(parsed.getGrossAmount());
+        }
+        if (parsed.getNetAmount() != null && parsed.getNetAmount().compareTo(BigDecimal.ZERO) > 0) {
+            receivable.setNetAmount(parsed.getNetAmount());
+            receivable.setAmount(parsed.getNetAmount()); // O valor a receber da empresa é o LÍQUIDO!
+        }
+        if (parsed.getIssqnRetido() != null) receivable.setIssqnRetido(parsed.getIssqnRetido());
+        if (parsed.getInssRetido() != null) receivable.setInssRetido(parsed.getInssRetido());
+        if (parsed.getIrRetido() != null) receivable.setIrRetido(parsed.getIrRetido());
+        if (parsed.getPisRetido() != null) receivable.setPisRetido(parsed.getPisRetido());
+        if (parsed.getCofinsRetido() != null) receivable.setCofinsRetido(parsed.getCofinsRetido());
+        if (parsed.getCsllRetido() != null) receivable.setCsllRetido(parsed.getCsllRetido());
+        if (parsed.getIbsCbsAmount() != null) receivable.setIbsCbsAmount(parsed.getIbsCbsAmount());
+
+        if (parsed.getServiceDescription() != null && !parsed.getServiceDescription().isBlank()) {
+            receivable.setNfseServiceDescription(parsed.getServiceDescription());
+        }
+
+        if (parsed.getFaturaLocacaoNumber() != null) receivable.setFaturaLocacaoNumber(parsed.getFaturaLocacaoNumber());
+        if (parsed.getPedidoNumber() != null) receivable.setPedidoNumber(parsed.getPedidoNumber());
+        if (parsed.getPeriodoLocacao() != null) receivable.setPeriodoLocacao(parsed.getPeriodoLocacao());
+        if (parsed.getPlacasVeiculos() != null) receivable.setPlacasVeiculos(parsed.getPlacasVeiculos());
+        if (parsed.getDadosBancarios() != null) receivable.setDadosBancarios(parsed.getDadosBancarios());
+
+        receivable.setNfseStatus("NFSE_IMPORTADA");
+
+        // Tentar associar cliente por CNPJ se tomadorCnpjCpf estiver preenchido
+        if (parsed.getTomadorCnpjCpf() != null && !parsed.getTomadorCnpjCpf().isBlank()) {
+            String tomadorDoc = parsed.getTomadorCnpjCpf().replaceAll("[^0-9]", "");
+            clientRepository.findAll().stream()
+                    .filter(c -> c.getCnpj() != null && c.getCnpj().replaceAll("[^0-9]", "").equals(tomadorDoc))
+                    .findFirst()
+                    .ifPresent(receivable::setClient);
+        }
+
+        // Atualizar boletim de medição vinculado, se houver
+        if (receivable.getMeasurement() != null) {
+            MeasurementBulletin mb = receivable.getMeasurement();
+            mb.setNfNumber(parsed.getNfseNumber());
+            mb.setNfseNumber(parsed.getNfseNumber());
+            mb.setNfseKey(parsed.getNfseKey());
+            if (parsed.getGrossAmount() != null) mb.setGrossAmount(parsed.getGrossAmount());
+            if (parsed.getNetAmount() != null) mb.setNetAmount(parsed.getNetAmount());
+            if (parsed.getFaturaLocacaoNumber() != null) mb.setFaturaLocacaoNumber(parsed.getFaturaLocacaoNumber());
+            if (parsed.getPedidoNumber() != null) mb.setPedidoNumber(parsed.getPedidoNumber());
+            if (parsed.getPeriodoLocacao() != null) mb.setPeriodoLocacao(parsed.getPeriodoLocacao());
+            if (parsed.getPlacasVeiculos() != null) mb.setPlacasVeiculos(parsed.getPlacasVeiculos());
+            if (parsed.getDadosBancarios() != null) mb.setDadosBancarios(parsed.getDadosBancarios());
+        }
+
+        AccountsReceivable saved = accountsReceivableRepository.save(receivable);
+        return AccountsReceivableDTO.fromEntity(saved);
+    }
+
+    /**
+     * Apenas parseia o arquivo NFS-e para pré-visualização na interface.
+     */
+    public NfseParsedDataDTO parseNfseFile(MultipartFile file) {
+        String filename = file.getOriginalFilename() != null ? file.getOriginalFilename().toLowerCase() : "";
+        try {
+            if (filename.endsWith(".xml")) {
+                return nfseParserService.parseXml(file.getInputStream());
+            } else {
+                return nfseParserService.parsePdf(file.getInputStream());
+            }
+        } catch (Exception e) {
+            log.error("Erro ao pré-visualizar NFS-e: {}", e.getMessage(), e);
+            throw new IllegalArgumentException("Erro ao ler o arquivo NFS-e: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Envia os arquivos/dados da Fatura de Locação e NFS-e para o cliente por e-mail.
+     */
+    public boolean sendClientEmail(UUID id) {
+        AccountsReceivable receivable = accountsReceivableRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Conta a receber não encontrada com ID: " + id));
+
+        if (receivable.getClient() == null || receivable.getClient().getEmail() == null || receivable.getClient().getEmail().isBlank()) {
+            throw new IllegalArgumentException("O cliente associado não possui e-mail cadastrado.");
+        }
+
+        String toEmail = receivable.getClient().getEmail();
+        String faturaNum = receivable.getFaturaLocacaoNumber() != null ? receivable.getFaturaLocacaoNumber() : receivable.getInvoiceNumber();
+        String subject = "Fatura de Locação / NFS-e #" + faturaNum + " - " + (receivable.getClient().getName() != null ? receivable.getClient().getName() : "");
+
+        StringBuilder body = new StringBuilder();
+        body.append("<div style='font-family: Arial, sans-serif; color: #333;'>");
+        body.append("<h2>Fatura de Locação de Veículos</h2>");
+        body.append("<p>Prezado(a) <strong>").append(receivable.getClient().getName()).append("</strong>,</p>");
+        body.append("<p>Disponibilizamos a Fatura de Locação / Nota Fiscal referente aos serviços prestados para pagamento:</p>");
+        body.append("<table style='border-collapse: collapse; width: 100%; max-width: 600px; margin: 15px 0;'>");
+        body.append("<tr style='background: #f4f4f4;'><th style='padding: 8px; text-align: left; border: 1px solid #ddd;'>Campo</th><th style='padding: 8px; text-align: left; border: 1px solid #ddd;'>Detalhe</th></tr>");
+        body.append("<tr><td style='padding: 8px; border: 1px solid #ddd;'><strong>Fatura N°</strong></td><td style='padding: 8px; border: 1px solid #ddd;'>").append(faturaNum).append("</td></tr>");
+        if (receivable.getPedidoNumber() != null) body.append("<tr><td style='padding: 8px; border: 1px solid #ddd;'><strong>N° Pedido</strong></td><td style='padding: 8px; border: 1px solid #ddd;'>").append(receivable.getPedidoNumber()).append("</td></tr>");
+        if (receivable.getPeriodoLocacao() != null) body.append("<tr><td style='padding: 8px; border: 1px solid #ddd;'><strong>Período</strong></td><td style='padding: 8px; border: 1px solid #ddd;'>").append(receivable.getPeriodoLocacao()).append("</td></tr>");
+        if (receivable.getPlacasVeiculos() != null) body.append("<tr><td style='padding: 8px; border: 1px solid #ddd;'><strong>Veículos / Placas</strong></td><td style='padding: 8px; border: 1px solid #ddd;'>").append(receivable.getPlacasVeiculos()).append("</td></tr>");
+        body.append("<tr><td style='padding: 8px; border: 1px solid #ddd;'><strong>Vencimento</strong></td><td style='padding: 8px; border: 1px solid #ddd;'>").append(receivable.getDueDate()).append("</td></tr>");
+        body.append("<tr><td style='padding: 8px; border: 1px solid #ddd;'><strong>Valor a Receber</strong></td><td style='padding: 8px; border: 1px solid #ddd; color: #16a34a; font-weight: bold;'>R$ ").append(receivable.getAmount()).append("</td></tr>");
+        if (receivable.getDadosBancarios() != null) body.append("<tr><td style='padding: 8px; border: 1px solid #ddd;'><strong>Dados Bancários</strong></td><td style='padding: 8px; border: 1px solid #ddd;'>").append(receivable.getDadosBancarios()).append("</td></tr>");
+        body.append("</table>");
+        body.append("<p>Por favor, providencie o pagamento até a data de vencimento.</p>");
+        body.append("<p>Atenciosamente,<br><strong>Setor Financeiro</strong></p>");
+        body.append("</div>");
+
+        try {
+            boolean sent = emailService.sendEmailWithAttachment(toEmail, subject, body.toString(), null, null);
+            log.info("E-mail da fatura {} enviado para {} com status: {}", id, toEmail, sent);
+            return sent;
+        } catch (Exception e) {
+            log.error("Erro ao enviar e-mail da fatura para {}: {}", toEmail, e.getMessage(), e);
+            throw new RuntimeException("Erro ao enviar e-mail: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Sincroniza todas as medições de contratos, contratos de locação e turismo sem títulos no Contas a Receber.
+     */
+    public int syncAllReceivables() {
+        log.info("Iniciando sincronização total de Medições e Contratos no Contas a Receber...");
+        int count = 0;
+
+        // 1. Sincronizar Boletins de Medição
+        List<MeasurementBulletin> bulletins = measurementBulletinRepository.findAll();
+        for (MeasurementBulletin mb : bulletins) {
+            if (mb.getClient() != null) {
+                List<AccountsReceivable> existing = accountsReceivableRepository.findByMeasurementId(mb.getId());
+                AccountsReceivable ar;
+                if (!existing.isEmpty()) {
+                    ar = existing.get(0);
+                } else {
+                    ar = new AccountsReceivable();
+                    ar.setMeasurement(mb);
+                    count++;
+                }
+                ar.setClient(mb.getClient());
+                ar.setMeasurementNumber(mb.getContractNumber() != null ? mb.getContractNumber() : "MED-" + mb.getId().toString().substring(0, 6));
+                ar.setInvoiceNumber(mb.getNfNumber() != null && !mb.getNfNumber().isBlank() ? mb.getNfNumber() : "MED-" + (mb.getContractNumber() != null ? mb.getContractNumber() : mb.getId().toString().substring(0, 6)));
+                ar.setDescription("Medição de Fretamento - Contrato " + (mb.getContractNumber() != null ? mb.getContractNumber() : "N/A"));
+                BigDecimal val = mb.getNetAmount() != null && mb.getNetAmount().compareTo(BigDecimal.ZERO) > 0 ? mb.getNetAmount() : (mb.getSubtotal() != null ? mb.getSubtotal() : BigDecimal.ZERO);
+                ar.setAmount(val);
+                ar.setCategory(com.z7design.fleet_manager.model.enums.ReceivableCategory.MEASUREMENT);
+                if (ar.getIssueDate() == null) ar.setIssueDate(LocalDate.now());
+                if (ar.getDueDate() == null) ar.setDueDate(LocalDate.now().plusDays(30));
+                accountsReceivableRepository.save(ar);
+            }
+        }
+
+        // 2. Sincronizar Contratos de Fretamento e Turismo
+        List<com.z7design.fleet_manager.model.CharterContract> charters = charterContractRepository.findAll();
+        for (com.z7design.fleet_manager.model.CharterContract charter : charters) {
+            if (charter.getClient() != null && charter.getValue() != null && charter.getValue().compareTo(BigDecimal.ZERO) > 0) {
+                String invNum = "FRET-" + charter.getId().toString().substring(0, 6);
+                List<AccountsReceivable> existing = accountsReceivableRepository.findByInvoiceNumber(invNum);
+                if (existing.isEmpty()) {
+                    AccountsReceivable ar = new AccountsReceivable();
+                    ar.setClient(charter.getClient());
+                    ar.setInvoiceNumber(invNum);
+                    ar.setDescription("Fretamento e Turismo - " + charter.getName());
+                    ar.setAmount(charter.getValue());
+                    ar.setCategory(com.z7design.fleet_manager.model.enums.ReceivableCategory.CHARTER_TOURISM);
+                    ar.setIssueDate(charter.getStartDate() != null ? charter.getStartDate() : LocalDate.now());
+                    ar.setDueDate(charter.getEndDate() != null ? charter.getEndDate() : LocalDate.now().plusDays(30));
+                    accountsReceivableRepository.save(ar);
+                    count++;
+                }
+            }
+        }
+
+        log.info("Sincronização total concluída: {} novos títulos gerados no Contas a Receber.", count);
+        return count;
     }
 }
 

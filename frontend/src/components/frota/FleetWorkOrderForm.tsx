@@ -12,13 +12,14 @@ import { Separator } from '@/components/ui/separator';
 import {
     Wrench, Trash2, Plus, ClipboardList, Clock, History,
     Gauge, AlertTriangle, Send, ChevronDown, ChevronUp, CheckCircle, XCircle, MinusCircle, UserCheck,
-    Camera, UploadCloud, Image as LucideImage, Package, ShieldCheck, Tag, FileText, Check, AlertCircle
+    Camera, UploadCloud, Image as LucideImage, Package, ShieldCheck, Tag, FileText, Check, AlertCircle,
+    Timer, Edit, PlayCircle, StopCircle, RefreshCw, Zap, Sparkles, Car
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import fleetWorkOrderService, {
     WorkOrderStatus, LaborType, WorkOrderItemType, WorkOrderPriority, MaintenanceType, ChecklistStatus,
-    WorkOrderItem, FleetWorkOrder, FleetWorkOrderChecklist, WorkOrderHistoryEntry
+    WorkOrderItem, FleetWorkOrder, FleetWorkOrderChecklist, WorkOrderHistoryEntry, ExecutionHistoryEntry
 } from '@/services/fleetWorkOrderService';
 import fleetService from '@/services/fleetService';
 import { clientService } from '@/services/clientService';
@@ -58,11 +59,30 @@ const ACTION_ICONS: Record<string, string> = {
     COST_UPDATE:   '💰',
 };
 
+const QUICK_SYMPTOMS = [
+    'Barulho no freio / lonas',
+    'Vazamento de ar pneumático',
+    'Superaquecimento do motor',
+    'Luz de alerta / falha no painel',
+    'Embreagem patinando ou dura',
+    'Folga na suspensão / direção',
+    'Pneu furado ou danificado',
+    'Falha elétrica / partida / bateria',
+    'Ar-condicionado não gela',
+    'Troca de óleo e filtros',
+    'Revisão periódica programada',
+    'Vazamento de fluidos ou óleo',
+    'Limpador / farol queimado'
+];
+
 const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order, initialVehicleId }) => {
     const { toast }       = useToast();
     const { user }        = useAuth();
     const queryClient     = useQueryClient();
     const isEdit          = !!order?.id;
+
+    // Modo Abertura Rápida (ativo por padrão para novas manutenções)
+    const [isExpressMode, setIsExpressMode] = useState(!isEdit);
 
     const [isLoading, setIsLoading]         = useState(false);
     const [newNote, setNewNote]             = useState('');
@@ -80,11 +100,123 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         laborType: LaborType.INTERNAL,
         stopDate: new Date().toISOString().split('T')[0],
         stopTime: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        executionStartDate: undefined,
+        executionEndDate: undefined,
+        executionStartJustification: undefined,
         laborCost: 0, partsCost: 0, totalCost: 0,
         odometerIn: undefined, odometerOut: undefined,
         stopReason: '', mechanicName: '', notes: '', items: [], checklistItems: [],
         anomaliesDescription: '', otherDescription: '', maintenancePerformed: ''
     });
+
+    // Estado do controle de execução do serviço
+    const [showCorrectionModal, setShowCorrectionModal] = useState(false);
+    const [correctionJustification, setCorrectionJustification] = useState('');
+    const [correctionNewDate, setCorrectionNewDate]     = useState('');
+    const [correctionNewTime, setCorrectionNewTime]     = useState('');
+    const [isSavingCorrection, setIsSavingCorrection]   = useState(false);
+    const [executionHistoryEntries, setExecutionHistoryEntries] = useState<ExecutionHistoryEntry[]>([]);
+    const [showExecutionHistory, setShowExecutionHistory] = useState(false);
+    const [isLoadingExecHistory, setIsLoadingExecHistory] = useState(false);
+
+    // Duração calculada em tempo real (front-end preview)
+    const calculatedDuration = React.useMemo(() => {
+        const start = formData.executionStartDate;
+        const end   = formData.executionEndDate;
+        if (!start) return null;
+        try {
+            const startDate = new Date(start);
+            const endDate = end ? new Date(end) : new Date();
+            const diff = endDate.getTime() - startDate.getTime();
+            if (isNaN(diff) || diff < 0) return null;
+            const totalMin = Math.floor(diff / 60000);
+            const d = Math.floor(totalMin / 1440);
+            const h = Math.floor((totalMin % 1440) / 60);
+            const m = totalMin % 60;
+            return { days: d, hours: h, minutes: m, totalMinutes: totalMin, isRunning: !end };
+        } catch { return null; }
+    }, [formData.executionStartDate, formData.executionEndDate]);
+
+    const formatDurationString = (dur: { days: number; hours: number; minutes: number; totalMinutes?: number } | null) => {
+        if (!dur) return '—';
+        if (dur.days === 0 && dur.hours === 0 && dur.minutes === 0) return 'Menos de 1 minuto';
+        const parts: string[] = [];
+        if (dur.days > 0) parts.push(`${dur.days} ${dur.days === 1 ? 'dia' : 'dias'}`);
+        if (dur.hours > 0) parts.push(`${dur.hours} ${dur.hours === 1 ? 'hora' : 'horas'}`);
+        if (dur.minutes > 0 || parts.length === 0) parts.push(`${dur.minutes} ${dur.minutes === 1 ? 'minuto' : 'minutos'}`);
+        return parts.join(', ');
+    };
+
+    const handleOpenCorrectionModal = () => {
+        if (formData.executionStartDate) {
+            setCorrectionNewDate(formData.executionStartDate.substring(0, 10));
+            setCorrectionNewTime(formData.executionStartDate.substring(11, 16));
+        } else {
+            setCorrectionNewDate(new Date().toISOString().substring(0, 10));
+            setCorrectionNewTime(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+        }
+        setCorrectionJustification('');
+        setShowCorrectionModal(true);
+    };
+
+    const handleSaveCorrection = async () => {
+        if (!correctionNewDate || !correctionNewTime) {
+            toast({ title: 'Atenção', description: 'Informe a nova data e horário de início.', variant: 'destructive' });
+            return;
+        }
+        if (!correctionJustification.trim()) {
+            toast({ title: 'Justificativa Obrigatória', description: 'Por favor, informe a justificativa para a correção do início da execução.', variant: 'destructive' });
+            return;
+        }
+        const newStartIso = `${correctionNewDate}T${correctionNewTime}:00`;
+
+        if (order?.id) {
+            setIsSavingCorrection(true);
+            try {
+                const updated = await fleetWorkOrderService.correctExecutionStart(
+                    order.id,
+                    newStartIso,
+                    correctionJustification.trim(),
+                    user?.name || user?.username || 'Usuário'
+                );
+                setFormData(p => ({
+                    ...p,
+                    executionStartDate: updated.executionStartDate,
+                    executionDurationMinutes: updated.executionDurationMinutes,
+                    executionStartJustification: updated.executionStartJustification,
+                }));
+                toast({ title: 'Início Atualizado', description: 'A data/hora de início foi corrigida e registrada no histórico com sucesso.' });
+                setShowCorrectionModal(false);
+                queryClient.invalidateQueries({ queryKey: ['fleet-work-orders'] });
+            } catch (err: any) {
+                const msg = err?.response?.data?.error || err?.response?.data?.message || 'Falha ao salvar correção do início.';
+                toast({ title: 'Erro', description: msg, variant: 'destructive' });
+            } finally {
+                setIsSavingCorrection(false);
+            }
+        } else {
+            setFormData(p => ({
+                ...p,
+                executionStartDate: newStartIso,
+                executionStartJustification: correctionJustification.trim()
+            }));
+            setShowCorrectionModal(false);
+        }
+    };
+
+    const handleLoadExecutionHistory = async () => {
+        if (!order?.id) return;
+        setIsLoadingExecHistory(true);
+        try {
+            const list = await fleetWorkOrderService.getExecutionHistory(order.id);
+            setExecutionHistoryEntries(list);
+            setShowExecutionHistory(true);
+        } catch (err) {
+            toast({ title: 'Erro', description: 'Não foi possível carregar o histórico de execução.', variant: 'destructive' });
+        } finally {
+            setIsLoadingExecHistory(false);
+        }
+    };
 
     // Histórico
     const { data: history = [] } = useQuery<WorkOrderHistoryEntry[]>({
@@ -92,6 +224,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         queryFn: () => fleetWorkOrderService.getHistory(order!.id),
         enabled: isEdit && showHistory,
     });
+
 
     // Veículos da frota via React Query
     const { data: vehiclesRaw = [], isLoading: isLoadingVehicles } = useQuery<Vehicle[]>({
@@ -414,25 +547,49 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         });
     };
 
+    const [isUploadingPhotos, setIsUploadingPhotos] = useState(false);
+
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (!files || files.length === 0) return;
 
-        const compressedList: string[] = [];
-        for (const file of Array.from(files)) {
-            const compressed = await compressImage(file);
-            if (compressed) {
-                compressedList.push(compressed);
+        setIsUploadingPhotos(true);
+        try {
+            const fileList = Array.from(files);
+            // Tenta upload direto para o servidor (retorna /uploads/maintenance/uuid_foto.jpg)
+            try {
+                const uploadedUrls = await fleetWorkOrderService.uploadPhotos(fileList);
+                if (uploadedUrls && uploadedUrls.length > 0) {
+                    setFormData(p => ({
+                        ...p,
+                        photoAttachments: [...(p.photoAttachments || []), ...uploadedUrls]
+                    }));
+                    toast({ title: 'Fotos anexadas', description: `${uploadedUrls.length} foto(s) enviada(s) com sucesso.` });
+                    return;
+                }
+            } catch (upErr) {
+                console.warn('Upload multipart direto falhou, usando compressão otimizada:', upErr);
             }
-        }
 
-        if (compressedList.length > 0) {
-            setFormData(p => ({
-                ...p,
-                photoAttachments: [...(p.photoAttachments || []), ...compressedList]
-            }));
+            // Fallback: compressão com tamanho máximo reduzido (evita 413)
+            const compressedList: string[] = [];
+            for (const file of fileList) {
+                const compressed = await compressImage(file, 1024, 1024, 0.65);
+                if (compressed) {
+                    compressedList.push(compressed);
+                }
+            }
+
+            if (compressedList.length > 0) {
+                setFormData(p => ({
+                    ...p,
+                    photoAttachments: [...(p.photoAttachments || []), ...compressedList]
+                }));
+            }
+        } finally {
+            setIsUploadingPhotos(false);
+            e.target.value = '';
         }
-        e.target.value = '';
     };
 
     const handleRemovePhoto = (idx: number) => {
@@ -451,30 +608,132 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         setNewPhotoUrl('');
     };
 
+    // Itens padrão de contingência / fallback de inspeção preventiva
+    const DEFAULT_CHECKLIST_FALLBACK: { descricao: string; categoria: string }[] = [
+        // Mecânica
+        { descricao: 'Conferir barras e ponteiras', categoria: 'MECANICA' },
+        { descricao: 'Conferir coifa', categoria: 'MECANICA' },
+        { descricao: 'Conferir mangas de eixo', categoria: 'MECANICA' },
+        { descricao: 'Conferir vazamentos pneumáticos', categoria: 'MECANICA' },
+        { descricao: 'Conferir freio de estacionamento', categoria: 'MECANICA' },
+        { descricao: 'Conferir amortecedores', categoria: 'MECANICA' },
+        { descricao: 'Conferir estabilizadores', categoria: 'MECANICA' },
+        { descricao: 'Conferir cuícas', categoria: 'MECANICA' },
+        { descricao: 'Conferir lonas', categoria: 'MECANICA' },
+        { descricao: 'Conferir catracas de freio', categoria: 'MECANICA' },
+        { descricao: 'Conferir freio motor', categoria: 'MECANICA' },
+        { descricao: 'Conferir cubos dianteiros e traseiros', categoria: 'MECANICA' },
+        { descricao: 'Conferir folga eixo S', categoria: 'MECANICA' },
+        { descricao: 'Conferir flange da caixa de câmbio', categoria: 'MECANICA' },
+        { descricao: 'Conferir cruzeta', categoria: 'MECANICA' },
+        { descricao: 'Conferir embreagem', categoria: 'MECANICA' },
+        { descricao: 'Conferir pinos de centro do feixe de molas', categoria: 'MECANICA' },
+        { descricao: 'Lubrificar feixe de molas', categoria: 'MECANICA' },
+        { descricao: 'Lubrificar rolamentos', categoria: 'MECANICA' },
+        { descricao: 'Lubrificar cruzetas', categoria: 'MECANICA' },
+        { descricao: 'Lubrificar sistema de freio', categoria: 'MECANICA' },
+        { descricao: 'Conferir rolamento central', categoria: 'MECANICA' },
+        { descricao: 'Conferir mancal / eixo cardan', categoria: 'MECANICA' },
+        // Elétrica
+        { descricao: 'Conferir polos da bateria', categoria: 'ELETRICA' },
+        { descricao: 'Conferir cabos da bateria', categoria: 'ELETRICA' },
+        { descricao: 'Conferir carregamento da bateria (27V)', categoria: 'ELETRICA' },
+        { descricao: 'Conferir parte elétrica', categoria: 'ELETRICA' },
+        { descricao: 'Conferir farol, farolete, lanternas, seta e buzina', categoria: 'ELETRICA' },
+        // Motor
+        { descricao: 'Conferir óleo do motor', categoria: 'MOTOR' },
+        { descricao: 'Conferir filtros', categoria: 'MOTOR' },
+        { descricao: 'Conferir radiador e arrefecimento', categoria: 'MOTOR' },
+        { descricao: 'Conferir motor e correias', categoria: 'MOTOR' },
+        // Pneus
+        { descricao: 'Conferir pneus, calibração e aperto dos parafusos', categoria: 'PNEUS' },
+        // Carroceria
+        { descricao: 'Conferir carroceria, porta-malas e painel de instrução', categoria: 'CARROCERIA' }
+    ];
+
+    const [isLoadingChecklist, setIsLoadingChecklist] = useState(false);
+
+    const handleLoadDefaultChecklist = async (overrideVehicleId?: string) => {
+        setIsLoadingChecklist(true);
+        try {
+            const targetVehId = overrideVehicleId || formData.vehicleId;
+            const currentVeh = vehicles.find(v => v.id === targetVehId);
+            const vType = (currentVeh?.vehicleType || '').toUpperCase();
+            const busType = (currentVeh?.busType || '').toUpperCase();
+            const modelStr = ((currentVeh?.model || '') + ' ' + (currentVeh?.brand || '')).toUpperCase();
+
+            // Detecta se é VAN, MICRO-ÔNIBUS ou ÔNIBUS
+            let filterType = 'BUS';
+            const isVan = vType === 'VAN' || modelStr.includes('VAN') || modelStr.includes('SPRINTER') || modelStr.includes('DUCATO') || modelStr.includes('TRANSIT') || modelStr.includes('MASTER');
+            const isMicro = vType.includes('MINI') || modelStr.includes('MICRO') || modelStr.includes('VOLARE') || modelStr.includes('SENIOR') || modelStr.includes('FLY');
+
+            if (isVan) {
+                filterType = 'VAN';
+            } else if (isMicro) {
+                filterType = 'MINIBUS';
+            }
+
+            const masterItems = await fleetWorkOrderService.getChecklistMasterItems(filterType, currentVeh?.model);
+            let itemsToUse: { id?: string; descricao: string; categoria: string }[] = [];
+            if (masterItems && masterItems.length > 0) {
+                itemsToUse = masterItems;
+            } else {
+                itemsToUse = DEFAULT_CHECKLIST_FALLBACK;
+            }
+
+            const initialChecklist: FleetWorkOrderChecklist[] = itemsToUse.map(m => ({
+                checklistItemId: m.id,
+                checklistItemDescricao: m.descricao,
+                checklistItemCategoria: m.categoria,
+                situacao: ChecklistStatus.OK,
+                observacao: '',
+                reparoRealizado: ''
+            }));
+            setFormData(p => ({ ...p, checklistItems: initialChecklist }));
+            const labelTipo = filterType === 'VAN' ? 'Van' : (vType.includes('MINI') || modelStr.includes('MICRO') || modelStr.includes('VOLARE') ? 'Micro-ônibus' : 'Ônibus');
+            toast({
+                title: `Checklist Preventivo (${labelTipo})`,
+                description: `${initialChecklist.length} itens de inspeção adicionados à OS.`,
+            });
+        } catch {
+            const fallbackChecklist: FleetWorkOrderChecklist[] = DEFAULT_CHECKLIST_FALLBACK.map(m => ({
+                checklistItemDescricao: m.descricao,
+                checklistItemCategoria: m.categoria,
+                situacao: ChecklistStatus.OK,
+                observacao: '',
+                reparoRealizado: ''
+            }));
+            setFormData(p => ({ ...p, checklistItems: fallbackChecklist }));
+            toast({
+                title: 'Checklist preventivo padrão carregado',
+                description: `${fallbackChecklist.length} itens padrão adicionados.`,
+            });
+        } finally {
+            setIsLoadingChecklist(false);
+        }
+    };
+
     // Carregar itens mestre de checklist caso selecione PREVENTIVA e ainda não tenha itens
     useEffect(() => {
         if (formData.maintenanceType === MaintenanceType.PREVENTIVA && (!formData.checklistItems || formData.checklistItems.length === 0)) {
-            fleetWorkOrderService.getChecklistMasterItems().then(masterItems => {
-                const initialChecklist: FleetWorkOrderChecklist[] = masterItems.map(m => ({
-                    checklistItemId: m.id,
-                    checklistItemDescricao: m.descricao,
-                    checklistItemCategoria: m.categoria,
-                    situacao: ChecklistStatus.OK,
-                    observacao: '',
-                    reparoRealizado: ''
-                }));
-                setFormData(p => ({ ...p, checklistItems: initialChecklist }));
-            }).catch(() => {});
+            handleLoadDefaultChecklist();
         }
-    }, [formData.maintenanceType]);
+    }, [formData.maintenanceType, formData.vehicleId]);
 
     // Popular form ao abrir
     useEffect(() => {
         if (order) {
-            setFormData({ ...order });
+            const resp = getOrderResponsibleDisplay(order);
+            setFormData({
+                ...order,
+                mechanicName: (order.mechanicName && order.mechanicName.trim()) ? order.mechanicName : (resp !== 'Não atribuído' ? resp : ''),
+                responsibleName: (order.responsibleName && order.responsibleName.trim()) ? order.responsibleName : (resp !== 'Não atribuído' ? resp : '')
+            });
         } else {
             const today = new Date().toISOString().split('T')[0];
             const nowTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const isDriver = user?.role === 'MOTORISTA' || (user as any)?.roles?.some((r: any) => typeof r === 'string' ? r.includes('MOTORISTA') : r?.name?.includes('MOTORISTA'));
+            const defaultResponsible = isDriver ? `${user?.name || 'Motorista'} (Motorista)` : '';
             setFormData({
                 vehicleId: initialVehicleId || '',
                 maintenanceType: MaintenanceType.CORRETIVA,
@@ -485,13 +744,66 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                 stopDate: today,
                 stopTime: nowTime,
                 laborCost: 0, partsCost: 0, totalCost: 0,
-                stopReason: '', mechanicName: '', notes: '', items: [], checklistItems: [],
+                stopReason: isDriver ? 'Abertura de Chamado pelo Condutor/Motorista' : '',
+                mechanicName: defaultResponsible,
+                responsibleName: user?.name,
+                requesterName: user?.name,
+                responsibleId: (user as any)?.employeeId || (user?.id ? String(user.id) : undefined),
+                requesterId: (user as any)?.employeeId || (user?.id ? String(user.id) : undefined),
+                notes: isDriver ? `OS aberta pelo Motorista: ${user?.name || 'Condutor'} via Sistema` : '',
+                items: [], checklistItems: [],
                 anomaliesDescription: '', otherDescription: '', maintenancePerformed: ''
             });
+            setIsExpressMode(true);
         }
         setShowHistory(false);
         setNewNote('');
     }, [order, isOpen, initialVehicleId]);
+
+    // Veículo selecionado atualmente
+    const selectedVehicle = React.useMemo(() => {
+        if (!formData.vehicleId) return null;
+        return vehicles.find(v => v.id === formData.vehicleId) || null;
+    }, [formData.vehicleId, vehicles]);
+
+    // Seleção de veículo centralizada com auto-preenchimento
+    const handleSelectVehicle = (v: string) => {
+        const selectedVeh = vehicles.find(veh => veh.id === v);
+        const vehGarage = selectedVeh?.garageId
+            ? garagesForOS.find((g: Garage) => g.id === selectedVeh.garageId)
+            : undefined;
+        setFormData(p => ({
+            ...p,
+            vehicleId: v,
+            vehiclePlate: selectedVeh?.plate || (selectedVeh as any)?.placa || p.vehiclePlate,
+            vehicleModel: selectedVeh?.model || (selectedVeh as any)?.modelo || p.vehicleModel,
+            clientId: selectedVeh?.clientId || p.clientId,
+            sectorId: selectedVeh?.workPostId || p.sectorId,
+            workPostId: selectedVeh?.workPostId || p.workPostId,
+            workPostName: (selectedVeh as any)?.workPostName || p.workPostName,
+            garageId: p.garageId || selectedVeh?.garageId || undefined,
+            garageName: p.garageName || vehGarage?.name || selectedVeh?.garageName || undefined,
+            odometerIn: (selectedVeh?.currentMileage !== undefined && selectedVeh?.currentMileage !== null)
+                ? selectedVeh.currentMileage
+                : p.odometerIn
+        }));
+        if (formData.maintenanceType === MaintenanceType.PREVENTIVA && (!isEdit || !order?.checklistItems || order.checklistItems.length === 0)) {
+            handleLoadDefaultChecklist(v);
+        }
+    };
+
+    // Inserção rápida de queixa / sintoma
+    const handleAddSymptomChip = (symptom: string) => {
+        setFormData(p => {
+            const current = (p.anomaliesDescription || p.stopReason || '').trim();
+            const updated = current ? `${current}; ${symptom}` : symptom;
+            return {
+                ...p,
+                anomaliesDescription: updated,
+                stopReason: updated
+            };
+        });
+    };
 
     // Limite de valor para serviço exigir aprovação obrigatória do Gestor (R$ 500,00)
     const HIGH_VALUE_SERVICE_THRESHOLD = 500;
@@ -510,6 +822,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
     }, [user]);
 
     const [isRequestingPurchase, setIsRequestingPurchase] = useState(false);
+
 
     const handleRequestPurchase = async () => {
         if (!order?.id) {
@@ -851,8 +1164,9 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
             return;
         }
 
-        if (formData.maintenanceType === MaintenanceType.CORRETIVA && !formData.anomaliesDescription?.trim()) {
-            toast({ title: 'Erro', description: 'A descrição de anomalias é obrigatória para OS Corretiva.', variant: 'destructive' });
+        const defectText = (formData.anomaliesDescription || formData.stopReason || '').trim();
+        if (formData.maintenanceType === MaintenanceType.CORRETIVA && !defectText) {
+            toast({ title: 'Atenção', description: 'Informe o defeito relatado ou anomalia para a OS Corretiva.', variant: 'destructive' });
             return;
         }
 
@@ -877,8 +1191,23 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         const effectiveId = order?.id || formData.id;
         setIsLoading(true);
         try {
+            const today = new Date().toISOString().split('T')[0];
+            const nowTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const resolvedAnomalies = defectText || (formData.maintenanceType === MaintenanceType.PREVENTIVA ? 'Revisão preventiva periódica' : '');
+
+            const isDriver = user?.role === 'MOTORISTA' || (user as any)?.roles?.some((r: any) => typeof r === 'string' ? r.includes('MOTORISTA') : r?.name?.includes('MOTORISTA'));
+            const driverName = user?.name || user?.username || 'Motorista';
+            const resolvedMechanic = formData.mechanicName?.trim() || (isDriver ? `${driverName} (Motorista)` : undefined);
+
             const payload: Partial<FleetWorkOrder> = {
                 ...formData,
+                mechanicName: resolvedMechanic,
+                responsibleName: formData.responsibleName || (isDriver ? driverName : undefined),
+                requesterName: formData.requesterName || (isDriver ? driverName : undefined),
+                stopDate: formData.stopDate || today,
+                stopTime: formData.stopTime || nowTime,
+                stopReason: formData.stopReason?.trim() || resolvedAnomalies,
+                anomaliesDescription: resolvedAnomalies,
                 status: submitStatus || formData.status || WorkOrderStatus.OPEN,
                 items: (formData.items || []).map(it => ({ ...it, type: it.type ?? WorkOrderItemType.PART })),
             };
@@ -909,10 +1238,11 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
             return;
         }
 
-        if (formData.maintenanceType === MaintenanceType.CORRETIVA && !formData.anomaliesDescription?.trim()) {
+        const defectText = (formData.anomaliesDescription || formData.stopReason || '').trim();
+        if (formData.maintenanceType === MaintenanceType.CORRETIVA && !defectText) {
             toast({
                 title: 'Descrição Obrigatória',
-                description: 'A descrição de anomalias é obrigatória para OS Corretiva.',
+                description: 'Informe a descrição do defeito ou anomalia para OS Corretiva.',
                 variant: 'destructive'
             });
             return;
@@ -933,8 +1263,23 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
 
         setIsGeneratingPdf(true);
         try {
+            const today = new Date().toISOString().split('T')[0];
+            const nowTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const resolvedAnomalies = defectText || (formData.maintenanceType === MaintenanceType.PREVENTIVA ? 'Revisão preventiva periódica' : '');
+
+            const isDriver = user?.role === 'MOTORISTA' || (user as any)?.roles?.some((r: any) => typeof r === 'string' ? r.includes('MOTORISTA') : r?.name?.includes('MOTORISTA'));
+            const driverName = user?.name || user?.username || 'Motorista';
+            const resolvedMechanic = formData.mechanicName?.trim() || (isDriver ? `${driverName} (Motorista)` : undefined);
+
             const payload: Partial<FleetWorkOrder> = {
                 ...formData,
+                mechanicName: resolvedMechanic,
+                responsibleName: formData.responsibleName || (isDriver ? driverName : undefined),
+                requesterName: formData.requesterName || (isDriver ? driverName : undefined),
+                stopDate: formData.stopDate || today,
+                stopTime: formData.stopTime || nowTime,
+                stopReason: formData.stopReason?.trim() || resolvedAnomalies,
+                anomaliesDescription: resolvedAnomalies,
                 status: formData.status || WorkOrderStatus.OPEN,
                 items: (formData.items || []).map(it => ({ ...it, type: it.type ?? WorkOrderItemType.PART })),
             };
@@ -993,6 +1338,17 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         <div className="flex w-full justify-between items-center gap-3 flex-wrap">
             <Button variant="outline" onClick={onClose} className="border-gray-600 text-gray-300">Cancelar</Button>
             <div className="flex gap-2 flex-wrap justify-end items-center">
+                {isExpressMode && (
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsExpressMode(false)}
+                        className="border-gray-700 text-gray-300 hover:text-white hover:bg-gray-800 text-xs"
+                    >
+                        <ClipboardList className="mr-1.5 h-3.5 w-3.5 text-blue-400" />
+                        Modo Completo / Peças
+                    </Button>
+                )}
                 <Button
                     type="button"
                     variant="outline"
@@ -1003,31 +1359,44 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                     <FileText className="mr-2 h-4 w-4 text-red-400" />
                     {isGeneratingPdf ? 'Gerando OS...' : 'Gerar e Visualizar OS'}
                 </Button>
-                <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => handleSubmit(WorkOrderStatus.OPEN)}
-                    disabled={isLoading || isGeneratingPdf}
-                    className="border-blue-500 text-blue-400 hover:bg-blue-500/10"
-                >
-                    <Clock className="mr-2 h-4 w-4" /> Salvar Rascunho / Aberta
-                </Button>
-                <Button
-                    type="button"
-                    onClick={() => handleSubmit(WorkOrderStatus.IN_PROGRESS)}
-                    disabled={isLoading || isGeneratingPdf}
-                    className="bg-orange-600 hover:bg-orange-700 text-white font-bold"
-                >
-                    <Wrench className="mr-2 h-4 w-4" /> Em Andamento
-                </Button>
-                <Button
-                    type="button"
-                    onClick={() => handleSubmit(WorkOrderStatus.COMPLETED)}
-                    disabled={isLoading || isGeneratingPdf}
-                    className="bg-green-600 hover:bg-green-700 text-white font-bold"
-                >
-                    <CheckCircle className="mr-2 h-4 w-4" /> Concluir OS
-                </Button>
+                {isExpressMode ? (
+                    <Button
+                        type="button"
+                        onClick={() => handleSubmit(WorkOrderStatus.OPEN)}
+                        disabled={isLoading || isGeneratingPdf}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-lg shadow-emerald-950/50"
+                    >
+                        <Zap className="mr-2 h-4 w-4 text-amber-300" /> Abrir OS Imediatamente
+                    </Button>
+                ) : (
+                    <>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => handleSubmit(WorkOrderStatus.OPEN)}
+                            disabled={isLoading || isGeneratingPdf}
+                            className="border-blue-500 text-blue-400 hover:bg-blue-500/10"
+                        >
+                            <Clock className="mr-2 h-4 w-4" /> Salvar Rascunho / Aberta
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={() => handleSubmit(WorkOrderStatus.IN_PROGRESS)}
+                            disabled={isLoading || isGeneratingPdf}
+                            className="bg-orange-600 hover:bg-orange-700 text-white font-bold"
+                        >
+                            <Wrench className="mr-2 h-4 w-4" /> Em Andamento
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={() => handleSubmit(WorkOrderStatus.COMPLETED)}
+                            disabled={isLoading || isGeneratingPdf}
+                            className="bg-green-600 hover:bg-green-700 text-white font-bold"
+                        >
+                            <CheckCircle className="mr-2 h-4 w-4" /> Concluir OS
+                        </Button>
+                    </>
+                )}
             </div>
         </div>
     );
@@ -1042,10 +1411,29 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
 
     const currentOsNumber = order?.osNumber || formData.osNumber || (order?.id ? order.id.slice(0, 8) : formData.id ? formData.id.slice(0, 8) : null);
 
-    if (!isOpen) return null;
+    const handleCloseDrawer = () => {
+        onClose();
+        setTimeout(() => {
+            if (!document.querySelector('[role="dialog"], [role="alertdialog"]')) {
+                document.body.style.pointerEvents = '';
+                document.body.style.overflow = '';
+            }
+        }, 50);
+    };
+
+    useEffect(() => {
+        return () => {
+            setTimeout(() => {
+                if (!document.querySelector('[role="dialog"], [role="alertdialog"]')) {
+                    document.body.style.pointerEvents = '';
+                    document.body.style.overflow = '';
+                }
+            }, 50);
+        };
+    }, []);
 
     return (
-        <ResponsiveDrawer isOpen={isOpen} onClose={onClose}
+        <ResponsiveDrawer isOpen={isOpen} onClose={handleCloseDrawer}
             title={currentOsNumber ? `OS #${currentOsNumber} — ${isEdit ? 'Editar' : 'Ordem de Serviço'}` : 'Nova Ordem de Serviço'}
             description="Cadastre manutenções corretivas e preventivas com controle completo de checklist e execução."
             footer={footer}
@@ -1082,47 +1470,310 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                     </Button>
                 </div>
 
-                {/* ── Seção 1: Tipo & Identificação ──────────────────────────── */}
-                <Section title="Identificação da OS" icon={<ClipboardList className="h-4 w-4 text-red-500" />}>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <Field label="Tipo de Manutenção *">
-                            <Select value={formData.maintenanceType || MaintenanceType.CORRETIVA}
-                                onValueChange={v => setFormData(p => ({ ...p, maintenanceType: v as MaintenanceType }))}>
-                                <SelectTrigger className="bg-seguranca-black border-gray-600 font-bold"><SelectValue /></SelectTrigger>
-                                <SelectContent className="bg-seguranca-black border-gray-600">
-                                    <SelectItem value={MaintenanceType.CORRETIVA}>🔧 CORRETIVA</SelectItem>
-                                    <SelectItem value={MaintenanceType.PREVENTIVA}>📋 PREVENTIVA</SelectItem>
-                                    <SelectItem value={MaintenanceType.PREDITIVA}>📊 PREDITIVA</SelectItem>
-                                    <SelectItem value={MaintenanceType.INSPECAO}>🔍 INSPEÇÃO</SelectItem>
-                                    <SelectItem value={MaintenanceType.LUBRIFICACAO}>🛢️ LUBRIFICAÇÃO</SelectItem>
-                                    <SelectItem value={MaintenanceType.LIMPEZA}>🧼 HIGIENIZAÇÃO / LIMPEZA</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </Field>
-                        <Field label="Equipamento / Veículo *">
+                {/* ── Seletor de Modo: Abertura Expressa vs Formulário Completo ── */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-gradient-to-r from-gray-900/90 via-black to-gray-900/90 border border-gray-800 rounded-xl">
+                    <div className="flex items-center gap-2">
+                        <div className="flex items-center p-1 bg-black/80 rounded-lg border border-gray-800">
+                            <button
+                                type="button"
+                                onClick={() => setIsExpressMode(true)}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                                    isExpressMode
+                                        ? 'bg-amber-500 text-black shadow-md'
+                                        : 'text-gray-400 hover:text-white'
+                                }`}
+                            >
+                                <Zap className="h-3.5 w-3.5" />
+                                ⚡ Abertura Expressa
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setIsExpressMode(false)}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                                    !isExpressMode
+                                        ? 'bg-blue-600 text-white shadow-md'
+                                        : 'text-gray-400 hover:text-white'
+                                }`}
+                            >
+                                <ClipboardList className="h-3.5 w-3.5" />
+                                📋 Formulário Completo
+                            </button>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-gray-400">
+                        {isExpressMode ? (
+                            <span className="flex items-center gap-1.5 text-amber-400 font-medium">
+                                <Zap className="h-3.5 w-3.5 text-amber-400" />
+                                Modo Rápido: apenas campos essenciais para entrada na oficina
+                            </span>
+                        ) : (
+                            <span className="flex items-center gap-1.5 text-blue-400 font-medium">
+                                <ClipboardList className="h-3.5 w-3.5 text-blue-400" />
+                                Modo Detalhado: gestão de peças, orçamentos e checklist de 33 itens
+                            </span>
+                        )}
+                    </div>
+                </div>
+
+                {isExpressMode ? (
+                    <div className="space-y-5 animate-in fade-in duration-200">
+                        {/* 1. Veículo e Odômetro */}
+                        <div className="p-4 rounded-xl bg-gray-900/60 border border-gray-800 space-y-3 shadow-sm">
+                            <div className="flex items-center justify-between">
+                                <Label className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-2">
+                                    <Car className="h-4 w-4 text-amber-400" />
+                                    1. Equipamento / Veículo *
+                                </Label>
+                                {selectedVehicle && (
+                                    <Badge variant="outline" className="border-amber-500/40 text-amber-300 text-[11px] font-mono">
+                                        {selectedVehicle.fleetNumber ? `Frota #${selectedVehicle.fleetNumber}` : selectedVehicle.plate}
+                                    </Badge>
+                                )}
+                            </div>
+
                             <SearchableSelect
                                 value={formData.vehicleId || ''}
-                                onChange={(v) => {
-                                    const selectedVeh = vehicles.find(veh => veh.id === v);
-                                    const vehGarage = selectedVeh?.garageId
-                                        ? garagesForOS.find((g: Garage) => g.id === selectedVeh.garageId)
-                                        : undefined;
-                                    setFormData(p => ({
-                                        ...p,
-                                        vehicleId: v,
-                                        clientId: selectedVeh?.clientId || p.clientId,
-                                        sectorId: selectedVeh?.workPostId || p.sectorId,
-                                        workPostId: selectedVeh?.workPostId || p.workPostId,
-                                        garageId: p.garageId || selectedVeh?.garageId || undefined,
-                                        garageName: p.garageName || vehGarage?.name || selectedVeh?.garageName || undefined,
-                                        odometerIn: (selectedVeh?.currentMileage !== undefined && selectedVeh?.currentMileage !== null)
-                                            ? selectedVeh.currentMileage
-                                            : p.odometerIn
-                                    }));
-                                }}
+                                fallbackLabel={formData.vehiclePlate ? `${formData.vehiclePlate}${formData.vehicleModel ? ` - ${formData.vehicleModel}` : ''}` : undefined}
+                                onChange={handleSelectVehicle}
                                 options={vehicleOptions}
-                                placeholder="Selecione ou busque por placa ou código..."
-                                searchPlaceholder="Buscar placa, código, modelo ou marca..."
+                                placeholder="Selecione ou busque o veículo por placa ou código..."
+                                searchPlaceholder="Buscar placa, prefixo, código ou modelo..."
+                                emptyText={isLoadingVehicles ? "Carregando veículos da frota..." : "Nenhum veículo encontrado."}
+                            />
+
+                            {selectedVehicle ? (
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-gray-800/80 text-xs">
+                                    <div className="bg-black/50 p-2.5 rounded-lg border border-gray-800">
+                                        <span className="text-gray-500 block text-[10px] uppercase font-bold tracking-wider">Veículo</span>
+                                        <span className="text-white font-bold block truncate">
+                                            {selectedVehicle.plate || '—'}
+                                            {selectedVehicle.model ? ` · ${selectedVehicle.model}` : ''}
+                                        </span>
+                                    </div>
+
+                                    <div className="bg-black/50 p-2.5 rounded-lg border border-gray-800">
+                                        <span className="text-gray-500 block text-[10px] uppercase font-bold tracking-wider">KM Entrada (Atual)</span>
+                                        <Input
+                                            type="number"
+                                            min={0}
+                                            value={formData.odometerIn ?? ''}
+                                            onChange={e => setFormData(p => ({ ...p, odometerIn: parseInt(e.target.value) || undefined }))}
+                                            placeholder="KM entrada"
+                                            className="h-7 text-xs bg-seguranca-black border-gray-700 mt-1 font-mono text-emerald-400 font-bold"
+                                        />
+                                    </div>
+
+                                    <div className="bg-black/50 p-2.5 rounded-lg border border-gray-800">
+                                        <span className="text-gray-500 block text-[10px] uppercase font-bold tracking-wider">Garagem / Pátio</span>
+                                        <span className="text-gray-300 block truncate mt-1">
+                                            {formData.garageName || selectedVehicle.garageName || 'Pátio Operacional'}
+                                        </span>
+                                    </div>
+
+                                    <div className="bg-black/50 p-2.5 rounded-lg border border-gray-800">
+                                        <span className="text-gray-500 block text-[10px] uppercase font-bold tracking-wider">Cliente / Obra</span>
+                                        <span className="text-gray-300 block truncate mt-1">
+                                            {formData.workPostName || selectedVehicle.clientName || 'Geral'}
+                                        </span>
+                                    </div>
+                                </div>
+                            ) : (
+                                <p className="text-xs text-gray-500 italic">
+                                    Ao selecionar o veículo, a garagem, cliente/obra e quilometragem atual serão preenchidos automaticamente.
+                                </p>
+                            )}
+                        </div>
+
+                        {/* 2. Tipo de Manutenção, Prioridade e Mecânico */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Tipo de Manutenção */}
+                            <div className="p-4 rounded-xl bg-gray-900/60 border border-gray-800 space-y-3 shadow-sm">
+                                <Label className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-2">
+                                    <Wrench className="h-4 w-4 text-amber-400" />
+                                    2. Tipo de Manutenção *
+                                </Label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {[
+                                        { type: MaintenanceType.CORRETIVA, label: 'Corretiva', icon: '🔧', desc: 'Reparo / Quebra' },
+                                        { type: MaintenanceType.PREVENTIVA, label: 'Preventiva', icon: '📋', desc: 'Revisão periódica' },
+                                        { type: MaintenanceType.LUBRIFICACAO, label: 'Lubrificação', icon: '🛢️', desc: 'Troca de óleo' },
+                                        { type: MaintenanceType.LIMPEZA, label: 'Higienização', icon: '🧼', desc: 'Limpeza e lavagem' },
+                                    ].map(opt => {
+                                        const isSelected = (formData.maintenanceType || MaintenanceType.CORRETIVA) === opt.type;
+                                        return (
+                                            <button
+                                                key={opt.type}
+                                                type="button"
+                                                onClick={() => setFormData(p => ({ ...p, maintenanceType: opt.type }))}
+                                                className={`p-3 rounded-lg border text-left transition-all ${
+                                                    isSelected
+                                                        ? 'bg-amber-500/15 border-amber-500 text-white shadow-md ring-1 ring-amber-500/50'
+                                                        : 'bg-black/40 border-gray-800 text-gray-400 hover:border-gray-700 hover:text-gray-300'
+                                                }`}
+                                            >
+                                                <div className="flex items-center gap-2 font-bold text-xs text-white">
+                                                    <span className="text-base">{opt.icon}</span> {opt.label}
+                                                </div>
+                                                <div className="text-[10px] text-gray-500 mt-0.5">{opt.desc}</div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Prioridade & Mecânico */}
+                            <div className="p-4 rounded-xl bg-gray-900/60 border border-gray-800 space-y-3 shadow-sm">
+                                <Label className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-2">
+                                    <ShieldCheck className="h-4 w-4 text-amber-400" />
+                                    3. Prioridade & Mecânico
+                                </Label>
+
+                                <div>
+                                    <span className="text-[11px] text-gray-400 block mb-1.5 uppercase font-medium">Prioridade de Atendimento</span>
+                                    <div className="grid grid-cols-4 gap-1.5">
+                                        {[
+                                            { key: WorkOrderPriority.LOW, label: 'Baixa', activeClass: 'bg-gray-700 text-gray-200 border-gray-500' },
+                                            { key: WorkOrderPriority.MEDIUM, label: 'Média', activeClass: 'bg-blue-600/40 text-blue-200 border-blue-400' },
+                                            { key: WorkOrderPriority.HIGH, label: 'Alta', activeClass: 'bg-orange-600/40 text-orange-200 border-orange-400' },
+                                            { key: WorkOrderPriority.URGENT, label: 'Urgente', activeClass: 'bg-red-600/50 text-red-100 border-red-500 animate-pulse' },
+                                        ].map(prio => {
+                                            const isSelected = (formData.priority || WorkOrderPriority.MEDIUM) === prio.key;
+                                            return (
+                                                <button
+                                                    key={prio.key}
+                                                    type="button"
+                                                    onClick={() => setFormData(p => ({ ...p, priority: prio.key }))}
+                                                    className={`py-2 px-1 rounded-lg border text-center text-xs font-bold transition-all ${
+                                                        isSelected
+                                                            ? `${prio.activeClass} shadow-sm ring-1 ring-white/20`
+                                                            : 'bg-black/40 border-gray-800 text-gray-500 hover:border-gray-700'
+                                                    }`}
+                                                >
+                                                    {prio.label}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                <div className="pt-1">
+                                    <span className="text-[11px] text-gray-400 block mb-1.5 uppercase font-medium">Mecânico / Responsável da Oficina</span>
+                                    <SearchableSelect
+                                        value={formData.mechanicId || ''}
+                                        fallbackLabel={formData.mechanicName || undefined}
+                                        onChange={(v, opt) => {
+                                            setFormData(p => ({
+                                                ...p,
+                                                mechanicId: v,
+                                                mechanicName: opt ? opt.label : p.mechanicName
+                                            }));
+                                        }}
+                                        options={mechanicOptions}
+                                        placeholder={formData.mechanicName || "Selecionar mecânico (ou deixar na fila)..."}
+                                        searchPlaceholder="Buscar mecânico..."
+                                        emptyText="Nenhum mecânico encontrado."
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 3. Defeito Relatado / Queixa com Sintomas Rápidos */}
+                        <div className="p-4 rounded-xl bg-gray-900/60 border border-gray-800 space-y-3 shadow-sm">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                                <Label className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-2">
+                                    <AlertTriangle className="h-4 w-4 text-amber-400" />
+                                    4. Defeito Relatado / Motivo da Entrada *
+                                </Label>
+                                <span className="text-[11px] text-gray-500">
+                                    Clique nas queixas rápidas para preencher instantaneamente
+                                </span>
+                            </div>
+
+                            {/* Chips Rápidos de Sintomas */}
+                            <div className="flex flex-wrap gap-1.5 p-2.5 rounded-lg bg-black/40 border border-gray-800/80">
+                                {QUICK_SYMPTOMS.map((symptom) => (
+                                    <button
+                                        key={symptom}
+                                        type="button"
+                                        onClick={() => handleAddSymptomChip(symptom)}
+                                        className="text-[11px] px-2.5 py-1 rounded-full bg-gray-800/80 hover:bg-amber-500/20 text-gray-300 hover:text-amber-300 border border-gray-700/60 hover:border-amber-500/40 transition-all text-left flex items-center gap-1 active:scale-95 shadow-xs"
+                                    >
+                                        <Plus className="h-3 w-3 text-amber-400 shrink-0" />
+                                        {symptom}
+                                    </button>
+                                ))}
+                            </div>
+
+                            <Textarea
+                                value={formData.anomaliesDescription || formData.stopReason || ''}
+                                onChange={e => {
+                                    const val = e.target.value;
+                                    setFormData(p => ({ ...p, anomaliesDescription: val, stopReason: val }));
+                                }}
+                                placeholder="Descreva a queixa do motorista ou motivo da manutenção (ex: barulho forte na suspensão, luz do freio no painel, vazamento de ar...)"
+                                className="bg-seguranca-black border-gray-700 text-sm min-h-[95px] focus:border-amber-500"
+                            />
+                        </div>
+
+                        {/* 4. Card de Ação Rápida */}
+                        <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-950/40 via-black to-blue-950/40 border border-emerald-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                    <Zap className="h-4 w-4 text-emerald-400" />
+                                    <span className="text-sm font-bold text-white">Pronto para iniciar o atendimento!</span>
+                                </div>
+                                <p className="text-xs text-gray-400">
+                                    A OS será aberta imediatamente com horário de entrada registrado. Peças do estoque, serviços e checklists podem ser lançados durante o serviço.
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setIsExpressMode(false)}
+                                    className="border-gray-700 text-gray-300 text-xs hover:text-white"
+                                >
+                                    Lançar Peças / Detalhes →
+                                </Button>
+                                <Button
+                                    type="button"
+                                    onClick={() => handleSubmit(WorkOrderStatus.OPEN)}
+                                    disabled={isLoading || isGeneratingPdf}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-9 px-4 shadow-lg shadow-emerald-950/50"
+                                >
+                                    <Zap className="mr-1.5 h-3.5 w-3.5 text-amber-300" />
+                                    ⚡ Criar O.S. Agora
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="space-y-6 animate-in fade-in duration-200">
+                        {/* ── Seção 1: Tipo & Identificação ──────────────────────────── */}
+                        <Section title="Identificação da OS" icon={<ClipboardList className="h-4 w-4 text-red-500" />}>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <Field label="Tipo de Manutenção *">
+                                    <Select value={formData.maintenanceType || MaintenanceType.CORRETIVA}
+                                        onValueChange={v => setFormData(p => ({ ...p, maintenanceType: v as MaintenanceType }))}>
+                                        <SelectTrigger className="bg-seguranca-black border-gray-600 font-bold"><SelectValue /></SelectTrigger>
+                                        <SelectContent className="bg-seguranca-black border-gray-600">
+                                            <SelectItem value={MaintenanceType.CORRETIVA}>🔧 CORRETIVA</SelectItem>
+                                            <SelectItem value={MaintenanceType.PREVENTIVA}>📋 PREVENTIVA</SelectItem>
+                                            <SelectItem value={MaintenanceType.PREDITIVA}>📊 PREDITIVA</SelectItem>
+                                            <SelectItem value={MaintenanceType.INSPECAO}>🔍 INSPEÇÃO</SelectItem>
+                                            <SelectItem value={MaintenanceType.LUBRIFICACAO}>🛢️ LUBRIFICAÇÃO</SelectItem>
+                                            <SelectItem value={MaintenanceType.LIMPEZA}>🧼 HIGIENIZAÇÃO / LIMPEZA</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </Field>
+                                <Field label="Equipamento / Veículo *">
+                                    <SearchableSelect
+                                        value={formData.vehicleId || ''}
+                                        fallbackLabel={formData.vehiclePlate ? `${formData.vehiclePlate}${formData.vehicleModel ? ` - ${formData.vehicleModel}` : ''}` : undefined}
+                                        onChange={handleSelectVehicle}
+                                        options={vehicleOptions}
+                                        placeholder="Selecione ou busque por placa ou código..."
+                                        searchPlaceholder="Buscar placa, código, modelo ou marca..."
                                 emptyText={isLoadingVehicles ? "Carregando veículos da frota..." : "Nenhum veículo encontrado."}
                             />
                         </Field>
@@ -1139,6 +1790,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                         <Field label="Mecânico / Responsável *">
                             <SearchableSelect
                                 value={formData.mechanicId || ''}
+                                fallbackLabel={formData.mechanicName || undefined}
                                 onChange={(v, opt) => {
                                     setFormData(p => ({
                                         ...p,
@@ -1191,6 +1843,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                         <Field label="Setor / Obra *">
                             <SearchableSelect
                                 value={formData.sectorId || formData.workPostId || ''}
+                                fallbackLabel={formData.workPostName || undefined}
                                 onChange={(v) => {
                                     const selectedWp = allWorkPosts.find((w: any) => w.id === v);
                                     setFormData(p => ({
@@ -1220,6 +1873,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                         <Field label="Garagem (onde o serviço será executado) *">
                             <SearchableSelect
                                 value={formData.garageId || ''}
+                                fallbackLabel={formData.garageName || undefined}
                                 onChange={(v, opt) => {
                                     setFormData(p => ({ ...p, garageId: v, garageName: opt ? opt.label : p.garageName }));
                                 }}
@@ -1259,6 +1913,142 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                     </div>
                 </Section>
 
+                {/* ── Seção 3: Tempo de Execução do Serviço ───────────────────────── */}
+                <Section
+                    title="Tempo de Execução do Serviço"
+                    icon={<Timer className="h-4 w-4 text-emerald-400" />}
+                    action={
+                        isEdit && order?.id ? (
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleLoadExecutionHistory}
+                                    className="h-7 text-xs border-gray-700 hover:border-gray-500 text-gray-300 hover:text-white"
+                                >
+                                    <History className="h-3 w-3 mr-1 text-blue-400" />
+                                    Histórico de Correções
+                                </Button>
+                            </div>
+                        ) : null
+                    }
+                >
+                    <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-4 space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Início da Execução */}
+                            <div className="space-y-1.5 p-3 rounded-lg bg-black/40 border border-gray-800">
+                                <div className="flex items-center justify-between">
+                                    <Label className="text-xs font-semibold text-emerald-400 flex items-center gap-1.5">
+                                        <PlayCircle className="h-3.5 w-3.5 text-emerald-400" />
+                                        Início da Execução
+                                    </Label>
+                                    {isEdit && order?.executionStartDate && (
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={handleOpenCorrectionModal}
+                                            className="h-6 text-[11px] px-2 text-amber-400 hover:text-amber-300 hover:bg-amber-950/40"
+                                            title="Corrigir horário de início com justificativa obrigatória"
+                                        >
+                                            <Edit className="h-3 w-3 mr-1" /> Corrigir com Justificativa
+                                        </Button>
+                                    )}
+                                </div>
+                                <Input
+                                    type="datetime-local"
+                                    value={formData.executionStartDate ? formData.executionStartDate.substring(0, 16) : ''}
+                                    onChange={e => {
+                                        const val = e.target.value;
+                                        setFormData(p => ({
+                                            ...p,
+                                            executionStartDate: val ? (val.length === 16 ? `${val}:00` : val) : undefined
+                                        }));
+                                    }}
+                                    className="bg-seguranca-black border-gray-700 text-sm focus:border-emerald-500"
+                                />
+                                <p className="text-[11px] text-gray-400">
+                                    Preenchido automaticamente ao entregar itens no Almoxarifado ou ao iniciar a manutenção.
+                                </p>
+                            </div>
+
+                            {/* Término da Execução */}
+                            <div className="space-y-1.5 p-3 rounded-lg bg-black/40 border border-gray-800">
+                                <Label className="text-xs font-semibold text-blue-400 flex items-center gap-1.5">
+                                    <StopCircle className="h-3.5 w-3.5 text-blue-400" />
+                                    Término da Execução
+                                </Label>
+                                <Input
+                                    type="datetime-local"
+                                    value={formData.executionEndDate ? formData.executionEndDate.substring(0, 16) : ''}
+                                    onChange={e => {
+                                        const val = e.target.value;
+                                        setFormData(p => ({
+                                            ...p,
+                                            executionEndDate: val ? (val.length === 16 ? `${val}:00` : val) : undefined
+                                        }));
+                                    }}
+                                    className="bg-seguranca-black border-gray-700 text-sm focus:border-blue-500"
+                                />
+                                <p className="text-[11px] text-gray-400">
+                                    Preenchido ao concluir as atividades mecânicas da OS.
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Apuração Automática da Duração */}
+                        <div className="rounded-lg p-3 bg-gradient-to-r from-emerald-950/30 via-gray-900/40 to-blue-950/30 border border-emerald-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div className="flex items-center gap-2.5">
+                                <div className="p-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                                    <Clock className="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 block">
+                                        Tempo Total de Execução Calculado
+                                    </span>
+                                    <span className="text-base font-bold text-emerald-300">
+                                        {calculatedDuration
+                                            ? formatDurationString(calculatedDuration)
+                                            : (formData.executionDurationMinutes
+                                                ? formatDurationString({
+                                                    days: Math.floor(formData.executionDurationMinutes / 1440),
+                                                    hours: Math.floor((formData.executionDurationMinutes % 1440) / 60),
+                                                    minutes: formData.executionDurationMinutes % 60
+                                                })
+                                                : 'Aguardando definição de início e término')}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {calculatedDuration?.isRunning && (
+                                <Badge className="bg-amber-950/80 text-amber-300 border border-amber-700/60 px-2.5 py-1 text-xs self-start sm:self-auto flex items-center gap-1.5 animate-pulse">
+                                    <span className="h-2 w-2 rounded-full bg-amber-400"></span>
+                                    Em execução contínua
+                                </Badge>
+                            )}
+
+                            {calculatedDuration && !calculatedDuration.isRunning && (
+                                <Badge className="bg-emerald-950/80 text-emerald-300 border border-emerald-700/60 px-2.5 py-1 text-xs self-start sm:self-auto flex items-center gap-1.5">
+                                    <CheckCircle className="h-3.5 w-3.5 text-emerald-400" />
+                                    Execução Finalizada
+                                </Badge>
+                            )}
+                        </div>
+
+                        {/* Justificativa da última correção se houver */}
+                        {formData.executionStartJustification && (
+                            <div className="text-xs bg-amber-950/30 border border-amber-800/40 rounded-lg p-2.5 text-amber-200/90 flex items-start gap-2">
+                                <AlertCircle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+                                <div>
+                                    <span className="font-semibold text-amber-300">Justificativa do Início:</span>{' '}
+                                    {formData.executionStartJustification}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </Section>
+
                 {/* ── Seção Dinâmica Corretiva vs Preventiva ──────────────────────── */}
                 {formData.maintenanceType === MaintenanceType.CORRETIVA ? (
                     <Section title="Manutenção Corretiva — Anomalias" icon={<AlertTriangle className="h-4 w-4 text-orange-500" />}>
@@ -1277,11 +2067,27 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                     <Section title="Checklist de Inspeção Preventiva" icon={<ClipboardList className="h-4 w-4 text-green-400" />}>
                         <div className="space-y-6">
                             {Object.keys(checklistByCategory).length === 0 ? (
-                                <p className="text-sm text-gray-500 italic">Carregando itens de inspeção…</p>
+                                <div className="p-6 rounded-lg border border-dashed border-gray-800 bg-black/30 text-center space-y-3">
+                                    <ClipboardList className="h-8 w-8 text-gray-500 mx-auto" />
+                                    <p className="text-sm text-gray-400">
+                                        {isLoadingChecklist ? 'Carregando itens de inspeção preventiva...' : 'Nenhum item de inspeção carregado para esta OS.'}
+                                    </p>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleLoadDefaultChecklist}
+                                        disabled={isLoadingChecklist}
+                                        className="border-green-800 text-green-400 hover:bg-green-950/40"
+                                    >
+                                        <RefreshCw className={`h-3.5 w-3.5 mr-2 ${isLoadingChecklist ? 'animate-spin' : ''}`} />
+                                        {isLoadingChecklist ? 'Carregando...' : 'Carregar Itens Padrão de Inspeção'}
+                                    </Button>
+                                </div>
                             ) : (
                                 Object.entries(checklistByCategory).map(([category, items]) => (
                                     <div key={category} className="border border-gray-800 rounded-lg p-3 bg-gray-900/40 space-y-3">
-                                        <h4 className="text-xs font-bold text-gray-300 uppercase tracking-wider text-red-400 flex items-center gap-2">
+                                        <h4 className="text-xs font-bold uppercase tracking-wider text-green-400 flex items-center gap-2">
                                             <span>•</span> {category}
                                         </h4>
                                         <div className="space-y-2">
@@ -1290,7 +2096,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                                     <div className="flex-1">
                                                         <p className="text-sm font-medium text-gray-200">{item.checklistItemDescricao}</p>
                                                     </div>
-                                                    <div className="flex items-center gap-2">
+                                                    <div className="flex items-center gap-1.5 flex-wrap">
                                                         <Button type="button" size="sm" variant={item.situacao === ChecklistStatus.OK ? 'default' : 'outline'}
                                                             onClick={() => handleChecklistStatusChange(originalIndex, ChecklistStatus.OK)}
                                                             className={`h-8 px-2 text-xs font-bold ${item.situacao === ChecklistStatus.OK ? 'bg-green-600 text-white' : 'border-gray-700 text-gray-400'}`}>
@@ -1301,16 +2107,22 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                                             className={`h-8 px-2 text-xs font-bold ${item.situacao === ChecklistStatus.NAO_OK ? 'bg-red-600 text-white' : 'border-gray-700 text-gray-400'}`}>
                                                             <XCircle className="h-3.5 w-3.5 mr-1" /> NÃO OK
                                                         </Button>
+                                                        <Button type="button" size="sm" variant={item.situacao === ChecklistStatus.TROCAR ? 'default' : 'outline'}
+                                                            onClick={() => handleChecklistStatusChange(originalIndex, ChecklistStatus.TROCAR)}
+                                                            className={`h-8 px-2 text-xs font-bold ${item.situacao === ChecklistStatus.TROCAR ? 'bg-amber-600 text-white' : 'border-gray-700 text-gray-400'}`}>
+                                                            <RefreshCw className="h-3.5 w-3.5 mr-1" /> TROCAR
+                                                        </Button>
                                                         <Button type="button" size="sm" variant={item.situacao === ChecklistStatus.NAO_APLICA ? 'default' : 'outline'}
                                                             onClick={() => handleChecklistStatusChange(originalIndex, ChecklistStatus.NAO_APLICA)}
                                                             className={`h-8 px-2 text-xs font-bold ${item.situacao === ChecklistStatus.NAO_APLICA ? 'bg-gray-600 text-white' : 'border-gray-700 text-gray-400'}`}>
                                                             <MinusCircle className="h-3.5 w-3.5 mr-1" /> N/A
                                                         </Button>
                                                     </div>
-                                                    {item.situacao === ChecklistStatus.NAO_OK && (
+                                                    {(item.situacao === ChecklistStatus.NAO_OK || item.situacao === ChecklistStatus.TROCAR) && (
                                                         <div className="w-full md:w-1/2 flex flex-col gap-1.5 mt-2 md:mt-0">
                                                             <Input value={item.observacao || ''} onChange={e => handleChecklistTextChange(originalIndex, 'observacao', e.target.value)}
-                                                                placeholder="Observação da anomalia…" className="bg-seguranca-black border-red-900 text-xs h-8" />
+                                                                placeholder={item.situacao === ChecklistStatus.TROCAR ? "Item a ser trocado / motivo da troca…" : "Observação da anomalia…"}
+                                                                className={`bg-seguranca-black text-xs h-8 ${item.situacao === ChecklistStatus.TROCAR ? 'border-amber-700' : 'border-red-900'}`} />
                                                             <Input value={item.reparoRealizado || ''} onChange={e => handleChecklistTextChange(originalIndex, 'reparoRealizado', e.target.value)}
                                                                 placeholder="Reparo executado para corrigir…" className="bg-seguranca-black border-green-900 text-xs h-8" />
                                                         </div>
@@ -1345,10 +2157,16 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                 <p className="text-sm font-medium text-gray-200">Upload de fotos / imagens de evidências</p>
                                 <p className="text-xs text-gray-400">Selecione fotos do defeito, peças danificadas ou comprovantes (PNG, JPG, WebP)</p>
                             </div>
-                            <label className="cursor-pointer inline-flex items-center gap-2 bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold px-4 py-2 rounded-md transition-colors shrink-0">
-                                <Camera className="h-4 w-4" /> Selecionar Fotos
-                                <input type="file" accept="image/*" multiple onChange={handleFileUpload} className="hidden" />
-                            </label>
+                            <div className="flex items-center gap-2 flex-wrap shrink-0">
+                                <label className={`cursor-pointer inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-md transition-colors ${isUploadingPhotos ? 'opacity-50 pointer-events-none' : ''}`}>
+                                    <Camera className="h-4 w-4" /> Tirar Foto (Câmera)
+                                    <input type="file" accept="image/*" capture="environment" onChange={handleFileUpload} className="hidden" />
+                                </label>
+                                <label className={`cursor-pointer inline-flex items-center gap-2 bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold px-3 py-2 rounded-md transition-colors ${isUploadingPhotos ? 'opacity-50 pointer-events-none' : ''}`}>
+                                    <UploadCloud className="h-4 w-4" /> {isUploadingPhotos ? 'Enviando...' : 'Galeria'}
+                                    <input type="file" accept="image/*" multiple onChange={handleFileUpload} className="hidden" />
+                                </label>
+                            </div>
                         </div>
 
                         {/* URL manual opcional */}
@@ -1368,22 +2186,58 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                         {/* Grid de Previews */}
                         {formData.photoAttachments && formData.photoAttachments.length > 0 && (
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-                                {formData.photoAttachments.map((photo, idx) => (
-                                    <div key={idx} className="relative group border border-gray-700 rounded-lg overflow-hidden bg-black/60 aspect-video">
-                                        <img src={photo} alt={`Evidência ${idx + 1}`} className="w-full h-full object-cover" />
-                                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                                            <a href={photo} target="_blank" rel="noreferrer" title="Visualizar em tamanho real" className="p-1.5 bg-gray-900/80 rounded-full text-white hover:bg-gray-800">
-                                                <LucideImage className="h-4 w-4" />
-                                            </a>
-                                            <button type="button" onClick={() => handleRemovePhoto(idx)} title="Remover foto" className="p-1.5 bg-red-600/80 rounded-full text-white hover:bg-red-700">
-                                                <Trash2 className="h-4 w-4" />
-                                            </button>
+                                {formData.photoAttachments.map((photo, idx) => {
+                                    const trimmed = photo.trim();
+                                    const photoSrc = trimmed.startsWith('data:') || trimmed.startsWith('blob:') || trimmed.startsWith('http://') || trimmed.startsWith('https://')
+                                        ? trimmed
+                                        : (trimmed.startsWith('/api/uploads/')
+                                            ? trimmed
+                                            : (trimmed.startsWith('/uploads/')
+                                                ? `/api${trimmed}`
+                                                : (trimmed.startsWith('/') ? `/api/uploads${trimmed}` : `/api/uploads/maintenance/${trimmed}`)));
+
+                                    return (
+                                        <div key={idx} className="relative group border border-gray-700 rounded-lg overflow-hidden bg-black/60 aspect-video flex items-center justify-center">
+                                            <img
+                                                src={photoSrc}
+                                                alt={`Evidência ${idx + 1}`}
+                                                className="w-full h-full object-cover"
+                                                onError={(e) => {
+                                                    const target = e.currentTarget;
+                                                    if (!target.dataset.fallbackTried && !trimmed.startsWith('data:') && !trimmed.startsWith('blob:') && !trimmed.startsWith('http')) {
+                                                        target.dataset.fallbackTried = '1';
+                                                        target.src = `/api/uploads/${trimmed.replace(/^\/+/, '')}`;
+                                                        return;
+                                                    }
+                                                    target.style.display = 'none';
+                                                    const parent = target.parentElement;
+                                                    if (parent) {
+                                                        const fallback = parent.querySelector('.photo-error-fallback') as HTMLElement;
+                                                        if (fallback) fallback.style.display = 'flex';
+                                                    }
+                                                }}
+                                            />
+                                            <div className="photo-error-fallback hidden w-full h-full flex-col items-center justify-center p-2 text-center bg-gray-900/90 text-gray-400">
+                                                <LucideImage className="h-6 w-6 text-gray-500 mb-1" />
+                                                <span className="text-[10px] truncate max-w-full px-1 text-gray-300 font-mono">
+                                                    {photo.split('/').pop() || `Evidência ${idx + 1}`}
+                                                </span>
+                                                <span className="text-[9px] text-amber-400">Falha ao carregar</span>
+                                            </div>
+                                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                                <a href={photoSrc} target="_blank" rel="noreferrer" title="Visualizar em tamanho real" className="p-1.5 bg-gray-900/80 rounded-full text-white hover:bg-gray-800">
+                                                    <LucideImage className="h-4 w-4" />
+                                                </a>
+                                                <button type="button" onClick={() => handleRemovePhoto(idx)} title="Remover foto" className="p-1.5 bg-red-600/80 rounded-full text-white hover:bg-red-700">
+                                                    <Trash2 className="h-4 w-4" />
+                                                </button>
+                                            </div>
+                                            <div className="absolute bottom-1 left-1 bg-black/70 px-1.5 py-0.5 rounded text-[10px] text-gray-300 pointer-events-none">
+                                                Foto #{idx + 1}
+                                            </div>
                                         </div>
-                                        <div className="absolute bottom-1 left-1 bg-black/70 px-1.5 py-0.5 rounded text-[10px] text-gray-300">
-                                            Foto #{idx + 1}
-                                        </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         )}
                     </div>
@@ -1687,7 +2541,20 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                                                 </div>
                                                             ) : (
                                                                 <SearchableSelect
-                                                                    value={item.productId || ''}
+                                                                    value={
+                                                                        (item.productId && stockItems.some(s => s.id === item.productId))
+                                                                            ? item.productId
+                                                                            : stockItems.find(s => 
+                                                                                (item.code && s.code && s.code.trim().toLowerCase() === item.code.trim().toLowerCase()) ||
+                                                                                (item.description && s.name && s.name.trim().toLowerCase() === item.description.trim().toLowerCase()) ||
+                                                                                (item.description && s.fullName && s.fullName.trim().toLowerCase() === item.description.trim().toLowerCase())
+                                                                              )?.id || (item.productId || '')
+                                                                    }
+                                                                    fallbackLabel={
+                                                                        item.description 
+                                                                            ? (item.code ? `[${item.code}] ${item.description}` : item.description) 
+                                                                            : (item.code ? `Cód: ${item.code}` : undefined)
+                                                                    }
                                                                     onChange={(v) => handleSelectStockPart(idx, v)}
                                                                     options={stockPartOptions}
                                                                     placeholder="Buscar peça por código ou nome no Almoxarifado..."
@@ -1717,7 +2584,17 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                                                 </button>
                                                             </div>
                                                             <SearchableSelect
-                                                                value={servicesCatalog.find(s => s.name === item.description || s.code === item.code)?.id || ''}
+                                                                value={
+                                                                    servicesCatalog.find(s => 
+                                                                        (item.code && s.code && s.code.trim().toLowerCase() === item.code.trim().toLowerCase()) ||
+                                                                        (item.description && s.name && s.name.trim().toLowerCase() === item.description.trim().toLowerCase())
+                                                                    )?.id || ''
+                                                                }
+                                                                fallbackLabel={
+                                                                    item.description 
+                                                                        ? (item.code ? `[${item.code}] ${item.description}` : item.description) 
+                                                                        : (item.code ? `[${item.code}] Serviço` : undefined)
+                                                                }
                                                                 onChange={(v) => handleSelectServiceFromCatalog(idx, v)}
                                                                 options={serviceCatalogOptions}
                                                                 placeholder="Buscar serviço por código (SRV-xxxx) ou nome..."
@@ -1812,6 +2689,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                     </div>
                 </Section>
 
+
                 {/* ── Seção 7: Responsáveis e Assinaturas ──────────────────────── */}
                 <Section title="Responsáveis & Assinaturas" icon={<UserCheck className="h-4 w-4 text-purple-400" />}>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1883,6 +2761,8 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                             </div>
                         )}
                     </Section>
+                )}
+                    </div>
                 )}
             </div>
 
@@ -1972,6 +2852,107 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                 </div>
             )}
 
+            {/* Modal de Correção de Início com Justificativa */}
+            {showCorrectionModal && (
+                <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
+                    <div className="bg-gray-900 border border-gray-700 rounded-xl max-w-lg w-full p-5 space-y-4 shadow-2xl">
+                        <div className="flex items-center justify-between border-b border-gray-800 pb-3">
+                            <div className="flex items-center gap-2">
+                                <Edit className="h-5 w-5 text-amber-400" />
+                                <h3 className="text-base font-bold text-white">Corrigir Início da Execução</h3>
+                            </div>
+                            <Button size="sm" variant="ghost" onClick={() => setShowCorrectionModal(false)} className="h-7 w-7 p-0 text-gray-400">✕</Button>
+                        </div>
+
+                        <p className="text-xs text-gray-400">
+                            Qualquer alteração na data e hora em que a manutenção foi iniciada requer justificativa obrigatória e será registrada no histórico de auditoria da OS.
+                        </p>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <Label className="text-xs text-gray-300">Nova Data *</Label>
+                                <Input type="date" value={correctionNewDate} onChange={e => setCorrectionNewDate(e.target.value)} className="bg-black/60 border-gray-700" />
+                            </div>
+                            <div>
+                                <Label className="text-xs text-gray-300">Novo Horário *</Label>
+                                <Input type="time" value={correctionNewTime} onChange={e => setCorrectionNewTime(e.target.value)} className="bg-black/60 border-gray-700" />
+                            </div>
+                        </div>
+
+                        <div>
+                            <Label className="text-xs text-gray-300">Justificativa da Correção *</Label>
+                            <Textarea
+                                value={correctionJustification}
+                                onChange={e => setCorrectionJustification(e.target.value)}
+                                placeholder="Descreva detalhadamente o motivo da correção (ex: Peças foram entregues às 08:30 mas o lançamento ocorreu apenas às 10:15)..."
+                                className="bg-black/60 border-gray-700 min-h-[90px] text-sm text-gray-200"
+                            />
+                        </div>
+
+                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-800">
+                            <Button type="button" variant="ghost" size="sm" onClick={() => setShowCorrectionModal(false)} disabled={isSavingCorrection}>
+                                Cancelar
+                            </Button>
+                            <Button type="button" size="sm" onClick={handleSaveCorrection} disabled={isSavingCorrection} className="bg-amber-600 hover:bg-amber-500 text-white font-semibold">
+                                {isSavingCorrection ? 'Salvando...' : 'Salvar Correção'}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Histórico de Auditoria da Execução */}
+            {showExecutionHistory && (
+                <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
+                    <div className="bg-gray-900 border border-gray-700 rounded-xl max-w-xl w-full p-5 space-y-4 shadow-2xl">
+                        <div className="flex items-center justify-between border-b border-gray-800 pb-3">
+                            <div className="flex items-center gap-2">
+                                <History className="h-5 w-5 text-blue-400" />
+                                <h3 className="text-base font-bold text-white">Histórico de Correções do Início</h3>
+                            </div>
+                            <Button size="sm" variant="ghost" onClick={() => setShowExecutionHistory(false)} className="h-7 w-7 p-0 text-gray-400">✕</Button>
+                        </div>
+
+                        {isLoadingExecHistory ? (
+                            <p className="text-xs text-gray-400 py-4 text-center">Carregando histórico...</p>
+                        ) : executionHistoryEntries.length === 0 ? (
+                            <p className="text-xs text-gray-400 py-6 text-center italic">
+                                Nenhum ajuste manual foi registrado para esta OS. O início permanece o original.
+                            </p>
+                        ) : (
+                            <div className="max-h-[350px] overflow-y-auto space-y-3 pr-1">
+                                {executionHistoryEntries.map(entry => (
+                                    <div key={entry.id} className="p-3 rounded-lg bg-black/50 border border-gray-800 space-y-1.5 text-xs">
+                                        <div className="flex items-center justify-between text-gray-400">
+                                            <span className="font-semibold text-gray-300">{entry.performedBy || 'Usuário'}</span>
+                                            <span>{new Date(entry.createdAt).toLocaleString('pt-BR')}</span>
+                                        </div>
+                                        <div className="text-gray-300">
+                                            <span className="text-gray-500 line-through mr-2">
+                                                {entry.previousStartDate ? new Date(entry.previousStartDate).toLocaleString('pt-BR') : 'Não definido'}
+                                            </span>
+                                            ➜{' '}
+                                            <span className="text-emerald-400 font-semibold">
+                                                {new Date(entry.newStartDate).toLocaleString('pt-BR')}
+                                            </span>
+                                        </div>
+                                        <div className="bg-gray-950/80 p-2 rounded border border-gray-800/80 text-gray-300 italic">
+                                            "{entry.justification}"
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        <div className="flex justify-end pt-2 border-t border-gray-800">
+                            <Button type="button" variant="outline" size="sm" onClick={() => setShowExecutionHistory(false)}>
+                                Fechar
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Modal de Pré-visualização e Impressão da OS em PDF */}
             <FleetWorkOrderViewModal
                 isOpen={isPdfModalOpen}
@@ -1983,7 +2964,8 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
     );
 };
 
-// ── Sub-componentes ────────────────────────────────────────────────────────────
+// ── Sub-componentes ───────────────────────────────────────────────────────────
+
 const Section: React.FC<{ title: string; icon?: React.ReactNode; action?: React.ReactNode; children: React.ReactNode }> = ({ title, icon, action, children }) => (
     <div className="space-y-3">
         <div className="flex items-center justify-between">

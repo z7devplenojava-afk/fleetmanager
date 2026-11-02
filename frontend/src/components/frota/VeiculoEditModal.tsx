@@ -318,10 +318,35 @@ const VeiculoEditModal: React.FC<VeiculoEditModalProps> = ({
     }
   };
 
-  const initialValues = veiculo ? mapVehicleToFormData(veiculo) : undefined;
+  React.useEffect(() => {
+    return () => {
+      setTimeout(() => {
+        if (!document.querySelector('[role="dialog"], [role="alertdialog"]')) {
+          document.body.style.pointerEvents = '';
+          document.body.style.overflow = '';
+        }
+      }, 50);
+    };
+  }, []);
+
+  const initialValues = React.useMemo(() => {
+    return veiculo ? mapVehicleToFormData(veiculo) : undefined;
+  }, [veiculo?.id, veiculo?.placa, veiculo?.plate]);
+
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      onClose();
+      setTimeout(() => {
+        if (!document.querySelector('[role="dialog"], [role="alertdialog"]')) {
+          document.body.style.pointerEvents = '';
+          document.body.style.overflow = '';
+        }
+      }, 50);
+    }
+  };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0 bg-seguranca-darkgray text-seguranca-white border-seguranca-darkgray overflow-hidden">
         <DialogHeader className="p-6 pb-2">
           <DialogTitle className="text-2xl font-bold flex items-center gap-2">
@@ -332,8 +357,9 @@ const VeiculoEditModal: React.FC<VeiculoEditModalProps> = ({
           </DialogDescription>
         </DialogHeader>
 
-        {initialValues && (
+        {isOpen && initialValues && (
           <VehicleForm
+            key={veiculo?.id || 'edit-vehicle'}
             initialData={initialValues}
             onSubmit={handleSubmit}
             isLoading={isLoading}

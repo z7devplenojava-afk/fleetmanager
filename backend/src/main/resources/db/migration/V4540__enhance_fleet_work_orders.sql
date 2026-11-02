@@ -1,6 +1,20 @@
 -- V4540: Enhancementos na Gestão de O.S. de Frota
 -- Adiciona: odômetro, tempo parado, motivo da parada, histórico de atividades
 
+-- Base table if not already created
+CREATE TABLE IF NOT EXISTS fleet_work_orders (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    vehicle_id UUID,
+    start_date TIMESTAMP,
+    end_date TIMESTAMP,
+    description TEXT,
+    cost DECIMAL(10,2),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    company_id UUID,
+    status VARCHAR(50) DEFAULT 'OPEN'
+);
+
 -- Campos de odômetro e parada
 ALTER TABLE fleet_work_orders ADD COLUMN IF NOT EXISTS odometer_in      INTEGER;
 ALTER TABLE fleet_work_orders ADD COLUMN IF NOT EXISTS odometer_out     INTEGER;

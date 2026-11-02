@@ -64,7 +64,16 @@ public class ParteDiariaService {
             clientRepository.findById(dto.getClientId()).ifPresent(pd::setClient);
         }
         if (dto.getVehicleId() != null) {
-            vehicleRepository.findById(dto.getVehicleId()).ifPresent(pd::setVehicle);
+            vehicleRepository.findById(dto.getVehicleId()).ifPresent(v -> {
+                pd.setVehicle(v);
+                if (dto.getEndKm() != null) {
+                    int endKmInt = dto.getEndKm().intValue();
+                    if (v.getCurrentMileage() == null || endKmInt > v.getCurrentMileage()) {
+                        v.setCurrentMileage(endKmInt);
+                        vehicleRepository.save(v);
+                    }
+                }
+            });
         }
         if (dto.getDriverId() != null) {
             driverRepository.findById(dto.getDriverId()).ifPresent(pd::setDriver);
@@ -83,6 +92,11 @@ public class ParteDiariaService {
                 at.setEndTime(atDto.getEndTime());
                 at.setDescription(atDto.getDescription() != null ? atDto.getDescription() : "Atendimento Operacional");
                 at.setActivityType(atDto.getActivityType());
+                at.setRouteCode(atDto.getRouteCode());
+                at.setCompanyName(atDto.getCompanyName());
+                at.setStartKm(atDto.getStartKm());
+                at.setEndKm(atDto.getEndKm());
+                at.setPassengersCount(atDto.getPassengersCount());
                 at.setNotes(atDto.getNotes());
                 pd.getAtividades().add(at);
             }
@@ -90,6 +104,86 @@ public class ParteDiariaService {
 
         ParteDiaria saved = parteDiariaRepository.save(pd);
         return toDTO(saved);
+    }
+
+    public ParteDiariaDTO update(UUID id, ParteDiariaDTO dto) {
+        ParteDiaria pd = parteDiariaRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Parte diária não encontrada: " + id));
+
+        if (dto.getNumber() != null && !dto.getNumber().isBlank()) pd.setNumber(dto.getNumber());
+        if (dto.getDate() != null) pd.setDate(dto.getDate());
+        pd.setObraName(dto.getObraName());
+        pd.setServiceName(dto.getServiceName());
+        pd.setRouteName(dto.getRouteName());
+        if (dto.getVehiclePlate() != null && !dto.getVehiclePlate().isBlank()) pd.setVehiclePlate(dto.getVehiclePlate());
+        pd.setVehicleModel(dto.getVehicleModel());
+        if (dto.getDriverName() != null) pd.setDriverName(dto.getDriverName());
+        pd.setStartTime(dto.getStartTime());
+        pd.setEndTime(dto.getEndTime());
+        pd.setStartKm(dto.getStartKm());
+        pd.setEndKm(dto.getEndKm());
+        pd.setDisregardedKm(dto.getDisregardedKm());
+        pd.setDisregardReason(dto.getDisregardReason());
+        if (dto.getStatus() != null) pd.setStatus(dto.getStatus());
+        pd.setNotes(dto.getNotes());
+        if (dto.getCreatedBy() != null) pd.setCreatedBy(dto.getCreatedBy());
+
+        if (dto.getClientId() != null) {
+            clientRepository.findById(dto.getClientId()).ifPresent(pd::setClient);
+        }
+        if (dto.getVehicleId() != null) {
+            vehicleRepository.findById(dto.getVehicleId()).ifPresent(pd::setVehicle);
+        }
+        if (dto.getDriverId() != null) {
+            driverRepository.findById(dto.getDriverId()).ifPresent(pd::setDriver);
+        }
+        if (dto.getContractId() != null) {
+            measurementContractRepository.findById(dto.getContractId()).ifPresent(pd::setContract);
+        }
+
+        pd.calculateKms();
+
+        if (dto.getAtividades() != null) {
+            pd.getAtividades().clear();
+            for (ParteDiariaDTO.ParteDiariaAtividadeDTO atDto : dto.getAtividades()) {
+                ParteDiariaAtividade at = new ParteDiariaAtividade();
+                at.setParteDiaria(pd);
+                at.setStartTime(atDto.getStartTime());
+                at.setEndTime(atDto.getEndTime());
+                at.setDescription(atDto.getDescription() != null ? atDto.getDescription() : "Atendimento Operacional");
+                at.setActivityType(atDto.getActivityType());
+                at.setRouteCode(atDto.getRouteCode());
+                at.setCompanyName(atDto.getCompanyName());
+                at.setStartKm(atDto.getStartKm());
+                at.setEndKm(atDto.getEndKm());
+                at.setPassengersCount(atDto.getPassengersCount());
+                at.setNotes(atDto.getNotes());
+                pd.getAtividades().add(at);
+            }
+        }
+
+        ParteDiaria saved = parteDiariaRepository.save(pd);
+        return toDTO(saved);
+    }
+
+    public void delete(UUID id) {
+        ParteDiaria pd = parteDiariaRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Parte diária não encontrada: " + id));
+        parteDiariaRepository.delete(pd);
+    }
+
+    public List<ParteDiariaDTO> findFiltered(UUID clientId, LocalDate start, LocalDate end) {
+        List<ParteDiaria> list;
+        if (clientId != null && start != null && end != null) {
+            list = parteDiariaRepository.findByClientIdAndDateBetween(clientId, start, end);
+        } else if (clientId != null) {
+            list = parteDiariaRepository.findByClientId(clientId);
+        } else if (start != null && end != null) {
+            list = parteDiariaRepository.findByDateBetween(start, end);
+        } else {
+            list = parteDiariaRepository.findAll();
+        }
+        return list.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
     public List<ParteDiariaDTO> findByPeriod(LocalDate start, LocalDate end) {
@@ -134,6 +228,30 @@ public class ParteDiariaService {
         dto.setNotes(pd.getNotes());
         dto.setCreatedBy(pd.getCreatedBy());
 
+        if (pd.getClient() != null) {
+            dto.setClientId(pd.getClient().getId());
+            dto.setClientName(pd.getClient().getName());
+        }
+        if (pd.getContract() != null) {
+            dto.setContractId(pd.getContract().getId());
+            dto.setContractNumber(pd.getContract().getContractNumber());
+        }
+        if (pd.getVehicle() != null) {
+            dto.setVehicleId(pd.getVehicle().getId());
+            if (dto.getVehiclePlate() == null || dto.getVehiclePlate().isBlank()) {
+                dto.setVehiclePlate(pd.getVehicle().getPlate());
+            }
+            if (dto.getVehicleModel() == null || dto.getVehicleModel().isBlank()) {
+                dto.setVehicleModel(pd.getVehicle().getModel());
+            }
+        }
+        if (pd.getDriver() != null) {
+            dto.setDriverId(pd.getDriver().getId());
+            if (dto.getDriverName() == null || dto.getDriverName().isBlank()) {
+                dto.setDriverName(pd.getDriver().getName());
+            }
+        }
+
         if (pd.getAtividades() != null) {
             dto.setAtividades(pd.getAtividades().stream().map(at -> {
                 ParteDiariaDTO.ParteDiariaAtividadeDTO atDto = new ParteDiariaDTO.ParteDiariaAtividadeDTO();
@@ -142,6 +260,11 @@ public class ParteDiariaService {
                 atDto.setEndTime(at.getEndTime());
                 atDto.setDescription(at.getDescription());
                 atDto.setActivityType(at.getActivityType());
+                atDto.setRouteCode(at.getRouteCode());
+                atDto.setCompanyName(at.getCompanyName());
+                atDto.setStartKm(at.getStartKm());
+                atDto.setEndKm(at.getEndKm());
+                atDto.setPassengersCount(at.getPassengersCount());
                 atDto.setNotes(at.getNotes());
                 return atDto;
             }).collect(Collectors.toList()));

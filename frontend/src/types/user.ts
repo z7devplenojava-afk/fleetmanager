@@ -1,4 +1,4 @@
-export type UserRole = 'FLEX_ADMIN' | 'COMPANY_ADMIN' | 'SUPER_ADMIN' | 'ADMIN' | 'SUPERVISOR' | 'RH' | 'ASSISTENCIA_RH' | 'DEPARTAMENTO_PESSOAL' | 'FINANCEIRO' | 'OPERACIONAL' | 'VIGILANTE' | 'AUXI_ADMINISTRATIVO' | 'AUX_DEP' | 'TI_SUPORTE' | 'AUDITOR' | 'COLABORADOR' | 'MOTORISTA' | 'MECANICO' | 'PORTARIA' | 'GESTOR' | 'GESTOR_TRAFEGO' | 'GESTOR_DE_TRAFEGO' | 'MANUTENCAO' | 'GESTOR_DE_MANUTENCAO' | 'ENCARREGADO_DE_MANUTENCAO' | 'ALMOXARIFADO' | 'COMPRAS' | 'GESTOR_DE_COMPRAS' | 'GESTOR_FINANCEIRO' | 'GESTOR_OPERACIONAL' | 'AUXILIAR_ADMINISTRATIVO' | 'AUXILIAR_DE_RH' | 'AUXILIAR_DE_DEPARTAMENTO_PESSOAL' | 'ASSISTENTE_OPERACIONAL' | 'ASSISTENTE_LIMPEZA' | 'LAVADOR' | 'ASSISTENTE_FINANCEIRO' | 'EMPLOYEE' | 'CLIENTE' | 'CLIENT_USER' | 'COMERCIAL' | 'GESTOR_COMERCIAL' | 'VENDAS';
+export type UserRole = 'FLEX_ADMIN' | 'COMPANY_ADMIN' | 'SUPER_ADMIN' | 'ADMIN' | 'SUPERVISOR' | 'RH' | 'ASSISTENCIA_RH' | 'DEPARTAMENTO_PESSOAL' | 'SST' | 'SEGURANCA_DO_TRABALHO' | 'FINANCEIRO' | 'OPERACIONAL' | 'VIGILANTE' | 'AUXI_ADMINISTRATIVO' | 'AUX_DEP' | 'TI_SUPORTE' | 'AUDITOR' | 'COLABORADOR' | 'MOTORISTA' | 'MECANICO' | 'PORTARIA' | 'GESTOR' | 'GESTOR_TRAFEGO' | 'GESTOR_DE_TRAFEGO' | 'ENCARREGADO_DE_TRANSPORTES' | 'ENCARREGADO_TRANSPORTES' | 'ENCARREGADO_DE_TRAFEGO' | 'ENCARREGADO_TRAFEGO' | 'MANUTENCAO' | 'GESTOR_DE_MANUTENCAO' | 'ENCARREGADO_DE_MANUTENCAO' | 'ANALISTA_DE_FROTA' | 'ANALISTA_FROTA' | 'ALMOXARIFADO' | 'COMPRAS' | 'GESTOR_DE_COMPRAS' | 'GESTOR_FINANCEIRO' | 'GESTOR_OPERACIONAL' | 'AUXILIAR_ADMINISTRATIVO' | 'AUXILIAR_DE_RH' | 'AUXILIAR_DE_DEPARTAMENTO_PESSOAL' | 'ASSISTENTE_OPERACIONAL' | 'ASSISTENTE_LIMPEZA' | 'LAVADOR' | 'ASSISTENTE_FINANCEIRO' | 'EMPLOYEE' | 'CLIENTE' | 'CLIENT_USER' | 'COMERCIAL' | 'GESTOR_COMERCIAL' | 'VENDAS' | 'PASSAGEIRO';
 
 export type UserGroup = 'GRUPO_SUPER_ADMIN' | 'GRUPO_ADMIN' | 'GRUPO_GESTOR' | 'GRUPO_RH' | 'GRUPO_DPE' | 'GRUPO_SUPERVISOR' | 'GRUPO_COLABORADORES' | 'GRUPO_OPERACIONAL' | 'GRUPO_VIGILANTES' | 'GRUPO_FINANCEIRO' | 'GRUPO_TI_SUPORTE' | 'GRUPO_AUDITOR' | 'GRUPO_AUXILIARES';
 
@@ -195,24 +195,38 @@ export interface User {
   groups: UserGroupData[];
   permissions: UserPermissions;
   isOnline?: boolean;
+  blocked?: boolean;
+  blockedUntil?: string | null;
+  blockedReason?: string | null;
+  blockedBy?: string | null;
   individualPermissions?: PermissionDTO[];
   customPermissions?: string[]; // Permissões customizadas concedidas pelo SUPER_ADMIN (para COLABORADOR)
   avatar?: string;
   department?: string;
   position?: string;
   employeeCode?: string;
+  employeeId?: string;
+  employeeName?: string;
+  cpf?: string;
   phone?: string;
   whatsapp?: string;
   username?: string;
   status?: string;
   active?: boolean;
   firstAccessCompleted?: boolean;
+  requiresLgpdConsent?: boolean;
   companyId?: string;
   companyName?: string;
   clientId?: string;
   clientName?: string;
   createdAt?: string;
   updatedAt?: string;
+  isDriver?: boolean;
+  passengerId?: string;
+  passengerCategory?: 'FRETADO' | 'PUBLICO_ALEATORIO' | string;
+  isPcd?: boolean;
+  disabilityType?: string;
+  disabilityDescription?: string;
 }
 
 /** Dados da empresa para exibição (logo, nome, tema) */
@@ -238,6 +252,7 @@ export interface AuthContextType {
   refreshAuthToken: () => Promise<void>;
   refreshUser: () => Promise<void>;
   setFirstAccessCompleted: (completed: boolean) => void;
+  setRequiresLgpdConsent?: (required: boolean) => void;
   hasRole: (role: UserRole | string) => boolean;
 }
 

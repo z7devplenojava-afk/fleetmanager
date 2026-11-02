@@ -19,6 +19,7 @@ import {
     DrawerTitle,
     DrawerTrigger,
 } from "@/components/ui/drawer"
+import { cn } from "@/lib/utils"
 
 interface ResponsiveDrawerProps {
     children?: React.ReactNode // The trigger button OR content if 'content' is missing
@@ -60,10 +61,41 @@ export function ResponsiveDrawer({
             setInternalOpen(newOpen)
         }
         onOpenChange?.(newOpen)
-        if (!newOpen && onClose) {
-            onClose()
+        if (!newOpen) {
+            setTimeout(() => {
+                if (!document.querySelector('[role="dialog"], [role="alertdialog"]')) {
+                    document.body.style.pointerEvents = '';
+                    document.body.style.overflow = '';
+                }
+            }, 50);
+            if (onClose) {
+                onClose()
+            }
         }
     }
+
+    React.useEffect(() => {
+        if (!actualOpen) {
+            const timer = setTimeout(() => {
+                if (!document.querySelector('[role="dialog"], [role="alertdialog"]')) {
+                    document.body.style.pointerEvents = '';
+                    document.body.style.overflow = '';
+                }
+            }, 50);
+            return () => clearTimeout(timer);
+        }
+    }, [actualOpen]);
+
+    React.useEffect(() => {
+        return () => {
+            setTimeout(() => {
+                if (!document.querySelector('[role="dialog"], [role="alertdialog"]')) {
+                    document.body.style.pointerEvents = '';
+                    document.body.style.overflow = '';
+                }
+            }, 50);
+        };
+    }, []);
 
     // Logic: If 'content' prop is provided, 'children' is the trigger.
     // If 'content' is NOT provided, 'children' is the content (modal body) and there is no trigger.
@@ -78,25 +110,31 @@ export function ResponsiveDrawer({
                         {modalTrigger}
                     </DrawerTrigger>
                 )}
-                <DrawerContent className={className} style={{ maxWidth: '100vw' }}>
-                    <DrawerHeader className="text-left">
-                        <DrawerTitle>{title}</DrawerTitle>
-                        {description && <DrawerDescription>{description}</DrawerDescription>}
+                <DrawerContent className={cn("max-h-[92vh] flex flex-col bg-[#111319] dark:bg-[#0c0e14] text-foreground border-border/60", className)} style={{ maxWidth: '100vw' }}>
+                    <DrawerHeader className="text-left px-4 pt-4 pb-2 border-b border-border/40 shrink-0">
+                        <DrawerTitle className="text-lg font-bold">{title}</DrawerTitle>
+                        {description && <DrawerDescription className="text-xs text-muted-foreground">{description}</DrawerDescription>}
                     </DrawerHeader>
-                    <div className="px-4 pb-4 overflow-y-auto overflow-x-hidden max-h-[70vh] min-w-0">
+                    <div className="px-3 sm:px-4 py-3 overflow-y-auto overflow-x-hidden max-h-[75vh] min-w-0 flex-1">
                         {modalContent}
                     </div>
-                    <DrawerFooter className="pt-2">
-                        {footer}
-                        <DrawerClose asChild>
-                            <Button variant="outline">Cancelar</Button>
-                        </DrawerClose>
-                    </DrawerFooter>
+                    {footer ? (
+                        <DrawerFooter className="pt-2 px-4 pb-4 border-t border-border/40 shrink-0">
+                            {footer}
+                        </DrawerFooter>
+                    ) : (
+                        <DrawerFooter className="pt-2 px-4 pb-4 shrink-0">
+                            <DrawerClose asChild>
+                                <Button variant="outline" className="w-full">Cancelar</Button>
+                            </DrawerClose>
+                        </DrawerFooter>
+                    )}
                 </DrawerContent>
             </Drawer>
         )
     }
 
+    const hasCustomMaxWidth = className?.includes('max-w-');
     return (
         <Dialog open={actualOpen} onOpenChange={handleOpenChange}>
             {modalTrigger && (
@@ -104,14 +142,23 @@ export function ResponsiveDrawer({
                     {modalTrigger}
                 </DialogTrigger>
             )}
-            <DialogContent className={`sm:max-w-[425px] max-h-[85vh] overflow-y-auto max-w-[calc(100vw-2rem)] ${className || ''}`} style={{ overflowX: 'hidden' }}>
-                <DialogHeader>
-                    <DialogTitle>{title}</DialogTitle>
-                    {description && <DialogDescription>{description}</DialogDescription>}
+            <DialogContent
+                className={cn(
+                    "max-h-[90vh] overflow-y-auto w-full max-w-[calc(100vw-2rem)] bg-[#111319] dark:bg-[#0c0e14] border-border/60",
+                    !hasCustomMaxWidth && "sm:max-w-[500px]",
+                    className
+                )}
+                style={{ overflowX: 'hidden' }}
+            >
+                <DialogHeader className="pb-2 border-b border-border/40">
+                    <DialogTitle className="text-xl font-bold tracking-tight">{title}</DialogTitle>
+                    {description && <DialogDescription className="text-xs sm:text-sm text-muted-foreground">{description}</DialogDescription>}
                 </DialogHeader>
-                {modalContent}
+                <div className="py-2 min-w-0">
+                    {modalContent}
+                </div>
                 {footer && (
-                    <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
+                    <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 pt-3 border-t border-border/40">
                         {footer}
                     </div>
                 )}

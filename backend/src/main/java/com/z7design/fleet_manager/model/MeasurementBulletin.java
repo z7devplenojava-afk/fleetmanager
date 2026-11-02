@@ -98,6 +98,39 @@ public class MeasurementBulletin {
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 
+    @Column(name = "nfse_number", length = 50)
+    private String nfseNumber;
+
+    @Column(name = "nfse_key", length = 100)
+    private String nfseKey;
+
+    @Column(name = "nfse_pdf_url", length = 500)
+    private String nfsePdfUrl;
+
+    @Column(name = "nfse_xml_url", length = 500)
+    private String nfseXmlUrl;
+
+    @Column(name = "gross_amount", precision = 15, scale = 2)
+    private BigDecimal grossAmount;
+
+    @Column(name = "net_amount", precision = 15, scale = 2)
+    private BigDecimal netAmount;
+
+    @Column(name = "fatura_locacao_number", length = 50)
+    private String faturaLocacaoNumber;
+
+    @Column(name = "pedido_number", length = 50)
+    private String pedidoNumber;
+
+    @Column(name = "periodo_locacao", length = 100)
+    private String periodoLocacao;
+
+    @Column(name = "placas_veiculos", columnDefinition = "TEXT")
+    private String placasVeiculos;
+
+    @Column(name = "dados_bancarios", length = 255)
+    private String dadosBancarios;
+
     // MÃ©todo para calcular subtotal automaticamente
     public void calculateSubtotal() {
         this.subtotal = items.stream()

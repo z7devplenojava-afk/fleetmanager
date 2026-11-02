@@ -23,6 +23,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -32,7 +33,7 @@ import java.util.UUID;
 @Slf4j
 @Tag(name = "Fichas de Entrega de EPI", description = "Endpoints para gestão de fichas de entrega de EPI")
 @SecurityRequirement(name = "bearerAuth")
-@PreAuthorize("hasAnyRole('RH', 'DEPARTAMENTO_PESSOAL', 'SST', 'ALMOXARIFADO', 'ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN') or hasAnyAuthority('RH', 'DEPARTAMENTO_PESSOAL', 'SST', 'ALMOXARIFADO', 'ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN')")
+@PreAuthorize("hasAnyRole('RH', 'DEPARTAMENTO_PESSOAL', 'SST', 'ALMOXARIFADO', 'ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN', 'FLEX_ADMIN', 'GESTOR_TRAFEGO', 'GESTOR_DE_TRAFEGO', 'ENCARREGADO_DE_TRANSPORTES', 'ENCARREGADO_TRANSPORTES', 'ENCARREGADO_DE_TRAFEGO', 'ENCARREGADO_TRAFEGO', 'GESTOR_OPERACIONAL', 'GESTOR_DE_MANUTENCAO', 'ENCARREGADO_DE_MANUTENCAO', 'GESTOR', 'SUPERVISOR') or hasAnyAuthority('RH', 'DEPARTAMENTO_PESSOAL', 'SST', 'ALMOXARIFADO', 'ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN', 'FLEX_ADMIN', 'ROLE_RH', 'ROLE_DEPARTAMENTO_PESSOAL', 'ROLE_SST', 'ROLE_ALMOXARIFADO', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'ROLE_GESTOR_TRAFEGO', 'ROLE_GESTOR_DE_TRAFEGO', 'ROLE_ENCARREGADO_DE_TRANSPORTES', 'ROLE_ENCARREGADO_TRANSPORTES', 'ROLE_ENCARREGADO_DE_TRAFEGO', 'ROLE_ENCARREGADO_TRAFEGO', 'ROLE_GESTOR_OPERACIONAL', 'ROLE_GESTOR_DE_MANUTENCAO', 'ROLE_ENCARREGADO_DE_MANUTENCAO', 'ROLE_GESTOR', 'ROLE_SUPERVISOR', 'GESTOR_TRAFEGO', 'GESTOR_DE_TRAFEGO', 'ENCARREGADO_DE_TRANSPORTES', 'ENCARREGADO_TRANSPORTES', 'ENCARREGADO_DE_TRAFEGO', 'ENCARREGADO_TRAFEGO', 'GESTOR_OPERACIONAL', 'GESTOR_DE_MANUTENCAO', 'ENCARREGADO_DE_MANUTENCAO', 'GESTOR', 'SUPERVISOR', 'EQUIPMENTS_READ', 'EQUIPMENTS_WRITE')")
 public class EPIDeliveryFormController {
 
     private final EPIDeliveryFormService epiDeliveryFormService;
@@ -97,11 +98,16 @@ public class EPIDeliveryFormController {
         return ResponseEntity.ok(forms);
     }
 
-    @Operation(summary = "Busca fichas de entrega de EPI por funcionÃ¡rio")
+    @Operation(summary = "Busca fichas de entrega de EPI por funcionário")
     @GetMapping("/employee/{employeeId}")
     public ResponseEntity<List<EPIDeliveryFormDTO>> findByEmployeeId(@PathVariable("employeeId") UUID employeeId) {
-        List<EPIDeliveryFormDTO> forms = epiDeliveryFormService.findByEmployeeId(employeeId);
-        return ResponseEntity.ok(forms);
+        try {
+            List<EPIDeliveryFormDTO> forms = epiDeliveryFormService.findByEmployeeId(employeeId);
+            return ResponseEntity.ok(forms != null ? forms : Collections.emptyList());
+        } catch (Exception e) {
+            log.warn("⚠️ Aviso ao buscar fichas de EPI do funcionário {}: {}", employeeId, e.getMessage());
+            return ResponseEntity.ok(Collections.emptyList());
+        }
     }
 
     @Operation(summary = "Busca fichas de entrega de EPI por empresa")

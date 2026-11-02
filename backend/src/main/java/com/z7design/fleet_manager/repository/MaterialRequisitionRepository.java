@@ -13,15 +13,22 @@ import java.util.UUID;
 @Repository
 public interface MaterialRequisitionRepository extends JpaRepository<MaterialRequisition, UUID> {
 
-    List<MaterialRequisition> findByCompanyIdOrderByCreatedAtDesc(UUID companyId);
+    @Query("SELECT r FROM MaterialRequisition r WHERE r.companyId = :companyId ORDER BY r.createdAt DESC")
+    List<MaterialRequisition> findByCompanyIdOrderByCreatedAtDesc(@Param("companyId") UUID companyId);
 
-    List<MaterialRequisition> findByWorkOrderIdOrderByCreatedAtDesc(UUID workOrderId);
+    @Query("SELECT r FROM MaterialRequisition r WHERE r.workOrderId = :workOrderId ORDER BY r.createdAt DESC")
+    List<MaterialRequisition> findByWorkOrderIdOrderByCreatedAtDesc(@Param("workOrderId") UUID workOrderId);
 
-    List<MaterialRequisition> findByVehicleIdOrderByCreatedAtDesc(UUID vehicleId);
+    @Query("SELECT r FROM MaterialRequisition r WHERE r.vehicleId = :vehicleId ORDER BY r.createdAt DESC")
+    List<MaterialRequisition> findByVehicleIdOrderByCreatedAtDesc(@Param("vehicleId") UUID vehicleId);
 
-    List<MaterialRequisition> findByCompanyIdAndStatusOrderByCreatedAtDesc(UUID companyId, MaterialRequisition.RequisitionStatus status);
+    @Query("SELECT r FROM MaterialRequisition r WHERE r.companyId = :companyId AND r.status = :status ORDER BY r.createdAt DESC")
+    List<MaterialRequisition> findByCompanyIdAndStatusOrderByCreatedAtDesc(
+            @Param("companyId") UUID companyId, 
+            @Param("status") MaterialRequisition.RequisitionStatus status);
 
-    Optional<MaterialRequisition> findByIdAndCompanyId(UUID id, UUID companyId);
+    @Query("SELECT r FROM MaterialRequisition r WHERE r.id = :id AND r.companyId = :companyId")
+    Optional<MaterialRequisition> findByIdAndCompanyId(@Param("id") UUID id, @Param("companyId") UUID companyId);
 
     @Query("SELECT COUNT(r) FROM MaterialRequisition r WHERE r.companyId = :companyId AND r.urgency = 'EMERGENCIA' AND r.status NOT IN ('INSTALLED_COMPLETED', 'REJECTED', 'CANCELLED')")
     long countPendingEmergencyRequisitions(@Param("companyId") UUID companyId);

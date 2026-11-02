@@ -27,13 +27,15 @@ import {
   Handshake,
   Settings,
   BarChart3,
-  UserX
+  UserX,
+  FileHeart
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import hrService from '@/services/hrService';
 import { useNavigate } from 'react-router-dom';
 import FuncionarioNovoModal from '@/components/funcionarios/FuncionarioNovoModal';
 import DriverHourFormModal from '@/components/rh/DriverHourFormModal';
+import ModuloDespesasPanel from '@/components/financeiro/ModuloDespesasPanel';
 
 const RH: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -139,7 +141,7 @@ const RH: React.FC = () => {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 bg-seguranca-graphite border-gray-600">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 bg-seguranca-graphite border-gray-600">
             <TabsTrigger value="overview" className="text-seguranca-lightgray data-[state='active']:bg-seguranca-red">
               Visão Geral
             </TabsTrigger>
@@ -151,6 +153,10 @@ const RH: React.FC = () => {
             </TabsTrigger>
             <TabsTrigger value="compliance" className="text-seguranca-lightgray data-[state='active']:bg-seguranca-red">
               Compliance
+            </TabsTrigger>
+            <TabsTrigger value="despesas" className="text-seguranca-lightgray data-[state='active']:bg-seguranca-red flex items-center gap-1.5">
+              <DollarSign className="h-4 w-4 text-amber-400" />
+              Despesas RH
             </TabsTrigger>
           </TabsList>
 
@@ -396,6 +402,15 @@ const RH: React.FC = () => {
                     <FileText size={20} />
                     <span className="text-sm mt-1">Ocorrências</span>
                   </Button>
+
+                  <Button
+                    variant="outline"
+                    onClick={() => navigate('/rh/atestados')}
+                    className="border-gray-600 text-seguranca-lightgray hover:bg-seguranca-black h-20 flex-col"
+                  >
+                    <FileHeart size={20} className="text-red-400" />
+                    <span className="text-sm mt-1">Atestados</span>
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -455,7 +470,21 @@ const RH: React.FC = () => {
                 </CardHeader>
                 <CardContent>
                   <p className="text-gray-400 text-sm">
-                    Atestados, advertências, premiações e ausências justificadas
+                    Advertências, suspensões, premiações e histórico disciplinar
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-seguranca-graphite border-gray-600 hover:border-gray-500 transition-colors cursor-pointer" onClick={() => navigate('/rh/atestados')}>
+                <CardHeader>
+                  <CardTitle className="text-seguranca-lightgray flex items-center gap-2">
+                    <FileHeart className="h-5 w-5 text-red-500" />
+                    Gestão de Atestados
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-400 text-sm">
+                    Controle de atestados médicos, declarações, CID-10 e afastamentos
                   </p>
                 </CardContent>
               </Card>
@@ -652,6 +681,10 @@ const RH: React.FC = () => {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+          {/* Despesas de RH */}
+          <TabsContent value="despesas" className="space-y-6">
+            <ModuloDespesasPanel modulo="RH" hideHeaderTitle={false} />
           </TabsContent>
         </Tabs>
       </div>

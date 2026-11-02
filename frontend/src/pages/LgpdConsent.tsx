@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Shield, FileText, Database, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react';
 import SEO from '@/components/SEO';
@@ -8,11 +8,12 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { getDashboardRouteForRole } from '@/utils/roleRouting';
 import api from '@/lib/axios';
 
 const LgpdConsent = () => {
   const navigate = useNavigate();
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, setRequiresLgpdConsent } = useAuth();
   const { toast } = useToast();
   
   const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -62,8 +63,12 @@ const LgpdConsent = () => {
         });
       }
 
-      // Marcar primeiro acesso como completo (sem userId no path)
+      // Marcar consentimento LGPD como completo (sem userId no path)
       await api.post('/lgpd/complete-first-access');
+
+      if (setRequiresLgpdConsent) {
+        setRequiresLgpdConsent(false);
+      }
 
       toast({
         title: 'Consentimentos registrados',
@@ -71,13 +76,20 @@ const LgpdConsent = () => {
         variant: 'default',
       });
 
-      // Atualizar dados do usuário
+      // Atualizar dados do usuário para verificar próximos passos
       if (refreshUser) {
         await refreshUser();
       }
 
-      // Redirecionar para o dashboard
-      navigate('/dashboard');
+      // ORDEM DO FLUXO: após LGPD, verificar se ainda precisa trocar senha
+      const isSuperAdmin = (user.role ?? '').toUpperCase().includes('SUPER_ADMIN');
+      if (!isSuperAdmin && !user.firstAccessCompleted) {
+        // Ainda precisa trocar a senha no primeiro acesso
+        navigate('/first-access/change-password', { replace: true });
+      } else {
+        const targetRoute = getDashboardRouteForRole(user?.role, user);
+        navigate(targetRoute, { replace: true });
+      }
     } catch (error: any) {
       console.error('Erro ao registrar consentimentos:', error);
       toast({
@@ -89,6 +101,7 @@ const LgpdConsent = () => {
       setIsSubmitting(false);
     }
   };
+
 
   if (loading) {
     return (

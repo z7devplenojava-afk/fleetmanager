@@ -10,6 +10,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import org.hibernate.annotations.Filter;
 
 /**
  * Documento de um veículo (CRLV, DUT, Seguro, outros) com upload de arquivo
@@ -21,6 +22,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Filter(name = "tenantFilter", condition = "company_id = :companyId")
 public class VehicleDocument {
 
     @Id

@@ -36,7 +36,8 @@ import RiskMatrixByPosition from '@/components/sst/RiskMatrixByPosition';
 import CorrectiveActions from '@/components/sst/CorrectiveActions';
 import EmployeeSSTView from '@/components/sst/EmployeeSSTView';
 import StockEpiDeliveryFormsTab from '@/components/stock/StockEpiDeliveryFormsTab';
-import { User } from 'lucide-react';
+import ModuloDespesasPanel from '@/components/financeiro/ModuloDespesasPanel';
+import { User, DollarSign } from 'lucide-react';
 
 const SST: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -283,7 +284,7 @@ const SST: React.FC = () => {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 bg-seguranca-graphite border-gray-600 p-1">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 bg-seguranca-graphite border-gray-600 p-1">
             <TabsTrigger value="overview" className="text-xs sm:text-sm text-seguranca-lightgray data-[state='active']:bg-seguranca-red">
               Visão Geral
             </TabsTrigger>
@@ -303,6 +304,10 @@ const SST: React.FC = () => {
             </TabsTrigger>
             <TabsTrigger value="actions" className="text-xs sm:text-sm text-seguranca-lightgray data-[state='active']:bg-seguranca-red">
               Ações
+            </TabsTrigger>
+            <TabsTrigger value="despesas" className="text-xs sm:text-sm text-seguranca-lightgray data-[state='active']:bg-seguranca-red flex items-center justify-center gap-1.5">
+              <DollarSign className="h-4 w-4 text-amber-400" />
+              Despesas SST
             </TabsTrigger>
           </TabsList>
 
@@ -707,6 +712,11 @@ const SST: React.FC = () => {
           {/* Ações */}
           <TabsContent value="actions" className="space-y-6">
             <CorrectiveActions />
+          </TabsContent>
+
+          {/* Despesas com SST */}
+          <TabsContent value="despesas" className="space-y-6">
+            <ModuloDespesasPanel modulo="SST" hideHeaderTitle={false} />
           </TabsContent>
         </Tabs>
       </div>

@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
@@ -14,6 +15,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "unified_documents")
+@Filter(name = "tenantFilter", condition = "(payslip_id IN (SELECT p.id FROM payslips p WHERE p.company_id = :companyId) OR employee_id IN (SELECT e.id FROM employees e WHERE e.company_id = :companyId))")
 @Data
 @Builder
 @NoArgsConstructor

@@ -241,6 +241,25 @@
       border: 1px solid #ffcdd2;
     }
 
+    .status-trocar {
+      color: #b26a00;
+      background-color: #fff8e1;
+      border: 1px solid #ffe082;
+    }
+
+    .local-manutencao-bar {
+      background-color: #f1f8e9;
+      border: 1px solid #c8e6c9;
+      border-left: 4px solid #2e7d32;
+      padding: 3px 6px;
+      font-size: 8px;
+      color: #1b5e20;
+      margin-top: 4px;
+      margin-bottom: 5px;
+      border-radius: 2px;
+      text-transform: uppercase;
+    }
+
     .status-na {
       color: #616161;
       background-color: #f5f5f5;
@@ -427,7 +446,7 @@
     <tr>
       <td class="header-left">
         <div th:if="${companyLogo != null and companyLogo != ''}">
-          <img class="brand-logo" th:src="${companyLogo}" alt="Logo da Empresa" height="40" style="height: 40px; max-height: 40px; max-width: 180px;" />
+          <img class="brand-logo" th:src="${companyLogo}" alt="Logo da Empresa" style="height: 38px; max-height: 38px; max-width: 190px; width: auto; object-fit: contain; background: transparent;" />
         </div>
         <div class="brand-name" th:if="${companyName != null and companyName != ''}" th:text="${companyName}">NOME DA EMPRESA</div>
         <div class="brand-details">
@@ -450,6 +469,11 @@
     </tr>
   </table>
 
+  <!-- Local de Realização da Manutenção (Garagem / Unidade) -->
+  <div class="local-manutencao-bar" th:if="${manutencaoRealizadaEm != null and manutencaoRealizadaEm != ''}">
+    <b>MANUTENÇÃO REALIZADA EM:</b> <span th:text="${manutencaoRealizadaEm}">GARAGEM CENTRAL</span>
+  </div>
+
   <!-- Identificação e Parada -->
   <div class="secao">
     <div class="secao-titulo">Identificação e Dados de Parada</div>
@@ -471,6 +495,21 @@
         <td class="valor"><span th:text="${stopDate} ?: '—'"></span> <span th:text="${stopTime} ?: ''"></span></td>
         <td class="label">Data / Hora Saída:</td>
         <td class="valor"><span th:text="${exitDate} ?: '—'"></span> <span th:text="${exitTime} ?: ''"></span></td>
+      </tr>
+      <tr>
+        <td class="label">Início da Execução:</td>
+        <td class="valor" th:text="${executionStartDate} ?: '—'">—</td>
+        <td class="label">Término da Execução:</td>
+        <td class="valor" th:text="${executionEndDate} ?: '—'">—</td>
+      </tr>
+      <tr>
+        <td class="label">Tempo de Execução:</td>
+        <td class="valor" colspan="3">
+          <b th:text="${tempoExecucao} ?: 'Em andamento / Não apurado'">—</b>
+          <span th:if="${executionStartJustification != null and executionStartJustification != ''}"
+                th:text="' &bull; Justificativa do Início: ' + ${executionStartJustification}"
+                style="color: #666; font-style: italic; font-size: 7.5px;"></span>
+        </td>
       </tr>
       <tr>
         <td class="label">Obra (Cliente):</td>
@@ -529,7 +568,8 @@
                 <td style="text-align: center;">
                   <span class="badge-status status-ok" th:if="${cItem.situacao == 'OK'}">[OK]</span>
                   <span class="badge-status status-nok" th:if="${cItem.situacao == 'NAO_OK'}">[NÃO OK]</span>
-                  <span class="badge-status status-na" th:if="${cItem.situacao == 'NAO_APLICA' or (cItem.situacao != 'OK' and cItem.situacao != 'NAO_OK')}">[N/A]</span>
+                  <span class="badge-status status-trocar" th:if="${cItem.situacao == 'TROCAR'}">[TROCAR]</span>
+                  <span class="badge-status status-na" th:if="${cItem.situacao == 'NAO_APLICA' or (cItem.situacao != 'OK' and cItem.situacao != 'NAO_OK' and cItem.situacao != 'TROCAR')}">[N/A]</span>
                 </td>
               </tr>
             </tbody>
@@ -561,7 +601,8 @@
                 <td style="text-align: center;">
                   <span class="badge-status status-ok" th:if="${cItem.situacao == 'OK'}">[OK]</span>
                   <span class="badge-status status-nok" th:if="${cItem.situacao == 'NAO_OK'}">[NÃO OK]</span>
-                  <span class="badge-status status-na" th:if="${cItem.situacao == 'NAO_APLICA' or (cItem.situacao != 'OK' and cItem.situacao != 'NAO_OK')}">[N/A]</span>
+                  <span class="badge-status status-trocar" th:if="${cItem.situacao == 'TROCAR'}">[TROCAR]</span>
+                  <span class="badge-status status-na" th:if="${cItem.situacao == 'NAO_APLICA' or (cItem.situacao != 'OK' and cItem.situacao != 'NAO_OK' and cItem.situacao != 'TROCAR')}">[N/A]</span>
                 </td>
               </tr>
             </tbody>
@@ -587,7 +628,8 @@
           <td style="text-align: center;">
             <span class="badge-status status-ok" th:if="${cItem.situacao == 'OK'}">[OK]</span>
             <span class="badge-status status-nok" th:if="${cItem.situacao == 'NAO_OK'}">[NÃO OK]</span>
-            <span class="badge-status status-na" th:if="${cItem.situacao == 'NAO_APLICA' or (cItem.situacao != 'OK' and cItem.situacao != 'NAO_OK')}">[N/A]</span>
+            <span class="badge-status status-trocar" th:if="${cItem.situacao == 'TROCAR'}">[TROCAR]</span>
+            <span class="badge-status status-na" th:if="${cItem.situacao == 'NAO_APLICA' or (cItem.situacao != 'OK' and cItem.situacao != 'NAO_OK' and cItem.situacao != 'TROCAR')}">[N/A]</span>
           </td>
           <td>
             <span th:if="${cItem.observacao != null and cItem.observacao != ''}" th:text="'Obs: ' + ${cItem.observacao}"></span>
@@ -686,27 +728,33 @@
     </div>
   </div>
 
-  <!-- Assinaturas -->
-  <table class="assinatura-table">
-    <tr>
-      <td>
-        <div class="linha-assinatura">
-          <div class="assinatura-nome" th:text="${responsibleSignature ?: mechanicName ?: 'Responsável Técnico'}">Responsável Técnico</div>
-          <div class="assinatura-info">Assinatura do Responsável</div>
-          <div class="assinatura-info" th:if="${responsibleSignatureDate != null and responsibleSignatureDate != ''}" th:text="${responsibleSignatureDate}">Data: _____ / _____ / _____</div>
-          <div class="assinatura-info" th:unless="${responsibleSignatureDate != null and responsibleSignatureDate != ''}">Data: _____ / _____ / _____</div>
-        </div>
-      </td>
-      <td>
-        <div class="linha-assinatura">
-          <div class="assinatura-nome" th:text="${supervisorSignature ?: 'Supervisor'}">Supervisor</div>
-          <div class="assinatura-info">Assinatura do Supervisor</div>
-          <div class="assinatura-info" th:if="${supervisorSignatureDate != null and supervisorSignatureDate != ''}" th:text="${supervisorSignatureDate}">Data: _____ / _____ / _____</div>
-          <div class="assinatura-info" th:unless="${supervisorSignatureDate != null and supervisorSignatureDate != ''}">Data: _____ / _____ / _____</div>
-        </div>
-      </td>
-    </tr>
-  </table>
+  <!-- Declaração de Liberação e Assinaturas Técnicas (Modelo Oficial de OS Preventiva) -->
+  <div class="secao" style="margin-top: 10px; page-break-inside: avoid;">
+    <div style="background-color: #f5f5f5; border: 1px solid #333; padding: 4px; text-align: center; font-weight: bold; font-size: 8px; text-transform: uppercase;">
+      DECLARO QUE O VEÍCULO FOI INSPECIONADO POR MIM COM SEGUINTE CONCLUSÃO: <br/>
+      <span style="color: #2e7d32; font-size: 8.5px;">EQUIPAMENTO LIBERADO, SEM RESTRIÇÃO OPERATIVA OU DE SEGURANÇA.</span>
+    </div>
+    <table class="assinatura-table" style="margin-top: 4px; border: 1px solid #333; border-top: none;">
+      <tr>
+        <td style="border-right: 1px solid #333; padding: 12px 10px 6px 10px;">
+          <div class="linha-assinatura">
+            <div class="assinatura-nome" th:text="${supervisorSignature ?: 'GERENTE DE MANUTENÇÃO'}">GERENTE DE MANUTENÇÃO</div>
+            <div class="assinatura-info">GERENTE DE MANUTENÇÃO</div>
+            <div class="assinatura-info" th:if="${supervisorSignatureDate != null and supervisorSignatureDate != ''}" th:text="'Data: ' + ${supervisorSignatureDate}">Data: _____ / _____ / _____</div>
+            <div class="assinatura-info" th:unless="${supervisorSignatureDate != null and supervisorSignatureDate != ''}">Data: _____ / _____ / _____</div>
+          </div>
+        </td>
+        <td style="padding: 12px 10px 6px 10px;">
+          <div class="linha-assinatura">
+            <div class="assinatura-nome" th:text="${responsibleSignature ?: mechanicName ?: 'ENGENHEIRO MECÂNICO / RESPONSÁVEL TÉCNICO'}">ENGENHEIRO MECÂNICO</div>
+            <div class="assinatura-info">ENGENHEIRO MECÂNICO / RESP. TÉCNICO</div>
+            <div class="assinatura-info" th:if="${responsibleSignatureDate != null and responsibleSignatureDate != ''}" th:text="'Data: ' + ${responsibleSignatureDate}">Data: _____ / _____ / _____</div>
+            <div class="assinatura-info" th:unless="${responsibleSignatureDate != null and responsibleSignatureDate != ''}">Data: _____ / _____ / _____</div>
+          </div>
+        </td>
+      </tr>
+    </table>
+  </div>
 
   <!-- Rodapé -->
   <div class="footer">

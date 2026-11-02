@@ -12,12 +12,22 @@ import java.util.UUID;
 public final class TenantContext {
 
     private static final ThreadLocal<UUID> EMPRESA = new ThreadLocal<>();
+    private static final ThreadLocal<Boolean> IMPERSONATING = new ThreadLocal<>();
 
     private TenantContext() {
     }
 
     public static void set(UUID empresaId) {
         EMPRESA.set(empresaId);
+    }
+
+    /** SUPER_ADMIN explicitly selected a target company (X-Target-Company-ID). */
+    public static void setImpersonating(boolean impersonating) {
+        IMPERSONATING.set(impersonating);
+    }
+
+    public static boolean isImpersonating() {
+        return Boolean.TRUE.equals(IMPERSONATING.get());
     }
 
     public static void setCurrentTenant(UUID empresaId) {
@@ -34,5 +44,6 @@ public final class TenantContext {
 
     public static void clear() {
         EMPRESA.remove();
+        IMPERSONATING.remove();
     }
 }

@@ -13,6 +13,7 @@ WORKDIR /build
 # Copiar arquivos de configuração do Gradle primeiro (para cache de dependências)
 COPY gradle/ gradle/
 COPY build.gradle settings.gradle gradlew ./
+COPY gradle.properties* ./
 
 # Dar permissão de execução para o gradlew
 RUN chmod +x gradlew

@@ -18,6 +18,11 @@ export const ROLE_CATEGORIES: RoleCategory[] = [
     roles: ['RH', 'ASSISTENCIA_RH', 'AUXILIAR_DE_RH', 'DEPARTAMENTO_PESSOAL', 'AUXILIAR_DE_DEPARTAMENTO_PESSOAL', 'AUX_DEP', 'COLABORADOR', 'EMPLOYEE'],
   },
   {
+    id: 'sst',
+    name: 'Segurança do Trabalho (SST)',
+    roles: ['SST', 'SEGURANCA_DO_TRABALHO'],
+  },
+  {
     id: 'comercial',
     name: 'Comercial & CRM (Vendas)',
     roles: ['GESTOR_COMERCIAL', 'COMERCIAL', 'VENDAS'],
@@ -30,17 +35,17 @@ export const ROLE_CATEGORIES: RoleCategory[] = [
   {
     id: 'almoxarifado',
     name: 'Almoxarifado & Estoque',
-    roles: ['ALMOXARIFADO'],
+    roles: ['ALMOXARIFADO', 'GESTOR_TRAFEGO', 'GESTOR_DE_TRAFEGO'],
   },
   {
     id: 'manutencao',
     name: 'Manutenção & Oficina',
-    roles: ['GESTOR_DE_MANUTENCAO', 'ENCARREGADO_DE_MANUTENCAO', 'MANUTENCAO', 'MECANICO'],
+    roles: ['GESTOR_DE_MANUTENCAO', 'ENCARREGADO_DE_MANUTENCAO', 'ANALISTA_DE_FROTA', 'ANALISTA_FROTA', 'MANUTENCAO', 'MECANICO', 'GESTOR_TRAFEGO', 'GESTOR_DE_TRAFEGO', 'ENCARREGADO_DE_TRANSPORTES', 'ENCARREGADO_TRANSPORTES', 'ENCARREGADO_DE_TRAFEGO', 'ENCARREGADO_TRAFEGO'],
   },
   {
     id: 'operacional',
     name: 'Operação, Tráfego & Fretamento',
-    roles: ['GESTOR_OPERACIONAL', 'GESTOR_TRAFEGO', 'GESTOR_DE_TRAFEGO', 'OPERACIONAL', 'ASSISTENTE_OPERACIONAL', 'MOTORISTA'],
+    roles: ['GESTOR_OPERACIONAL', 'GESTOR_TRAFEGO', 'GESTOR_DE_TRAFEGO', 'ENCARREGADO_DE_TRANSPORTES', 'ENCARREGADO_TRANSPORTES', 'ENCARREGADO_DE_TRAFEGO', 'ENCARREGADO_TRAFEGO', 'OPERACIONAL', 'ASSISTENTE_OPERACIONAL', 'MOTORISTA'],
   },
   {
     id: 'financeiro',
@@ -82,6 +87,8 @@ export const USER_ROLE_LIST: UserRole[] = [
   'DEPARTAMENTO_PESSOAL',
   'AUXILIAR_DE_DEPARTAMENTO_PESSOAL',
   'AUX_DEP',
+  'SST',
+  'SEGURANCA_DO_TRABALHO',
   'COLABORADOR',
   'EMPLOYEE',
 
@@ -100,6 +107,8 @@ export const USER_ROLE_LIST: UserRole[] = [
   // Manutenção & Oficina
   'GESTOR_DE_MANUTENCAO',
   'ENCARREGADO_DE_MANUTENCAO',
+  'ANALISTA_DE_FROTA',
+  'ANALISTA_FROTA',
   'MANUTENCAO',
   'MECANICO',
 
@@ -107,6 +116,10 @@ export const USER_ROLE_LIST: UserRole[] = [
   'GESTOR_OPERACIONAL',
   'GESTOR_TRAFEGO',
   'GESTOR_DE_TRAFEGO',
+  'ENCARREGADO_DE_TRANSPORTES',
+  'ENCARREGADO_TRANSPORTES',
+  'ENCARREGADO_DE_TRAFEGO',
+  'ENCARREGADO_TRAFEGO',
   'OPERACIONAL',
   'ASSISTENTE_OPERACIONAL',
   'MOTORISTA',
@@ -749,10 +762,42 @@ export const generatePermissions = (role: UserRole): UserPermissions => {
         VISITS_READ: true,
       };
 
-    case 'AUXI_ADMINISTRATIVO':
+    case 'SST':
+    case 'SEGURANCA_DO_TRABALHO':
       return {
         ...basePermissions,
-        // Auxiliar Administrativo - Suporte administrativo geral
+        // Segurança do Trabalho (SST) + RH + Departamento Pessoal
+        EMPLOYEES_READ: true,
+        EMPLOYEES_WRITE: true,
+        EMPLOYEES_CREATE: true,
+        PAYSLIPS_READ: true,
+        PAYSLIPS_WRITE: true,
+        CONTRACTS_READ: true,
+        REPORTS_READ: true,
+        REPORTS_GENERATE: true,
+        REPORTS_EXPORT: true,
+        DASHBOARD_READ: true,
+        PROFILE_READ: true,
+        PROFILE_WRITE: true,
+        MESSAGES_READ: true,
+        MESSAGES_WRITE: true,
+        MESSAGES_CREATE: true,
+        SUPPORT_READ: true,
+        ATTENDANCE_READ: true,
+        ATTENDANCE_WRITE: true,
+        TIME_RECORD_READ: true,
+        TIME_RECORD_UPDATE: true,
+        EQUIPMENTS_READ: true,
+        EQUIPMENTS_WRITE: true,
+        STOCK_READ: true,
+        STOCK_WRITE: true,
+      };
+
+    case 'AUXI_ADMINISTRATIVO':
+    case 'AUXILIAR_ADMINISTRATIVO':
+      return {
+        ...basePermissions,
+        // Auxiliar Administrativo - Acessos ampliados
         EMPLOYEES_READ: true,
         CLIENTS_READ: true,
         CONTRACTS_READ: true,
@@ -768,6 +813,22 @@ export const generatePermissions = (role: UserRole): UserPermissions => {
         SUPPORT_CREATE: true,
         LEADS_READ: true,
         PROPOSALS_READ: true,
+        // Cadastro de Despesas
+        FINANCIAL_READ: true,
+        FINANCIAL_WRITE: true,
+        FINANCIAL_CREATE: true,
+        // Criação de OS, Manutenção e Abastecimento
+        EQUIPMENTS_READ: true,
+        EQUIPMENTS_WRITE: true,
+        EQUIPMENTS_CREATE: true,
+        EQUIPMENTS_ASSIGN: true,
+        STOCK_READ: true,
+        STOCK_WRITE: true,
+        // Lança Parte Diária e Operação
+        TRIPS_READ: true,
+        TRIPS_EXECUTE: true,
+        BOARDING_READ: true,
+        BOARDING_EXECUTE: true,
       };
 
     case 'AUX_DEP':
@@ -802,20 +863,7 @@ export const generatePermissions = (role: UserRole): UserPermissions => {
         ATTENDANCE_READ: true,
       };
 
-    case 'AUXILIAR_ADMINISTRATIVO':
-      return {
-        ...basePermissions,
-        EMPLOYEES_READ: true,
-        CLIENTS_READ: true,
-        CONTRACTS_READ: true,
-        REPORTS_READ: true,
-        DASHBOARD_READ: true,
-        PROFILE_READ: true,
-        PROFILE_WRITE: true,
-        MESSAGES_READ: true,
-        MESSAGES_WRITE: true,
-        MESSAGES_CREATE: true,
-      };
+
 
     case 'COMERCIAL':
     case 'GESTOR_COMERCIAL':
@@ -890,6 +938,8 @@ export const generatePermissions = (role: UserRole): UserPermissions => {
     case 'MANUTENCAO':
     case 'GESTOR_DE_MANUTENCAO':
     case 'ENCARREGADO_DE_MANUTENCAO':
+    case 'ANALISTA_DE_FROTA':
+    case 'ANALISTA_FROTA':
     case 'MECANICO':
       return {
         ...basePermissions,
@@ -901,7 +951,7 @@ export const generatePermissions = (role: UserRole): UserPermissions => {
         MESSAGES_CREATE: true,
         EQUIPMENTS_READ: true,
         EQUIPMENTS_WRITE: true,
-        EQUIPMENTS_CREATE: role === 'GESTOR_DE_MANUTENCAO',
+        EQUIPMENTS_CREATE: role === 'GESTOR_DE_MANUTENCAO' || role === 'ANALISTA_DE_FROTA' || role === 'ANALISTA_FROTA',
         EQUIPMENTS_ASSIGN: true,
         STOCK_READ: true,
         STOCK_WRITE: true,
@@ -922,7 +972,12 @@ export const generatePermissions = (role: UserRole): UserPermissions => {
         MESSAGES_CREATE: true,
         EQUIPMENTS_READ: true,
         EQUIPMENTS_WRITE: true,
+        EQUIPMENTS_CREATE: true,
         EQUIPMENTS_ASSIGN: true,
+        STOCK_READ: true,
+        STOCK_WRITE: true,
+        STOCK_CREATE: true,
+        STOCK_MANAGE: true,
         EMPLOYEES_READ: true,
         CONTRACTS_READ: true,
         TRAFFIC_MANAGEMENT_READ: true,
@@ -938,6 +993,46 @@ export const generatePermissions = (role: UserRole): UserPermissions => {
         ROUTES_WRITE: true,
         ROUTES_CREATE: true,
         ROUTES_DELETE: role === 'GESTOR_OPERACIONAL' || role === 'GESTOR_TRAFEGO',
+        REPORTS_READ: true,
+        REPORTS_GENERATE: true,
+      };
+
+    case 'ENCARREGADO_DE_TRANSPORTES':
+    case 'ENCARREGADO_TRANSPORTES':
+    case 'ENCARREGADO_DE_TRAFEGO':
+    case 'ENCARREGADO_TRAFEGO':
+      return {
+        ...basePermissions,
+        DASHBOARD_READ: true,
+        PROFILE_READ: true,
+        PROFILE_WRITE: true,
+        MESSAGES_READ: true,
+        MESSAGES_WRITE: true,
+        MESSAGES_CREATE: true,
+        EQUIPMENTS_READ: true,
+        EQUIPMENTS_WRITE: true,
+        EQUIPMENTS_CREATE: true,
+        EQUIPMENTS_ASSIGN: true,
+        // Encarregado de Transporte: sem acesso ao módulo de estoque e almoxarifado
+        STOCK_READ: false,
+        STOCK_WRITE: false,
+        STOCK_CREATE: false,
+        STOCK_MANAGE: false,
+        EMPLOYEES_READ: true,
+        CONTRACTS_READ: true,
+        TRAFFIC_MANAGEMENT_READ: true,
+        TRAFFIC_MANAGEMENT_WRITE: true,
+        TRAFFIC_MANAGEMENT_CREATE: true,
+        TRAFFIC_MANAGEMENT_DELETE: true,
+        TRIPS_READ: true,
+        TRIPS_WRITE: true,
+        TRIPS_EXECUTE: true,
+        BOARDING_READ: true,
+        BOARDING_EXECUTE: true,
+        ROUTES_READ: true,
+        ROUTES_WRITE: true,
+        ROUTES_CREATE: true,
+        ROUTES_DELETE: true,
         REPORTS_READ: true,
         REPORTS_GENERATE: true,
       };
@@ -1403,18 +1498,26 @@ export const getRoleDisplayName = (role: UserRole): string => {
     GESTOR: 'Gestor',
     GESTOR_TRAFEGO: 'Gestor de Tráfego',
     GESTOR_DE_TRAFEGO: 'Gestor de Tráfego',
+    ENCARREGADO_DE_TRANSPORTES: 'Encarregado de Transportes',
+    ENCARREGADO_TRANSPORTES: 'Encarregado de Transportes',
+    ENCARREGADO_DE_TRAFEGO: 'Encarregado de Tráfego',
+    ENCARREGADO_TRAFEGO: 'Encarregado de Tráfego',
     MOTORISTA: 'Motorista',
     MECANICO: 'Mecânico',
     PORTARIA: 'Portaria / Controle de Acesso',
     MANUTENCAO: 'Manutenção',
     GESTOR_DE_MANUTENCAO: 'Gestor de Manutenção',
     ENCARREGADO_DE_MANUTENCAO: 'Encarregado de Manutenção',
+    ANALISTA_DE_FROTA: 'Analista de Frota',
+    ANALISTA_FROTA: 'Analista de Frota',
     ALMOXARIFADO: 'Almoxarifado',
     COMPRAS: 'Compras',
     GESTOR_DE_COMPRAS: 'Gestor de Compras',
     GESTOR_FINANCEIRO: 'Gestor Financeiro',
     GESTOR_OPERACIONAL: 'Gestor Operacional',
     AUXILIAR_ADMINISTRATIVO: 'Auxiliar Administrativo',
+    SST: 'Segurança do Trabalho (SST)',
+    SEGURANCA_DO_TRABALHO: 'Segurança do Trabalho (SST)',
     AUXILIAR_DE_RH: 'Auxiliar de RH',
     AUXILIAR_DE_DEPARTAMENTO_PESSOAL: 'Auxiliar de Departamento Pessoal',
     ASSISTENTE_OPERACIONAL: 'Assistente Operacional',
@@ -1431,54 +1534,62 @@ export const getRoleDisplayName = (role: UserRole): string => {
   return roleNames[role] || role;
 };
 
-// Função para obter a cor do role (para badges, etc.)
+// Função para obter a cor do role (para badges, etc.) - Paleta suave, clean e moderna
 export const getRoleColor = (role: UserRole): string => {
   const roleColors: Record<string, string> = {
-    FLEX_ADMIN: 'bg-Seguranca-red text-white',
-    COMPANY_ADMIN: 'bg-indigo-600 text-white',
-    SUPER_ADMIN: 'bg-red-100 text-red-800',
-    ADMIN: 'bg-blue-100 text-blue-800',
-    SUPERVISOR: 'bg-green-100 text-green-800',
-    RH: 'bg-yellow-100 text-yellow-800',
-    ASSISTENCIA_RH: 'bg-yellow-50 text-yellow-700',
-    DEPARTAMENTO_PESSOAL: 'bg-amber-100 text-amber-800',
-    FINANCEIRO: 'bg-orange-100 text-orange-800',
-    OPERACIONAL: 'bg-cyan-100 text-cyan-800',
-    VIGILANTE: 'bg-slate-100 text-slate-800',
-    AUXI_ADMINISTRATIVO: 'bg-pink-100 text-pink-800',
-    AUX_DEP: 'bg-lime-100 text-lime-800',
-    TI_SUPORTE: 'bg-purple-100 text-purple-800',
-    AUDITOR: 'bg-gray-100 text-gray-800',
-    COLABORADOR: 'bg-indigo-100 text-indigo-800',
-    GESTOR: 'bg-teal-100 text-teal-800',
-    GESTOR_TRAFEGO: 'bg-orange-600 text-white',
-    GESTOR_DE_TRAFEGO: 'bg-orange-600 text-white',
-    MOTORISTA: 'bg-indigo-600 text-white',
-    MECANICO: 'bg-gray-700 text-white',
-    PORTARIA: 'bg-slate-500 text-white',
-    MANUTENCAO: 'bg-blue-600 text-white',
-    GESTOR_DE_MANUTENCAO: 'bg-blue-700 text-white',
-    ENCARREGADO_DE_MANUTENCAO: 'bg-blue-800 text-white',
-    ALMOXARIFADO: 'bg-amber-600 text-white',
-    COMPRAS: 'bg-emerald-600 text-white',
-    GESTOR_DE_COMPRAS: 'bg-emerald-700 text-white',
-    GESTOR_FINANCEIRO: 'bg-green-700 text-white',
-    GESTOR_OPERACIONAL: 'bg-cyan-700 text-white',
-    AUXILIAR_ADMINISTRATIVO: 'bg-purple-600 text-white',
-    AUXILIAR_DE_RH: 'bg-yellow-600 text-white',
-    AUXILIAR_DE_DEPARTAMENTO_PESSOAL: 'bg-amber-700 text-white',
-    ASSISTENTE_OPERACIONAL: 'bg-cyan-600 text-white',
-    ASSISTENTE_LIMPEZA: 'bg-teal-600 text-white',
-    LAVADOR: 'bg-sky-600 text-white',
-    ASSISTENTE_FINANCEIRO: 'bg-green-600 text-white',
-    EMPLOYEE: 'bg-slate-200 text-slate-800',
-    COMERCIAL: 'bg-blue-600 text-white',
-    GESTOR_COMERCIAL: 'bg-blue-700 text-white',
-    VENDAS: 'bg-sky-500 text-white',
-    CLIENTE: 'bg-emerald-500 text-white',
-    CLIENT_USER: 'bg-emerald-600 text-white',
+    FLEX_ADMIN: 'bg-red-50 text-red-700 border border-red-200/80 font-medium dark:bg-red-950/40 dark:text-red-300 dark:border-red-900/60',
+    COMPANY_ADMIN: 'bg-indigo-50 text-indigo-700 border border-indigo-200/80 font-medium dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-900/60',
+    SUPER_ADMIN: 'bg-rose-50 text-rose-700 border border-rose-200/80 font-medium dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900/60',
+    ADMIN: 'bg-blue-50 text-blue-700 border border-blue-200/80 font-medium dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900/60',
+    SUPERVISOR: 'bg-emerald-50 text-emerald-700 border border-emerald-200/80 font-medium dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/60',
+    RH: 'bg-pink-50 text-pink-700 border border-pink-200/80 font-medium dark:bg-pink-950/40 dark:text-pink-300 dark:border-pink-900/60',
+    ASSISTENCIA_RH: 'bg-pink-50/70 text-pink-700 border border-pink-200/70 font-medium dark:bg-pink-950/30 dark:text-pink-300 dark:border-pink-900/50',
+    DEPARTAMENTO_PESSOAL: 'bg-amber-50 text-amber-700 border border-amber-200/80 font-medium dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900/60',
+    FINANCEIRO: 'bg-emerald-50 text-emerald-700 border border-emerald-200/80 font-medium dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/60',
+    OPERACIONAL: 'bg-cyan-50 text-cyan-700 border border-cyan-200/80 font-medium dark:bg-cyan-950/40 dark:text-cyan-300 dark:border-cyan-900/60',
+    VIGILANTE: 'bg-slate-100 text-slate-700 border border-slate-200/80 font-medium dark:bg-slate-800/60 dark:text-slate-300 dark:border-slate-700/60',
+    AUXI_ADMINISTRATIVO: 'bg-purple-50 text-purple-700 border border-purple-200/80 font-medium dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-900/60',
+    AUX_DEP: 'bg-lime-50 text-lime-700 border border-lime-200/80 font-medium dark:bg-lime-950/40 dark:text-lime-300 dark:border-lime-900/60',
+    TI_SUPORTE: 'bg-purple-50 text-purple-700 border border-purple-200/80 font-medium dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-900/60',
+    AUDITOR: 'bg-slate-100 text-slate-700 border border-slate-200/80 font-medium dark:bg-slate-800/60 dark:text-slate-300 dark:border-slate-700/60',
+    COLABORADOR: 'bg-slate-100 text-slate-600 border border-slate-200/80 font-medium dark:bg-slate-800/60 dark:text-slate-300 dark:border-slate-700/60',
+    GESTOR: 'bg-teal-50 text-teal-700 border border-teal-200/80 font-medium dark:bg-teal-950/40 dark:text-teal-300 dark:border-teal-900/60',
+    GESTOR_TRAFEGO: 'bg-orange-50 text-orange-700 border border-orange-200/80 font-medium dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-900/60',
+    GESTOR_DE_TRAFEGO: 'bg-orange-50 text-orange-700 border border-orange-200/80 font-medium dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-900/60',
+    ENCARREGADO_DE_TRANSPORTES: 'bg-orange-50 text-orange-700 border border-orange-200/80 font-medium dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-900/60',
+    ENCARREGADO_TRANSPORTES: 'bg-orange-50 text-orange-700 border border-orange-200/80 font-medium dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-900/60',
+    ENCARREGADO_DE_TRAFEGO: 'bg-orange-50 text-orange-700 border border-orange-200/80 font-medium dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-900/60',
+    ENCARREGADO_TRAFEGO: 'bg-orange-50 text-orange-700 border border-orange-200/80 font-medium dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-900/60',
+    MOTORISTA: 'bg-sky-50 text-sky-700 border border-sky-200/80 font-medium dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-900/60',
+    MECANICO: 'bg-slate-100 text-slate-700 border border-slate-200/80 font-medium dark:bg-slate-800/60 dark:text-slate-300 dark:border-slate-700/60',
+    PORTARIA: 'bg-slate-100 text-slate-700 border border-slate-200/80 font-medium dark:bg-slate-800/60 dark:text-slate-300 dark:border-slate-700/60',
+    MANUTENCAO: 'bg-blue-50 text-blue-700 border border-blue-200/80 font-medium dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900/60',
+    GESTOR_DE_MANUTENCAO: 'bg-blue-50 text-blue-800 border border-blue-300/80 font-medium dark:bg-blue-950/50 dark:text-blue-200 dark:border-blue-800/60',
+    ENCARREGADO_DE_MANUTENCAO: 'bg-blue-50 text-blue-800 border border-blue-300/80 font-medium dark:bg-blue-950/50 dark:text-blue-200 dark:border-blue-800/60',
+    ANALISTA_DE_FROTA: 'bg-teal-50 text-teal-700 border border-teal-200/80 font-medium dark:bg-teal-950/40 dark:text-teal-300 dark:border-teal-900/60',
+    ANALISTA_FROTA: 'bg-teal-50 text-teal-700 border border-teal-200/80 font-medium dark:bg-teal-950/40 dark:text-teal-300 dark:border-teal-900/60',
+    ALMOXARIFADO: 'bg-amber-50 text-amber-700 border border-amber-200/80 font-medium dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900/60',
+    COMPRAS: 'bg-emerald-50 text-emerald-700 border border-emerald-200/80 font-medium dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/60',
+    GESTOR_DE_COMPRAS: 'bg-emerald-50 text-emerald-800 border border-emerald-300/80 font-medium dark:bg-emerald-950/50 dark:text-emerald-200 dark:border-emerald-800/60',
+    GESTOR_FINANCEIRO: 'bg-emerald-50 text-emerald-800 border border-emerald-300/80 font-medium dark:bg-emerald-950/50 dark:text-emerald-200 dark:border-emerald-800/60',
+    GESTOR_OPERACIONAL: 'bg-cyan-50 text-cyan-800 border border-cyan-300/80 font-medium dark:bg-cyan-950/50 dark:text-cyan-200 dark:border-cyan-800/60',
+    AUXILIAR_ADMINISTRATIVO: 'bg-purple-50 text-purple-700 border border-purple-200/80 font-medium dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-900/60',
+    SST: 'bg-emerald-50 text-emerald-700 border border-emerald-200/80 font-medium dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/60',
+    SEGURANCA_DO_TRABALHO: 'bg-emerald-50 text-emerald-700 border border-emerald-200/80 font-medium dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/60',
+    AUXILIAR_DE_RH: 'bg-pink-50 text-pink-700 border border-pink-200/80 font-medium dark:bg-pink-950/40 dark:text-pink-300 dark:border-pink-900/60',
+    AUXILIAR_DE_DEPARTAMENTO_PESSOAL: 'bg-amber-50 text-amber-700 border border-amber-200/80 font-medium dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900/60',
+    ASSISTENTE_OPERACIONAL: 'bg-cyan-50 text-cyan-700 border border-cyan-200/80 font-medium dark:bg-cyan-950/40 dark:text-cyan-300 dark:border-cyan-900/60',
+    ASSISTENTE_LIMPEZA: 'bg-teal-50 text-teal-700 border border-teal-200/80 font-medium dark:bg-teal-950/40 dark:text-teal-300 dark:border-teal-900/60',
+    LAVADOR: 'bg-sky-50 text-sky-700 border border-sky-200/80 font-medium dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-900/60',
+    ASSISTENTE_FINANCEIRO: 'bg-emerald-50 text-emerald-700 border border-emerald-200/80 font-medium dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/60',
+    EMPLOYEE: 'bg-slate-100 text-slate-700 border border-slate-200/80 font-medium dark:bg-slate-800/60 dark:text-slate-300 dark:border-slate-700/60',
+    COMERCIAL: 'bg-blue-50 text-blue-700 border border-blue-200/80 font-medium dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900/60',
+    GESTOR_COMERCIAL: 'bg-blue-50 text-blue-800 border border-blue-300/80 font-medium dark:bg-blue-950/50 dark:text-blue-200 dark:border-blue-800/60',
+    VENDAS: 'bg-sky-50 text-sky-700 border border-sky-200/80 font-medium dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-900/60',
+    CLIENTE: 'bg-emerald-50 text-emerald-700 border border-emerald-200/80 font-medium dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/60',
+    CLIENT_USER: 'bg-emerald-50 text-emerald-700 border border-emerald-200/80 font-medium dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/60',
   };
-  return roleColors[role] || 'bg-gray-100 text-gray-800';
+  return roleColors[role] || 'bg-slate-100 text-slate-700 border border-slate-200/80 font-medium dark:bg-slate-800/60 dark:text-slate-300 dark:border-slate-700/60';
 };
 
 // Função para obter o nome amigável do grupo
@@ -1497,18 +1608,18 @@ export const getGroupDisplayName = (groupName: string): string => {
   return groupNames[groupName] || groupName;
 };
 
-// Função para obter a cor do grupo (para badges, etc.)
+// Função para obter a cor do grupo (para badges, etc.) - Paleta suave e moderna
 export const getGroupColor = (groupName: string): string => {
   const groupColors: Record<string, string> = {
-    'GRUPO_SUPER_ADMIN': 'bg-red-100 text-red-800',
-    'GRUPO_ADMIN': 'bg-orange-100 text-orange-800',
-    'GRUPO_GESTOR': 'bg-yellow-100 text-yellow-800',
-    'GRUPO_RH': 'bg-purple-100 text-purple-800',
-    'GRUPO_DPE': 'bg-teal-100 text-teal-800',
-    'GRUPO_SUPERVISOR': 'bg-green-100 text-green-800',
-    'GRUPO_COLABORADORES': 'bg-blue-100 text-blue-800',
-    'GRUPO_OPERACIONAL': 'bg-cyan-100 text-cyan-800',
-    'GRUPO_VIGILANTES': 'bg-gray-100 text-gray-800',
+    'GRUPO_SUPER_ADMIN': 'bg-rose-50 text-rose-700 border border-rose-200/80 font-medium dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900/60',
+    'GRUPO_ADMIN': 'bg-blue-50 text-blue-700 border border-blue-200/80 font-medium dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900/60',
+    'GRUPO_GESTOR': 'bg-amber-50 text-amber-700 border border-amber-200/80 font-medium dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900/60',
+    'GRUPO_RH': 'bg-pink-50 text-pink-700 border border-pink-200/80 font-medium dark:bg-pink-950/40 dark:text-pink-300 dark:border-pink-900/60',
+    'GRUPO_DPE': 'bg-teal-50 text-teal-700 border border-teal-200/80 font-medium dark:bg-teal-950/40 dark:text-teal-300 dark:border-teal-900/60',
+    'GRUPO_SUPERVISOR': 'bg-emerald-50 text-emerald-700 border border-emerald-200/80 font-medium dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/60',
+    'GRUPO_COLABORADORES': 'bg-sky-50 text-sky-700 border border-sky-200/80 font-medium dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-900/60',
+    'GRUPO_OPERACIONAL': 'bg-cyan-50 text-cyan-700 border border-cyan-200/80 font-medium dark:bg-cyan-950/40 dark:text-cyan-300 dark:border-cyan-900/60',
+    'GRUPO_VIGILANTES': 'bg-slate-100 text-slate-700 border border-slate-200/80 font-medium dark:bg-slate-800/60 dark:text-slate-300 dark:border-slate-700/60',
   };
-  return groupColors[groupName] || 'bg-gray-100 text-gray-800';
+  return groupColors[groupName] || 'bg-slate-100 text-slate-700 border border-slate-200/80 font-medium dark:bg-slate-800/60 dark:text-slate-300 dark:border-slate-700/60';
 };

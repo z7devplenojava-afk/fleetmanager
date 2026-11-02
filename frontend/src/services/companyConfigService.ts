@@ -113,11 +113,11 @@ class CompanyConfigService {
     try {
       console.log('📤 Fazendo upload do logo:', file.name);
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', file, file.name || 'logo.png');
 
       const response = await api.post(`${API_BASE_URL}/${id}/logo`, formData, {
         headers: {
-          'Content-Type': 'multipart/form-data',
+          'Content-Type': undefined,
         },
       });
 
