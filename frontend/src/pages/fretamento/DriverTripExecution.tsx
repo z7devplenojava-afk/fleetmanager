@@ -224,7 +224,7 @@ const DriverTripExecution: React.FC = () => {
                 passengerName = parsed.name || parsed.nome || '';
                 matchedId = parsed.passengerId || parsed.id || '';
                 passengerCpf = parsed.cpf || '';
-                passengerMatricula = parsed.matricula || parsed.registration || '';
+                passengerMatricula = parsed.matricula || parsed.registration || parsed.mat || '';
             } catch {}
         }
 

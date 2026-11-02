@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -101,17 +101,21 @@ export const PassengerPortal: React.FC = () => {
     const disabilityType = (user as any)?.disabilityType || (user as any)?.disabilityDescription;
     const assignedRoute = isFretado ? 'Linha Executiva Industrial - Rota 01' : 'Linha Municipal / Transporte Público';
 
-    // Payload dinâmico do QR Code do passageiro (modo apresentação para o motorista)
-    const qrPayload = generateQrCodeDataPayload('PASSENGER', {
-        passengerId: (user as any)?.passengerId || user?.id,
-        name: passengerName,
-        cpf: passengerCpf,
-        matricula: passengerRegistration,
-        clientName: clientName,
-        direction: direction,
-        timestamp: currentTime.toISOString()
-    });
-    const qrSvg = generateQrCodeSvgUri(qrPayload, 260);
+    // Payload estável do QR Code do passageiro (memorizado para manter o foco constante da câmera do motorista)
+    const qrPayload = useMemo(() => {
+        return generateQrCodeDataPayload('PASSENGER', {
+            passengerId: (user as any)?.passengerId || user?.id,
+            name: passengerName,
+            cpf: passengerCpf,
+            matricula: passengerRegistration,
+            clientName: clientName,
+            direction: direction
+        });
+    }, [user?.id, passengerName, passengerCpf, passengerRegistration, clientName, direction]);
+
+    const qrSvg = useMemo(() => {
+        return generateQrCodeSvgUri(qrPayload, 260);
+    }, [qrPayload]);
 
     // Iniciar Scanner de Câmera quando a aba 'scan' é selecionada
     useEffect(() => {

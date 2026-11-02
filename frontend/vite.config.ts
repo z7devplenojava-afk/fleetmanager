@@ -247,6 +247,7 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
+        "qrcode": path.resolve(__dirname, "./node_modules/qrcode/lib/browser.js"),
       },
       dedupe: ["react", "react-dom"],
     },
