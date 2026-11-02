@@ -650,7 +650,7 @@ const RoutesAndPoints: React.FC = () => {
         const fetchPassengers = async () => {
             try {
                 setLoadingPassengers(true);
-                const res = await api.get(/api/passengers/client/ + formData.clientId);
+                const res = await api.get(`/api/passengers/client/${formData.clientId}`);
                 const data: any[] = res.data || [];
                 setClientPassengers(data);
                 if (selectedRoute?.id) {
