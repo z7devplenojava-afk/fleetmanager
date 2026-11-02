@@ -2057,7 +2057,7 @@ const RoutesAndPoints: React.FC = () => {
                                                                                 <div className="truncate">
                                                                                     <p className="font-semibold text-white truncate">{p.name}</p>
                                                                                     <p className="text-[11px] text-gray-400 font-mono">
-                                                                                        {p.registration ? Matrícula:  + p.registration : ''} {p.cpf ? • CPF:  + p.cpf : ''}
+                                                                                        {p.registration ? ('Matrícula: ' + p.registration) : ''} {p.cpf ? ('• CPF: ' + p.cpf) : ''}
                                                                                     </p>
                                                                                 </div>
                                                                             </div>
