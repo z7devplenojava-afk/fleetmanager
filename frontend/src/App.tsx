@@ -78,6 +78,7 @@ const UnificadosPorSetor = lazyWithRetry(() => import('@/pages/UnificadosPorSeto
 
 // Sistema Administrativo - Lazy loading para páginas administrativas
 const Login = lazy(() => import('@/pages/Login').catch(() => ({ default: () => <div>Erro ao carregar Login</div> })));
+const PassengerRegisterPage = lazy(() => import('@/pages/passenger/PassengerRegisterPage').catch(() => ({ default: () => <div>Erro ao carregar Cadastro de Passageiro</div> })));
 const ForgotPassword = lazy(() => import('@/pages/ForgotPassword').catch(() => ({ default: () => <div>Erro ao carregar Recuperação de Senha</div> })));
 const ResetPassword = lazy(() => import('@/pages/ResetPassword').catch(() => ({ default: () => <div>Erro ao carregar Redefinição de Senha</div> })));
 const FirstAccessChangePassword = lazy(() => import('@/pages/FirstAccessChangePassword').catch(() => ({ default: () => <div>Erro ao carregar Primeiro Acesso</div> })));
@@ -465,6 +466,16 @@ function App() {
                           </div>
                         }>
                           <Login />
+                        </Suspense>
+                      } />
+                      <Route path="/cadastro-passageiro" element={
+                        <Suspense fallback={
+                          <div className="min-h-screen w-full bg-slate-950 flex flex-col items-center justify-center p-4">
+                            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500"></div>
+                            <p className="mt-4 text-slate-400">Carregando cadastro de passageiro...</p>
+                          </div>
+                        }>
+                          <PassengerRegisterPage />
                         </Suspense>
                       } />
                       <Route path="/forgot-password" element={

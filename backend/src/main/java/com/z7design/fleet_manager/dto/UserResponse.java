@@ -26,4 +26,7 @@ public class UserResponse {
     private java.util.UUID passengerId;
     private java.util.UUID clientId;
     private String clientName;
+    private String passengerCategory;
+    private Boolean isPcd;
+    private String disabilityType;
 } 

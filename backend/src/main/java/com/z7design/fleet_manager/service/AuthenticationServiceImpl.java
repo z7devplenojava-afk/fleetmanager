@@ -2,6 +2,7 @@ package com.z7design.fleet_manager.service;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.time.LocalDateTime;
 import java.util.stream.Collectors;
 
 import org.springframework.context.annotation.Lazy;
@@ -558,6 +559,9 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         UUID passengerId = null;
         UUID clientId = null;
         String clientName = null;
+        String passengerCategory = null;
+        Boolean isPcd = null;
+        String disabilityType = null;
         try {
             var passOpt = passengerRepository.findByUserIdNative(user.getId());
             if (passOpt.isEmpty() && user.getCpf() != null) {
@@ -573,6 +577,9 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 if (p.getClient() != null) {
                     clientName = p.getClient().getName();
                 }
+                passengerCategory = p.getPassengerCategory() != null ? p.getPassengerCategory() : (clientId != null ? "FRETADO" : "PUBLICO_ALEATORIO");
+                isPcd = p.getIsPcd();
+                disabilityType = p.getDisabilityType();
                 if (!effectiveRoles.contains("PASSAGEIRO")) {
                     effectiveRoles.add("PASSAGEIRO");
                 }
@@ -597,6 +604,9 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .passengerId(passengerId)
                 .clientId(clientId)
                 .clientName(clientName)
+                .passengerCategory(passengerCategory)
+                .isPcd(isPcd)
+                .disabilityType(disabilityType)
                 .build();
     }
 
@@ -644,5 +654,145 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         }
 
         return user;
+    }
+
+    @Override
+    @Transactional
+    public AuthenticationResponse registerPassenger(com.z7design.fleet_manager.dto.PassengerRegistrationRequestDTO request) {
+        log.info("Iniciando auto-cadastro de passageiro público: {} (CPF: {})", request.getName(), request.getCpf());
+
+        if (Boolean.FALSE.equals(request.getLgpdAccepted())) {
+            throw new com.z7design.fleet_manager.exception.BusinessException("É obrigatório ler e aceitar os termos da LGPD para realizar o cadastro.");
+        }
+
+        String cleanCpf = request.getCpf() != null ? request.getCpf().replaceAll("\\D", "") : "";
+        if (cleanCpf.length() != 11) {
+            throw new com.z7design.fleet_manager.exception.BusinessException("CPF inválido. Deve conter 11 dígitos.");
+        }
+
+        // Validação matemática do CPF
+        if (!isValidCpf(cleanCpf)) {
+            throw new com.z7design.fleet_manager.exception.BusinessException("O CPF informado é inválido. Por favor, confira os números digitados.");
+        }
+
+        String cleanUsername = request.getUsername().trim().toLowerCase();
+        if (userRepository.existsByUsername(cleanUsername)) {
+            throw new com.z7design.fleet_manager.exception.BusinessException("O nome de usuário '" + cleanUsername + "' já está em uso. Por favor, escolha outro.");
+        }
+
+        if (userRepository.existsByEmail(request.getEmail().trim().toLowerCase())) {
+            throw new com.z7design.fleet_manager.exception.BusinessException("O e-mail '" + request.getEmail() + "' já está cadastrado.");
+        }
+
+        if (passengerRepository.findByCleanCpfNative(cleanCpf).isPresent()) {
+            throw new com.z7design.fleet_manager.exception.BusinessException("Já existe um passageiro cadastrado com este CPF. Faça login diretamente.");
+        }
+
+        // Resolver companyId (empresa padrão ou primeira ativa)
+        UUID companyId = request.getCompanyId();
+        if (companyId == null) {
+            var allComps = companyRepository.findAll();
+            if (!allComps.isEmpty()) {
+                companyId = allComps.get(0).getId();
+            }
+        }
+
+        Role passRole = roleRepository.findByName("PASSAGEIRO")
+                .or(() -> roleRepository.findByName("COLABORADOR"))
+                .orElse(null);
+        java.util.Set<Role> roles = passRole != null ? java.util.Set.of(passRole) : java.util.Collections.emptySet();
+
+        // 1. Criar User
+        User user = User.builder()
+                .username(cleanUsername)
+                .name(request.getName().trim())
+                .email(request.getEmail().trim().toLowerCase())
+                .phone(request.getPhone() != null ? request.getPhone().replaceAll("\\D", "") : null)
+                .cpf(cleanCpf)
+                .password(passwordEncoder.encode(request.getPassword()))
+                .roles(roles)
+                .status(UserStatus.ACTIVE)
+                .active(true)
+                .companyId(companyId)
+                .clientId(null) // Passageiro avulso do transporte público
+                .requirePasswordChange(false)
+                .firstAccessCompleted(true)
+                .build();
+        user = userRepository.save(user);
+
+        // 2. Criar Passenger
+        String registration = "PUB-" + cleanCpf.substring(0, 3) + cleanCpf.substring(9, 11) + (int)(Math.random() * 900 + 100);
+        String qrToken = "FLUXBUS-PUB-" + UUID.randomUUID().toString();
+
+        Passenger pass = new Passenger();
+        pass.setName(request.getName().trim());
+        pass.setCpf(cleanCpf);
+        pass.setPhone(request.getPhone() != null ? request.getPhone().trim() : null);
+        pass.setEmail(request.getEmail().trim().toLowerCase());
+        pass.setRegistration(registration);
+        pass.setCompanyId(companyId);
+        pass.setClientId(null);
+        pass.setUserId(user.getId());
+        pass.setPassengerCategory("PUBLICO_ALEATORIO");
+        pass.setPassengerType(Boolean.TRUE.equals(request.getIsPcd()) ? "PCD" : "COMUM");
+        pass.setIsPcd(Boolean.TRUE.equals(request.getIsPcd()));
+        pass.setDisabilityType(request.getDisabilityType());
+        pass.setDisabilityDescription(request.getDisabilityDescription());
+        pass.setCep(request.getCep());
+        pass.setStreet(request.getStreet());
+        pass.setNumber(request.getNumber());
+        pass.setComplement(request.getComplement());
+        pass.setNeighborhood(request.getNeighborhood());
+        pass.setCity(request.getCity());
+        pass.setState(request.getState());
+        pass.setLgpdAccepted(true);
+        pass.setLgpdAcceptedAt(LocalDateTime.now());
+        pass.setStatus("ATIVO");
+        pass.setActive(true);
+        pass.setMultipleRoutesAllowed(true);
+        pass.setQrCodeToken(qrToken);
+        pass = passengerRepository.save(pass);
+
+        // 3. Gerar tokens JWT e retornar autenticado
+        String jwtToken = jwtService.generateToken(user);
+        String refreshToken = jwtService.generateRefreshToken(user);
+
+        EmpresaResponse empresaResponse = buildEmpresaResponse(user, companyId);
+
+        java.util.List<String> roleNames = roles.stream().map(Role::getName).collect(Collectors.toList());
+        UserResponse userResponse = buildUserResponse(user, roleNames, java.util.Collections.emptyList());
+        userResponse.setPassengerId(pass.getId());
+        userResponse.setPassengerCategory("PUBLICO_ALEATORIO");
+        userResponse.setIsPcd(pass.getIsPcd());
+        userResponse.setDisabilityType(pass.getDisabilityType());
+
+        return AuthenticationResponse.builder()
+                .token(jwtToken)
+                .refreshToken(refreshToken)
+                .user(userResponse)
+                .empresa(empresaResponse)
+                .requiresLgpdConsent(false)
+                .requiresPasswordChange(false)
+                .firstAccessCompleted(true)
+                .build();
+    }
+
+    private boolean isValidCpf(String cpf) {
+        if (cpf == null || cpf.length() != 11 || cpf.matches("(\\d)\\1{10}")) return false;
+        try {
+            int sum = 0, weight = 10;
+            for (int i = 0; i < 9; i++) sum += (cpf.charAt(i) - '0') * weight--;
+            int r = 11 - (sum % 11);
+            int d1 = (r == 10 || r == 11) ? 0 : r;
+            if (d1 != (cpf.charAt(9) - '0')) return false;
+
+            sum = 0; weight = 11;
+            for (int i = 0; i < 10; i++) sum += (cpf.charAt(i) - '0') * weight--;
+            r = 11 - (sum % 11);
+            int d2 = (r == 10 || r == 11) ? 0 : r;
+            return d2 == (cpf.charAt(10) - '0');
+        } catch (Exception e) {
+            return false;
+        }
     }
 }

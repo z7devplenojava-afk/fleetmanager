@@ -337,6 +337,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         'EMPLOYEE',
         'CLIENTE',
         'CLIENT_USER',
+        'PASSAGEIRO',
       ];
       let userRole: User['role'] = 'COLABORADOR';
       for (const role of rolePriority) {
@@ -393,6 +394,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         firstAccessCompleted: response.data.user?.firstAccessCompleted ?? response.data.firstAccessCompleted ?? false,
         requiresLgpdConsent: response.data?.requiresLgpdConsent === true,
         isDriver: isDriver,
+        passengerId: response.data.user?.passengerId,
+        passengerCategory: response.data.user?.passengerCategory,
+        isPcd: response.data.user?.isPcd,
+        disabilityType: response.data.user?.disabilityType,
+        disabilityDescription: response.data.user?.disabilityDescription,
       };
 
       // Validar que o ID foi fornecido
@@ -574,7 +580,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           'SUPERVISOR', 'TI_SUPORTE', 'AUDITOR', 'PORTARIA', 'VIGILANTE',
           'AUXI_ADMINISTRATIVO', 'AUXILIAR_ADMINISTRATIVO',
           'ASSISTENTE_LIMPEZA', 'LAVADOR',
-          'COLABORADOR', 'EMPLOYEE', 'CLIENTE', 'CLIENT_USER',
+          'COLABORADOR', 'EMPLOYEE', 'CLIENTE', 'CLIENT_USER', 'PASSAGEIRO',
         ];
         let primaryRole: User['role'] = userData.role || 'COLABORADOR';
         if (rolesFromServer.length > 0) {
@@ -628,6 +634,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           requiresLgpdConsent: response.data.requiresLgpdConsent !== undefined
             ? response.data.requiresLgpdConsent
             : userData.requiresLgpdConsent,
+          passengerId: response.data.passengerId !== undefined ? response.data.passengerId : userData.passengerId,
+          passengerCategory: response.data.passengerCategory !== undefined ? response.data.passengerCategory : userData.passengerCategory,
+          isPcd: response.data.isPcd !== undefined ? response.data.isPcd : userData.isPcd,
+          disabilityType: response.data.disabilityType !== undefined ? response.data.disabilityType : userData.disabilityType,
+          disabilityDescription: response.data.disabilityDescription !== undefined ? response.data.disabilityDescription : userData.disabilityDescription,
         };
 
         // Atualizar estado da empresa local se a empresa do usuário mudou ou foi desvinculada

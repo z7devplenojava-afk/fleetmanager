@@ -26,7 +26,8 @@ import {
     Lock, 
     LogOut,
     Eye,
-    EyeOff
+    EyeOff,
+    Accessibility
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -35,6 +36,8 @@ import { generateQrCodeSvgUri, generateQrCodeDataPayload } from '@/utils/qrCodeH
 import fretamentoCheckinService, { FretamentoCheckinRecord } from '@/services/fretamentoCheckinService';
 import { Html5Qrcode } from 'html5-qrcode';
 import api from '@/lib/axios';
+import { AccessibilityBar } from '@/components/accessibility/AccessibilityBar';
+import { VLibrasWidget } from '@/components/accessibility/VLibrasWidget';
 
 export const PassengerPortal: React.FC = () => {
     const { user, logout } = useAuth();
@@ -90,8 +93,13 @@ export const PassengerPortal: React.FC = () => {
     const passengerName = user?.name || user?.fullName || 'Colaborador';
     const passengerCpf = user?.cpf || '000.000.000-00';
     const passengerRegistration = user?.employeeCode || user?.username || 'MAT-001';
-    const clientName = (user as any)?.clientName || (user as any)?.empresa?.nome || 'Cliente Contratante';
-    const assignedRoute = 'Linha Executiva Industrial - Rota 01';
+    const isFretado = user?.passengerCategory === 'FRETADO' || Boolean(user?.clientId);
+    const clientName = isFretado 
+        ? ((user as any)?.clientName || (user as any)?.empresa?.nome || 'Cliente Contratante')
+        : 'Transporte Público';
+    const isPcd = Boolean(user?.isPcd || (user as any)?.disabilityType);
+    const disabilityType = (user as any)?.disabilityType || (user as any)?.disabilityDescription;
+    const assignedRoute = isFretado ? 'Linha Executiva Industrial - Rota 01' : 'Linha Municipal / Transporte Público';
 
     // Payload dinâmico do QR Code do passageiro (modo apresentação para o motorista)
     const qrPayload = generateQrCodeDataPayload('PASSENGER', {
@@ -247,16 +255,30 @@ export const PassengerPortal: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between max-w-md mx-auto shadow-2xl border-x border-slate-800">
+            {/* Barra de Acessibilidade Superior */}
+            <AccessibilityBar />
+
+            {/* Widget Oficial do VLibras */}
+            <VLibrasWidget />
+
             {/* Top Bar Fixa com Identificação do Cliente / Empresa */}
-            <header className="p-4 pt-5 bg-slate-900/95 border-b border-slate-800/80 sticky top-0 z-50 backdrop-blur-md flex items-center justify-between">
+            <header className="p-4 pt-3 bg-slate-900/95 border-b border-slate-800/80 sticky top-0 z-50 backdrop-blur-md flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-cyan-600/20 border border-cyan-500/40 rounded-xl flex items-center justify-center text-cyan-400 shadow-md">
                         <Bus className="h-5 w-5" />
                     </div>
                     <div>
-                        <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider block leading-tight">
-                            Portal do Passageiro
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider block leading-tight">
+                                Portal do Passageiro
+                            </span>
+                            <Badge className={isFretado 
+                                ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/30 text-[9px] px-1.5 py-0" 
+                                : "bg-emerald-500/20 text-emerald-300 border-emerald-500/30 text-[9px] px-1.5 py-0"
+                            }>
+                                {isFretado ? "Fretado" : "Transporte Público"}
+                            </Badge>
+                        </div>
                         <span className="text-sm font-black text-white tracking-tight leading-tight block truncate max-w-[190px]">
                             {clientName}
                         </span>
@@ -285,16 +307,33 @@ export const PassengerPortal: React.FC = () => {
                 {activeTab === 'home' && (
                     <div className="space-y-4 animate-fadeIn">
                         {/* Card do Usuário */}
-                        <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 border border-slate-800 p-4 rounded-2xl shadow-lg relative overflow-hidden">
+                        <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 border border-slate-800 p-4 rounded-2xl shadow-lg relative overflow-hidden space-y-3">
                             <div className="flex items-center gap-3.5">
                                 <div className="w-12 h-12 bg-cyan-500/20 border border-cyan-500/30 rounded-2xl flex items-center justify-center text-cyan-400 text-lg font-black">
                                     {passengerName.charAt(0)}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <h2 className="text-base font-bold text-white truncate">{passengerName}</h2>
-                                    <p className="text-xs text-slate-400">Matrícula: <span className="text-slate-200 font-mono">{passengerRegistration}</span></p>
+                                    <div className="flex items-center gap-2">
+                                        <h2 className="text-base font-bold text-white truncate">{passengerName}</h2>
+                                    </div>
+                                    <p className="text-xs text-slate-400">Usuário: <span className="text-slate-200 font-mono">{passengerRegistration}</span></p>
                                     <p className="text-xs text-slate-400">CPF: <span className="text-slate-200 font-mono">{passengerCpf}</span></p>
                                 </div>
+                            </div>
+
+                            {/* Tags de Categoria e PCD */}
+                            <div className="flex flex-wrap gap-1.5 pt-1 border-t border-slate-800/80">
+                                <Badge variant="outline" className={isFretado 
+                                    ? "border-cyan-500/40 text-cyan-300 text-[10px]" 
+                                    : "border-emerald-500/40 text-emerald-300 text-[10px]"
+                                }>
+                                    {isFretado ? `🚌 Fretamento: ${clientName}` : '🚏 Linha Regular / Transporte Público'}
+                                </Badge>
+                                {isPcd && (
+                                    <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40 text-[10px] font-bold">
+                                        ♿ PCD: {disabilityType ? disabilityType.replace(/_/g, ' ') : 'Atendimento Adaptado'}
+                                    </Badge>
+                                )}
                             </div>
                         </div>
 

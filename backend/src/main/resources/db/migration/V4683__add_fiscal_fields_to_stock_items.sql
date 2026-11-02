@@ -10,3 +10,4 @@ ALTER TABLE stock_items ADD COLUMN IF NOT EXISTS unit_measure VARCHAR(20);
 
 CREATE INDEX IF NOT EXISTS idx_stock_items_ncm ON stock_items(ncm);
 CREATE INDEX IF NOT EXISTS idx_stock_items_invoice_number ON stock_items(invoice_number);
+

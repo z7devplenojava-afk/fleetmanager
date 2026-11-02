@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, AlertTriangle, User, Shield, Building2 } from 'lucide-react';
+import { Eye, EyeOff, AlertTriangle, User, Shield, Building2, UserPlus } from 'lucide-react';
 import SEO from '@/components/SEO';
 import Logo from '../components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,6 +14,8 @@ import { useGSAP } from '@/hooks/use-gsap';
 import { useToast } from '@/hooks/use-toast';
 import { EmpresaInfo } from '@/types/user';
 import { getDashboardRouteForRole } from '@/utils/roleRouting';
+import { AccessibilityBar } from '@/components/accessibility/AccessibilityBar';
+import { VLibrasWidget } from '@/components/accessibility/VLibrasWidget';
 
 const Login = () => {
   useGSAP();
@@ -141,6 +143,8 @@ const Login = () => {
 
   return (
     <>
+      <AccessibilityBar />
+      <VLibrasWidget />
       <SEO
         title="Login - FluxBus Fleet Management"
         description="Acesse a plataforma FluxBus para gestão de frotas e logística."
@@ -291,6 +295,22 @@ const Login = () => {
                 )}
               </Button>
             </form>
+
+            {/* Cadastro de Passageiro Público */}
+            <div className="pt-4 border-t border-white/10 text-center space-y-3">
+              <p className="text-xs text-slate-300 font-medium">
+                Deseja usar o transporte público ou acessar como passageiro?
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => navigate('/cadastro-passageiro')}
+                className="w-full h-12 bg-white/5 hover:bg-cyan-600/20 text-cyan-400 hover:text-cyan-300 border-cyan-500/40 font-bold rounded-2xl flex items-center justify-center gap-2 transition-all shadow-md"
+              >
+                <UserPlus className="h-4 w-4" />
+                <span>Fazer Meu Cadastro (Passageiro)</span>
+              </Button>
+            </div>
           </div>
         </div>
 

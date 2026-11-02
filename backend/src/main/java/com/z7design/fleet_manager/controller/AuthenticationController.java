@@ -159,6 +159,28 @@ public class AuthenticationController {
         return ResponseEntity.ok(response);
     }
 
+    @Operation(summary = "Auto-cadastro público de passageiro", description = "Cria uma conta de passageiro para uso no transporte público ou fretado, aceitando termos da LGPD, PCD e endereço ViaCEP.")
+    @PostMapping("/register-passenger")
+    public ResponseEntity<?> registerPassenger(@jakarta.validation.Valid @RequestBody com.z7design.fleet_manager.dto.PassengerRegistrationRequestDTO request) {
+        log.info("Recebida solicitação de auto-cadastro de passageiro: {} ({})", request.getName(), request.getCpf());
+        try {
+            AuthenticationResponse response = authenticationService.registerPassenger(request);
+            try {
+                logService.logUserActivity(request.getUsername(), "REGISTER_PASSENGER",
+                        "Auto-cadastro de passageiro realizado: " + request.getName());
+            } catch (Exception ignored) {
+            }
+            return ResponseEntity.ok(response);
+        } catch (com.z7design.fleet_manager.exception.BusinessException be) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.BAD_REQUEST)
+                    .body(Map.of("message", be.getMessage(), "error", "Bad Request"));
+        } catch (Exception ex) {
+            log.error("Erro no auto-cadastro de passageiro: {}", ex.getMessage(), ex);
+            return ResponseEntity.status(org.springframework.http.HttpStatus.BAD_REQUEST)
+                    .body(Map.of("message", ex.getMessage() != null ? ex.getMessage() : "Falha ao realizar cadastro.", "error", "Bad Request"));
+        }
+    }
+
     @Operation(summary = "Renova o token de acesso usando um token de refresh", description = "Fornece um token de refresh para obter um novo token de acesso e um novo token de refresh.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Token renovado com sucesso", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthenticationResponse.class), examples = @ExampleObject(value = "{\"token\": \"eyJhbGci...\", \"refreshToken\": \"eyJhbGci...\", \"user\": {\"username\": \"testuser\", \"email\": \"test@example.com\", \"fullName\": \"Test User\", \"role\": \"VIGILANTE\"}}"))),
