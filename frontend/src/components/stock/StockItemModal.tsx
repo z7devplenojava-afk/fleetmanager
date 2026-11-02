@@ -1143,7 +1143,7 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
             <div className="mt-3 p-3 rounded-xl bg-blue-950/40 border border-blue-500/50 flex flex-wrap items-center justify-between gap-2 text-xs">
               <div className="flex items-center gap-2 text-blue-300 font-semibold">
                 <FileCheck className="h-4 w-4 text-blue-400" />
-                <span>NF-e Identificada: <strong>Nº {formData.invoiceNumber}</strong> {invoiceData.series ? • Série  : ''}</span>
+                <span>NF-e Identificada: <strong>Nº {formData.invoiceNumber}</strong> {invoiceData.series ? (`• Série ${invoiceData.series}`) : ''}</span>
               </div>
               {invoiceData.accessKey && (
                 <span className="font-mono text-[11px] text-gray-400 bg-seguranca-black/60 px-2 py-0.5 rounded border border-gray-700">

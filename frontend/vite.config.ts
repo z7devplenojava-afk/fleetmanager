@@ -247,8 +247,6 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
-        "react": path.resolve(__dirname, "./node_modules/react"),
-        "react-dom": path.resolve(__dirname, "./node_modules/react-dom"),
       },
       dedupe: ["react", "react-dom"],
     },
@@ -256,7 +254,7 @@ export default defineConfig(({ mode }) => {
       global: 'window',
     },
     optimizeDeps: {
-      include: ['react-map-gl/mapbox', 'mapbox-gl', 'leaflet', 'react-leaflet'],
+      include: ['react-map-gl/mapbox', 'mapbox-gl', 'leaflet', 'react-leaflet', 'qrcode', 'html5-qrcode'],
     },
   };
 });
