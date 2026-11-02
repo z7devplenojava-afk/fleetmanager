@@ -659,3 +659,4 @@ export const DriverBoardingPanelModal: React.FC<DriverBoardingPanelModalProps> =
     </Dialog>
   );
 };
+
