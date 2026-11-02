@@ -130,7 +130,8 @@ public class BoardingService {
         boarding.setTrip(trip);
         boarding.setPassenger(passenger);
         boarding.setVehicle(trip.getSchedule() != null ? trip.getSchedule().getVehicle() : null);
-        boarding.setCompanyId(passenger.getCompanyId());
+        UUID currentTenant1 = com.z7design.fleet_manager.tenant.TenantContext.get();
+        boarding.setCompanyId(currentTenant1 != null ? currentTenant1 : (passenger.getCompanyId() != null ? passenger.getCompanyId() : trip.getCompanyId()));
         boarding.setClientId(passenger.getClientId());
         boarding.setBoardingTime(LocalDateTime.now());
         boarding.setBoardingLatitude(latitude);
@@ -247,7 +248,8 @@ public class BoardingService {
             vehicle = schedule.getVehicle();
         }
 
-        UUID companyId = passenger.getCompanyId() != null ? passenger.getCompanyId() : tenantCompanyId;
+        UUID currentTenant2 = com.z7design.fleet_manager.tenant.TenantContext.get();
+        UUID companyId = currentTenant2 != null ? currentTenant2 : (tenantCompanyId != null ? tenantCompanyId : (schedule != null && schedule.getCompanyId() != null ? schedule.getCompanyId() : passenger.getCompanyId()));
 
         Boarding boarding = new Boarding();
         boarding.setPassenger(passenger);
