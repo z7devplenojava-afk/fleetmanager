@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Html5Qrcode, CameraDevice } from 'html5-qrcode';
+import { Html5Qrcode, CameraDevice, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import {
   Dialog,
   DialogContent,
@@ -159,7 +159,7 @@ export const UniversalQrScannerModal: React.FC<UniversalQrScannerModalProps> = (
 
       try {
         if (!html5QrCodeRef.current) {
-          html5QrCodeRef.current = new Html5Qrcode(containerId);
+          html5QrCodeRef.current = new Html5Qrcode(containerId, { formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE], verbose: false });
         }
 
         const scanner = html5QrCodeRef.current;
@@ -188,10 +188,10 @@ export const UniversalQrScannerModal: React.FC<UniversalQrScannerModalProps> = (
           : { facingMode: 'environment' as const };
 
         const config = {
-          fps: 15,
+          fps: 20,
           qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
             const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-            const qrEdge = Math.max(220, Math.floor(minEdge * 0.72));
+            const qrEdge = Math.max(240, Math.floor(minEdge * 0.85));
             return { width: qrEdge, height: qrEdge };
           },
           aspectRatio: 1.0,

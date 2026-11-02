@@ -92,7 +92,11 @@ export const PassengerPortal: React.FC = () => {
     // Dados consolidados do passageiro
     const passengerName = user?.name || user?.fullName || 'Colaborador';
     const passengerCpf = user?.cpf || '000.000.000-00';
-    const passengerRegistration = user?.employeeCode || user?.username || 'MAT-001';
+        // Matrícula estritamente numérica (conforme regra de negócio: somente números)
+    const rawRegistration = (user as any)?.registration || user?.employeeCode || (user as any)?.matricula || '';
+    const numericFromRaw = rawRegistration.replace(/\D/g, '');
+    const numericFromUsername = (user?.username || '').replace(/\D/g, '');
+    const passengerRegistration = numericFromRaw || numericFromUsername || '7695';
     const isFretado = user?.passengerCategory === 'FRETADO' || Boolean(user?.clientId);
     const clientName = isFretado 
         ? ((user as any)?.clientName || (user as any)?.empresa?.nome || 'Cliente Contratante')
@@ -103,15 +107,16 @@ export const PassengerPortal: React.FC = () => {
 
     // Payload estável do QR Code do passageiro (memorizado para manter o foco constante da câmera do motorista)
     const qrPayload = useMemo(() => {
-        return generateQrCodeDataPayload('PASSENGER', {
-            passengerId: (user as any)?.passengerId || user?.id,
-            name: passengerName,
-            cpf: passengerCpf,
-            matricula: passengerRegistration,
-            clientName: clientName,
-            direction: direction
+        // Formato ultra-compacto: reduz densidade da matriz, gerando blocos grandes de leitura imediata por qualquer celular
+        return JSON.stringify({
+            t: 'P',
+            id: String((user as any)?.passengerId || user?.id || ''),
+            mat: passengerRegistration,
+            cpf: passengerCpf.replace(/\D/g, ''),
+            nom: passengerName,
+            dir: direction
         });
-    }, [user?.id, passengerName, passengerCpf, passengerRegistration, clientName, direction]);
+    }, [user?.id, passengerName, passengerCpf, passengerRegistration, direction]);
 
     const qrSvg = useMemo(() => {
         return generateQrCodeSvgUri(qrPayload, 260);
@@ -454,7 +459,7 @@ export const PassengerPortal: React.FC = () => {
                                 <img 
                                     src={qrSvg} 
                                     alt="QR Code do Passageiro" 
-                                    className="w-56 h-56 mx-auto object-contain"
+                                    className="w-64 h-64 sm:w-72 sm:h-72 mx-auto object-contain"
                                 />
                             </div>
 

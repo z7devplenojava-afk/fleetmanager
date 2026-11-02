@@ -125,12 +125,13 @@ const DriverTripExecution: React.FC = () => {
 
     // Lista de passageiros da escala
     const initialPassengersList: PassengerBoardingItem[] = [
-        { id: '1', name: 'Maria Aparecida Souza', cpf: '123.456.789-00', matricula: 'FUN-1002', company: 'Mineração Vale Verde', boarded: false, pointName: 'Ponto 01 - Centro BH' },
-        { id: '2', name: 'João Carlos Silva', cpf: '234.567.890-11', matricula: 'FUN-1045', company: 'Mineração Vale Verde', boarded: false, pointName: 'Ponto 02 - Av. Amazonas' },
-        { id: '3', name: 'Ana Paula Lima', cpf: '345.678.901-22', matricula: 'FUN-2018', company: 'Mineração Vale Verde', boarded: false, pointName: 'Ponto 03 - Av. Cristiano Machado' },
-        { id: '4', name: 'Marcos Pereira Santos', cpf: '456.789.012-33', matricula: 'FUN-3041', company: 'Mineração Vale Verde', boarded: false, pointName: 'Ponto 04 - Terminal Vilarinho' },
-        { id: '5', name: 'Juliana Costa Ribeiro', cpf: '567.890.123-44', matricula: 'FUN-4112', company: 'Mineração Vale Verde', boarded: false, pointName: 'Ponto 05 - Serra Verde' },
-        { id: '6', name: 'Rodrigo Alves Ferreira', cpf: '678.901.234-55', matricula: 'FUN-5089', company: 'Mineração Vale Verde', boarded: false, pointName: 'Ponto 05 - Serra Verde' },
+        { id: '1', name: 'Maria Aparecida Souza', cpf: '123.456.789-00', matricula: '1002', company: 'Mineração Vale Verde', boarded: false, pointName: 'Ponto 01 - Centro BH' },
+        { id: '2', name: 'João Carlos Silva', cpf: '234.567.890-11', matricula: '1045', company: 'Mineração Vale Verde', boarded: false, pointName: 'Ponto 02 - Av. Amazonas' },
+        { id: '3', name: 'Ana Paula Lima', cpf: '345.678.901-22', matricula: '2018', company: 'Mineração Vale Verde', boarded: false, pointName: 'Ponto 03 - Av. Cristiano Machado' },
+        { id: '4', name: 'Marcos Pereira Santos', cpf: '456.789.012-33', matricula: '3041', company: 'Mineração Vale Verde', boarded: false, pointName: 'Ponto 04 - Terminal Vilarinho' },
+        { id: '5', name: 'Juliana Costa Ribeiro', cpf: '567.890.123-44', matricula: '4112', company: 'Mineração Vale Verde', boarded: false, pointName: 'Ponto 05 - Serra Verde' },
+        { id: '6', name: 'Rodrigo Alves Ferreira', cpf: '678.901.234-55', matricula: '5089', company: 'Mineração Vale Verde', boarded: false, pointName: 'Ponto 05 - Serra Verde' },
+        { id: '7', name: 'Ruan Antonio Murilo da Mata - teste', cpf: '000.000.000-00', matricula: '7695', company: 'Transporte Público / Fretado', boarded: false, pointName: 'Ponto 01 - Centro BH' },
     ];
 
     const storageKey = `driver_trip_${scheduleId || 'default'}_${tripDirection}`;
@@ -221,10 +222,10 @@ const DriverTripExecution: React.FC = () => {
             try {
                 const parsed = JSON.parse(raw);
                 isJson = true;
-                passengerName = parsed.name || parsed.nome || '';
-                matchedId = parsed.passengerId || parsed.id || '';
+                passengerName = parsed.nom || parsed.name || parsed.nome || '';
+                matchedId = String(parsed.id || parsed.passengerId || '');
                 passengerCpf = parsed.cpf || '';
-                passengerMatricula = parsed.matricula || parsed.registration || parsed.mat || '';
+                passengerMatricula = String(parsed.mat || parsed.matricula || parsed.registration || '').replace(/\D/g, '');
             } catch {}
         }
 
@@ -241,7 +242,8 @@ const DriverTripExecution: React.FC = () => {
         const target = passengers.find(p => {
             if (matchedId && p.id === matchedId) return true;
             if (cleanCpf && p.cpf && p.cpf.replace(/\D/g, '') === cleanCpf) return true;
-            if (passengerMatricula && p.matricula && p.matricula.toLowerCase() === passengerMatricula.toLowerCase()) return true;
+            const pMat = (p.matricula || '').replace(/\D/g, '');
+            if (passengerMatricula && pMat && pMat === passengerMatricula) return true;
             if (passengerName && p.name.toLowerCase().includes(passengerName.toLowerCase())) return true;
             if (p.name.toLowerCase().includes(raw.toLowerCase())) return true;
             return false;
