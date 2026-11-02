@@ -211,22 +211,37 @@ const DriverTripExecution: React.FC = () => {
 
         let matchedId = '';
         let passengerName = '';
+        let passengerCpf = '';
+        let passengerMatricula = '';
+        let isJson = false;
         const nowTime = new Date().toLocaleTimeString().substring(0, 5);
 
-        // Se for JSON do QR Code
-        if (raw.startsWith('{')) {
+        // Se for JSON do QR Code do passageiro
+        if (raw.startsWith('{') && raw.endsWith('}')) {
             try {
                 const parsed = JSON.parse(raw);
+                isJson = true;
                 passengerName = parsed.name || parsed.nome || '';
-                matchedId = parsed.id || parsed.passengerId || parsed.cpf || parsed.matricula || '';
+                matchedId = parsed.passengerId || parsed.id || '';
+                passengerCpf = parsed.cpf || '';
+                passengerMatricula = parsed.matricula || parsed.registration || '';
             } catch {}
         }
 
-        const cleanRaw = raw.replace(/\D/g, '');
+        if (!isJson) {
+            const digits = raw.replace(/\D/g, '');
+            if (digits.length === 11) {
+                passengerCpf = raw;
+            } else {
+                passengerMatricula = raw;
+            }
+        }
+
+        const cleanCpf = passengerCpf.replace(/\D/g, '');
         const target = passengers.find(p => {
-            if (matchedId && (p.id === matchedId || p.matricula === matchedId)) return true;
-            if (cleanRaw && p.cpf && p.cpf.replace(/\D/g, '') === cleanRaw) return true;
-            if (p.matricula && p.matricula.toLowerCase() === raw.toLowerCase()) return true;
+            if (matchedId && p.id === matchedId) return true;
+            if (cleanCpf && p.cpf && p.cpf.replace(/\D/g, '') === cleanCpf) return true;
+            if (passengerMatricula && p.matricula && p.matricula.toLowerCase() === passengerMatricula.toLowerCase()) return true;
             if (passengerName && p.name.toLowerCase().includes(passengerName.toLowerCase())) return true;
             if (p.name.toLowerCase().includes(raw.toLowerCase())) return true;
             return false;
@@ -236,61 +251,41 @@ const DriverTripExecution: React.FC = () => {
         const geo = await getCurrentGeoPosition();
         const address = await reverseGeocode(geo.latitude, geo.longitude);
 
-        try {
-            if (target) {
-                // Tenta registrar e validar no backend
-                await fretamentoCheckinService.registerCheckin({
-                    passengerId: target.id,
-                    passengerName: target.name,
-                    cpf: target.cpf || '000.000.000-00',
-                    matricula: target.matricula || 'MAT-000',
-                    companyName: target.company || 'Empresa Contratante',
-                    lineName: routeName,
-                    vehiclePlate,
-                    driverName: 'Motorista VSS',
-                    direction: tripDirection,
-                    checkinType: type,
-                    latitude: geo.latitude,
-                    longitude: geo.longitude,
-                    address,
-                    scheduleId,
-                });
+        const finalId = target ? target.id : (matchedId || `guest-${Date.now()}`);
+        const finalName = target ? target.name : (passengerName || (cleanCpf.length === 11 ? `CPF: ${passengerCpf}` : (passengerMatricula ? `Matrícula: ${passengerMatricula}` : 'Colaborador')));
+        const finalCpf = target ? (target.cpf || passengerCpf) : (passengerCpf || '000.000.000-00');
+        const finalMatricula = target ? (target.matricula || passengerMatricula) : (passengerMatricula || 'MAT-AVULSO');
+        const finalCompany = target ? (target.company || 'Empresa Contratante') : 'Transporte Fretado';
 
+        try {
+            await fretamentoCheckinService.registerCheckin({
+                passengerId: finalId,
+                passengerName: finalName,
+                cpf: finalCpf,
+                matricula: finalMatricula,
+                companyName: finalCompany,
+                lineName: routeName,
+                vehiclePlate,
+                driverName: 'Motorista VSS',
+                direction: tripDirection,
+                checkinType: type,
+                latitude: geo.latitude,
+                longitude: geo.longitude,
+                address,
+                scheduleId,
+            });
+
+            if (target) {
                 setPassengers(prev => prev.map(p => 
                     p.id === target.id 
                         ? { ...p, boarded: true, time: nowTime, address, direction: tripDirection, synced: isOnline } 
                         : p
                 ));
-
-                toast({
-                    title: '✅ Check-in Confirmado!',
-                    description: `${target.name} embarcou às ${nowTime}. Local: ${address}`,
-                });
             } else {
-                // Embarque avulso / Validação direta de QR
-                const displayName = passengerName || (cleanRaw.length === 11 ? `CPF: ${raw}` : `Matrícula: ${raw}`);
-
-                await fretamentoCheckinService.registerCheckin({
-                    passengerId: matchedId || `guest-${Date.now()}`,
-                    passengerName: displayName,
-                    cpf: cleanRaw.length === 11 ? raw : '000.000.000-00',
-                    matricula: cleanRaw.length !== 11 ? raw : 'MAT-AVULSO',
-                    companyName: 'Cliente Fretamento',
-                    lineName: routeName,
-                    vehiclePlate,
-                    driverName: 'Motorista VSS',
-                    direction: tripDirection,
-                    checkinType: type,
-                    latitude: geo.latitude,
-                    longitude: geo.longitude,
-                    address,
-                    scheduleId,
-                });
-
                 const newPassenger: PassengerBoardingItem = {
-                    id: matchedId || `guest-${Date.now()}`,
-                    name: displayName,
-                    company: 'Embarque Confirmado',
+                    id: finalId,
+                    name: finalName,
+                    company: finalCompany,
                     boarded: true,
                     time: nowTime,
                     address,
@@ -299,12 +294,12 @@ const DriverTripExecution: React.FC = () => {
                     synced: isOnline,
                 };
                 setPassengers(prev => [newPassenger, ...prev]);
-
-                toast({
-                    title: '⚡ Embarque Validado!',
-                    description: `${displayName} registrado às ${nowTime} em: ${address}`,
-                });
             }
+
+            toast({
+                title: '✅ Check-in Confirmado!',
+                description: `${finalName} embarcou às ${nowTime}. Local: ${address}`,
+            });
         } catch (err: any) {
             const errorMsg = err.message || 'Falha ao registrar embarque.';
             console.error('Embarque bloqueado:', errorMsg);
