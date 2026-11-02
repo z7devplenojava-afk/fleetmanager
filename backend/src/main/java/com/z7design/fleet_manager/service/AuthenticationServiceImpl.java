@@ -665,6 +665,12 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             throw new com.z7design.fleet_manager.exception.BusinessException("É obrigatório ler e aceitar os termos da LGPD para realizar o cadastro.");
         }
 
+        String rawPhone = request.getEffectivePhone();
+        if (rawPhone == null || rawPhone.replaceAll("\\D", "").isBlank()) {
+            throw new com.z7design.fleet_manager.exception.BusinessException("WhatsApp / Telefone é obrigatório.");
+        }
+        String cleanPhone = rawPhone.replaceAll("\\D", "");
+
         String cleanCpf = request.getCpf() != null ? request.getCpf().replaceAll("\\D", "") : "";
         if (cleanCpf.length() != 11) {
             throw new com.z7design.fleet_manager.exception.BusinessException("CPF inválido. Deve conter 11 dígitos.");
@@ -699,7 +705,16 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
         Role passRole = roleRepository.findByName("PASSAGEIRO")
                 .or(() -> roleRepository.findByName("COLABORADOR"))
-                .orElse(null);
+                .orElseGet(() -> {
+                    try {
+                        Role r = new Role();
+                        r.setName("PASSAGEIRO");
+                        r.setDescription("Passageiro / Transporte Público");
+                        return roleRepository.save(r);
+                    } catch (Exception e) {
+                        return null;
+                    }
+                });
         java.util.Set<Role> roles = passRole != null ? java.util.Set.of(passRole) : java.util.Collections.emptySet();
 
         // 1. Criar User
@@ -707,7 +722,10 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .username(cleanUsername)
                 .name(request.getName().trim())
                 .email(request.getEmail().trim().toLowerCase())
-                .phone(request.getPhone() != null ? request.getPhone().replaceAll("\\D", "") : null)
+                .phone(cleanPhone)
+                .whatsapp(cleanPhone)
+                .whatsappConsent(true)
+                .whatsappConsentDate(LocalDateTime.now())
                 .cpf(cleanCpf)
                 .password(passwordEncoder.encode(request.getPassword()))
                 .roles(roles)
@@ -727,7 +745,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         Passenger pass = new Passenger();
         pass.setName(request.getName().trim());
         pass.setCpf(cleanCpf);
-        pass.setPhone(request.getPhone() != null ? request.getPhone().trim() : null);
+        pass.setPhone(rawPhone.trim());
         pass.setEmail(request.getEmail().trim().toLowerCase());
         pass.setRegistration(registration);
         pass.setCompanyId(companyId);

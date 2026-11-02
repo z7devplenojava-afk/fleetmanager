@@ -19,3 +19,9 @@ ALTER TABLE passengers ADD COLUMN IF NOT EXISTS passenger_category VARCHAR(30) D
 
 CREATE INDEX IF NOT EXISTS idx_passengers_cpf ON passengers(cpf);
 CREATE INDEX IF NOT EXISTS idx_passengers_category ON passengers(passenger_category);
+
+INSERT INTO roles (id, name, description)
+VALUES (gen_random_uuid(), 'PASSAGEIRO', 'Passageiro / Transporte Público e Fretado')
+ON CONFLICT (name) DO NOTHING;
+
+

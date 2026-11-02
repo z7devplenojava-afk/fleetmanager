@@ -5,6 +5,7 @@ export interface PassengerRegistrationPayload {
   cpf: string;
   email: string;
   whatsapp: string;
+  phone?: string;
   username: string;
   password: string;
   confirmPassword: string;
@@ -30,7 +31,12 @@ export interface PassengerRegistrationResponse {
 
 export const passengerRegistrationService = {
   register: async (data: PassengerRegistrationPayload): Promise<PassengerRegistrationResponse> => {
-    const response = await api.post('/auth/register-passenger', data);
+    const payload = {
+      ...data,
+      phone: data.whatsapp || data.phone,
+      whatsapp: data.whatsapp || data.phone
+    };
+    const response = await api.post('/auth/register-passenger', payload);
     return response.data;
   },
 
@@ -54,3 +60,4 @@ export const passengerRegistrationService = {
     }
   }
 };
+

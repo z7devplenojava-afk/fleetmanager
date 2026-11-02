@@ -1,5 +1,6 @@
 package com.z7design.fleet_manager.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -27,8 +28,10 @@ public class PassengerRegistrationRequestDTO {
     @Email(message = "E-mail inválido")
     private String email;
 
-    @NotBlank(message = "WhatsApp / Telefone é obrigatório")
+    @JsonAlias({"whatsapp", "celular", "telefone"})
     private String phone;
+
+    private String whatsapp;
 
     @NotBlank(message = "Nome de usuário é obrigatório")
     @Size(min = 3, max = 50, message = "Usuário deve ter entre 3 e 50 caracteres")
@@ -61,4 +64,11 @@ public class PassengerRegistrationRequestDTO {
 
     // Empresa (opcional, se nulo associa à empresa padrão)
     private UUID companyId;
+
+    public String getEffectivePhone() {
+        if (phone != null && !phone.isBlank()) return phone;
+        if (whatsapp != null && !whatsapp.isBlank()) return whatsapp;
+        return "";
+    }
 }
+

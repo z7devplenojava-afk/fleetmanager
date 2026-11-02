@@ -70,7 +70,7 @@ public class User implements UserDetails, TenantAware {
 
     @NotBlank(message = "Password is required")
     @Size(min = 6, message = "Password must be at least 6 characters")
-    @Pattern(regexp = "^(?:(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[^a-zA-Z0-9\\s]).*|\\d{11}@2025)$", message = "Password must be strong (upper, lower, digit, special) or match CPF@2025")
+    @Pattern(regexp = "^(?:(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[^a-zA-Z0-9\\s]).*|\\d{11}@2025|\\$2[ayb]\\$.*)$", message = "Password must be strong (upper, lower, digit, special) or match CPF@2025")
     @Column(nullable = false)
     private String password;
 

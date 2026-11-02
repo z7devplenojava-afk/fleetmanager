@@ -151,3 +151,4 @@ export const AccessibilityBar: React.FC<AccessibilityBarProps> = ({
 };
 
 export default AccessibilityBar;
+

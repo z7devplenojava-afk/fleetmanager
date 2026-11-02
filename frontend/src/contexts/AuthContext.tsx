@@ -91,7 +91,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               empresaData.logoUrl = null;
               try {
                 localStorage.setItem('empresa', JSON.stringify(empresaData));
-              } catch (_) {}
+              } catch (_) { }
             }
             console.log('🔍 AuthContext: Empresa carregada do localStorage:', empresaData);
             setEmpresa(empresaData);
@@ -608,8 +608,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           primaryRole = 'MOTORISTA';
         }
 
-        const newCompanyId = response.data.companyId !== undefined 
-          ? response.data.companyId 
+        const newCompanyId = response.data.companyId !== undefined
+          ? response.data.companyId
           : (response.data.company?.id || null);
 
         const updatedUser = {

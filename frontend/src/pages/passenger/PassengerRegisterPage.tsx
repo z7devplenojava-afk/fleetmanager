@@ -1,20 +1,20 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { 
-  User, 
-  Mail, 
-  Phone, 
-  MapPin, 
-  Lock, 
-  Eye, 
-  EyeOff, 
-  Accessibility, 
-  ShieldCheck, 
-  CheckCircle2, 
-  AlertTriangle, 
-  Sparkles, 
-  Bus, 
-  Search, 
+import {
+  User,
+  Mail,
+  Phone,
+  MapPin,
+  Lock,
+  Eye,
+  EyeOff,
+  Accessibility,
+  ShieldCheck,
+  CheckCircle2,
+  AlertTriangle,
+  Sparkles,
+  Bus,
+  Search,
   FileText,
   ArrowRight,
   HeartHandshake
@@ -228,10 +228,10 @@ export const PassengerRegisterPage: React.FC = () => {
     }
 
     if (!formData.lgpdAccepted) {
-      toast({ 
-        title: 'Termos de Uso e LGPD', 
-        description: 'Você precisa ler e aceitar os Termos da LGPD para concluir seu cadastro.', 
-        variant: 'destructive' 
+      toast({
+        title: 'Termos de Uso e LGPD',
+        description: 'Você precisa ler e aceitar os Termos da LGPD para concluir seu cadastro.',
+        variant: 'destructive'
       });
       return;
     }
@@ -245,7 +245,12 @@ export const PassengerRegisterPage: React.FC = () => {
         description: 'Seu cadastro de passageiro foi realizado. Você já pode acessar a plataforma.',
       });
     } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || 'Erro ao realizar cadastro de passageiro.';
+      const fieldErrors = err?.response?.data?.fieldErrors;
+      let fieldErrorMsg: string | null = null;
+      if (fieldErrors && typeof fieldErrors === 'object') {
+        fieldErrorMsg = Object.values(fieldErrors).join('. ');
+      }
+      const msg = fieldErrorMsg || err?.response?.data?.message || err?.message || 'Erro ao realizar cadastro de passageiro.';
       toast({
         title: 'Erro no Cadastro',
         description: msg,
@@ -385,9 +390,8 @@ export const PassengerRegisterPage: React.FC = () => {
                     }}
                     placeholder="000.000.000-00"
                     maxLength={14}
-                    className={`bg-slate-950/70 border-slate-700 text-white placeholder-slate-500 h-11 rounded-xl font-mono focus:border-cyan-500 ${
-                      cpfError ? 'border-red-500 focus:border-red-500' : ''
-                    }`}
+                    className={`bg-slate-950/70 border-slate-700 text-white placeholder-slate-500 h-11 rounded-xl font-mono focus:border-cyan-500 ${cpfError ? 'border-red-500 focus:border-red-500' : ''
+                      }`}
                   />
                   {cpfError && (
                     <p className="text-red-400 text-[11px] font-semibold">{cpfError}</p>
@@ -840,3 +844,4 @@ export const PassengerRegisterPage: React.FC = () => {
 };
 
 export default PassengerRegisterPage;
+
