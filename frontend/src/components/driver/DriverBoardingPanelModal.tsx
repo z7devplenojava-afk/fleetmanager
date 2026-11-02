@@ -30,7 +30,7 @@ import {
   Building2,
   UserCheck
 } from 'lucide-react';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import api from '@/lib/axios';
 import { Schedule, resolveScheduleStartTime, resolveScheduleEndTime } from '@/services/scheduleService';
 import { fretamentoCheckinService, getCurrentGeoPosition, reverseGeocode } from '@/services/fretamentoCheckinService';
@@ -174,9 +174,9 @@ export const DriverBoardingPanelModal: React.FC<DriverBoardingPanelModalProps> =
       if (clean.startsWith('{') && clean.endsWith('}')) {
         try {
           const parsed = JSON.parse(clean);
-          passengerId = parsed.id || parsed.passengerId;
-          matricula = parsed.matricula || parsed.registration;
-          cpf = parsed.cpf;
+          passengerId = String(parsed.id || parsed.passengerId || '');
+          matricula = String(parsed.mat || parsed.matricula || parsed.registration || '').replace(/\D/g, '');
+          cpf = parsed.cpf ? String(parsed.cpf).replace(/\D/g, '') : undefined;
         } catch {
           // segue para raw
         }
@@ -291,14 +291,22 @@ export const DriverBoardingPanelModal: React.FC<DriverBoardingPanelModalProps> =
   // Inicializar câmera com html5-qrcode
   const startCamera = async () => {
     try {
-      const html5Qr = new Html5Qrcode(qrRegionId);
+      const html5Qr = new Html5Qrcode(qrRegionId, {
+        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+        verbose: false,
+      });
       html5QrCodeRef.current = html5Qr;
 
       await html5Qr.start(
         { facingMode: 'environment' },
         {
-          fps: 10,
-          qrbox: { width: 250, height: 250 },
+          fps: 20,
+          aspectRatio: 1.0,
+          qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+            const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+            const edge = Math.max(240, Math.floor(minEdge * 0.85));
+            return { width: edge, height: edge };
+          },
         },
         (decodedText) => {
           handleProcessScan(decodedText);
@@ -514,14 +522,27 @@ export const DriverBoardingPanelModal: React.FC<DriverBoardingPanelModalProps> =
               </Button>
             </div>
 
-            <div className="relative w-full aspect-video sm:aspect-square max-h-[220px] rounded-xl overflow-hidden bg-black flex items-center justify-center border border-slate-700">
-              <div id={qrRegionId} className="w-full h-full" />
+            <div className="relative w-full aspect-square max-w-[340px] mx-auto min-h-[300px] rounded-2xl overflow-hidden bg-black flex items-center justify-center border-2 border-emerald-500/50 shadow-2xl">
+              <div id={qrRegionId} className="w-full h-full [&>video]:object-cover [&>video]:w-full [&>video]:h-full" />
               {!scannerActive && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center text-gray-400 bg-slate-950/80">
-                  <QrCode className="h-10 w-10 mb-2 opacity-30 text-gray-300" />
-                  <p className="text-xs">
-                    Clique em <strong>Ativar Scanner</strong> para ler crachás e QR Codes com a câmera.
+                <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center text-gray-400 bg-slate-950/85 backdrop-blur-sm">
+                  <QrCode className="h-16 w-16 mb-3 text-emerald-400/60 animate-pulse" />
+                  <p className="text-sm font-bold text-white mb-1">
+                    Câmera Pronta para Leitura
                   </p>
+                  <p className="text-xs text-gray-400">
+                    Toque em <strong>Ativar Scanner</strong> para abrir o visor em tela cheia.
+                  </p>
+                </div>
+              )}
+              {scannerActive && (
+                <div className="absolute inset-0 pointer-events-none flex items-center justify-center p-4">
+                  <div className="w-64 h-64 border-2 border-dashed border-emerald-400/90 rounded-2xl relative shadow-[0_0_25px_rgba(16,185,129,0.35)] animate-pulse">
+                    <div className="absolute -top-1 -left-1 w-7 h-7 border-t-4 border-l-4 border-emerald-400 rounded-tl" />
+                    <div className="absolute -top-1 -right-1 w-7 h-7 border-t-4 border-r-4 border-emerald-400 rounded-tr" />
+                    <div className="absolute -bottom-1 -left-1 w-7 h-7 border-b-4 border-l-4 border-emerald-400 rounded-bl" />
+                    <div className="absolute -bottom-1 -right-1 w-7 h-7 border-b-4 border-r-4 border-emerald-400 rounded-br" />
+                  </div>
                 </div>
               )}
             </div>
