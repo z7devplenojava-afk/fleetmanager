@@ -12,6 +12,10 @@ export interface StockItem {
   movementCount?: number;
   supplier?: string;
   invoiceNumber?: string;
+  ncm?: string;
+  cst?: string;
+  cfop?: string;
+  unitMeasure?: string;
   barcode?: string;
   qrCode?: string;
   active: boolean;
@@ -135,6 +139,10 @@ export interface CreateStockItemDTO {
   averageCost?: number;
   supplier?: string;
   invoiceNumber?: string;
+  ncm?: string;
+  cst?: string;
+  cfop?: string;
+  unitMeasure?: string;
   barcode?: string;
   unitId?: string;
   notes?: string;

@@ -63,6 +63,10 @@ public class StockNfeProcessRequestDTO {
         private StockCategory category;
         private String unitName;
         private UUID unitId;
+        private String ncm;
+        private String cst;
+        private String cfop;
+        private String unitMeasure;
         private BigDecimal quantity;
         private BigDecimal unitCost;
         private String description;

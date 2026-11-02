@@ -265,6 +265,17 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
       setParsedNfe(data);
       nfeFinancialProcessedRef.current = false;
 
+      // Bloqueio rigoroso de duplicidade de NF-e para não alterar quantidade do estoque
+      if (data.alreadyImported) {
+        toast({
+          title: 'Nota Fiscal já importada anteriormente!',
+          description: data.duplicateWarning || `A Nota Fiscal nº ${data.invoiceNumber || ''} já foi lançada no sistema. A importação foi bloqueada para proteger o saldo do estoque contra duplicações.`,
+          variant: 'destructive'
+        });
+        setLoadingXml(false);
+        return;
+      }
+
       // Atualizar dados do formulário principal
       setFormData(prev => ({
         ...prev,
@@ -344,6 +355,10 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
               category: targetItem!.category || (first.suggestedCategory as StockCategory) || prev.category,
               sizeVariation: targetItem!.sizeVariation || prev.sizeVariation,
               description: targetItem!.description || first.description || prev.description,
+              ncm: first.ncm || targetItem!.ncm || prev.ncm,
+              cst: first.cst || targetItem!.cst || prev.cst,
+              cfop: first.cfop || targetItem!.cfop || prev.cfop,
+              unitMeasure: first.unitOfMeasure || targetItem!.unitMeasure || prev.unitMeasure || 'UN',
               currentQuantity: (targetItem!.currentQuantity || 0) + nfQty,
               minimumQuantity: targetItem!.minimumQuantity ?? prev.minimumQuantity,
               unitCost: first.unitPrice || targetItem!.unitCost || prev.unitCost,
@@ -376,6 +391,10 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
               code: autoCode || prev.code,
               category: cat,
               description: first.description || prev.description,
+              ncm: first.ncm || prev.ncm,
+              cst: first.cst || prev.cst,
+              cfop: first.cfop || prev.cfop,
+              unitMeasure: first.unitOfMeasure || prev.unitMeasure || 'UN',
               currentQuantity: first.quantity || 1,
               minimumQuantity: prev.minimumQuantity ?? 0,
               unitCost: first.unitPrice || prev.unitCost,
@@ -408,6 +427,10 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
               quantity: it.quantity || 1,
               unitCost: it.unitPrice || 0,
               unitName: it.unitOfMeasure || 'UN',
+              unitMeasure: it.unitOfMeasure || 'UN',
+              ncm: it.ncm || '',
+              cst: it.cst || '',
+              cfop: it.cfop || '',
               barcode: it.barcode || '',
               description: `Importado via NF-e ${data.invoiceNumber || ''}`
             };
@@ -595,6 +618,10 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
     averageCost: 0,
     supplier: '',
     invoiceNumber: '',
+    ncm: '',
+    cst: '',
+    cfop: '',
+    unitMeasure: 'UN',
     barcode: '',
     notes: '',
     caNumber: '',
@@ -737,6 +764,10 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
         averageCost: item.averageCost || 0,
         supplier: item.supplier || '',
         invoiceNumber: item.invoiceNumber || '',
+        ncm: item.ncm || '',
+        cst: item.cst || '',
+        cfop: item.cfop || '',
+        unitMeasure: item.unitMeasure || 'UN',
         barcode: item.barcode || '',
         notes: item.notes || '',
         caNumber: item.caNumber || '',
@@ -767,6 +798,10 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
         averageCost: 0,
         supplier: '',
         invoiceNumber: '',
+        ncm: '',
+        cst: '',
+        cfop: '',
+        unitMeasure: 'UN',
         barcode: '',
         notes: '',
         caNumber: '',
@@ -940,6 +975,10 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
                   undefined,
         supplier: formData.supplier?.trim() || undefined,
         invoiceNumber: formData.invoiceNumber?.trim() || undefined,
+        ncm: formData.ncm?.trim() || undefined,
+        cst: formData.cst?.trim() || undefined,
+        cfop: formData.cfop?.trim() || undefined,
+        unitMeasure: formData.unitMeasure?.trim() || undefined,
         barcode: formData.barcode?.trim() || undefined,
         notes: formData.notes?.trim() || undefined,
         caNumber: formData.caNumber?.trim() || undefined,
@@ -1229,9 +1268,84 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
                   value={formData.description}
                   onChange={(e) => handleInputChange('description', e.target.value)}
                   placeholder="Descrição detalhada do item..."
-                  rows={3}
+                  rows={2}
                   className="bg-seguranca-black/50 border-gray-600/30 text-white placeholder-gray-400 focus:border-seguranca-red/50 focus:ring-seguranca-red/20 text-sm sm:text-base resize-none"
                 />
+              </div>
+
+              {/* Dados Fiscais & Unidade (DANFE / NF-e) */}
+              <div className="p-3.5 sm:p-4 rounded-xl bg-gradient-to-r from-blue-950/20 via-seguranca-black/50 to-transparent border border-blue-500/30 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm sm:text-base font-semibold text-white flex items-center gap-2">
+                    <Receipt className="h-4 w-4 text-blue-400 flex-shrink-0" />
+                    <span>Dados Fiscais & Unidade (DANFE)</span>
+                  </h4>
+                  <Badge variant="outline" className="border-blue-500/40 text-blue-300 text-[11px] font-mono">
+                    NF-e / Estoque
+                  </Badge>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+                  {/* NCM/SH */}
+                  <div className="space-y-1">
+                    <Label htmlFor="ncm" className="text-gray-300 text-xs font-medium flex items-center gap-1">
+                      NCM/SH
+                    </Label>
+                    <Input
+                      id="ncm"
+                      value={formData.ncm || ''}
+                      onChange={(e) => handleInputChange('ncm', e.target.value.replace(/[^\d.]/g, ''))}
+                      placeholder="Ex: 03024910"
+                      maxLength={12}
+                      className="bg-seguranca-black/70 border-gray-600/40 text-white placeholder-gray-500 focus:border-blue-500/60 h-9 text-xs sm:text-sm font-mono"
+                    />
+                  </div>
+
+                  {/* CST / CSOSN */}
+                  <div className="space-y-1">
+                    <Label htmlFor="cst" className="text-gray-300 text-xs font-medium flex items-center gap-1">
+                      CST / CSOSN
+                    </Label>
+                    <Input
+                      id="cst"
+                      value={formData.cst || ''}
+                      onChange={(e) => handleInputChange('cst', e.target.value.replace(/\D/g, ''))}
+                      placeholder="Ex: 0102"
+                      maxLength={4}
+                      className="bg-seguranca-black/70 border-gray-600/40 text-white placeholder-gray-500 focus:border-blue-500/60 h-9 text-xs sm:text-sm font-mono text-center"
+                    />
+                  </div>
+
+                  {/* CFOP */}
+                  <div className="space-y-1">
+                    <Label htmlFor="cfop" className="text-gray-300 text-xs font-medium flex items-center gap-1">
+                      CFOP
+                    </Label>
+                    <Input
+                      id="cfop"
+                      value={formData.cfop || ''}
+                      onChange={(e) => handleInputChange('cfop', e.target.value.replace(/\D/g, ''))}
+                      placeholder="Ex: 5102"
+                      maxLength={4}
+                      className="bg-seguranca-black/70 border-gray-600/40 text-white placeholder-gray-500 focus:border-blue-500/60 h-9 text-xs sm:text-sm font-mono text-center"
+                    />
+                  </div>
+
+                  {/* UN - Unidade de Medida */}
+                  <div className="space-y-1">
+                    <Label htmlFor="unitMeasure" className="text-gray-300 text-xs font-medium flex items-center gap-1">
+                      UN (Unidade)
+                    </Label>
+                    <Input
+                      id="unitMeasure"
+                      value={formData.unitMeasure || 'UN'}
+                      onChange={(e) => handleInputChange('unitMeasure', e.target.value.toUpperCase())}
+                      placeholder="Ex: pc, un, cx..."
+                      maxLength={6}
+                      className="bg-seguranca-black/70 border-gray-600/40 text-white placeholder-gray-500 focus:border-blue-500/60 h-9 text-xs sm:text-sm font-mono text-center uppercase"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -1351,10 +1465,10 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
                 <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-seguranca-red flex-shrink-0" />
                 <span className="truncate">Informações Comerciais</span>
               </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="unitCost" className="text-gray-300 text-sm sm:text-base">
-                    Vr. Compra (R$)
+                  <Label htmlFor="unitCost" className="text-gray-300 text-sm sm:text-base font-medium">
+                    Vr. Unitário (R$)
                   </Label>
                   <Input
                     id="unitCost"
@@ -1362,12 +1476,25 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
                     value={unitCostDisplay}
                     onChange={(e) => handleCurrencyChange(e.target.value)}
                     placeholder="0,00"
-                    className="bg-seguranca-black/50 border-gray-600/30 text-white placeholder-gray-400 focus:border-seguranca-red/50 focus:ring-seguranca-red/20 h-10 sm:h-11 text-sm sm:text-base"
+                    className="bg-seguranca-black/50 border-gray-600/30 text-white placeholder-gray-400 focus:border-seguranca-red/50 focus:ring-seguranca-red/20 h-10 sm:h-11 text-sm sm:text-base font-mono"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="averageCost" className="text-gray-300 text-sm sm:text-base">
+                  <Label className="text-gray-300 text-sm sm:text-base font-medium flex items-center justify-between">
+                    <span>Valor Total (R$)</span>
+                    <span className="text-[10px] text-green-400">QTDE × Unit.</span>
+                  </Label>
+                  <div className="bg-seguranca-black/60 border border-green-500/30 rounded-md px-3 h-10 sm:h-11 flex items-center justify-between text-green-400 font-bold font-mono text-sm sm:text-base shadow-inner">
+                    <span className="text-xs text-green-500/70">R$</span>
+                    <span>
+                      {((formData.currentQuantity || 0) * (formData.unitCost || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="averageCost" className="text-gray-300 text-sm sm:text-base font-medium">
                     Custo Médio (R$)
                   </Label>
                   <Input
@@ -1376,7 +1503,7 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
                     value={averageCostDisplay}
                     onChange={(e) => handleAverageCostChange(e.target.value)}
                     placeholder="0,00"
-                    className="bg-seguranca-black/50 border-gray-600/30 text-white placeholder-gray-400 focus:border-seguranca-red/50 focus:ring-seguranca-red/20 h-10 sm:h-11 text-sm sm:text-base"
+                    className="bg-seguranca-black/50 border-gray-600/30 text-white placeholder-gray-400 focus:border-seguranca-red/50 focus:ring-seguranca-red/20 h-10 sm:h-11 text-sm sm:text-base font-mono"
                   />
                 </div>
 

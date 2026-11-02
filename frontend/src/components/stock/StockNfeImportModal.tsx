@@ -75,6 +75,7 @@ interface EditableItemRow {
   unitOfMeasure: string;
   barcode: string;
   ncm: string;
+  cst?: string;
   cfop: string;
   isBattery: boolean;
   isTire: boolean;
@@ -155,6 +156,7 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
           unitOfMeasure: it.unitOfMeasure || 'UN',
           barcode: it.barcode || '',
           ncm: it.ncm || '',
+          cst: it.cst || '',
           cfop: it.cfop || '',
           isBattery: it.isBattery || false,
           isTire: it.isTire || false
@@ -268,10 +270,10 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
   const handleSubmit = async () => {
     if (!parsedData) return;
 
-    if (parsedData.alreadyImported && !itemsOnly && !forceImport) {
+    if (parsedData.alreadyImported) {
       toast({
-        title: 'Operação bloqueada',
-        description: 'Não é possível importar uma nota fiscal que já foi processada anteriormente. Para prosseguir mesmo assim, marque "Forçar reimportação mesmo assim".',
+        title: 'Operação Bloqueada',
+        description: parsedData.duplicateWarning || 'Esta nota fiscal já foi importada anteriormente no sistema. A importação está bloqueada para não alterar a quantidade dos itens no estoque.',
         variant: 'destructive'
       });
       return;
@@ -288,9 +290,14 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
         quantity: r.quantity,
         unitCost: r.unitCost,
         unitName: r.unitOfMeasure?.trim() || 'UN',
+        unitMeasure: r.unitOfMeasure?.trim() || 'UN',
+        ncm: r.ncm || '',
+        cst: r.cst || '',
+        cfop: r.cfop || '',
         barcode: r.barcode || '',
         description: [
           r.ncm ? `NCM: ${r.ncm}` : '',
+          r.cst ? `CST: ${r.cst}` : '',
           r.cfop ? `CFOP: ${r.cfop}` : ''
         ].filter(Boolean).join(' | ')
       }));
@@ -437,32 +444,26 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
           <div className="space-y-5 py-2">
             {/* Aviso de Duplicidade */}
             {parsedData.alreadyImported && (
-              <div className="p-4 bg-red-950/50 border border-red-500/60 rounded-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-red-200 text-sm shadow-lg">
+              <div className="p-4 bg-red-950/60 border border-red-500/80 rounded-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-red-200 text-sm shadow-xl">
                 <div className="flex items-start gap-3">
-                  <div className="p-2 rounded-lg bg-red-500/20 text-red-400 flex-shrink-0 mt-0.5">
-                    <AlertTriangle className="h-5 w-5" />
+                  <div className="p-2.5 rounded-lg bg-red-500/20 text-red-400 flex-shrink-0 mt-0.5">
+                    <AlertTriangle className="h-6 w-6 text-red-400" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
-                      <strong className="font-bold text-red-300">Nota Fiscal já importada anteriormente!</strong>
-                      <Badge className="bg-red-500/20 text-red-300 border border-red-500/40 text-[10px] font-semibold">
-                        Duplicidade Detectada
+                      <strong className="font-bold text-red-200 text-base">Nota Fiscal já importada anteriormente!</strong>
+                      <Badge className="bg-red-500/30 text-red-200 border border-red-500/60 text-xs font-bold">
+                        Importação Bloqueada
                       </Badge>
                     </div>
                     <p className="text-xs text-red-200/90 mt-1 leading-relaxed">
                       {parsedData.duplicateWarning || 'Esta nota fiscal já possui lançamentos anteriores no sistema (Estoque ou Financeiro).'}
                     </p>
+                    <p className="text-xs text-amber-300 font-semibold mt-1">
+                      ⚠️ A reimportação está bloqueada para proteger o saldo de estoque e evitar que as quantidades dos itens sejam alteradas em duplicidade.
+                    </p>
                   </div>
                 </div>
-                <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-red-200 bg-red-900/40 px-3.5 py-2 rounded-lg border border-red-600/50 hover:bg-red-900/60 transition-colors self-end md:self-center flex-shrink-0">
-                  <input
-                    type="checkbox"
-                    checked={forceImport}
-                    onChange={(e) => setForceImport(e.target.checked)}
-                    className="rounded border-red-500 text-red-600 focus:ring-red-500 h-4 w-4"
-                  />
-                  Forçar reimportação mesmo assim
-                </label>
               </div>
             )}
 
@@ -652,6 +653,18 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
                             maxLength={10}
                             placeholder="NCM"
                             className="w-16 text-xs font-mono text-amber-300 font-semibold bg-transparent focus:outline-none text-center"
+                          />
+                        </div>
+
+                        {/* CST */}
+                        <div className="flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">
+                          <span className="text-[10px] text-emerald-400 font-medium">CST:</span>
+                          <input
+                            value={row.cst || ''}
+                            onChange={(e) => updateItemRow(index, { cst: e.target.value.replace(/\D/g, '') })}
+                            maxLength={4}
+                            placeholder="CST"
+                            className="w-12 text-xs font-mono text-emerald-300 font-semibold bg-transparent focus:outline-none text-center"
                           />
                         </div>
 
@@ -901,7 +914,7 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
             {parsedData && (
               <Button
                 onClick={handleSubmit}
-                disabled={processing || selectedCount === 0 || (parsedData.alreadyImported && !itemsOnly && !forceImport)}
+                disabled={processing || selectedCount === 0 || parsedData.alreadyImported}
                 className="bg-seguranca-red hover:bg-seguranca-red/90 text-white font-semibold flex items-center gap-2"
               >
                 {processing ? (

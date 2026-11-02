@@ -67,6 +67,7 @@ public class StockNfeParsedDTO {
         private String barcode;
         private String description;
         private String ncm;
+        private String cst;
         private String cfop;
         private String unitOfMeasure;
         private BigDecimal quantity;

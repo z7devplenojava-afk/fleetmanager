@@ -23,6 +23,10 @@ public class StockItemDTO {
     private Integer movementCount;
     private String supplier;
     private String invoiceNumber;
+    private String ncm;
+    private String cst;
+    private String cfop;
+    private String unitMeasure;
     private String barcode;
     private String qrCode;
     private Boolean active;
@@ -52,6 +56,10 @@ public class StockItemDTO {
         dto.setAverageCost(entity.getAverageCost());
         dto.setSupplier(entity.getSupplier());
         dto.setInvoiceNumber(entity.getInvoiceNumber());
+        dto.setNcm(entity.getNcm());
+        dto.setCst(entity.getCst());
+        dto.setCfop(entity.getCfop());
+        dto.setUnitMeasure(entity.getUnitMeasure());
         dto.setBarcode(entity.getBarcode());
         dto.setQrCode(entity.getQrCode());
         dto.setCaNumber(entity.getCaNumber());
@@ -90,6 +98,10 @@ public class StockItemDTO {
         entity.setAverageCost(dto.getAverageCost());
         entity.setSupplier(dto.getSupplier());
         entity.setInvoiceNumber(dto.getInvoiceNumber());
+        entity.setNcm(dto.getNcm());
+        entity.setCst(dto.getCst());
+        entity.setCfop(dto.getCfop());
+        entity.setUnitMeasure(dto.getUnitMeasure());
         entity.setBarcode(dto.getBarcode());
         entity.setQrCode(dto.getQrCode());
         entity.setCaNumber(dto.getCaNumber());

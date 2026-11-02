@@ -5,6 +5,7 @@ export interface StockNfeItemDTO {
   barcode: string;
   description: string;
   ncm: string;
+  cst?: string;
   cfop: string;
   unitOfMeasure: string;
   quantity: number;
@@ -69,6 +70,10 @@ export interface ProcessItemPayload {
   category: string;
   unitName?: string;
   unitId?: string;
+  ncm?: string;
+  cst?: string;
+  cfop?: string;
+  unitMeasure?: string;
   quantity: number;
   unitCost: number;
   description?: string;

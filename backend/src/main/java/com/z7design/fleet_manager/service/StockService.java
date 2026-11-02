@@ -233,6 +233,10 @@ public class StockService {
         existingItem.setUnitCost(dto.getUnitCost());
         existingItem.setSupplier(dto.getSupplier());
         existingItem.setInvoiceNumber(dto.getInvoiceNumber());
+        existingItem.setNcm(dto.getNcm());
+        existingItem.setCst(dto.getCst());
+        existingItem.setCfop(dto.getCfop());
+        existingItem.setUnitMeasure(dto.getUnitMeasure());
         existingItem.setBarcode(dto.getBarcode());
         if (dto.getActive() != null) {
             existingItem.setActive(dto.getActive());

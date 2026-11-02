@@ -65,6 +65,18 @@ public class StockItem implements TenantAware {
     @Column(name = "invoice_number")
     private String invoiceNumber;
 
+    @Column(name = "ncm", length = 20)
+    private String ncm;
+
+    @Column(name = "cst", length = 10)
+    private String cst;
+
+    @Column(name = "cfop", length = 10)
+    private String cfop;
+
+    @Column(name = "unit_measure", length = 20)
+    private String unitMeasure;
+
     @Column(name = "barcode")
     private String barcode;
 

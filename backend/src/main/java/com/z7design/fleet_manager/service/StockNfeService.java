@@ -248,6 +248,10 @@ public class StockNfeService {
                     String ncm = getTagValue(prodEl, "NCM");
                     String cfop = getTagValue(prodEl, "CFOP");
                     String uCom = getTagValue(prodEl, "uCom");
+                    String cst = getTagValue(detEl, "CST");
+                    if (cst == null || cst.isBlank()) {
+                        cst = getTagValue(detEl, "CSOSN");
+                    }
                     BigDecimal qCom = parseDecimal(getTagValue(prodEl, "qCom"));
                     BigDecimal vUnCom = parseDecimal(getTagValue(prodEl, "vUnCom"));
                     BigDecimal vProdItem = parseDecimal(getTagValue(prodEl, "vProd"));
@@ -277,6 +281,7 @@ public class StockNfeService {
                             .barcode("SEM GTIN".equalsIgnoreCase(cEAN) ? "" : cEAN)
                             .description(xProd)
                             .ncm(ncm)
+                            .cst(cst != null ? cst.trim() : null)
                             .cfop(cfop)
                             .unitOfMeasure(uCom != null ? uCom.toUpperCase().trim() : "UN")
                             .quantity(qCom)
@@ -1233,6 +1238,9 @@ public class StockNfeService {
                 rowCandidate.code = mFull.group(1).trim();
                 rowCandidate.description = mFull.group(2).trim();
                 rowCandidate.ncm = mFull.group(3).replaceAll("\\.", "");
+                if (mFull.group(4) != null) {
+                    rowCandidate.cst = mFull.group(4).trim();
+                }
                 rowCandidate.cfop = mFull.group(5);
                 rowCandidate.unit = mFull.group(6);
                 BigDecimal n1 = parsePtBrNumber(mFull.group(7));
@@ -1246,6 +1254,9 @@ public class StockNfeService {
                 if (mSplit.find()) {
                     rowCandidate.description = mSplit.group(1).trim();
                     rowCandidate.ncm = mSplit.group(2).replaceAll("\\.", "");
+                    if (mSplit.group(3) != null) {
+                        rowCandidate.cst = mSplit.group(3).trim();
+                    }
                     rowCandidate.cfop = mSplit.group(4);
                     rowCandidate.unit = mSplit.group(5);
                     BigDecimal n1 = parsePtBrNumber(mSplit.group(6));
@@ -1279,6 +1290,18 @@ public class StockNfeService {
 
                         Matcher mUnit = unitPattern.matcher(line);
                         rowCandidate.unit = mUnit.find() ? mUnit.group(1).toUpperCase() : "UN";
+
+                        if (rowCandidate.ncm != null && rowCandidate.cfop != null) {
+                            int ncmIdx = line.indexOf(rowCandidate.ncm);
+                            int cfopIdx = line.indexOf(rowCandidate.cfop);
+                            if (ncmIdx >= 0 && cfopIdx > ncmIdx) {
+                                String mid = line.substring(ncmIdx + rowCandidate.ncm.length(), cfopIdx).trim();
+                                Matcher mMidCst = Pattern.compile("\\b(\\d{2,4})\\b").matcher(mid);
+                                if (mMidCst.find()) {
+                                    rowCandidate.cst = mMidCst.group(1).trim();
+                                }
+                            }
+                        }
 
                         // Coletar valores numéricos estritamente após o CFOP/Unidade para não pegar bases de ICMS ST da descrição
                         int searchStart = line.indexOf(foundCfop);
@@ -1503,6 +1526,7 @@ public class StockNfeService {
                     .barcode("")
                     .description(desc)
                     .ncm(row.ncm)
+                    .cst(row.cst)
                     .cfop(row.cfop)
                     .unitOfMeasure(row.unit != null && !row.unit.isBlank() ? row.unit.toUpperCase() : "UN")
                     .quantity(row.qty)
@@ -1524,6 +1548,7 @@ public class StockNfeService {
         String code;
         String description;
         String ncm;
+        String cst;
         String cfop;
         String unit;
         BigDecimal qty;
@@ -1800,7 +1825,7 @@ public class StockNfeService {
                 movementsByDoc = stockMovementRepository.findByDocumentNumber("NF-" + cleanNf);
             }
             for (StockMovement sm : movementsByDoc) {
-                if (isSupplierMatching(sm.getSupplier(), cleanCnpj, cleanSuppName)) {
+                if (cleanSuppName.isEmpty() || sm.getSupplier() == null || isSupplierMatching(sm.getSupplier(), cleanCnpj, cleanSuppName)) {
                     foundInStock = true;
                     if (matchDetail.isEmpty()) {
                         matchDetail = String.format("Movimentação de Entrada doc nº %s", sm.getDocumentNumber());
@@ -1839,7 +1864,7 @@ public class StockNfeService {
             }
             if (!itemsByInvoice.isEmpty()) {
                 for (StockItem si : itemsByInvoice) {
-                    if (isSupplierMatching(si.getSupplier(), cleanCnpj, cleanSuppName)) {
+                    if (cleanSuppName.isEmpty() || si.getSupplier() == null || isSupplierMatching(si.getSupplier(), cleanCnpj, cleanSuppName)) {
                         foundInStock = true;
                         if (matchDetail.isEmpty()) {
                             matchDetail = String.format("Item de Estoque '%s' (NF %s)", si.getName(), si.getInvoiceNumber());
@@ -1963,8 +1988,8 @@ public class StockNfeService {
                 request.getSupplierName(),
                 companyId);
         if (duplicate.alreadyImported && !request.isForceImport()) {
-            log.warn("Tentativa de importar NF-e já existente sem forçar importação: {}", duplicate.warning);
-            throw new BusinessException(duplicate.warning + " Para prosseguir mesmo assim e duplicar os lançamentos no sistema, marque a opção 'Forçar reimportação'.");
+            log.warn("Tentativa de importar NF-e já existente: {}", duplicate.warning);
+            throw new BusinessException(duplicate.warning + " A importação foi bloqueada para proteger o saldo de estoque contra alterações e duplicações indevidas.");
         }
 
         // Usuário gerenciado pelo JPA
@@ -2006,6 +2031,14 @@ public class StockNfeService {
                 stockItem.setUnitCost(unitCost);
                 stockItem.setSupplier(request.getSupplierName());
                 stockItem.setInvoiceNumber(request.getInvoiceNumber());
+                if (itemReq.getNcm() != null && !itemReq.getNcm().isBlank()) stockItem.setNcm(itemReq.getNcm());
+                if (itemReq.getCst() != null && !itemReq.getCst().isBlank()) stockItem.setCst(itemReq.getCst());
+                if (itemReq.getCfop() != null && !itemReq.getCfop().isBlank()) stockItem.setCfop(itemReq.getCfop());
+                if (itemReq.getUnitMeasure() != null && !itemReq.getUnitMeasure().isBlank()) {
+                    stockItem.setUnitMeasure(itemReq.getUnitMeasure());
+                } else if (itemReq.getUnitName() != null && !itemReq.getUnitName().isBlank()) {
+                    stockItem.setUnitMeasure(itemReq.getUnitName());
+                }
                 if (stockItem.getUnit() == null) {
                     stockItem.setUnit(fallbackUnit);
                 }
@@ -2073,6 +2106,12 @@ public class StockNfeService {
                 newItem.setAverageCost(unitCost);
                 newItem.setSupplier(request.getSupplierName());
                 newItem.setInvoiceNumber(request.getInvoiceNumber());
+                newItem.setNcm(itemReq.getNcm());
+                newItem.setCst(itemReq.getCst());
+                newItem.setCfop(itemReq.getCfop());
+                newItem.setUnitMeasure(itemReq.getUnitMeasure() != null && !itemReq.getUnitMeasure().isBlank() 
+                        ? itemReq.getUnitMeasure() 
+                        : itemReq.getUnitName());
                 newItem.setBarcode(itemReq.getBarcode());
                 newItem.setDescription(itemReq.getDescription());
                 newItem.setCaNumber(itemReq.getCaNumber());
