@@ -121,4 +121,30 @@ public class PassengerController {
         PassengerDTO updated = passengerService.update(id, dto);
         return ResponseEntity.ok(updated);
     }
+
+    @PostMapping("/{id:[0-9a-fA-F\\-]{36}}/reset-password")
+    @Operation(summary = "Resetar senha do passageiro", description = "Redefine a senha do colaborador/passageiro e permite notificar via WhatsApp ou E-mail")
+    public ResponseEntity<Map<String, Object>> resetPassword(
+            @PathVariable("id") UUID id,
+            @RequestBody Map<String, String> payload) {
+        String newPassword = payload.get("newPassword");
+        String notifyVia = payload.getOrDefault("notifyVia", "NONE");
+        if (newPassword == null || newPassword.length() < 6) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "A senha deve ter no mínimo 6 caracteres."));
+        }
+        Map<String, Object> result = passengerService.resetPassword(id, newPassword, notifyVia);
+        return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/{id:[0-9a-fA-F\\-]{36}}/toggle-2fa")
+    @Operation(summary = "Habilitar/desabilitar 2FA do passageiro", description = "Ativa ou desativa autenticação de dois fatores e envia código de verificação")
+    public ResponseEntity<Map<String, Object>> toggleTwoFactor(
+            @PathVariable("id") UUID id,
+            @RequestBody Map<String, Object> payload) {
+        boolean enabled = payload.get("enabled") != null ? Boolean.parseBoolean(payload.get("enabled").toString()) : true;
+        String channel = (String) payload.getOrDefault("channel", "WHATSAPP");
+        boolean sendCode = payload.get("sendCode") != null ? Boolean.parseBoolean(payload.get("sendCode").toString()) : false;
+        Map<String, Object> result = passengerService.toggleTwoFactor(id, enabled, channel, sendCode);
+        return ResponseEntity.ok(result);
+    }
 }

@@ -55,6 +55,9 @@ public class PassengerDTO {
     private UUID returnBoardingPointId;
     private String returnBoardingPointName;
     private String qrCodeToken;
+    private Boolean twoFactorEnabled;
+    private String twoFactorChannel;
+    private Boolean unassignRoute;
     @JsonFormat(pattern = "yyyy-MM-dd")
     private java.time.LocalDate admissionDate;
     @JsonFormat(pattern = "yyyy-MM-dd")

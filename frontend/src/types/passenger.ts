@@ -28,6 +28,9 @@ export interface Passenger {
   isPcd?: boolean;
   disabilityType?: string;
   disabilityDescription?: string;
+  twoFactorEnabled?: boolean;
+  twoFactorChannel?: 'WHATSAPP' | 'EMAIL';
+  initialPassword?: string;
   /** COMUM, ESTUDANTE, IDOSO, PCD */
   passengerType?: string;
   /** HH:mm:ss */

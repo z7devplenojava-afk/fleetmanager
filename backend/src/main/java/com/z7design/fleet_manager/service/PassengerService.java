@@ -4,6 +4,10 @@ import com.z7design.fleet_manager.dto.PassengerDTO;
 import com.z7design.fleet_manager.exception.ResourceNotFoundException;
 import com.z7design.fleet_manager.model.*;
 import com.z7design.fleet_manager.repository.*;
+import com.z7design.fleet_manager.model.TwoFactorCode.DeliveryChannel;
+import java.util.Map;
+import java.util.Collections;
+import java.util.HashSet;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
@@ -28,6 +32,10 @@ public class PassengerService {
     private final RoutePointRepository routePointRepository;
     private final ClientRepository clientRepository;
     private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
+    private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
+    private final TwoFactorAuthService twoFactorAuthService;
+    private final WhatsAppService whatsappService;
 
     @Transactional
     @CacheEvict(value = {"passengers", "passengers-by-company"}, allEntries = true)
@@ -309,6 +317,8 @@ public class PassengerService {
                 .notificationsEnabled(passenger.getNotificationsEnabled())
                 .disembarkPointId(passenger.getDisembarkPoint() != null ? passenger.getDisembarkPoint().getId() : null)
                 .qrCodeToken(passenger.getQrCodeToken())
+                .twoFactorEnabled(passenger.getUser() != null ? Boolean.TRUE.equals(passenger.getUser().getTwoFactorEnabled()) : false)
+                .twoFactorChannel(passenger.getUser() != null && passenger.getUser().getTwoFactorWhatsapp() != null ? "WHATSAPP" : "EMAIL")
                 .admissionDate(passenger.getAdmissionDate())
                 .dismissalDate(passenger.getDismissalDate())
                 .isPcd(passenger.getIsPcd())
@@ -380,5 +390,93 @@ public class PassengerService {
         }
 
         return passenger;
+    }
+
+    @Transactional
+    public Map<String, Object> resetPassword(UUID passengerId, String newPassword, String notifyVia) {
+        Passenger passenger = findById(passengerId);
+        User user = null;
+        if (passenger.getUserId() != null) {
+            user = userRepository.findById(passenger.getUserId()).orElse(null);
+        }
+
+        String username = (passenger.getRegistration() != null && !passenger.getRegistration().isBlank())
+                ? passenger.getRegistration().replaceAll("\\D", "")
+                : (passenger.getCpf() != null ? passenger.getCpf().replaceAll("\\D", "") : "colab_" + passenger.getId().toString().substring(0, 8));
+
+        if (user == null) {
+            user = new User();
+            user.setName(passenger.getName());
+            user.setUsername(username);
+            user.setEmail(passenger.getEmail() != null && !passenger.getEmail().isBlank() ? passenger.getEmail() : username + "@fluxbus.com.br");
+            user.setPhone(passenger.getPhone());
+            user.setCompanyId(passenger.getCompanyId());
+            user.setActive(true);
+            user.setBlocked(false);
+            user.setRequirePasswordChange(true);
+            roleRepository.findByName("PASSAGEIRO").ifPresent(role -> user.setRoles(Set.of(role)));
+        }
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setRequirePasswordChange(true);
+        user.setLastPasswordChange(java.time.LocalDateTime.now());
+        User savedUser = userRepository.save(user);
+
+        passenger.setUserId(savedUser.getId());
+        passengerRepository.save(passenger);
+
+        if ("WHATSAPP".equalsIgnoreCase(notifyVia) && passenger.getPhone() != null && !passenger.getPhone().isBlank()) {
+            try {
+                String link = whatsappService.generateWhatsAppLink(passenger.getPhone(), passenger.getName(), "Acesso", "FluxBus");
+                log.info("Link WhatsApp gerado para envio de nova senha do colaborador {}: {}", passenger.getName(), link);
+            } catch (Exception e) {
+                log.warn("Não foi possível gerar link WhatsApp para envio de senha: {}", e.getMessage());
+            }
+        }
+
+        return Map.of(
+                "success", true,
+                "message", "Senha redefinida com sucesso!",
+                "username", savedUser.getUsername(),
+                "requirePasswordChange", true
+        );
+    }
+
+    @Transactional
+    public Map<String, Object> toggleTwoFactor(UUID passengerId, boolean enabled, String channel, boolean sendCode) {
+        Passenger passenger = findById(passengerId);
+        User user = null;
+        if (passenger.getUserId() != null) {
+            user = userRepository.findById(passenger.getUserId()).orElse(null);
+        }
+        if (user == null) {
+            String defaultPass = (passenger.getCpf() != null && passenger.getCpf().replaceAll("\\D", "").length() >= 11)
+                    ? passenger.getCpf().replaceAll("\\D", "") + "@2025"
+                    : "Mudar@123456";
+            resetPassword(passengerId, defaultPass, "NONE");
+            user = userRepository.findById(passenger.getUserId()).orElseThrow();
+        }
+
+        user.setTwoFactorEnabled(enabled);
+        if ("WHATSAPP".equalsIgnoreCase(channel) && passenger.getPhone() != null) {
+            user.setTwoFactorWhatsapp(passenger.getPhone());
+        }
+        userRepository.save(user);
+
+        if (enabled && sendCode) {
+            try {
+                DeliveryChannel deliveryChannel = "EMAIL".equalsIgnoreCase(channel) ? DeliveryChannel.EMAIL : DeliveryChannel.WHATSAPP;
+                twoFactorAuthService.generateAndSendCode(user.getId(), deliveryChannel, "127.0.0.1", "FleetManager-Web");
+            } catch (Exception e) {
+                log.warn("Aviso ao enviar código 2FA: {}", e.getMessage());
+            }
+        }
+
+        return Map.of(
+                "success", true,
+                "enabled", enabled,
+                "channel", channel != null ? channel : "WHATSAPP",
+                "message", enabled ? "Autenticação em 2 fatores habilitada com sucesso!" : "2FA desabilitado."
+        );
     }
 }

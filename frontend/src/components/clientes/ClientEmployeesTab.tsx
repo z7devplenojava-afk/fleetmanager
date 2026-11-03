@@ -9,12 +9,14 @@ import { useToast } from '@/hooks/use-toast';
 import { 
   Users, UserPlus, FileSpreadsheet, Search, Edit2, Trash2, 
   CheckCircle2, XCircle, AlertCircle, Download, Upload, 
-  Accessibility, Calendar, Phone, Hash, ShieldAlert, Loader2 
+  Accessibility, Calendar, Phone, Hash, ShieldAlert, Loader2,
+  KeyRound, ShieldCheck, Bus, Send, Mail, MessageSquare, RefreshCw
 } from 'lucide-react';
 import axios from '@/lib/axios';
 import * as XLSX from 'xlsx';
 import { Passenger } from '@/types/passenger';
 import { useAuth } from '@/contexts/AuthContext';
+import { routeService, Route, RoutePoint } from '@/services/routeService';
 
 interface ClientEmployeesTabProps {
   clientId: string;
@@ -27,11 +29,18 @@ interface NewPassengerForm {
   registration: string;
   cpf: string;
   phone: string;
+  email: string;
   admissionDate: string;
   dismissalDate: string;
   isPcd: boolean;
   disabilityType: string;
   status: string;
+  routeId: string;
+  boardingPointId: string;
+  returnRouteId: string;
+  twoFactorEnabled: boolean;
+  twoFactorChannel: 'WHATSAPP' | 'EMAIL';
+  initialPassword?: string;
 }
 
 const emptyForm: NewPassengerForm = {
@@ -39,11 +48,18 @@ const emptyForm: NewPassengerForm = {
   registration: '',
   cpf: '',
   phone: '',
+  email: '',
   admissionDate: '',
   dismissalDate: '',
   isPcd: false,
   disabilityType: '',
-  status: 'ATIVO'
+  status: 'ATIVO',
+  routeId: '',
+  boardingPointId: '',
+  returnRouteId: '',
+  twoFactorEnabled: false,
+  twoFactorChannel: 'WHATSAPP',
+  initialPassword: ''
 };
 
 export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId, clientName }) => {
@@ -51,6 +67,7 @@ export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId
   const { user } = useAuth();
   
   const [employees, setEmployees] = useState<Passenger[]>([]);
+  const [routes, setRoutes] = useState<Route[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -59,11 +76,31 @@ export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [form, setForm] = useState<NewPassengerForm>(emptyForm);
+
+  // Estados de Segurança / Reset de Senha / 2FA
+  const [showPasswordReset, setShowPasswordReset] = useState(false);
+  const [newPasswordValue, setNewPasswordValue] = useState('');
+  const [notifyPasswordVia, setNotifyPasswordVia] = useState<'WHATSAPP' | 'EMAIL' | 'NONE'>('WHATSAPP');
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [isSending2FA, setIsSending2FA] = useState(false);
   
   // Importação
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importPreview, setImportPreview] = useState<any[]>([]);
   const [isImporting, setIsImporting] = useState(false);
+
+  // Carregar lista de rotas ativas para atribuição
+  useEffect(() => {
+    const fetchRoutes = async () => {
+      try {
+        const allRoutes = await routeService.findAllRoutes();
+        setRoutes(allRoutes || []);
+      } catch (e) {
+        console.warn('Não foi possível carregar lista de rotas:', e);
+      }
+    };
+    fetchRoutes();
+  }, []);
 
   // Carregar lista de colaboradores do cliente
   const fetchEmployees = useCallback(async () => {
@@ -76,7 +113,6 @@ export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId
         data = response.data || [];
       } catch (err: any) {
         if (err.response?.status === 404) {
-          // Fallback gracioso caso o backend Spring Boot ainda não tenha sido reiniciado com o novo controller
           try {
             const fallback = await axios.get('/passengers');
             data = (fallback.data || []).filter((p: Passenger) => p.clientId === clientId);
@@ -94,11 +130,18 @@ export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId
     } finally {
       setLoading(false);
     }
-  }, [clientId, toast]);
+  }, [clientId]);
 
   useEffect(() => {
     fetchEmployees();
   }, [fetchEmployees]);
+
+  // Pontos de parada da rota de ida selecionada no form
+  const selectedRoutePoints = useMemo(() => {
+    if (!form.routeId) return [];
+    const r = routes.find(route => route.id === form.routeId);
+    return r?.points || [];
+  }, [form.routeId, routes]);
 
   // Filtragem
   const filteredEmployees = useMemo(() => {
@@ -145,6 +188,16 @@ export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId
     setForm(prev => ({ ...prev, phone: v }));
   };
 
+  // Gerador de senha forte aleatória
+  const generateRandomPassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%';
+    let res = '';
+    for (let i = 0; i < 8; i++) {
+      res += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return res + '2026';
+  };
+
   // Abrir Modal de Edição
   const handleEdit = (emp: Passenger) => {
     setForm({
@@ -153,13 +206,94 @@ export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId
       registration: (emp.registration || '').replace(/\D/g, ''),
       cpf: emp.cpf || '',
       phone: emp.phone || '',
+      email: emp.email || '',
       admissionDate: emp.admissionDate ? emp.admissionDate.split('T')[0] : '',
       dismissalDate: emp.dismissalDate ? emp.dismissalDate.split('T')[0] : '',
       isPcd: Boolean(emp.isPcd),
       disabilityType: emp.disabilityType || '',
-      status: emp.status || (emp.active ? 'ATIVO' : 'DEMITIDO')
+      status: emp.status || (emp.active ? 'ATIVO' : 'DEMITIDO'),
+      routeId: emp.routeId || '',
+      boardingPointId: emp.boardingPointId || '',
+      returnRouteId: emp.returnRouteId || '',
+      twoFactorEnabled: Boolean(emp.twoFactorEnabled),
+      twoFactorChannel: emp.twoFactorChannel || 'WHATSAPP',
+      initialPassword: ''
     });
+    setShowPasswordReset(false);
+    setNewPasswordValue('');
     setIsFormOpen(true);
+  };
+
+  // Resetar Senha Diretamente
+  const handleExecuteResetPassword = async () => {
+    if (!form.id) {
+      toast({ title: 'Salve o colaborador antes de redefinir a senha', variant: 'destructive' });
+      return;
+    }
+    const pwd = newPasswordValue.trim() || generateRandomPassword();
+    setIsResettingPassword(true);
+    try {
+      await axios.post(`/passengers/${form.id}/reset-password`, {
+        newPassword: pwd,
+        notifyVia: notifyPasswordVia
+      });
+      toast({
+        title: 'Senha redefinida com sucesso!',
+        description: `Nova senha: ${pwd} ${notifyPasswordVia !== 'NONE' ? `(Notificação via ${notifyPasswordVia})` : ''}`,
+      });
+      setNewPasswordValue(pwd);
+      setShowPasswordReset(false);
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao redefinir senha',
+        description: err.response?.data?.message || 'Falha ao comunicar com o servidor.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsResettingPassword(false);
+    }
+  };
+
+  // Habilitar / Desabilitar 2FA com Envio de Código
+  const handleToggle2FA = async (enable: boolean, sendCodeNow: boolean = false) => {
+    if (!form.id) {
+      setForm(prev => ({ ...prev, twoFactorEnabled: enable }));
+      return;
+    }
+
+    if (enable && form.twoFactorChannel === 'WHATSAPP' && !form.phone) {
+      toast({ title: 'Informe o Telefone / WhatsApp para habilitar 2FA via WhatsApp', variant: 'destructive' });
+      return;
+    }
+    if (enable && form.twoFactorChannel === 'EMAIL' && !form.email) {
+      toast({ title: 'Informe o E-mail para habilitar 2FA via E-mail', variant: 'destructive' });
+      return;
+    }
+
+    setIsSending2FA(true);
+    try {
+      await axios.post(`/passengers/${form.id}/toggle-2fa`, {
+        enabled: enable,
+        channel: form.twoFactorChannel,
+        sendCode: sendCodeNow
+      });
+      setForm(prev => ({ ...prev, twoFactorEnabled: enable }));
+      toast({
+        title: enable ? '2FA Habilitado' : '2FA Desabilitado',
+        description: sendCodeNow 
+          ? `Código de validação enviado com sucesso via ${form.twoFactorChannel}!` 
+          : `Preferência de autenticação atualizada.`,
+      });
+      fetchEmployees();
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao configurar 2FA',
+        description: err.response?.data?.message || 'Falha ao enviar código 2FA.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSending2FA(false);
+    }
   };
 
   // Alternar Demissão / Ativo
@@ -228,6 +362,7 @@ export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId
         registration: sanitizedReg,
         cpf: form.cpf,
         phone: form.phone,
+        email: form.email || undefined,
         clientId: clientId,
         companyId: user?.companyId || undefined,
         admissionDate: form.admissionDate || undefined,
@@ -235,14 +370,32 @@ export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId
         isPcd: form.isPcd,
         disabilityType: form.isPcd ? form.disabilityType : undefined,
         status: form.dismissalDate ? 'DEMITIDO' : form.status,
-        active: !form.dismissalDate && form.status === 'ATIVO'
+        active: !form.dismissalDate && form.status === 'ATIVO',
+        routeId: form.routeId || undefined,
+        boardingPointId: form.boardingPointId || undefined,
+        returnRouteId: form.returnRouteId || undefined,
+        twoFactorEnabled: form.twoFactorEnabled,
+        twoFactorChannel: form.twoFactorChannel
       };
 
       if (form.id) {
         await axios.put(`/passengers/${form.id}`, payload);
         toast({ title: 'Colaborador atualizado com sucesso!' });
       } else {
-        await axios.post('/passengers', payload);
+        const res = await axios.post('/passengers', payload);
+        const createdId = res.data?.id;
+
+        // Se informou senha inicial no cadastro de novo colaborador
+        if (createdId && form.initialPassword?.trim()) {
+          try {
+            await axios.post(`/passengers/${createdId}/reset-password`, {
+              newPassword: form.initialPassword.trim(),
+              notifyVia: notifyPasswordVia
+            });
+          } catch (pwdErr) {
+            console.warn('Erro ao definir senha inicial:', pwdErr);
+          }
+        }
         toast({ title: 'Colaborador cadastrado com sucesso!' });
       }
       setIsFormOpen(false);
@@ -274,7 +427,6 @@ export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId
         const ws = wb.Sheets[wsName];
         const rawJson: any[] = XLSX.utils.sheet_to_json(ws, { defval: '' });
 
-        // Normalização flexível das colunas
         const parsed = rawJson.map((row, idx) => {
           const keys = Object.keys(row);
           const findVal = (terms: string[]) => {
@@ -287,6 +439,7 @@ export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId
           const registration = rawMatricula.replace(/\D/g, ''); // Regra estrita: apenas números
           const cpf = findVal(['cpf', 'documento']);
           const phone = findVal(['telefone', 'celular', 'phone', 'tel', 'mobile']);
+          const email = findVal(['email', 'e-mail', 'mail']);
           const admissionDate = findVal(['admissao', 'admissão', 'admission', 'dtadmissao']);
           const dismissalDate = findVal(['demissao', 'demissão', 'dismissal', 'dtdemissao']);
           const pcdRaw = findVal(['pcd', 'deficiencia', 'deficiência', 'especial']);
@@ -299,6 +452,7 @@ export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId
             rawMatricula,
             cpf,
             phone,
+            email,
             admissionDate,
             dismissalDate,
             isPcd,
@@ -321,10 +475,9 @@ export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId
   // Download do Modelo de Planilha
   const handleDownloadTemplate = () => {
     const wsData = [
-      ['Nome Completo', 'Matricula (somente numeros)', 'CPF', 'Telefone', 'Data Admissao', 'Data Demissao', 'PCD (Sim/Nao)'],
-      ['Carlos Eduardo Silva', '10452', '123.456.789-00', '(31) 98765-4321', '2024-01-15', '', 'Nao'],
-      ['Ana Paula de Souza', '10453', '987.654.321-11', '(31) 99876-5432', '2023-05-10', '', 'Sim'],
-      ['Roberto Alves', '10454', '456.789.012-22', '(31) 97654-3210', '2022-08-01', '2026-02-01', 'Nao']
+      ['Nome Completo', 'Matricula (somente numeros)', 'CPF', 'Telefone', 'Email', 'Data Admissao', 'Data Demissao', 'PCD (Sim/Nao)'],
+      ['Carlos Eduardo Silva', '10452', '123.456.789-00', '(31) 98765-4321', 'carlos@empresa.com.br', '2024-01-15', '', 'Nao'],
+      ['Ana Paula de Souza', '10453', '987.654.321-11', '(31) 99876-5432', 'ana.souza@empresa.com.br', '2023-05-10', '', 'Sim']
     ];
     const ws = XLSX.utils.aoa_to_sheet(wsData);
     const wb = XLSX.utils.book_new();
@@ -355,6 +508,7 @@ export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId
           registration: row.registration,
           cpf: row.cpf || undefined,
           phone: row.phone || undefined,
+          email: row.email || undefined,
           admissionDate: row.admissionDate || undefined,
           dismissalDate: row.dismissalDate || undefined,
           isPcd: row.isPcd,
@@ -451,7 +605,12 @@ export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId
 
           <Button 
             onClick={() => {
-              setForm(emptyForm);
+              setForm({
+                ...emptyForm,
+                initialPassword: generateRandomPassword()
+              });
+              setShowPasswordReset(false);
+              setNewPasswordValue('');
               setIsFormOpen(true);
             }}
             className="bg-seguranca-red hover:bg-red-700 text-white"
@@ -471,24 +630,25 @@ export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId
                 <th className="py-3 px-4">Status</th>
                 <th className="py-3 px-4">Matrícula</th>
                 <th className="py-3 px-4">Nome do Colaborador</th>
-                <th className="py-3 px-4">CPF / Telefone</th>
+                <th className="py-3 px-4">CPF / Contato</th>
+                <th className="py-3 px-4">Rota Atribuída</th>
+                <th className="py-3 px-4">Segurança (2FA)</th>
                 <th className="py-3 px-4">Admissão / Demissão</th>
                 <th className="py-3 px-4">PCD</th>
-                <th className="py-3 px-4">Rota Atual</th>
                 <th className="py-3 px-4 text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-slate-400">
+                  <td colSpan={9} className="py-8 text-center text-slate-400">
                     <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-seguranca-red" />
                     Carregando funcionários do cliente...
                   </td>
                 </tr>
               ) : filteredEmployees.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-slate-400">
+                  <td colSpan={9} className="py-8 text-center text-slate-400">
                     Nenhum colaborador encontrado para este cliente.
                   </td>
                 </tr>
@@ -496,6 +656,7 @@ export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId
                 filteredEmployees.map((emp) => {
                   const isDismissed = emp.status === 'DEMITIDO' || emp.active === false;
                   const numericReg = (emp.registration || '').replace(/\D/g, '');
+                  const assignedRoute = routes.find(r => r.id === emp.routeId);
 
                   return (
                     <tr key={emp.id} className="hover:bg-slate-800/40 transition-colors">
@@ -526,12 +687,40 @@ export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId
                       {/* Nome */}
                       <td className="py-3 px-4">
                         <span className="font-medium text-white">{emp.name}</span>
+                        {emp.email && <div className="text-[11px] text-slate-500 truncate max-w-[180px]">{emp.email}</div>}
                       </td>
 
-                      {/* CPF / Telefone */}
+                      {/* CPF / Contato */}
                       <td className="py-3 px-4 whitespace-nowrap text-xs text-slate-400">
                         <div>CPF: <span className="text-slate-200 font-mono">{emp.cpf || '---'}</span></div>
                         <div>Tel: <span className="text-slate-200 font-mono">{emp.phone || '---'}</span></div>
+                      </td>
+
+                      {/* Rota Atribuída */}
+                      <td className="py-3 px-4 text-xs whitespace-nowrap">
+                        {assignedRoute || emp.routeName ? (
+                          <div className="flex items-center gap-1.5 text-cyan-400 font-medium">
+                            <Bus className="h-3.5 w-3.5 shrink-0" />
+                            <span className="truncate max-w-[160px]">{assignedRoute?.name || emp.routeName}</span>
+                          </div>
+                        ) : (
+                          <span className="text-slate-500 italic flex items-center gap-1">
+                            <Bus className="h-3 w-3 opacity-40" /> Sem rota
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Segurança 2FA */}
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        {emp.twoFactorEnabled ? (
+                          <Badge className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[10px] flex items-center gap-1 w-fit">
+                            <ShieldCheck className="h-3 w-3" /> 2FA Ativo
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="border-slate-700 text-slate-400 text-[10px] w-fit">
+                            2FA Desativado
+                          </Badge>
+                        )}
                       </td>
 
                       {/* Admissão / Demissão */}
@@ -553,15 +742,6 @@ export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId
                         )}
                       </td>
 
-                      {/* Rota */}
-                      <td className="py-3 px-4 text-xs whitespace-nowrap">
-                        {emp.routeName ? (
-                          <span className="text-cyan-400 font-medium">{emp.routeName}</span>
-                        ) : (
-                          <span className="text-slate-500 italic">Sem rota</span>
-                        )}
-                      </td>
-
                       {/* Ações */}
                       <td className="py-3 px-4 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1">
@@ -570,7 +750,7 @@ export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId
                             variant="ghost"
                             onClick={() => handleEdit(emp)}
                             className="h-8 w-8 p-0 text-slate-400 hover:text-white"
-                            title="Editar Colaborador"
+                            title="Editar Colaborador / Rota / Senha"
                           >
                             <Edit2 className="h-4 w-4" />
                           </Button>
@@ -605,120 +785,394 @@ export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId
         </div>
       </Card>
 
-      {/* Modal Cadastro / Edição */}
+      {/* Modal Cadastro / Edição com ROTA, RESET DE SENHA e 2FA */}
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="max-w-md bg-slate-900 border-slate-800 text-white">
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto bg-slate-900 border-slate-800 text-white">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-seguranca-red" />
-              {form.id ? 'Editar Colaborador' : 'Novo Colaborador'}
+            <DialogTitle className="flex items-center justify-between pr-4">
+              <div className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-seguranca-red" />
+                <span>{form.id ? 'Editar Colaborador' : 'Novo Colaborador'}</span>
+              </div>
+              {form.id && (
+                <Badge variant="outline" className="border-slate-700 text-slate-300 font-mono text-xs">
+                  ID: {form.registration}
+                </Badge>
+              )}
             </DialogTitle>
           </DialogHeader>
 
           <form onSubmit={handleSaveForm} className="space-y-4">
-            <div>
-              <Label className="text-xs text-slate-300">Nome Completo *</Label>
-              <Input
-                required
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="Ex: Carlos Eduardo da Silva"
-                className="bg-slate-800 border-slate-700 text-white mt-1"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
+            {/* Bloco 1: Dados Pessoais */}
+            <div className="space-y-3 p-3 bg-slate-950/40 rounded-xl border border-slate-800/80">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Dados do Colaborador</h4>
+              
               <div>
-                <Label className="text-xs text-slate-300 flex items-center justify-between">
-                  <span>Matrícula *</span>
-                  <span className="text-[10px] text-cyan-400 font-normal">Somente números</span>
-                </Label>
+                <Label className="text-xs text-slate-300">Nome Completo *</Label>
                 <Input
                   required
-                  value={form.registration}
-                  onChange={handleRegistrationChange}
-                  placeholder="Ex: 7695"
-                  className="bg-slate-800 border-slate-700 text-white font-mono mt-1"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  placeholder="Ex: Carlos Eduardo da Silva"
+                  className="bg-slate-800 border-slate-700 text-white mt-1 h-9"
                 />
               </div>
 
-              <div>
-                <Label className="text-xs text-slate-300">CPF</Label>
-                <Input
-                  value={form.cpf}
-                  onChange={handleCpfChange}
-                  placeholder="000.000.000-00"
-                  className="bg-slate-800 border-slate-700 text-white font-mono mt-1"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs text-slate-300">Telefone / WhatsApp</Label>
-                <Input
-                  value={form.phone}
-                  onChange={handlePhoneChange}
-                  placeholder="(00) 00000-0000"
-                  className="bg-slate-800 border-slate-700 text-white font-mono mt-1"
-                />
-              </div>
-
-              <div>
-                <Label className="text-xs text-slate-300">Data de Admissão</Label>
-                <Input
-                  type="date"
-                  value={form.admissionDate}
-                  onChange={(e) => setForm({ ...form, admissionDate: e.target.value })}
-                  className="bg-slate-800 border-slate-700 text-white mt-1"
-                />
-              </div>
-            </div>
-
-            <div>
-              <Label className="text-xs text-slate-300 flex items-center justify-between">
-                <span>Data de Demissão (Opcional)</span>
-                {form.dismissalDate && (
-                  <span className="text-[10px] text-rose-400">Bloqueará embarques imediatamente</span>
-                )}
-              </Label>
-              <Input
-                type="date"
-                value={form.dismissalDate}
-                onChange={(e) => setForm({ ...form, dismissalDate: e.target.value })}
-                className="bg-slate-800 border-slate-700 text-white mt-1"
-              />
-            </div>
-
-            {/* PCD */}
-            <div className="pt-2 border-t border-slate-800">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={form.isPcd}
-                  onChange={(e) => setForm({ ...form, isPcd: e.target.checked })}
-                  className="rounded border-slate-700 bg-slate-800 text-seguranca-red focus:ring-0"
-                />
-                <span className="text-sm font-medium text-slate-200">Colaborador PCD (Pessoa com Deficiência)</span>
-              </label>
-
-              {form.isPcd && (
-                <div className="mt-2 pl-6">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs text-slate-300 flex items-center justify-between">
+                    <span>Matrícula *</span>
+                    <span className="text-[10px] text-cyan-400 font-normal">Somente números</span>
+                  </Label>
                   <Input
-                    placeholder="Tipo de deficiência / Necessidade especial..."
-                    value={form.disabilityType}
-                    onChange={(e) => setForm({ ...form, disabilityType: e.target.value })}
-                    className="bg-slate-800 border-slate-700 text-white text-xs"
+                    required
+                    value={form.registration}
+                    onChange={handleRegistrationChange}
+                    placeholder="Ex: 7695"
+                    className="bg-slate-800 border-slate-700 text-white font-mono mt-1 h-9"
                   />
                 </div>
-              )}
+
+                <div>
+                  <Label className="text-xs text-slate-300">CPF</Label>
+                  <Input
+                    value={form.cpf}
+                    onChange={handleCpfChange}
+                    placeholder="000.000.000-00"
+                    className="bg-slate-800 border-slate-700 text-white font-mono mt-1 h-9"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs text-slate-300">Telefone / WhatsApp</Label>
+                  <Input
+                    value={form.phone}
+                    onChange={handlePhoneChange}
+                    placeholder="(00) 00000-0000"
+                    className="bg-slate-800 border-slate-700 text-white font-mono mt-1 h-9"
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs text-slate-300">E-mail</Label>
+                  <Input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    placeholder="colaborador@empresa.com.br"
+                    className="bg-slate-800 border-slate-700 text-white mt-1 h-9"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs text-slate-300">Data de Admissão</Label>
+                  <Input
+                    type="date"
+                    value={form.admissionDate}
+                    onChange={(e) => setForm({ ...form, admissionDate: e.target.value })}
+                    className="bg-slate-800 border-slate-700 text-white mt-1 h-9"
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs text-slate-300">Data de Demissão (Opcional)</Label>
+                  <Input
+                    type="date"
+                    value={form.dismissalDate}
+                    onChange={(e) => setForm({ ...form, dismissalDate: e.target.value })}
+                    className="bg-slate-800 border-slate-700 text-white mt-1 h-9"
+                  />
+                </div>
+              </div>
+
+              {/* PCD */}
+              <div className="pt-1">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.isPcd}
+                    onChange={(e) => setForm({ ...form, isPcd: e.target.checked })}
+                    className="rounded border-slate-700 bg-slate-800 text-seguranca-red focus:ring-0"
+                  />
+                  <span className="text-xs font-medium text-slate-200">Colaborador PCD (Pessoa com Deficiência)</span>
+                </label>
+
+                {form.isPcd && (
+                  <div className="mt-2">
+                    <Input
+                      placeholder="Tipo de deficiência / necessidade especial..."
+                      value={form.disabilityType}
+                      onChange={(e) => setForm({ ...form, disabilityType: e.target.value })}
+                      className="bg-slate-800 border-slate-700 text-white text-xs h-8"
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
-            <DialogFooter className="pt-4 border-t border-slate-800 flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setIsFormOpen(false)} className="border-slate-700">
+            {/* Bloco 2: Transporte & Rota Vinculada */}
+            <div className="space-y-3 p-3 bg-slate-950/40 rounded-xl border border-slate-800/80">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Bus className="h-4 w-4 text-cyan-400" />
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                    Rota & Transporte Atribuído
+                  </h4>
+                </div>
+                {form.routeId && (
+                  <Badge className="bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[10px]">
+                    Rota Ativa
+                  </Badge>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs text-slate-300">Rota de Ida</Label>
+                  <select
+                    value={form.routeId}
+                    onChange={(e) => setForm({ ...form, routeId: e.target.value, boardingPointId: '' })}
+                    className="w-full mt-1 bg-slate-800 border border-slate-700 text-white text-xs rounded-md p-2 h-9 focus:ring-1 focus:ring-cyan-500"
+                  >
+                    <option value="">(Nenhuma rota atribuída)</option>
+                    {routes.map(r => (
+                      <option key={r.id} value={r.id}>
+                        {r.name} {r.shift ? `(${r.shift})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <Label className="text-xs text-slate-300">Ponto de Embarque (Parada)</Label>
+                  <select
+                    value={form.boardingPointId}
+                    onChange={(e) => setForm({ ...form, boardingPointId: e.target.value })}
+                    disabled={!form.routeId}
+                    className="w-full mt-1 bg-slate-800 border border-slate-700 text-white text-xs rounded-md p-2 h-9 disabled:opacity-50 focus:ring-1 focus:ring-cyan-500"
+                  >
+                    <option value="">{form.routeId ? '(Selecione o ponto)' : '(Selecione a rota primeiro)'}</option>
+                    {selectedRoutePoints.map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.order + 1}. {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-xs text-slate-300">Rota de Retorno (Volta - Opcional)</Label>
+                <select
+                  value={form.returnRouteId}
+                  onChange={(e) => setForm({ ...form, returnRouteId: e.target.value })}
+                  className="w-full mt-1 bg-slate-800 border border-slate-700 text-white text-xs rounded-md p-2 h-9 focus:ring-1 focus:ring-cyan-500"
+                >
+                  <option value="">(Mesma rota da ida ou nenhuma)</option>
+                  {routes.map(r => (
+                    <option key={r.id} value={r.id}>
+                      {r.name} {r.shift ? `(${r.shift})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Bloco 3: Segurança, Senha de Acesso & 2FA */}
+            <div className="space-y-3 p-3 bg-slate-950/40 rounded-xl border border-slate-800/80">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <KeyRound className="h-4 w-4 text-amber-400" />
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                    Acesso & Autenticação em 2 Fatores (2FA)
+                  </h4>
+                </div>
+                {form.twoFactorEnabled ? (
+                  <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px]">
+                    2FA Habilitado
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="border-slate-700 text-slate-400 text-[10px]">
+                    2FA Desativado
+                  </Badge>
+                )}
+              </div>
+
+              {/* Seção Resetar Senha */}
+              <div className="bg-slate-900/80 p-3 rounded-lg border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-slate-300">
+                    {form.id ? 'Gerenciamento de Senha do Colaborador' : 'Definir Senha Inicial'}
+                  </span>
+                  {form.id && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setShowPasswordReset(!showPasswordReset);
+                        if (!newPasswordValue) setNewPasswordValue(generateRandomPassword());
+                      }}
+                      className="h-7 text-xs border-amber-500/40 text-amber-300 hover:bg-amber-500/10"
+                    >
+                      <KeyRound className="h-3.5 w-3.5 mr-1" />
+                      {showPasswordReset ? 'Ocultar Reset' : 'Resetar Senha de Acesso'}
+                    </Button>
+                  )}
+                </div>
+
+                {/* Para novo colaborador sem ID ainda */}
+                {!form.id && (
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs text-slate-400">Senha Inicial para Acesso ao Portal</Label>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setForm({ ...form, initialPassword: generateRandomPassword() })}
+                        className="h-6 text-[11px] text-cyan-400 hover:text-cyan-300"
+                      >
+                        <RefreshCw className="h-3 w-3 mr-1" /> Gerar Automática
+                      </Button>
+                    </div>
+                    <Input
+                      value={form.initialPassword}
+                      onChange={(e) => setForm({ ...form, initialPassword: e.target.value })}
+                      placeholder="Ex: Colab@2026"
+                      className="bg-slate-800 border-slate-700 text-white font-mono text-xs h-8"
+                    />
+                  </div>
+                )}
+
+                {/* Para colaborador existente com botão de reset expandido */}
+                {form.id && showPasswordReset && (
+                  <div className="pt-2 border-t border-slate-800 space-y-2.5">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={newPasswordValue}
+                        onChange={(e) => setNewPasswordValue(e.target.value)}
+                        placeholder="Digite a nova senha segura..."
+                        className="bg-slate-800 border-slate-700 text-white font-mono text-xs h-8 flex-1"
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setNewPasswordValue(generateRandomPassword())}
+                        className="h-8 text-xs border-slate-700 text-slate-300"
+                        title="Gerar Senha Aleatória"
+                      >
+                        <RefreshCw className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <div className="flex items-center gap-2 text-xs text-slate-400">
+                        <span>Enviar via:</span>
+                        <select
+                          value={notifyPasswordVia}
+                          onChange={(e: any) => setNotifyPasswordVia(e.target.value)}
+                          className="bg-slate-800 border border-slate-700 text-white text-xs rounded px-2 py-1 h-7"
+                        >
+                          <option value="WHATSAPP">WhatsApp</option>
+                          <option value="EMAIL">E-mail</option>
+                          <option value="NONE">Não Notificar</option>
+                        </select>
+                      </div>
+
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={isResettingPassword || !newPasswordValue.trim()}
+                        onClick={handleExecuteResetPassword}
+                        className="h-8 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold"
+                      >
+                        {isResettingPassword ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <KeyRound className="h-3.5 w-3.5 mr-1" />}
+                        Confirmar Nova Senha
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Seção 2FA com Envio de Código */}
+              <div className="bg-slate-900/80 p-3 rounded-lg border border-slate-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-slate-200">Autenticação em Dois Fatores (2FA)</p>
+                    <p className="text-[11px] text-slate-400">Exige código de verificação para login no Portal do Passageiro.</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={form.twoFactorEnabled}
+                      onChange={(e) => handleToggle2FA(e.target.checked, false)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                  </label>
+                </div>
+
+                {/* Seleção do canal de envio (WhatsApp ou E-mail) */}
+                <div className="pt-2 border-t border-slate-800/80 grid grid-cols-2 gap-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, twoFactorChannel: 'WHATSAPP' })}
+                    className={`p-2 rounded-lg border flex items-center justify-center gap-2 transition-all ${
+                      form.twoFactorChannel === 'WHATSAPP'
+                        ? 'border-emerald-500 bg-emerald-950/30 text-emerald-300 font-semibold'
+                        : 'border-slate-800 bg-slate-800/40 text-slate-400 hover:border-slate-700'
+                    }`}
+                  >
+                    <MessageSquare className="h-3.5 w-3.5 text-emerald-400" />
+                    <span>WhatsApp</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, twoFactorChannel: 'EMAIL' })}
+                    className={`p-2 rounded-lg border flex items-center justify-center gap-2 transition-all ${
+                      form.twoFactorChannel === 'EMAIL'
+                        ? 'border-cyan-500 bg-cyan-950/30 text-cyan-300 font-semibold'
+                        : 'border-slate-800 bg-slate-800/40 text-slate-400 hover:border-slate-700'
+                    }`}
+                  >
+                    <Mail className="h-3.5 w-3.5 text-cyan-400" />
+                    <span>E-mail</span>
+                  </button>
+                </div>
+
+                {/* Botão de envio de código 2FA */}
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  <span className="text-[11px] text-slate-400">
+                    Destino: <strong className="text-white font-mono">{form.twoFactorChannel === 'WHATSAPP' ? (form.phone || 'Sem WhatsApp') : (form.email || 'Sem E-mail')}</strong>
+                  </span>
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={isSending2FA || !form.id}
+                    onClick={() => handleToggle2FA(true, true)}
+                    className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold"
+                    title={!form.id ? 'Cadastre o colaborador primeiro' : 'Enviar código de verificação 2FA agora'}
+                  >
+                    {isSending2FA ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Send className="h-3.5 w-3.5 mr-1" />}
+                    Enviar Código 2FA Agora
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter className="pt-3 border-t border-slate-800 flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setIsFormOpen(false)} className="border-slate-700 text-slate-300">
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isSaving} className="bg-seguranca-red hover:bg-red-700 text-white">
+              <Button type="submit" disabled={isSaving} className="bg-seguranca-red hover:bg-red-700 text-white font-semibold">
                 {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 {form.id ? 'Salvar Alterações' : 'Cadastrar'}
               </Button>
@@ -821,13 +1275,13 @@ export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId
             )}
 
             <DialogFooter className="flex justify-end gap-2 pt-2 border-t border-slate-800">
-              <Button variant="outline" onClick={() => setIsImportOpen(false)} className="border-slate-700">
+              <Button variant="outline" onClick={() => setIsImportOpen(false)} className="border-slate-700 text-slate-300">
                 Cancelar
               </Button>
               <Button
                 disabled={isImporting || importPreview.filter(r => r.isValid).length === 0}
                 onClick={handleExecuteImport}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
               >
                 {isImporting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 Confirmar Importação ({importPreview.filter(r => r.isValid).length})
@@ -841,4 +1295,3 @@ export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId
 };
 
 export default ClientEmployeesTab;
-
