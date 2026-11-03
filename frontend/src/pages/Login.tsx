@@ -191,7 +191,7 @@ const Login = () => {
           )}
         </div>
 
-        <div className="bg-[#120a0a]/90 backdrop-blur-3xl border border-white/10 rounded-3xl shadow-[0_32px_64px_-16px_rgba(0,0,0,1)] w-full max-w-md p-8 space-y-8" data-animate="zoomIn">
+        <div id="login-card" className="bg-[#120a0a]/90 backdrop-blur-3xl border border-white/10 rounded-3xl shadow-[0_32px_64px_-16px_rgba(0,0,0,1)] w-full max-w-md p-8 space-y-8" data-animate="zoomIn">
           <div className="text-center space-y-3" data-animate="fadeUp">
             <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/20 text-white text-[10px] uppercase font-bold tracking-widest border border-primary/30 shadow-[0_0_10px_rgba(var(--primary-rgb),0.2)]">
               <Shield size={12} fill="currentColor" className="opacity-100" />

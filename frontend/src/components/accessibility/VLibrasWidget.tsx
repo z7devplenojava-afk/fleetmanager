@@ -37,18 +37,46 @@ export const VLibrasWidget: React.FC = () => {
   }, []);
 
   return (
-    <div
-      {...({ vw: 'true' } as any)}
-      className="enabled z-[9999]"
-      aria-label="Acessibilidade em Língua Brasileira de Sinais (VLibras)"
-    >
-      <div {...({ 'vw-access-button': 'true' } as any)} className="active" />
-      <div {...({ 'vw-plugin-wrapper': 'true' } as any)}>
-        <div className="vw-plugin-top-wrapper" />
+    <>
+      <style>{`
+        /* Reposiciona o botão flutuante nativo do VLibras para o canto inferior */
+        /* Evita sobrepor o centro da tela, textos e formulários no celular */
+        [vw-access-button] {
+          top: auto !important;
+          bottom: 20px !important;
+          right: 16px !important;
+          transform: none !important;
+          width: 44px !important;
+          height: 44px !important;
+          border-radius: 50% !important;
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45) !important;
+          z-index: 9990 !important;
+          transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+        }
+        [vw-access-button]:hover {
+          transform: scale(1.08) !important;
+        }
+        @media (max-width: 640px) {
+          [vw-access-button] {
+            bottom: 16px !important;
+            right: 12px !important;
+            width: 40px !important;
+            height: 40px !important;
+          }
+        }
+      `}</style>
+      <div
+        {...({ vw: 'true' } as any)}
+        className="enabled z-[9999]"
+        aria-label="Acessibilidade em Língua Brasileira de Sinais (VLibras)"
+      >
+        <div {...({ 'vw-access-button': 'true' } as any)} className="active" />
+        <div {...({ 'vw-plugin-wrapper': 'true' } as any)}>
+          <div className="vw-plugin-top-wrapper" />
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 
 export default VLibrasWidget;
-
