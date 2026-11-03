@@ -8,7 +8,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -37,6 +39,7 @@ public class KioskSlideElement {
     @Column(name = "element_type", nullable = false, length = 50)
     private String elementType; // VIDEO, IMAGE, TEXT, BUTTON, GALLERY, CARD, QR_CODE, FORM, WEB_CONTENT
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "content_json", nullable = false, columnDefinition = "jsonb")
     @Builder.Default
     private String contentJson = "{}";
@@ -61,10 +64,12 @@ public class KioskSlideElement {
     @Builder.Default
     private Integer zIndex = 1;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "style_json", columnDefinition = "jsonb")
     @Builder.Default
     private String styleJson = "{}";
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "action_json", columnDefinition = "jsonb")
     @Builder.Default
     private String actionJson = "{}";

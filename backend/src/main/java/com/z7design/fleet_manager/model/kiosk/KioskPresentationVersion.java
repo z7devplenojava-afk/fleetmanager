@@ -8,8 +8,10 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.NotFound;
 import org.hibernate.annotations.NotFoundAction;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -39,6 +41,7 @@ public class KioskPresentationVersion {
     @Column(name = "version_number", nullable = false)
     private Integer versionNumber;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "manifest_json", nullable = false, columnDefinition = "jsonb")
     private String manifestJson;
 

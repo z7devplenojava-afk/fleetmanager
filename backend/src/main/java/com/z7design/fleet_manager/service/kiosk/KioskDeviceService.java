@@ -6,6 +6,7 @@ import com.google.zxing.client.j2se.MatrixToImageWriter;
 import com.google.zxing.common.BitMatrix;
 import com.z7design.fleet_manager.dto.kiosk.CreateKioskDeviceRequest;
 import com.z7design.fleet_manager.dto.kiosk.KioskDeviceDTO;
+import com.z7design.fleet_manager.dto.kiosk.KioskDeviceEventDTO;
 import com.z7design.fleet_manager.dto.kiosk.PairingCodeResponse;
 import com.z7design.fleet_manager.dto.kiosk.UpdateKioskDeviceRequest;
 import com.z7design.fleet_manager.exception.BusinessException;
@@ -16,6 +17,7 @@ import com.z7design.fleet_manager.model.kiosk.KioskDevice;
 import com.z7design.fleet_manager.model.kiosk.KioskPairingCode;
 import com.z7design.fleet_manager.repository.ClientRepository;
 import com.z7design.fleet_manager.repository.CompanyRepository;
+import com.z7design.fleet_manager.repository.kiosk.KioskDeviceEventRepository;
 import com.z7design.fleet_manager.repository.kiosk.KioskDeviceRepository;
 import com.z7design.fleet_manager.repository.kiosk.KioskPairingCodeRepository;
 import com.z7design.fleet_manager.security.KioskDeviceTokenService;
@@ -41,6 +43,7 @@ import java.util.stream.Collectors;
 public class KioskDeviceService {
 
     private final KioskDeviceRepository deviceRepository;
+    private final KioskDeviceEventRepository deviceEventRepository;
     private final KioskPairingCodeRepository pairingCodeRepository;
     private final CompanyRepository companyRepository;
     private final ClientRepository clientRepository;
@@ -77,6 +80,14 @@ public class KioskDeviceService {
     public KioskDeviceDTO findById(UUID id) {
         KioskDevice device = getDeviceOrThrow(id);
         return KioskDeviceDTO.fromEntity(device);
+    }
+
+    @Transactional(readOnly = true)
+    public List<KioskDeviceEventDTO> findEvents(UUID deviceId) {
+        getDeviceOrThrow(deviceId);
+        return deviceEventRepository.findByDeviceIdOrderByOccurredAtDesc(deviceId).stream()
+                .map(KioskDeviceEventDTO::fromEntity)
+                .collect(Collectors.toList());
     }
 
     @Transactional

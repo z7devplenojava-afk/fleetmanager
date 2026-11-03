@@ -39,6 +39,61 @@ interface Manifest {
   assets: any[];
 }
 
+/**
+ * Baixa um asset do totem usando o token de dispositivo e devolve um blob URL.
+ * As tags <img>/<video> não conseguem enviar headers customizados, então o
+ * download autenticado é feito via axios e o binário é exposto como object URL.
+ */
+const useDeviceMediaUrl = (deviceToken: string | null, mediaId?: string) => {
+  const [objectUrl, setObjectUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!deviceToken || !mediaId) {
+      setObjectUrl(null);
+      return;
+    }
+
+    let cancelled = false;
+    let createdUrl: string | null = null;
+
+    axios
+      .get(`/api/player/media/${mediaId}/content`, {
+        headers: { 'X-Device-Token': deviceToken },
+        responseType: 'blob',
+      })
+      .then((resp) => {
+        if (cancelled) return;
+        createdUrl = URL.createObjectURL(resp.data);
+        setObjectUrl(createdUrl);
+      })
+      .catch(() => {
+        if (!cancelled) setObjectUrl(null);
+      });
+
+    return () => {
+      cancelled = true;
+      if (createdUrl) URL.revokeObjectURL(createdUrl);
+    };
+  }, [deviceToken, mediaId]);
+
+  return objectUrl;
+};
+
+const PlayerMedia: React.FC<{
+  deviceToken: string | null;
+  mediaId?: string;
+  kind: 'image' | 'video';
+  className: string;
+}> = ({ deviceToken, mediaId, kind, className }) => {
+  const url = useDeviceMediaUrl(deviceToken, mediaId);
+  if (!url) return null;
+
+  if (kind === 'video') {
+    return <video src={url} autoPlay loop muted playsInline className={className} />;
+  }
+  return <img src={url} alt="Mídia do totem" className={className} />;
+};
+
 export const KioskPlayerPage: React.FC = () => {
   // Credenciais salvas no hardware
   const [deviceToken, setDeviceToken] = useState<string | null>(
@@ -356,19 +411,18 @@ export const KioskPlayerPage: React.FC = () => {
 
       {/* Plano de Fundo do Slide */}
       {activeSlide.backgroundType === 'IMAGE' && activeSlide.backgroundMediaId && (
-        <img 
-          src={`/api/kiosk-media/${activeSlide.backgroundMediaId}/content`} 
-          alt="Background" 
+        <PlayerMedia
+          deviceToken={deviceToken}
+          mediaId={activeSlide.backgroundMediaId}
+          kind="image"
           className="absolute inset-0 w-full h-full object-cover"
         />
       )}
       {activeSlide.backgroundType === 'VIDEO' && activeSlide.backgroundMediaId && (
-        <video 
-          src={`/api/kiosk-media/${activeSlide.backgroundMediaId}/content`} 
-          autoPlay 
-          loop 
-          muted 
-          playsInline
+        <PlayerMedia
+          deviceToken={deviceToken}
+          mediaId={activeSlide.backgroundMediaId}
+          kind="video"
           className="absolute inset-0 w-full h-full object-cover"
         />
       )}
@@ -418,20 +472,19 @@ export const KioskPlayerPage: React.FC = () => {
           )}
 
           {el.elementType === 'IMAGE' && el.content?.mediaId && (
-            <img 
-              src={`/api/kiosk-media/${el.content.mediaId}/content`} 
-              alt="Elemento" 
+            <PlayerMedia
+              deviceToken={deviceToken}
+              mediaId={el.content.mediaId}
+              kind="image"
               className="w-full h-full object-contain"
             />
           )}
 
           {el.elementType === 'VIDEO' && el.content?.mediaId && (
-            <video 
-              src={`/api/kiosk-media/${el.content.mediaId}/content`} 
-              autoPlay 
-              loop 
-              muted 
-              playsInline
+            <PlayerMedia
+              deviceToken={deviceToken}
+              mediaId={el.content.mediaId}
+              kind="video"
               className="w-full h-full object-cover rounded-2xl shadow-xl"
             />
           )}

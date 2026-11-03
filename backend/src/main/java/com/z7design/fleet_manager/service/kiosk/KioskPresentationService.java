@@ -157,10 +157,10 @@ public class KioskPresentationService {
 
         // Salvar Elementos do Slide
         if (request.getElements() != null) {
-            // Remove elementos antigos e recria os novos
-            slideElementRepository.deleteBySlideId(savedSlide.getId());
+            // Sincroniza a coleção gerenciada pelo Hibernate: orphanRemoval remove os
+            // elementos antigos e o cascade persiste os novos no flush.
+            savedSlide.getElements().clear();
 
-            List<KioskSlideElement> newElements = new ArrayList<>();
             for (SaveSlideRequest.SlideElementInput elInput : request.getElements()) {
                 String contentJson = toJsonString(elInput.getContent());
                 String styleJson = toJsonString(elInput.getStyle());
@@ -168,6 +168,7 @@ public class KioskPresentationService {
 
                 KioskSlideElement el = KioskSlideElement.builder()
                         .slideId(savedSlide.getId())
+                        .slide(savedSlide)
                         .elementType(elInput.getElementType() != null ? elInput.getElementType() : "TEXT")
                         .contentJson(contentJson)
                         .x(elInput.getX() != null ? elInput.getX() : 0.0)
@@ -179,10 +180,10 @@ public class KioskPresentationService {
                         .actionJson(actionJson)
                         .build();
 
-                newElements.add(el);
+                savedSlide.getElements().add(el);
             }
-            List<KioskSlideElement> savedElements = slideElementRepository.saveAll(newElements);
-            savedSlide.setElements(savedElements);
+
+            savedSlide = slideRepository.save(savedSlide);
         }
 
         return KioskSlideDTO.fromEntity(savedSlide);

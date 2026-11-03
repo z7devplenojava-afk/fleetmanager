@@ -1,5 +1,6 @@
 package com.z7design.fleet_manager.dto.kiosk;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.z7design.fleet_manager.model.kiosk.KioskSlideElement;
@@ -26,6 +27,7 @@ public class KioskSlideElementDTO {
     private Double y;
     private Double width;
     private Double height;
+    @JsonProperty("zIndex")
     private Integer zIndex;
     private Map<String, Object> style;
     private Map<String, Object> action;

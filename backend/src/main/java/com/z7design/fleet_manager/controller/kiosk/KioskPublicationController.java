@@ -31,7 +31,9 @@ public class KioskPublicationController {
     @PreAuthorize("hasAnyAuthority('KIOSK_READ', 'KIOSK_PUBLISH', 'KIOSK_ADMIN', 'SUPER_ADMIN', 'ADMIN', 'COMPANY_ADMIN', 'COMERCIAL', 'GESTOR_COMERCIAL')")
     public ResponseEntity<List<KioskPublicationDTO>> getAllPublications() {
         UUID companyId = TenantContext.getCurrentTenant();
-        List<UUID> deviceIds = deviceRepository.findByCompanyId(companyId).stream()
+        List<UUID> deviceIds = (companyId != null
+                ? deviceRepository.findByCompanyId(companyId)
+                : deviceRepository.findAll()).stream()
                 .map(d -> d.getId())
                 .toList();
 

@@ -2,6 +2,7 @@ package com.z7design.fleet_manager.controller.kiosk;
 
 import com.z7design.fleet_manager.dto.kiosk.CreateKioskDeviceRequest;
 import com.z7design.fleet_manager.dto.kiosk.KioskDeviceDTO;
+import com.z7design.fleet_manager.dto.kiosk.KioskDeviceEventDTO;
 import com.z7design.fleet_manager.dto.kiosk.PairingCodeResponse;
 import com.z7design.fleet_manager.dto.kiosk.UpdateKioskDeviceRequest;
 import com.z7design.fleet_manager.service.kiosk.KioskDeviceService;
@@ -48,6 +49,13 @@ public class KioskDeviceController {
     @PreAuthorize("hasAnyAuthority('KIOSK_READ', 'KIOSK_ADMIN', 'SUPER_ADMIN', 'ADMIN', 'COMPANY_ADMIN', 'COMERCIAL', 'GESTOR_COMERCIAL', 'VENDAS', 'CLIENT_MANAGER', 'CLIENT_USER')")
     public ResponseEntity<KioskDeviceDTO> getDeviceById(@PathVariable UUID id) {
         return ResponseEntity.ok(deviceService.findById(id));
+    }
+
+    @GetMapping("/{id}/events")
+    @Operation(summary = "Listar eventos operacionais registrados pelo totem")
+    @PreAuthorize("hasAnyAuthority('KIOSK_READ', 'KIOSK_ADMIN', 'SUPER_ADMIN', 'ADMIN', 'COMPANY_ADMIN', 'COMERCIAL', 'GESTOR_COMERCIAL', 'VENDAS', 'CLIENT_MANAGER', 'CLIENT_USER')")
+    public ResponseEntity<List<KioskDeviceEventDTO>> getDeviceEvents(@PathVariable UUID id) {
+        return ResponseEntity.ok(deviceService.findEvents(id));
     }
 
     @PostMapping
