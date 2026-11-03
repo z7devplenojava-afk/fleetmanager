@@ -9,3 +9,4 @@ ALTER TABLE invoices
 
 CREATE INDEX IF NOT EXISTS idx_invoices_linha_digitavel ON invoices(linha_digitavel);
 CREATE INDEX IF NOT EXISTS idx_invoices_boleto_url ON invoices(boleto_url);
+

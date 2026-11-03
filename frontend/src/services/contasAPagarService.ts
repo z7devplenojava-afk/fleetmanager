@@ -718,7 +718,7 @@ export const contasAPagarService = {
       formData.append('paidAmount', paidAmount.toString());
     }
 
-    const response = await api.post(/api/invoices/ + id + /comprovante, formData, {
+    const response = await api.post(`/api/invoices/${id}/comprovante`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
     return this.mapInvoiceToContaAPagar(response.data);

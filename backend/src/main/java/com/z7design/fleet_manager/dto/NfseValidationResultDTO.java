@@ -35,3 +35,4 @@ public class NfseValidationResultDTO {
     @Schema(description = "URL do PDF/XML armazenado")
     private String fileUrl;
 }
+

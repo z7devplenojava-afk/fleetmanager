@@ -63,3 +63,4 @@ public class BoletoParsedDTO {
 
     private String errorMessage;
 }
+

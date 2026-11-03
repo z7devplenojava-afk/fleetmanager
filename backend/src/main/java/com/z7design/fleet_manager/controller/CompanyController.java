@@ -147,16 +147,38 @@ public class CompanyController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('HR_READ') or hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('COMPANY_ADMIN') or hasAuthority('COMPANY_ADMIN')")
-    @Operation(summary = "Buscar empresa por ID", description = "Retorna uma empresa específica pelo ID")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Buscar empresa por ID", description = "Retorna uma empresa específica pelo ID (somente empresas às quais o usuário tem acesso)")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Empresa encontrada"),
             @ApiResponse(responseCode = "404", description = "Empresa não encontrada"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<CompanyDTO> getCompanyById(
-            @Parameter(description = "ID da empresa") @PathVariable("id") UUID id) {
+            @Parameter(description = "ID da empresa") @PathVariable("id") UUID id,
+            Authentication authentication) {
         log.debug("Buscando empresa por ID: {}", id);
+
+        // Dados de branding da própria empresa são necessários em qualquer tela
+        // para usuários autenticados (AuthContext, Logo, carrossel etc.).
+        // Administradores enxergam qualquer empresa; demais usuários apenas as
+        // empresas às quais estão vinculados (companyId ou Employee).
+        if (authentication != null
+                && authentication.getPrincipal() instanceof org.springframework.security.core.userdetails.UserDetails) {
+            String username = ((org.springframework.security.core.userdetails.UserDetails) authentication.getPrincipal())
+                    .getUsername();
+            com.z7design.fleet_manager.model.User user = userCompanyResolver.resolveUser(username);
+            if (user != null && !userCompanyResolver.isPrivilegedUser(user)) {
+                List<Company> allowedCompanies = userCompanyResolver.resolveUserCompanies(user);
+                boolean ownsCompany = allowedCompanies.stream()
+                        .anyMatch(c -> c != null && id.equals(c.getId()));
+                if (!ownsCompany) {
+                    log.warn("Usuário {} tentou acessar empresa {} sem vínculo", username, id);
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+                }
+            }
+        }
+
         try {
             CompanyDTO company = companyService.getCompanyById(id);
             return ResponseEntity.ok(company);
