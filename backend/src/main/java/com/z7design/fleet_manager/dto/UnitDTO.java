@@ -32,6 +32,9 @@ public class UnitDTO {
     private String parentName;
     private UUID clientId;
     private String clientName;
+    private UUID companyId;
+    private UUID branchId;
+    private String branchName;
     
     // Contadores
     private Long employeeCount;
@@ -40,6 +43,17 @@ public class UnitDTO {
     public static UnitDTO fromEntity(Unit unit) {
         if (unit == null) {
             return null;
+        }
+
+        UUID resolvedCompanyId = unit.getCompanyId();
+        UUID resolvedBranchId = null;
+        String resolvedBranchName = null;
+        if (unit.getBranch() != null) {
+            resolvedBranchId = unit.getBranch().getId();
+            resolvedBranchName = unit.getBranch().getName();
+            if (resolvedCompanyId == null && unit.getBranch().getCompany() != null) {
+                resolvedCompanyId = unit.getBranch().getCompany().getId();
+            }
         }
         
         return UnitDTO.builder()
@@ -58,6 +72,9 @@ public class UnitDTO {
                 .parentName(unit.getParent() != null ? unit.getParent().getName() : null)
                 .clientId(unit.getClient() != null ? unit.getClient().getId() : null)
                 .clientName(unit.getClient() != null ? unit.getClient().getName() : null)
+                .companyId(resolvedCompanyId)
+                .branchId(resolvedBranchId)
+                .branchName(resolvedBranchName)
                 .build();
     }
     

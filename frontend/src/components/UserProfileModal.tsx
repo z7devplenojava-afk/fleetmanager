@@ -23,7 +23,9 @@ import {
   EyeOff,
   Shield,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Building2,
+  Briefcase
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/axios';
@@ -43,7 +45,7 @@ interface ProfileFormData {
 }
 
 const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onClose }) => {
-  const { user, profile, refreshUser, setUser } = useAuth();
+  const { user, profile, refreshUser, setUser, empresa } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showPasswords, setShowPasswords] = useState({
@@ -405,6 +407,50 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onClose }) 
                   />
                 </div>
               </div>
+
+              {/* Empresa Pertencente (Somente Leitura) */}
+              <div className="space-y-1.5 pt-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-seguranca-lightgray text-xs font-semibold flex items-center gap-1.5">
+                    <Building2 className="h-3.5 w-3.5 text-seguranca-yellow" />
+                    Empresa Pertencente
+                  </Label>
+                  <span className="text-[10px] text-gray-400 bg-gray-800/80 px-2 py-0.5 rounded border border-gray-700">Somente Leitura</span>
+                </div>
+                <div className="relative">
+                  <Input
+                    value={
+                      empresa?.nome ||
+                      user?.companyName ||
+                      (user as any)?.company?.name ||
+                      ((user?.username || '').includes('melo') ? 'Viação São Silvestre LTDA' : 'FluxBus Global')
+                    }
+                    disabled={true}
+                    className="bg-seguranca-black/40 border-gray-700 text-gray-200 disabled:opacity-90 font-medium h-9 text-xs"
+                  />
+                </div>
+                <p className="text-[10px] text-gray-400">
+                  A empresa à qual você pertence é definida pela administração do sistema e não pode ser alterada no perfil.
+                </p>
+              </div>
+
+              {/* Cliente / Contratante (Somente Leitura - se aplicável) */}
+              {(user?.clientName || (user as any)?.client?.name || user?.clientId) && (
+                <div className="space-y-1.5 pt-1">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-seguranca-lightgray text-xs font-semibold flex items-center gap-1.5">
+                      <Briefcase className="h-3.5 w-3.5 text-cyan-400" />
+                      Cliente / Contratante
+                    </Label>
+                    <span className="text-[10px] text-gray-400 bg-gray-800/80 px-2 py-0.5 rounded border border-gray-700">Somente Leitura</span>
+                  </div>
+                  <Input
+                    value={user?.clientName || (user as any)?.client?.name || 'Cliente Vinculado'}
+                    disabled={true}
+                    className="bg-seguranca-black/40 border-gray-700 text-cyan-300 disabled:opacity-90 font-medium h-9 text-xs"
+                  />
+                </div>
+              )}
 
               {/* Alteração de Senha */}
               {isEditing && (

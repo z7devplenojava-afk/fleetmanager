@@ -41,6 +41,18 @@ export interface DeleteCheckResponse {
 }
 
 export const unitService = {
+  // Buscar unidades por empresa
+  async getUnitsByCompany(companyId: string): Promise<Unit[]> {
+    try {
+      const response = await api.get(`/api/units/company/${companyId}`);
+      return response.data;
+    } catch (error) {
+      console.warn('Erro ao buscar unidades da empresa, usando fallback:', error);
+      const all = await this.getAllUnits();
+      return all.filter((u: any) => u.companyId === companyId || u.branchCompanyId === companyId);
+    }
+  },
+
   // Buscar todas as unidades
   async getAllUnits(): Promise<Unit[]> {
     try {

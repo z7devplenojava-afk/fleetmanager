@@ -252,6 +252,55 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
   // Estados para os dados dos selects
   const [positions, setPositions] = useState<Position[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
+
+  // Filtrar unidades estritamente pela Empresa / Filial selecionada (Opção A)
+  const filteredUnits = useMemo(() => {
+    if (!selectedCompany?.id) {
+      return units;
+    }
+    const targetCompId = String(selectedCompany.id);
+    const targetName = (selectedCompany.name || '').toLowerCase();
+
+    const result = units.filter(u => {
+      const uCompId = (u as any).companyId ? String((u as any).companyId) : null;
+      const uBranchCompId = (u as any).branchCompanyId ? String((u as any).branchCompanyId) : null;
+
+      // 1. Se a unidade pertence explicitamente à empresa ou à filial dela
+      if (uCompId === targetCompId || uBranchCompId === targetCompId) {
+        return true;
+      }
+
+      // 2. Descartar se pertencer a outro cliente ou empresa conhecida
+      const uName = (u.name || '').toLowerCase();
+      const clientKeywords = ['cktr', 'diefra', 'fagundes', 'gerais', 'aterpa', 'anglo', 'vale', 'ucom'];
+      const isOtherClient = (u as any).clientId || clientKeywords.some(kw => uName.includes(kw) && !targetName.includes(kw));
+      if (isOtherClient) {
+        return false;
+      }
+
+      // 3. Se o nome da unidade incluir o nome ou sigla da empresa
+      if (targetName && uName.includes(targetName)) {
+        return true;
+      }
+
+      // 4. Unidades genéricas padrão (ex: 'Matriz' ou 'Unidade Padrao') quando não têm vínculo com outra empresa
+      if (!uCompId && !((u as any).clientId)) {
+        return true;
+      }
+
+      return false;
+    });
+
+    if (result.length === 0) {
+      const fallback = units.find(u => {
+        const uName = (u.name || '').toLowerCase();
+        return (uName === 'matriz' || uName.includes('padrao') || uName.includes('padrão')) && !(u as any).clientId;
+      });
+      return fallback ? [fallback] : units.slice(0, 2);
+    }
+
+    return result;
+  }, [units, selectedCompany]);
   const [users, setUsers] = useState<User[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [workPosts, setWorkPosts] = useState<WorkPost[]>([]);
@@ -2391,11 +2440,14 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
                       <SelectValue placeholder="Selecione uma unidade" />
                     </SelectTrigger>
                     <SelectContent className="bg-seguranca-graphite border-gray-600">
-                      {units.map((unit) => (
+                      {filteredUnits.map((unit) => (
                         <SelectItem key={unit.id} value={unit.id} className="text-seguranca-lightgray hover:bg-gray-700">
                           <div className="flex items-center gap-2">
                             <Building className="h-3.5 w-3.5 text-seguranca-yellow" />
-                            {unit.name}
+                            <span>{unit.name}</span>
+                            {unit.branchName && (
+                              <span className="text-[10px] text-gray-400 font-normal">({unit.branchName})</span>
+                            )}
                           </div>
                         </SelectItem>
                       ))}
@@ -3939,11 +3991,14 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
                      <SelectValue placeholder="Selecione uma unidade" />
                    </SelectTrigger>
                    <SelectContent>
-                     {units.map((unit) => (
+                     {filteredUnits.map((unit) => (
                        <SelectItem key={unit.id} value={unit.id}>
                          <div className="flex items-center">
                            <Building className="mr-2" size={16} />
-                           {unit.name}
+                           <span>{unit.name}</span>
+                           {unit.branchName && (
+                             <span className="ml-1 text-[10px] text-gray-400 font-normal">({unit.branchName})</span>
+                           )}
                          </div>
                        </SelectItem>
                      ))}

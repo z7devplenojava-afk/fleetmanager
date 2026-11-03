@@ -54,6 +54,8 @@ public class UserController {
     private final LgpdConsentService lgpdConsentService;
     private final EmployeeRepository employeeRepository;
     private final CompanyRepository companyRepository;
+    private final com.z7design.fleet_manager.repository.ClientRepository clientRepository;
+    private final com.z7design.fleet_manager.service.UserCompanyResolver userCompanyResolver;
 
     @GetMapping
     @PreAuthorize("isAuthenticated()")
@@ -223,6 +225,51 @@ public class UserController {
                 roleNames.add("MOTORISTA");
             }
 
+            UUID resolvedCompanyId = currentUser.getCompanyId();
+            String resolvedCompanyName = null;
+            UUID resolvedClientId = currentUser.getClientId();
+            String resolvedClientName = null;
+
+            if (resolvedCompanyId != null) {
+                resolvedCompanyName = companyRepository.findById(resolvedCompanyId).map(Company::getName).orElse(null);
+            }
+            if (resolvedClientId != null && clientRepository != null) {
+                resolvedClientName = clientRepository.findById(resolvedClientId).map(com.z7design.fleet_manager.model.Client::getName).orElse(null);
+            }
+
+            if (resolvedCompanyId == null && emp != null && emp.getCompany() != null) {
+                resolvedCompanyId = emp.getCompany().getId();
+                resolvedCompanyName = emp.getCompany().getName();
+                currentUser.setCompanyId(resolvedCompanyId);
+                try {
+                    userRepository.save(currentUser);
+                    log.info("🏢 Auto-sincronizado companyId {} ({}) para o usuario {}", resolvedCompanyId, resolvedCompanyName, currentUser.getUsername());
+                } catch (Exception exSave) {
+                    log.debug("Nao foi possivel persistir companyId no User: {}", exSave.getMessage());
+                }
+            }
+
+            if (resolvedClientId == null && emp != null && emp.getClient() != null) {
+                resolvedClientId = emp.getClient().getId();
+                resolvedClientName = emp.getClient().getName();
+                currentUser.setClientId(resolvedClientId);
+                try {
+                    userRepository.save(currentUser);
+                } catch (Exception ignored) {}
+            }
+
+            if (resolvedCompanyId == null && userCompanyResolver != null) {
+                try {
+                    java.util.Optional<Company> compOpt = userCompanyResolver.resolveCompany(currentUser);
+                    if (compOpt.isPresent()) {
+                        resolvedCompanyId = compOpt.get().getId();
+                        resolvedCompanyName = compOpt.get().getName();
+                        currentUser.setCompanyId(resolvedCompanyId);
+                        userRepository.save(currentUser);
+                    }
+                } catch (Exception ignored) {}
+            }
+
             ProfileResponse response = ProfileResponse.builder()
                     .id(currentUser.getId())
                     .username(currentUser.getUsername())
@@ -237,6 +284,10 @@ public class UserController {
                     .position(position)
                     .department(department)
                     .isDriver(isDriver)
+                    .companyId(resolvedCompanyId)
+                    .companyName(resolvedCompanyName)
+                    .clientId(resolvedClientId)
+                    .clientName(resolvedClientName)
                     .build();
 
             return ResponseEntity.ok(response);

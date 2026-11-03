@@ -64,6 +64,14 @@ public class UnitController {
         List<UnitDTO> units = unitService.findAllActiveAsDTO();
         return ResponseEntity.ok(units);
     }
+
+    @GetMapping("/company/{companyId}")
+    @Operation(summary = "Listar unidades por empresa", description = "Retorna unidades vinculadas diretamente à empresa ou às suas filiais")
+    public ResponseEntity<List<UnitDTO>> getByCompanyId(@PathVariable("companyId") UUID companyId) {
+        log.debug("Buscando unidades por empresa: {}", companyId);
+        List<UnitDTO> units = unitService.findByCompanyId(companyId);
+        return ResponseEntity.ok(units);
+    }
     
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('HR_READ','ADMIN','SUPER_ADMIN','ROLE_ADMIN','ROLE_SUPER_ADMIN')")

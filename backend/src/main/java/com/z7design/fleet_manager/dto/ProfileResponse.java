@@ -27,5 +27,9 @@ public class ProfileResponse {
     private String position;
     private String department;
     private Boolean isDriver;
+    private UUID companyId;
+    private String companyName;
+    private UUID clientId;
+    private String clientName;
 }
 

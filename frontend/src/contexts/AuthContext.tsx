@@ -610,7 +610,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         const newCompanyId = response.data.companyId !== undefined
           ? response.data.companyId
-          : (response.data.company?.id || null);
+          : (response.data.company?.id || userData.companyId || null);
+        const newCompanyName = response.data.companyName || response.data.company?.name || userData.companyName || '';
+        const newClientId = response.data.clientId !== undefined
+          ? response.data.clientId
+          : (userData.clientId || null);
+        const newClientName = response.data.clientName || userData.clientName || '';
 
         const updatedUser = {
           ...userData,
@@ -627,7 +632,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           isDriver: isDriver,
           employeeId: response.data.employeeId !== undefined ? response.data.employeeId : userData.employeeId,
           companyId: newCompanyId,
-          company: response.data.company || null,
+          companyName: newCompanyName,
+          clientId: newClientId,
+          clientName: newClientName,
+          company: response.data.company || (newCompanyId ? { id: newCompanyId, name: newCompanyName } : null),
           firstAccessCompleted: response.data.firstAccessCompleted !== undefined
             ? response.data.firstAccessCompleted
             : userData.firstAccessCompleted,
@@ -641,24 +649,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           disabilityDescription: response.data.disabilityDescription !== undefined ? response.data.disabilityDescription : userData.disabilityDescription,
         };
 
-        // Atualizar estado da empresa local se a empresa do usuário mudou ou foi desvinculada
-        if (!newCompanyId) {
-          setEmpresa(null);
-          localStorage.removeItem('empresa');
-        } else if (response.data.company) {
+        // Atualizar estado da empresa local se houver empresa vinculada ao usuário
+        if (newCompanyId) {
           const comp = response.data.company;
-          const cleanLogoUrl = (comp.logoUrl && comp.logoUrl.includes('e9654118-53a8-4dd8-b57c-bc50997f081b')) ? null : comp.logoUrl;
+          const cleanLogoUrl = (comp?.logoUrl && comp.logoUrl.includes('e9654118-53a8-4dd8-b57c-bc50997f081b')) ? null : (comp?.logoUrl || empresa?.logoUrl || null);
+          const currentEmpresaNome = (empresa?.nome && empresa.nome !== 'FluxBus Global') ? empresa.nome : '';
+          const resolvedNome = newCompanyName || comp?.name || comp?.nome || currentEmpresaNome || 'Viação São Silvestre';
+
           const empresaData: EmpresaInfo = {
-            id: comp.id || newCompanyId,
-            nome: comp.name || comp.nome || '',
+            id: newCompanyId,
+            nome: resolvedNome,
             logoUrl: cleanLogoUrl,
-            temaCor: comp.temaCor,
-            branchName: comp.branchName,
-            unitName: comp.unitName,
-            enabledFeatures: comp.enabledFeatures || []
+            temaCor: comp?.temaCor || empresa?.temaCor || 'dark',
+            branchName: comp?.branchName || empresa?.branchName,
+            unitName: comp?.unitName || empresa?.unitName,
+            enabledFeatures: comp?.enabledFeatures || empresa?.enabledFeatures || []
           };
           setEmpresa(empresaData);
           localStorage.setItem('empresa', JSON.stringify(empresaData));
+        } else if (!isSuperOrAdmin && !userData.companyId) {
+          setEmpresa(null);
+          localStorage.removeItem('empresa');
         }
 
         const rolePermissions = generatePermissions(updatedUser.role);

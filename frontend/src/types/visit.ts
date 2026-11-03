@@ -161,3 +161,22 @@ export interface EfficiencyReport {
   totalDistanceKm: number;
   totalTimeHours: number;
 }
+
+export interface Unit {
+  id: string;
+  name: string;
+  description?: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  code?: string;
+  manager?: string;
+  active: boolean;
+  companyId?: string;
+  branchId?: string;
+  branchName?: string;
+  clientId?: string;
+  clientName?: string;
+  parentId?: string;
+  parentName?: string;
+}

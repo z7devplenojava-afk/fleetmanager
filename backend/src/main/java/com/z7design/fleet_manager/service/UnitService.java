@@ -399,6 +399,19 @@ public class UnitService {
             parentName = null;
         }
         
+        UUID resolvedCompanyId = unit.getCompanyId();
+        UUID branchId = null;
+        String branchName = null;
+        try {
+            if (unit.getBranch() != null) {
+                branchId = unit.getBranch().getId();
+                branchName = unit.getBranch().getName();
+                if (resolvedCompanyId == null && unit.getBranch().getCompany() != null) {
+                    resolvedCompanyId = unit.getBranch().getCompany().getId();
+                }
+            }
+        } catch (Exception ignored) {}
+
         return UnitDTO.builder()
                 .id(unit.getId())
                 .name(unit.getName())
@@ -412,10 +425,25 @@ public class UnitService {
                 .clientName(clientName)
                 .parentId(parentId)
                 .parentName(parentName)
+                .companyId(resolvedCompanyId)
+                .branchId(branchId)
+                .branchName(branchName)
                 .createdAt(unit.getCreatedAt())
                 .updatedAt(unit.getUpdatedAt())
-                .employeeCount(0L) // Implementar contagem real se necessÃ¡rio
+                .employeeCount(0L)
                 .childrenCount((long) unitRepository.findByParentId(unit.getId()).size())
                 .build();
+    }
+
+    public List<UnitDTO> findByCompanyId(UUID companyId) {
+        if (companyId == null) return List.of();
+        return unitRepository.findAll().stream()
+                .filter(u -> {
+                    if (u.getCompanyId() != null && u.getCompanyId().equals(companyId)) return true;
+                    if (u.getBranch() != null && u.getBranch().getCompany() != null && u.getBranch().getCompany().getId().equals(companyId)) return true;
+                    return false;
+                })
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
     }
 } 
