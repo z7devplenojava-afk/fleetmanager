@@ -342,6 +342,26 @@ export const ClientContractMeasurementManager: React.FC = () => {
     }
   ]);
 
+  // Controle de Modais: Débitos / Deduções
+  const [isDeductionModalOpen, setIsDeductionModalOpen] = useState<boolean>(false);
+  const [isDeductionViewOpen, setIsDeductionViewOpen] = useState<boolean>(false);
+  const [selectedDeduction, setSelectedDeduction] = useState<ContractDeductionItem | null>(null);
+  const [deductionToDelete, setDeductionToDelete] = useState<ContractDeductionItem | null>(null);
+  const [isDeductionDeleteDialogOpen, setIsDeductionDeleteDialogOpen] = useState<boolean>(false);
+  const [deductionForm, setDeductionForm] = useState<{
+    date: string;
+    plate: string;
+    description: string;
+    type: 'DEBIT' | 'CREDIT';
+    value: number;
+  }>({
+    date: new Date().toISOString().split('T')[0],
+    plate: 'RUR-7A78',
+    description: '',
+    type: 'DEBIT',
+    value: 0
+  });
+
   // State: Nota Fiscal de Receita
   const [invoice, setInvoice] = useState<RevenueInvoiceData>({
     invoiceNumber: '0001642',
@@ -727,17 +747,103 @@ export const ClientContractMeasurementManager: React.FC = () => {
     });
   };
 
-  const handleAddDeduction = () => {
-    const newDed: ContractDeductionItem = {
-      id: `ded-${Date.now()}`,
+  const handleOpenAddDeduction = () => {
+    setSelectedDeduction(null);
+    setDeductionForm({
       date: new Date().toISOString().split('T')[0],
-      plate: 'RUR-7A78',
-      description: 'Manutenção Emergencial com NF Autorizada',
+      plate: leasedVehicles[0]?.plate || 'RUR-7A78',
+      description: '',
       type: 'DEBIT',
-      value: 250.00
+      value: 0
+    });
+    setIsDeductionModalOpen(true);
+  };
+
+  const handleOpenEditDeduction = (item: ContractDeductionItem) => {
+    setSelectedDeduction(item);
+    setDeductionForm({
+      date: item.date,
+      plate: item.plate,
+      description: item.description,
+      type: item.type,
+      value: item.value
+    });
+    setIsDeductionModalOpen(true);
+  };
+
+  const handleOpenViewDeduction = (item: ContractDeductionItem) => {
+    setSelectedDeduction(item);
+    setIsDeductionViewOpen(true);
+  };
+
+  const handleSaveDeduction = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!deductionForm.description.trim()) {
+      toast({
+        title: 'Campos Obrigatórios',
+        description: 'Informe a descrição do débito / desconto.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    const value = Number(deductionForm.value) || 0;
+    if (value <= 0) {
+      toast({
+        title: 'Valor inválido',
+        description: 'Informe um valor maior que zero para o débito / desconto.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    const payload = {
+      date: deductionForm.date,
+      plate: deductionForm.plate.trim().toUpperCase(),
+      description: deductionForm.description.trim().toUpperCase(),
+      type: deductionForm.type,
+      value: Number(value.toFixed(2))
     };
-    setDeductions([...deductions, newDed]);
-    toast({ title: 'Débito/Desconto inserido' });
+
+    if (selectedDeduction) {
+      setDeductions(prev =>
+        prev.map(d => (d.id === selectedDeduction.id ? { ...d, ...payload } : d))
+      );
+      toast({
+        title: 'Débito Atualizado',
+        description: 'Os dados do lançamento foram atualizados na medição.'
+      });
+    } else {
+      const newDed: ContractDeductionItem = {
+        id: `ded-${Date.now()}`,
+        ...payload
+      };
+      setDeductions(prev => [...prev, newDed]);
+      toast({
+        title: 'Débito/Desconto inserido',
+        description: `Lançamento de R$ ${payload.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} adicionado.`
+      });
+    }
+
+    setIsDeductionModalOpen(false);
+    setSelectedDeduction(null);
+  };
+
+  const handleRequestDeleteDeduction = (item: ContractDeductionItem) => {
+    setDeductionToDelete(item);
+    setIsDeductionDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDeleteDeduction = () => {
+    if (!deductionToDelete) return;
+    setDeductions(prev => prev.filter(d => d.id !== deductionToDelete.id));
+    toast({
+      title: 'Débito Removido',
+      description: 'O lançamento foi excluído e os totais da medição recalculados.'
+    });
+    setIsDeductionDeleteDialogOpen(false);
+    setDeductionToDelete(null);
   };
 
   const handleSendToReceivables = () => {
@@ -1312,7 +1418,7 @@ export const ClientContractMeasurementManager: React.FC = () => {
                   Descontos de apólice de seguro, IPVA ou autopeças conforme modelo de demonstrativo.
                 </CardDescription>
               </div>
-              <Button onClick={handleAddDeduction} size="sm" variant="outline" className="border-red-500/50 bg-red-950/30 text-red-300 hover:bg-red-900/60">
+              <Button onClick={handleOpenAddDeduction} size="sm" variant="outline" className="border-red-500/50 bg-red-950/30 text-red-300 hover:bg-red-900/60">
                 <Plus className="w-4 h-4 mr-1" /> Adicionar Débito
               </Button>
             </CardHeader>
@@ -1326,22 +1432,67 @@ export const ClientContractMeasurementManager: React.FC = () => {
                       <TableHead className="text-zinc-300">Descrição do Débito / Desconto</TableHead>
                       <TableHead className="text-center text-zinc-300">Tipo</TableHead>
                       <TableHead className="text-right text-zinc-300">Valor (R$)</TableHead>
+                      <TableHead className="text-center text-zinc-300 w-28">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {deductions.map(ded => (
-                      <TableRow key={ded.id} className="border-zinc-800">
-                        <TableCell className="font-mono text-xs text-zinc-400">{ded.date}</TableCell>
-                        <TableCell className="font-mono text-xs font-bold text-blue-400">{ded.plate}</TableCell>
-                        <TableCell className="text-zinc-200">{ded.description}</TableCell>
-                        <TableCell className="text-center">
-                          <Badge className="bg-red-500/20 text-red-300 border-red-500/40">DÉBITO</Badge>
-                        </TableCell>
-                        <TableCell className="text-right font-mono font-bold text-red-400">
-                          -R$ {ded.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    {deductions.length === 0 ? (
+                      <TableRow className="border-zinc-800">
+                        <TableCell colSpan={6} className="text-center text-zinc-500 text-sm py-6">
+                          Nenhum débito ou repasse lançado.
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      deductions.map(ded => (
+                        <TableRow key={ded.id} className="border-zinc-800 hover:bg-zinc-900/50">
+                          <TableCell className="font-mono text-xs text-zinc-400">{ded.date}</TableCell>
+                          <TableCell className="font-mono text-xs font-bold text-blue-400">{ded.plate}</TableCell>
+                          <TableCell className="text-zinc-200">{ded.description}</TableCell>
+                          <TableCell className="text-center">
+                            {ded.type === 'CREDIT' ? (
+                              <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40">CRÉDITO</Badge>
+                            ) : (
+                              <Badge className="bg-red-500/20 text-red-300 border-red-500/40">DÉBITO</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className={`text-right font-mono font-bold ${ded.type === 'CREDIT' ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {ded.type === 'CREDIT' ? '+R$ ' : '-R$ '}
+                            {ded.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleOpenViewDeduction(ded)}
+                                className="h-8 w-8 p-0 text-blue-400 hover:text-blue-300 hover:bg-blue-950/40 rounded-lg"
+                                title="Visualizar Débito"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleOpenEditDeduction(ded)}
+                                className="h-8 w-8 p-0 text-amber-400 hover:text-amber-300 hover:bg-amber-950/40 rounded-lg"
+                                title="Editar Débito"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleRequestDeleteDeduction(ded)}
+                                className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-950/40 rounded-lg"
+                                title="Excluir Débito"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </div>
@@ -1750,6 +1901,224 @@ export const ClientContractMeasurementManager: React.FC = () => {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* MODAL: Visualizar Débito / Repasse de Contrato */}
+      <Dialog open={isDeductionViewOpen} onOpenChange={setIsDeductionViewOpen}>
+        <DialogContent className="w-[95vw] max-w-md bg-zinc-950 border border-zinc-800 text-zinc-100 rounded-2xl p-0 overflow-hidden shadow-2xl">
+          <div className="bg-zinc-900/90 border-b border-zinc-800 p-4 sm:p-5 flex items-center justify-between">
+            <div>
+              <DialogTitle className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+                <Eye className="h-5 w-5 text-blue-400" />
+                Detalhes do Débito / Repasse
+              </DialogTitle>
+              <DialogDescription className="text-xs text-zinc-400 mt-0.5">
+                Lançamento aplicado ao fechamento da medição.
+              </DialogDescription>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsDeductionViewOpen(false)}
+              className="w-8 h-8 rounded-lg bg-zinc-800/80 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 flex items-center justify-center transition-all"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {selectedDeduction && (
+            <div className="p-4 sm:p-6 space-y-3 text-sm">
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-zinc-400 text-xs font-semibold uppercase">Data</span>
+                <span className="col-span-2 font-mono text-zinc-200">{selectedDeduction.date}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-zinc-400 text-xs font-semibold uppercase">Placa</span>
+                <span className="col-span-2 font-mono font-bold text-blue-400">{selectedDeduction.plate}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-zinc-400 text-xs font-semibold uppercase">Descrição</span>
+                <span className="col-span-2 text-zinc-200">{selectedDeduction.description}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-zinc-400 text-xs font-semibold uppercase">Tipo</span>
+                <span className="col-span-2">
+                  {selectedDeduction.type === 'CREDIT' ? (
+                    <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40">CRÉDITO</Badge>
+                  ) : (
+                    <Badge className="bg-red-500/20 text-red-300 border-red-500/40">DÉBITO</Badge>
+                  )}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-zinc-400 text-xs font-semibold uppercase">Valor</span>
+                <span className={`col-span-2 font-mono text-base font-bold ${selectedDeduction.type === 'CREDIT' ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {selectedDeduction.type === 'CREDIT' ? '+R$ ' : '-R$ '}
+                  {selectedDeduction.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsDeductionViewOpen(false)}
+                  className="border-zinc-700 text-zinc-300 hover:bg-zinc-800 text-xs h-9 px-4 rounded-xl"
+                >
+                  Fechar
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setIsDeductionViewOpen(false);
+                    handleOpenEditDeduction(selectedDeduction);
+                  }}
+                  className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs h-9 px-4 rounded-xl shadow-lg shadow-amber-500/20"
+                >
+                  <Edit2 className="w-3.5 h-3.5 mr-1" /> Editar
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL: Adicionar / Editar Débito / Repasse de Contrato */}
+      <Dialog open={isDeductionModalOpen} onOpenChange={setIsDeductionModalOpen}>
+        <DialogContent className="w-[95vw] max-w-lg bg-zinc-950 border border-zinc-800 text-zinc-100 rounded-2xl p-0 overflow-hidden shadow-2xl">
+          <div className="bg-zinc-900/90 border-b border-zinc-800 p-4 sm:p-5 flex items-center justify-between">
+            <div>
+              <DialogTitle className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+                <Receipt className="h-5 w-5 text-red-400" />
+                {selectedDeduction ? 'Editar Débito / Repasse' : 'Adicionar Débito / Repasse'}
+              </DialogTitle>
+              <DialogDescription className="text-xs text-zinc-400 mt-0.5">
+                Lançamento aplicado ao fechamento da medição do contrato.
+              </DialogDescription>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsDeductionModalOpen(false)}
+              className="w-8 h-8 rounded-lg bg-zinc-800/80 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 flex items-center justify-center transition-all"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <form onSubmit={handleSaveDeduction} className="p-4 sm:p-6 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs text-zinc-300 font-semibold mb-1 block">Data *</Label>
+                <Input
+                  type="date"
+                  value={deductionForm.date}
+                  onChange={(e) => setDeductionForm(prev => ({ ...prev, date: e.target.value }))}
+                  required
+                  className="bg-zinc-900 border-zinc-700 text-white font-mono text-xs h-10 rounded-xl"
+                />
+              </div>
+
+              <div>
+                <Label className="text-xs text-zinc-300 font-semibold mb-1 block">Placa do Veículo</Label>
+                <Input
+                  value={deductionForm.plate}
+                  onChange={(e) => setDeductionForm(prev => ({ ...prev, plate: e.target.value.toUpperCase() }))}
+                  placeholder="Ex: RUR-7A78"
+                  className="bg-zinc-900 border-zinc-700 text-blue-400 font-mono font-bold text-xs h-10 rounded-xl"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs text-zinc-300 font-semibold mb-1 block">Descrição do Débito / Desconto *</Label>
+              <Input
+                value={deductionForm.description}
+                onChange={(e) => setDeductionForm(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Ex: APÓLICE SEGURO DE FROTA - MÊS ABRIL"
+                required
+                className="bg-zinc-900 border-zinc-700 text-white text-xs h-10 rounded-xl"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs text-zinc-300 font-semibold mb-1 block">Tipo *</Label>
+                <Select
+                  value={deductionForm.type}
+                  onValueChange={(value: 'DEBIT' | 'CREDIT') => setDeductionForm(prev => ({ ...prev, type: value }))}
+                >
+                  <SelectTrigger className="bg-zinc-900 border-zinc-700 text-white text-xs h-10 rounded-xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-900 border-zinc-700 text-zinc-100">
+                    <SelectItem value="DEBIT">Débito (desconta do total)</SelectItem>
+                    <SelectItem value="CREDIT">Crédito / Repasse (soma ao total)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label className="text-xs text-zinc-300 font-semibold mb-1 block">Valor (R$) *</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={deductionForm.value}
+                  onChange={(e) => setDeductionForm(prev => ({ ...prev, value: parseFloat(e.target.value) || 0 }))}
+                  placeholder="Ex: 159.80"
+                  required
+                  className="bg-zinc-900 border-zinc-700 text-red-400 font-mono font-bold text-sm h-10 rounded-xl"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsDeductionModalOpen(false)}
+                className="border-zinc-700 text-zinc-300 hover:bg-zinc-800 text-xs h-9 px-4 rounded-xl"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                className="bg-red-600 hover:bg-red-500 text-white font-bold text-xs h-9 px-4 rounded-xl shadow-lg shadow-red-600/20"
+              >
+                {selectedDeduction ? 'Salvar Alterações' : 'Adicionar Débito'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo de Confirmação de Exclusão de Débito */}
+      <AlertDialog open={isDeductionDeleteDialogOpen} onOpenChange={setIsDeductionDeleteDialogOpen}>
+        <AlertDialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-lg font-bold text-red-400 flex items-center gap-2">
+              <Trash2 className="w-5 h-5 text-red-400" />
+              Excluir Débito / Repasse?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-zinc-400 text-sm">
+              Tem certeza que deseja excluir <span className="font-bold text-white">{deductionToDelete?.description}</span>
+              {deductionToDelete?.plate ? (
+                <> da placa <span className="font-mono font-bold text-white">{deductionToDelete.plate}</span></>
+              ) : null}?
+              Esta ação recalculará os totais da medição.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-zinc-900 border-zinc-700 text-zinc-300 hover:bg-zinc-800">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDeleteDeduction}
+              className="bg-red-600 hover:bg-red-500 text-white font-bold"
+            >
+              Sim, Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Diálogo de Confirmação de Exclusão */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
