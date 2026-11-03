@@ -58,3 +58,4 @@ public class KioskDeviceAuthentication implements Authentication {
         return device != null ? device.getDeviceCode() : "KIOSK_DEVICE";
     }
 }
+

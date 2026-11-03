@@ -31,3 +31,4 @@ public class UpdateKioskDeviceRequest {
 
     private UUID desiredPresentationVersionId;
 }
+

@@ -113,3 +113,4 @@ public class DeviceAuthenticationFilter extends OncePerRequestFilter {
         response.getWriter().write(objectMapper.writeValueAsString(errorBody));
     }
 }
+

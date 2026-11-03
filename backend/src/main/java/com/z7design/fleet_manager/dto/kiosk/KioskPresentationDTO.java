@@ -52,3 +52,4 @@ public class KioskPresentationDTO {
                 .build();
     }
 }
+

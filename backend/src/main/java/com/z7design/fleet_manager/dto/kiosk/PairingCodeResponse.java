@@ -20,3 +20,4 @@ public class PairingCodeResponse {
     private String deviceName;
     private String qrCodeDataUrl;
 }
+

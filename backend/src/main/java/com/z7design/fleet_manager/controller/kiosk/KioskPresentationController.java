@@ -99,3 +99,4 @@ public class KioskPresentationController {
         return ResponseEntity.ok(presentationService.publish(id, request));
     }
 }
+

@@ -20,3 +20,4 @@ public class DeviceHeartbeatRequest {
     private Double memoryUsagePercent;
     private String currentSlideId;
 }
+

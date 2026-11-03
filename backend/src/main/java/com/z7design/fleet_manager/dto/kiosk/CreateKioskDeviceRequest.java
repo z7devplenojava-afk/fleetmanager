@@ -36,3 +36,4 @@ public class CreateKioskDeviceRequest {
     @Builder.Default
     private String orientation = "PORTRAIT";
 }
+

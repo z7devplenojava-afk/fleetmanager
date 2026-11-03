@@ -77,3 +77,4 @@ public class KioskPlayerService {
         eventRepository.save(event);
     }
 }
+

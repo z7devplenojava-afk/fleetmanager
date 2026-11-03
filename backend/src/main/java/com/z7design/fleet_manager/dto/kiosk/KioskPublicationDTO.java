@@ -47,3 +47,4 @@ public class KioskPublicationDTO {
                 .build();
     }
 }
+

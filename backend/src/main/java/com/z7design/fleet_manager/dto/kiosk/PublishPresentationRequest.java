@@ -17,3 +17,4 @@ public class PublishPresentationRequest {
     private List<UUID> deviceIds;
     private LocalDateTime scheduledAt;
 }
+

@@ -19,3 +19,4 @@ public class CreateKioskPresentationRequest {
     @Builder.Default
     private Integer idleTimeoutSeconds = 60;
 }
+

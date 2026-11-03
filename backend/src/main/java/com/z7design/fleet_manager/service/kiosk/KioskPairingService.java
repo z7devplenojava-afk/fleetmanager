@@ -111,3 +111,4 @@ public class KioskPairingService {
                 .build();
     }
 }
+

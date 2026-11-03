@@ -25,3 +25,4 @@ public class PairDeviceResponse {
     private Integer resolutionHeight;
     private String wsTopic;
 }
+

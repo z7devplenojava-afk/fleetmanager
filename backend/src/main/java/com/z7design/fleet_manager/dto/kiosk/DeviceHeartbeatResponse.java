@@ -18,3 +18,4 @@ public class DeviceHeartbeatResponse {
     private boolean syncNeeded;
     private LocalDateTime serverTime;
 }
+
