@@ -56,6 +56,7 @@ public class LineTimeSlot implements TenantAware {
     private LocalTime departureTime;
 
     @Column(name = "status", nullable = false, length = 20)
+    @Builder.Default
     private String status = STATUS_ATIVO;
 
     @CreationTimestamp

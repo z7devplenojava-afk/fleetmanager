@@ -58,6 +58,7 @@ public class FuelPumpReading implements TenantAware {
     @Column(name = "driver_name")
     private String driverName;
 
+    @Builder.Default
     @Column(name = "has_divergence_alert")
     private Boolean hasDivergenceAlert = false;
 

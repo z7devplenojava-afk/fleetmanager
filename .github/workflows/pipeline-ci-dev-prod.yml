@@ -67,11 +67,13 @@ jobs:
       - name: "🔨 Build Backend (Gradle)"
         working-directory: ./backend
         timeout-minutes: 20
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8"
         run: |
           chmod +x gradlew
           for attempt in 1 2 3; do
             echo "Tentativa $attempt..."
-            ./gradlew clean bootJar -x test --no-daemon && break || {
+            ./gradlew clean bootJar -x test --no-daemon -Dorg.gradle.jvmargs="-Xmx2048m -XX:MaxMetaspaceSize=768m -XX:+UseG1GC" && break || {
               [ $attempt -lt 3 ] && sleep 10 || { echo "Build falhou!"; exit 1; }
             }
           done

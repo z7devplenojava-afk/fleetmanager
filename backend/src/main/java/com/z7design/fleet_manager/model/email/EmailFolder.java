@@ -62,12 +62,15 @@ public class EmailFolder {
     private Long uidValidity;
 
     @Column(name = "highest_uid")
+    @Builder.Default
     private Long highestUid = 0L;
 
     @Column(name = "total_messages")
+    @Builder.Default
     private Integer totalMessages = 0;
 
     @Column(name = "is_system")
+    @Builder.Default
     private Boolean system = false;
 
     @CreationTimestamp
