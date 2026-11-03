@@ -576,7 +576,9 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
               const diffDate = b.dueDate && inst.dueDate && b.dueDate !== inst.dueDate;
               let alert: string | undefined = undefined;
               if (diffVal || diffDate) {
-                alert = `Boleto diverge da parcela: Valor Boleto R$ ${Number(b.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (${b.dueDate || 'sem data'}) vs Parcela R$ ${Number(inst.value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (${inst.dueDate || 'sem data'})`;
+                const valBol = Number(b.amount || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
+                const valInst = Number(inst.value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
+                alert = "Boleto diverge da parcela: Valor Boleto R$ " + valBol + " (" + (b.dueDate || "sem data") + ") vs Parcela R$ " + valInst + " (" + (inst.dueDate || "sem data") + ")";
               }
               return {
                 ...inst,
@@ -614,7 +616,9 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
             const diffDate = b.dueDate && targetInst.dueDate && b.dueDate !== targetInst.dueDate;
             let alert: string | undefined = undefined;
             if (diffVal || diffDate) {
-              alert = `Boleto diverge da NF: R$ ${Number(b.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (${b.dueDate || 'sem data'}) vs Parcela R$ ${Number(targetInst.value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (${targetInst.dueDate || 'sem data'})`;
+              const valBol = Number(b.amount || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
+              const valTgt = Number(targetInst.value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
+              alert = "Boleto diverge da NF: R$ " + valBol + " (" + (b.dueDate || "sem data") + ") vs Parcela R$ " + valTgt + " (" + (targetInst.dueDate || "sem data") + ")";
             }
 
             updated[bestMatchIndex] = {
