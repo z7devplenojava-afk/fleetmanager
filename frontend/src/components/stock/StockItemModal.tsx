@@ -576,7 +576,7 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
               const diffDate = b.dueDate && inst.dueDate && b.dueDate !== inst.dueDate;
               let alert: string | undefined = undefined;
               if (diffVal || diffDate) {
-                alert = Boleto diverge da parcela: Valor Boleto R$  () vs Parcela R$  ();
+                alert = `Boleto diverge da parcela: Valor Boleto R$ ${Number(b.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (${b.dueDate || 'sem data'}) vs Parcela R$ ${Number(inst.value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (${inst.dueDate || 'sem data'})`;
               }
               return {
                 ...inst,
@@ -614,7 +614,7 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
             const diffDate = b.dueDate && targetInst.dueDate && b.dueDate !== targetInst.dueDate;
             let alert: string | undefined = undefined;
             if (diffVal || diffDate) {
-              alert = Boleto diverge da NF: R$  () vs Parcela R$  ();
+              alert = `Boleto diverge da NF: R$ ${Number(b.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (${b.dueDate || 'sem data'}) vs Parcela R$ ${Number(targetInst.value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (${targetInst.dueDate || 'sem data'})`;
             }
 
             updated[bestMatchIndex] = {
@@ -633,7 +633,7 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
 
       toast({
         title: 'Boletos processados com sucesso!',
-        description: ${parsedBoletos.length} boleto(s) analisado(s) e associado(s) às parcelas.,
+        description: `${parsedBoletos.length} boleto(s) analisado(s) e associado(s) às parcelas.`,
       });
     } catch (err: any) {
       console.error('Erro ao ler boletos:', err);
@@ -1476,10 +1476,10 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
                 </div>
               </div>
 
-              <div className={`grid grid-cols-1 ${hasSizeVariation ? 'sm:grid-cols-2' : ''} gap-3 sm:gap-4`}>
+              <div className={`grid grid-cols-1 ${hasSizeVariation ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} gap-3 sm:gap-4`}>
                 <div className="space-y-2">
-                  <Label htmlFor="category" className="text-gray-300 flex items-center gap-2 text-sm sm:text-base">
-                    <Tag className="h-3 w-3 sm:h-4 sm:w-4 text-seguranca-red flex-shrink-0" />
+                  <Label htmlFor="category" className="text-gray-300 flex items-center gap-2 text-sm sm:text-base font-medium">
+                    <Tag className="h-3.5 w-3.5 text-seguranca-red flex-shrink-0" />
                     Categoria *
                   </Label>
                   <Select 
@@ -1507,19 +1507,36 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
 
                 {hasSizeVariation && (
                   <div className="space-y-2">
-                    <Label htmlFor="sizeVariation" className="text-gray-300 flex items-center gap-2 text-sm sm:text-base">
-                      <Ruler className="h-3 w-3 sm:h-4 sm:w-4 text-seguranca-red flex-shrink-0" />
-                      Tamanho / Numeração (Variação)
+                    <Label htmlFor="sizeVariation" className="text-gray-300 flex items-center gap-2 text-sm sm:text-base font-medium">
+                      <Ruler className="h-3.5 w-3.5 text-seguranca-red flex-shrink-0" />
+                      Tamanho / Numeração
                     </Label>
                     <Input
                       id="sizeVariation"
                       value={formData.sizeVariation || ''}
                       onChange={(e) => handleInputChange('sizeVariation', e.target.value)}
-                      placeholder={formData.category === StockCategory.CALCADOS ? 'Ex: 38, 39, 40, 41, 42...' : 'Ex: P, M, G, GG, EXG...'}
+                      placeholder={formData.category === StockCategory.CALCADOS ? 'Ex: 38, 39, 40...' : 'Ex: P, M, G, GG...'}
                       className="bg-seguranca-black/50 border-gray-600/30 text-white placeholder-gray-400 focus:border-seguranca-red/50 focus:ring-seguranca-red/20 h-10 sm:h-11 text-sm sm:text-base"
                     />
                   </div>
                 )}
+
+                <div className="space-y-2">
+                  <Label htmlFor="barcode" className="text-gray-300 flex items-center justify-between text-sm sm:text-base font-medium">
+                    <span className="flex items-center gap-2">
+                      <Barcode className="h-3.5 w-3.5 text-seguranca-red flex-shrink-0" />
+                      Código de Barras / EAN
+                    </span>
+                    <span className="text-[10px] text-gray-400">Leitor ou Digitação</span>
+                  </Label>
+                  <Input
+                    id="barcode"
+                    value={formData.barcode}
+                    onChange={(e) => handleInputChange('barcode', e.target.value)}
+                    placeholder="Ex: 7891234567890"
+                    className="bg-seguranca-black/50 border-gray-600/30 text-white placeholder-gray-400 focus:border-seguranca-red/50 focus:ring-seguranca-red/20 h-10 sm:h-11 text-sm sm:text-base font-mono"
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -1686,53 +1703,265 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
               </div>
             )}
 
-            {/* Estoque */}
-            <div className="space-y-3 sm:space-y-4">
-              <h3 className="text-base sm:text-lg font-semibold text-white flex items-center gap-2">
-                <Box className="h-4 w-4 sm:h-5 sm:w-5 text-seguranca-red flex-shrink-0" />
-                <span className="truncate">Controle de Estoque</span>
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="currentQuantity" className="text-gray-300 text-sm sm:text-base font-bold">
-                    QTDE (Quantidade) *
+            {/* 1. Controle de Estoque & Níveis */}
+            <div className="rounded-2xl bg-gradient-to-br from-slate-900/80 via-slate-950/90 to-slate-950 border border-slate-800/80 p-4 sm:p-5 space-y-3.5 shadow-md">
+              <div className="flex items-center justify-between border-b border-slate-800/80 pb-2.5">
+                <h3 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+                  <Box className="h-4 w-4 sm:h-5 sm:w-5 text-amber-400 flex-shrink-0" />
+                  <span>Controle de Estoque & Níveis</span>
+                </h3>
+                <Badge variant="outline" className={`text-[10px] font-semibold py-0.5 px-2 ${
+                  formData.currentQuantity <= formData.minimumQuantity
+                    ? "border-amber-500/50 text-amber-400 bg-amber-500/10"
+                    : "border-emerald-500/50 text-emerald-400 bg-emerald-500/10"
+                }`}>
+                  {formData.currentQuantity <= formData.minimumQuantity ? "⚠️ Atenção: Nível Mínimo" : "✅ Estoque Regular"}
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="currentQuantity" className="text-gray-200 text-xs sm:text-sm font-bold flex items-center gap-1.5">
+                    <span>QTDE (Quantidade Atual) *</span>
                   </Label>
                   <Input
                     id="currentQuantity"
                     type="number"
                     min="0"
                     value={formData.currentQuantity}
-                    onChange={(e) => handleInputChange('currentQuantity', parseInt(e.target.value) || 0)}
-                    className="bg-seguranca-black/50 border-gray-600/30 text-white placeholder-gray-400 focus:border-seguranca-red/50 focus:ring-seguranca-red/20 h-10 sm:h-11 text-sm sm:text-base"
+                    onChange={(e) => handleInputChange("currentQuantity", parseInt(e.target.value) || 0)}
+                    className="bg-seguranca-black/60 border-slate-700 text-white font-mono font-bold placeholder-gray-500 focus:border-amber-500/60 focus:ring-amber-500/20 h-10 sm:h-11 text-base sm:text-lg"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="minimumQuantity" className="text-gray-300 text-sm sm:text-base">
-                    Quantidade Mínima
+                <div className="space-y-1.5">
+                  <Label htmlFor="minimumQuantity" className="text-gray-300 text-xs sm:text-sm font-medium">
+                    Quantidade Mínima (Ponto de Reposição)
                   </Label>
                   <Input
                     id="minimumQuantity"
                     type="number"
                     min="0"
                     value={formData.minimumQuantity}
-                    onChange={(e) => handleInputChange('minimumQuantity', parseInt(e.target.value) || 0)}
-                    className="bg-seguranca-black/50 border-gray-600/30 text-white placeholder-gray-400 focus:border-seguranca-red/50 focus:ring-seguranca-red/20 h-10 sm:h-11 text-sm sm:text-base"
+                    onChange={(e) => handleInputChange("minimumQuantity", parseInt(e.target.value) || 0)}
+                    className="bg-seguranca-black/60 border-slate-700 text-white font-mono placeholder-gray-500 focus:border-amber-500/60 focus:ring-amber-500/20 h-10 sm:h-11 text-sm sm:text-base"
                   />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-gray-300 text-xs sm:text-sm font-medium">
+                    Unidade de Medida & Posição
+                  </Label>
+                  <div className="h-10 sm:h-11 bg-slate-950/80 border border-slate-800 rounded-md px-3 flex items-center justify-between text-xs text-slate-300">
+                    <span className="font-bold text-amber-400 font-mono uppercase">{formData.unitMeasure || "UN"}</span>
+                    <span className="text-slate-400">Total: <strong className="text-white">{formData.currentQuantity}</strong> {formData.unitMeasure || "UN"}</span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Informações Comerciais */}
-            <div className="space-y-3 sm:space-y-4">
-              <h3 className="text-base sm:text-lg font-semibold text-white flex items-center gap-2">
-                <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-seguranca-red flex-shrink-0" />
-                <span className="truncate">Informações Comerciais</span>
-              </h3>
+            {/* 2. Origem da Compra & Documento Fiscal (NF-e) */}
+            <div className="rounded-2xl bg-gradient-to-br from-slate-900/80 via-slate-950/90 to-slate-950 border border-slate-800/80 p-4 sm:p-5 space-y-4 shadow-md">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-800/80 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-400 shrink-0">
+                    <Building2 className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+                      Origem da Compra & Documento Fiscal
+                    </h3>
+                    <p className="text-[11px] text-slate-400">
+                      Vincule o fornecedor emitente e a nota fiscal de entrada para controle financeiro
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => xmlInputRef.current?.click()}
+                    disabled={loadingXml}
+                    className="h-8 px-3 border-amber-500/40 bg-amber-500/10 text-amber-300 hover:text-white hover:bg-amber-500/20 text-xs font-bold flex items-center gap-1.5 rounded-lg transition-all shadow-sm"
+                    title="Carregar dados de itens, fornecedor e faturamento pelo XML ou PDF da NF-e"
+                  >
+                    {loadingXml ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-400" />
+                    ) : (
+                      <Upload className="h-3.5 w-3.5 text-amber-400" />
+                    )}
+                    <span>Importar XML / PDF</span>
+                  </Button>
+                  <input
+                    ref={xmlInputRef}
+                    type="file"
+                    accept=".xml,.pdf,text/xml,application/pdf"
+                    className="hidden"
+                    onChange={handleXmlUpload}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Fornecedor */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="supplier" className="text-gray-200 text-xs sm:text-sm font-semibold flex items-center gap-1.5">
+                      <Building2 className="h-3.5 w-3.5 text-amber-400" />
+                      Fornecedor / Emitente
+                    </Label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSupplierModalOpen(true);
+                        setSupplierComboboxOpen(false);
+                      }}
+                      className="text-[11px] text-amber-400 hover:text-amber-300 hover:underline font-semibold flex items-center gap-1"
+                    >
+                      <Plus className="h-3 w-3" />
+                      Novo Fornecedor
+                    </button>
+                  </div>
+
+                  {loadingSuppliers ? (
+                    <div className="p-2.5 bg-blue-500/10 border border-blue-500/30 rounded-lg text-xs text-blue-400 text-center">
+                      Carregando fornecedores...
+                    </div>
+                  ) : suppliers.length === 0 ? (
+                    <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg space-y-2">
+                      <p className="text-xs text-amber-300">Nenhum fornecedor cadastrado.</p>
+                      <Button
+                        type="button"
+                        onClick={() => setIsSupplierModalOpen(true)}
+                        size="sm"
+                        className="w-full bg-amber-600 hover:bg-amber-700 text-white text-xs h-8"
+                      >
+                        <Plus className="h-3.5 w-3.5 mr-1" />
+                        Cadastrar Fornecedor
+                      </Button>
+                    </div>
+                  ) : (
+                    <Popover open={supplierComboboxOpen} onOpenChange={setSupplierComboboxOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={supplierComboboxOpen}
+                          className="w-full justify-between bg-seguranca-black/60 border-slate-700 text-white hover:bg-slate-900 focus:border-amber-500/60 h-10 sm:h-11 text-xs sm:text-sm"
+                        >
+                          {selectedSupplier ? (
+                            <div className="flex items-center gap-2 truncate">
+                              <Building2 className="h-4 w-4 flex-shrink-0 text-amber-400" />
+                              <span className="truncate font-semibold">{selectedSupplier.name}</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 text-slate-400">
+                              <Building2 className="h-4 w-4 flex-shrink-0 text-slate-500" />
+                              <span>Selecione o fornecedor...</span>
+                            </div>
+                          )}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent 
+                        className="w-[var(--radix-popover-trigger-width)] p-0 bg-slate-950 border-slate-800 z-[10020] text-white shadow-2xl" 
+                        align="start"
+                        style={{ zIndex: 10020 }}
+                      >
+                        <Command shouldFilter={false} className="bg-slate-950 text-white">
+                          <CommandInput 
+                            placeholder="Buscar por nome ou CNPJ..." 
+                            className="text-white"
+                            value={supplierSearchTerm}
+                            onValueChange={setSupplierSearchTerm}
+                          />
+                          <CommandList className="max-h-60 overflow-y-auto">
+                            <CommandEmpty className="text-slate-400 py-4 text-center text-xs">
+                              {supplierSearchTerm 
+                                ? "Nenhum fornecedor encontrado para este termo."
+                                : "Nenhum fornecedor disponível."}
+                            </CommandEmpty>
+                            <CommandGroup>
+                              {filteredSuppliers.map((supplier) => (
+                                <CommandItem
+                                  key={supplier.id}
+                                  value={supplier.name}
+                                  onSelect={() => {
+                                    handleInputChange("supplier", supplier.name);
+                                    setSupplierComboboxOpen(false);
+                                    setSupplierSearchTerm("");
+                                  }}
+                                  className="text-white hover:bg-slate-900 focus:bg-slate-900 cursor-pointer py-2 px-3 text-xs"
+                                >
+                                  <Check
+                                    className={`mr-2 h-3.5 w-3.5 text-amber-400 ${
+                                      formData.supplier === supplier.name ? "opacity-100" : "opacity-0"
+                                    }`}
+                                  />
+                                  <div className="flex flex-col">
+                                    <span className="font-semibold text-slate-200">{supplier.name}</span>
+                                    {supplier.cnpj && (
+                                      <span className="text-[10px] text-slate-400 font-mono">CNPJ: {supplier.cnpj}</span>
+                                    )}
+                                  </div>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  )}
+                </div>
+
+                {/* NF de Entrada */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="invoiceNumber" className="text-gray-200 text-xs sm:text-sm font-semibold flex items-center gap-1.5">
+                    <FileText className="h-3.5 w-3.5 text-amber-400" />
+                    Número da NF de Entrada (DANFE)
+                  </Label>
+                  <Input
+                    id="invoiceNumber"
+                    value={formData.invoiceNumber || ""}
+                    onChange={(e) => handleInputChange("invoiceNumber", e.target.value)}
+                    placeholder="Ex: 1613535"
+                    className="bg-seguranca-black/60 border-slate-700 text-white font-mono font-bold placeholder-gray-500 focus:border-amber-500/60 focus:ring-amber-500/20 h-10 sm:h-11 text-sm sm:text-base"
+                  />
+                  {formData.invoiceNumber && (
+                    <div className="flex items-center gap-2 pt-0.5 flex-wrap">
+                      <Badge className="bg-blue-950/80 text-blue-300 border-blue-500/40 text-[10px] font-mono">
+                        NF Registrada: Nº {formData.invoiceNumber}
+                      </Badge>
+                      {invoiceData.series && (
+                        <Badge variant="outline" className="border-slate-700 text-slate-400 text-[10px] font-mono">
+                          Série: {invoiceData.series}
+                        </Badge>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* 3. Valores Comerciais & Custos de Aquisição */}
+            <div className="rounded-2xl bg-gradient-to-br from-slate-900/80 via-slate-950/90 to-slate-950 border border-slate-800/80 p-4 sm:p-5 space-y-3.5 shadow-md">
+              <div className="flex items-center justify-between border-b border-slate-800/80 pb-2.5">
+                <h3 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+                  <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-400 flex-shrink-0" />
+                  <span>Valores Comerciais & Custos de Aquisição</span>
+                </h3>
+                <span className="text-[11px] text-slate-400 font-medium">Cálculo de Estoque em Tempo Real</span>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="unitCost" className="text-gray-300 text-sm sm:text-base font-bold">
-                    VALOR (Unitário R$)
+                {/* Valor Unitário */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="unitCost" className="text-gray-200 text-xs sm:text-sm font-bold flex items-center justify-between">
+                    <span>VALOR (Unitário R$) *</span>
+                    <span className="text-[10px] text-amber-400 font-normal">Preço unitário</span>
                   </Label>
                   <Input
                     id="unitCost"
@@ -1740,26 +1969,29 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
                     value={unitCostDisplay}
                     onChange={(e) => handleCurrencyChange(e.target.value)}
                     placeholder="0,00"
-                    className="bg-seguranca-black/50 border-gray-600/30 text-white placeholder-gray-400 focus:border-seguranca-red/50 focus:ring-seguranca-red/20 h-10 sm:h-11 text-sm sm:text-base font-mono"
+                    className="bg-seguranca-black/60 border-slate-700 text-white font-mono font-bold text-base sm:text-lg placeholder-gray-500 focus:border-emerald-500/60 focus:ring-emerald-500/20 h-10 sm:h-11"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-gray-300 text-sm sm:text-base font-medium flex items-center justify-between">
-                    <span>Valor Total (R$)</span>
-                    <span className="text-[10px] text-green-400">QTDE × Unit.</span>
+                {/* Valor Total da Entrada (KPI Esmeralda) */}
+                <div className="space-y-1.5">
+                  <Label className="text-gray-200 text-xs sm:text-sm font-semibold flex items-center justify-between">
+                    <span>Valor Total da Entrada (R$)</span>
+                    <span className="text-[10px] text-emerald-400 font-mono font-bold">QTDE × Unit.</span>
                   </Label>
-                  <div className="bg-seguranca-black/60 border border-green-500/30 rounded-md px-3 h-10 sm:h-11 flex items-center justify-between text-green-400 font-bold font-mono text-sm sm:text-base shadow-inner">
-                    <span className="text-xs text-green-500/70">R$</span>
+                  <div className="bg-slate-950 border border-emerald-500/40 rounded-xl px-3.5 h-10 sm:h-11 flex items-center justify-between text-emerald-400 font-black font-mono text-base sm:text-lg shadow-inner">
+                    <span className="text-xs text-emerald-500/70 font-sans font-bold">R$</span>
                     <span>
-                      {((formData.currentQuantity || 0) * (formData.unitCost || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {((formData.currentQuantity || 0) * (formData.unitCost || 0)).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="averageCost" className="text-gray-300 text-sm sm:text-base font-medium">
-                    Custo Médio (R$)
+                {/* Custo Médio */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="averageCost" className="text-gray-200 text-xs sm:text-sm font-medium flex items-center justify-between">
+                    <span>Custo Médio (R$)</span>
+                    <span className="text-[10px] text-slate-400 font-normal">Ponderado</span>
                   </Label>
                   <Input
                     id="averageCost"
@@ -1767,201 +1999,11 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
                     value={averageCostDisplay}
                     onChange={(e) => handleAverageCostChange(e.target.value)}
                     placeholder="0,00"
-                    className="bg-seguranca-black/50 border-gray-600/30 text-white placeholder-gray-400 focus:border-seguranca-red/50 focus:ring-seguranca-red/20 h-10 sm:h-11 text-sm sm:text-base font-mono"
+                    className="bg-seguranca-black/60 border-slate-700 text-white font-mono placeholder-gray-500 focus:border-slate-500 h-10 sm:h-11 text-sm sm:text-base"
                   />
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="supplier" className="text-gray-300 flex items-center gap-2 text-sm sm:text-base">
-                    <Building2 className="h-3 w-3 sm:h-4 sm:w-4 text-seguranca-red flex-shrink-0" />
-                    Fornecedor
-                  </Label>
-                  {loadingSuppliers ? (
-                    <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                      <p className="text-xs sm:text-sm text-blue-400 text-center">
-                        Carregando fornecedores...
-                      </p>
-                    </div>
-                  ) : suppliers.length === 0 ? (
-                    <div className="space-y-2">
-                      <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-                        <p className="text-xs sm:text-sm text-yellow-400 mb-2">
-                          {loadingSuppliers 
-                            ? 'Carregando fornecedores...' 
-                            : 'Nenhum fornecedor cadastrado. Cadastre um fornecedor para continuar.'}
-                        </p>
-                        <p className="text-xs text-gray-400 mb-2">
-                          Verifique o console do navegador (F12) para mais detalhes.
-                        </p>
-                        <Button
-                          type="button"
-                          onClick={() => setIsSupplierModalOpen(true)}
-                          className="w-full bg-seguranca-red hover:bg-seguranca-darkred text-white text-xs sm:text-sm h-8 sm:h-9"
-                          size="sm"
-                        >
-                          <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                          Cadastrar Fornecedor
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <Popover open={supplierComboboxOpen} onOpenChange={setSupplierComboboxOpen}>
-                        <PopoverTrigger asChild>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            role="combobox"
-                            aria-expanded={supplierComboboxOpen}
-                            className="w-full justify-between bg-seguranca-black/50 border-gray-600/30 text-white hover:bg-seguranca-graphite hover:border-seguranca-red/50 focus:border-seguranca-red/50 h-10 sm:h-11 text-sm sm:text-base"
-                          >
-                            {selectedSupplier ? (
-                              <div className="flex items-center gap-2 truncate">
-                                <Building2 className="h-4 w-4 flex-shrink-0 text-seguranca-red" />
-                                <span className="truncate">{selectedSupplier.name}</span>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-2">
-                                <Building2 className="h-4 w-4 flex-shrink-0 text-gray-400" />
-                                <span className="text-gray-400">Selecione o fornecedor</span>
-                              </div>
-                            )}
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent 
-                          className="w-[var(--radix-popover-trigger-width)] p-0 bg-seguranca-graphite border-gray-600 z-[10020] !z-[10020]" 
-                          align="start"
-                          style={{ zIndex: 10020 }}
-                        >
-                          <Command shouldFilter={false} className="bg-seguranca-graphite text-white">
-                            <CommandInput 
-                              placeholder="Buscar por nome ou CNPJ..." 
-                              className="text-white"
-                              value={supplierSearchTerm}
-                              onValueChange={setSupplierSearchTerm}
-                            />
-                            <CommandList className="max-h-60 overflow-y-auto">
-                              <CommandEmpty className="text-gray-400 py-4 text-center text-sm">
-                                {supplierSearchTerm 
-                                  ? 'Nenhum fornecedor encontrado para este termo/CNPJ.'
-                                  : 'Nenhum fornecedor disponível.'}
-                              </CommandEmpty>
-                              <CommandGroup>
-                                {filteredSuppliers.length > 0 ? (
-                                  filteredSuppliers.map((supplier) => (
-                                    <CommandItem
-                                      key={supplier.id}
-                                      value={supplier.name}
-                                      onSelect={() => {
-                                        handleInputChange('supplier', supplier.name);
-                                        setSupplierComboboxOpen(false);
-                                        setSupplierSearchTerm('');
-                                      }}
-                                      className="text-white hover:bg-seguranca-black focus:bg-seguranca-black cursor-pointer py-2"
-                                    >
-                                      <Check
-                                        className={`mr-2 h-4 w-4 ${
-                                          formData.supplier === supplier.name ? 'opacity-100' : 'opacity-0'
-                                        }`}
-                                      />
-                                      <div className="flex flex-col">
-                                        <span className="font-medium">{supplier.name}</span>
-                                        {supplier.cnpj && (
-                                          <span className="text-xs text-gray-400 font-mono">CNPJ: {supplier.cnpj}</span>
-                                        )}
-                                      </div>
-                                    </CommandItem>
-                                  ))
-                                ) : (
-                                  <div className="p-4 text-center text-sm text-gray-400">
-                                    Nenhum fornecedor disponível
-                                  </div>
-                                )}
-                              </CommandGroup>
-                              {filteredSuppliers.length >= 50 && (
-                                <div className="p-2 text-center text-xs text-gray-400 border-t border-gray-700">
-                                  Mostrando os primeiros 50 resultados. Digite para refinar por nome ou CNPJ.
-                                </div>
-                              )}
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        onClick={() => {
-                          setIsSupplierModalOpen(true);
-                          setSupplierComboboxOpen(false);
-                        }}
-                        className="w-full text-xs sm:text-sm text-seguranca-red hover:text-seguranca-darkred hover:bg-seguranca-red/10 h-8 sm:h-9"
-                        size="sm"
-                      >
-                        <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                        Cadastrar Novo Fornecedor
-                      </Button>
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="invoiceNumber" className="text-gray-300 flex items-center gap-2 text-sm sm:text-base">
-                      <FileText className="h-3 w-3 sm:h-4 sm:w-4 text-seguranca-red flex-shrink-0" />
-                      NF de Entrada
-                    </Label>
-                    <div className="flex items-center gap-1.5">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => xmlInputRef.current?.click()}
-                        disabled={loadingXml}
-                        className="h-6 text-[11px] border-seguranca-yellow/40 text-seguranca-yellow hover:text-white hover:bg-seguranca-yellow/20 px-2 flex items-center gap-1 font-semibold"
-                        title="Carregar dados de itens e faturamento a partir do XML ou PDF da NF-e"
-                      >
-                        {loadingXml ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <Upload className="h-3 w-3" />
-                        )}
-                        Importar XML/PDF
-                      </Button>
-                      <input
-                        ref={xmlInputRef}
-                        type="file"
-                        accept=".xml,.pdf,text/xml,application/pdf"
-                        className="hidden"
-                        onChange={handleXmlUpload}
-                      />
-                    </div>
-                  </div>
-                  <Input
-                    id="invoiceNumber"
-                    value={formData.invoiceNumber || ''}
-                    onChange={(e) => handleInputChange('invoiceNumber', e.target.value)}
-                    placeholder="Ex: NF 12345 / DANFE (opcional)"
-                    className="bg-seguranca-black/50 border-gray-600/30 text-white placeholder-gray-400 focus:border-seguranca-red/50 focus:ring-seguranca-red/20 h-10 sm:h-11 text-sm sm:text-base"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="barcode" className="text-gray-300 flex items-center gap-2 text-sm sm:text-base">
-                  <Barcode className="h-3 w-3 sm:h-4 sm:w-4 text-seguranca-red flex-shrink-0" />
-                  Código de Barras
-                </Label>
-                <Input
-                  id="barcode"
-                  value={formData.barcode}
-                  onChange={(e) => handleInputChange('barcode', e.target.value)}
-                  placeholder="Código de barras do produto"
-                  className="bg-seguranca-black/50 border-gray-600/30 text-white placeholder-gray-400 focus:border-seguranca-red/50 focus:ring-seguranca-red/20 h-10 sm:h-11 text-sm sm:text-base"
-                />
               </div>
             </div>
-
             {/* Painel Expansível de Detalhes Fiscais da NF de Entrada e Condições Comerciais */}
             {Boolean(formData.invoiceNumber && formData.invoiceNumber.trim()) && (
               <div className="space-y-4 p-4 rounded-xl bg-gradient-to-br from-blue-950/30 to-seguranca-black/80 border border-blue-500/40 shadow-xl animate-in fade-in duration-300">
@@ -2167,7 +2209,13 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
                             return (
                               <div
                                 key={inst.number}
-                                className={p-2.5 rounded-lg border transition-all }
+                                className={`p-2.5 rounded-lg border transition-all ${
+                                  inst.divergenceAlert
+                                    ? 'border-amber-500/40 bg-amber-500/5'
+                                    : hasBoleto
+                                      ? 'border-emerald-500/40 bg-emerald-500/5'
+                                      : 'border-gray-700 bg-seguranca-black/30'
+                                }`}
                               >
                                 <div className="flex flex-wrap items-center justify-between gap-2">
                                   <div className="flex items-center gap-2">
