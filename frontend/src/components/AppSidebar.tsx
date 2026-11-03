@@ -264,7 +264,7 @@ const operacionalMenuItems = [
   { icon: FileText, text: 'Relatórios Operacionais', to: '/operacional/relatorios', id: 'operacional-relatorios' },
   { icon: CheckSquare, text: 'Controle de Visitas de Supervisor', to: '/gestao-visitas-supervisor', id: 'gestao-visitas-supervisor' },
   { icon: ClipboardList, text: 'Serviços', to: '/operacional?tab=servicos', id: 'operacional-servicos' },
-  { icon: BarChart3, text: 'Controle de Visitas', to: '/controle-visitas-avancado', id: 'controle-visitas-avancado' },
+  { icon: Calendar, text: 'Controle de Escalas', to: '/operacional?tab=escalas', id: 'operacional-escalas' },
   { icon: Route, text: 'Supervisão de Postos', to: '/rota-semanal-supervisao', id: 'rota-semanal-supervisao' },
   { icon: Shield, text: 'Equipamentos', to: '/operacional', id: 'equipamentos' },
   { icon: ArrowUpDown, text: 'Troca de Plantão', to: '/operacional/troca-plantao', id: 'troca-plantao' },

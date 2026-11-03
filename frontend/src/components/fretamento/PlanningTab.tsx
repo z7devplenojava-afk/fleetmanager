@@ -185,18 +185,31 @@ export const PlanningTab: React.FC = () => {
         }
     };
 
-    const handleExportPDF = async () => {
+    const handleExportPDF = async (specificDriverId?: string, specificDriverName?: string) => {
         try {
-            const blob = await scheduleService.generatePDFReport({});
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `escalas-${new Date().toISOString().split('T')[0]}.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-        } catch {
-            toast({ title: "Erro", description: "Falha ao gerar relatório", variant: "destructive" });
+            toast({
+                title: "Gerando PDF de Escalas...",
+                description: specificDriverName
+                    ? `Consolidando todas as escalas de ${specificDriverName}...`
+                    : "Agrupando escalas por motorista...",
+            });
+
+            await EscalaPdfGeneratorService.exportEscalasToPDF({
+                escalas: filteredSchedules.length > 0 ? filteredSchedules : schedules,
+                driverId: specificDriverId,
+                driverFilter: searchQuery,
+                companyName: "Viação São Silvestre LTDA / FluxBus"
+            });
+
+            toast({
+                title: "Relatório gerado!",
+                description: specificDriverName
+                    ? `PDF com todas as escalas de ${specificDriverName} exportado.`
+                    : "PDF baixado com sucesso agrupado por motorista."
+            });
+        } catch (error: any) {
+            console.error("Erro ao gerar PDF:", error);
+            toast({ title: "Erro", description: error?.message || "Falha ao gerar relatório", variant: "destructive" });
         }
     };
 

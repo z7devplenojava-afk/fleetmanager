@@ -138,7 +138,8 @@ const Operacional: React.FC = () => {
 
   // Reage a mudanças no parâmetro de URL
   useEffect(() => {
-    const tabFromUrl = searchParams.get('tab');
+    let tabFromUrl = searchParams.get('tab');
+    if (tabFromUrl === 'controle-visitas') tabFromUrl = 'escalas';
     if (tabFromUrl && tabFromUrl !== activeTab) {
       setActiveTab(tabFromUrl);
     }
@@ -970,13 +971,13 @@ const Operacional: React.FC = () => {
                         value="controle-visitas"
                         className="modern-tab flex flex-col items-center justify-center gap-2 px-4 md:px-3 py-4 md:py-4 text-slate-300 data-[state='active']:bg-gradient-to-br data-[state='active']:from-red-600 data-[state='active']:to-red-700 data-[state='active']:text-white data-[state='active']:shadow-lg data-[state='active']:shadow-red-500/50 hover:bg-slate-800/50 hover:text-white transition-all duration-300 rounded-md min-w-[85px] md:min-w-0 min-h-[85px] md:min-h-[72px] flex-shrink-0"
                       >
-                        <MapPin className="h-6 w-6 md:h-5 md:w-5 flex-shrink-0" />
-                        <span className="text-[11px] md:text-xs leading-tight text-center whitespace-nowrap">Visitas</span>
+                        <Calendar className="h-6 w-6 md:h-5 md:w-5 flex-shrink-0" />
+                        <span className="text-[11px] md:text-xs leading-tight text-center whitespace-nowrap">Controle de Escalas</span>
                       </TabsTrigger>
                     </TooltipTrigger>
                     <TooltipContent side="bottom" className="bg-seguranca-graphite text-white border-seguranca-red">
-                      <p className="font-semibold">Controle de Visitas</p>
-                      <p className="text-xs text-gray-400">Visitas dos supervisores</p>
+                      <p className="font-semibold">Controle de Escalas de Motoristas</p>
+                      <p className="text-xs text-gray-400">Planejamento e gestão de escalas</p>
                     </TooltipContent>
                   </Tooltip>
 
@@ -1310,7 +1311,15 @@ const Operacional: React.FC = () => {
             </TabsContent>
 
             <TabsContent value="controle-visitas" className="mt-6">
-              <VisitDashboard />
+              <EscalaTrabalhoTable
+                escalas={escalas}
+                isLoading={isLoadingEscalas}
+                onRefresh={handleRefreshEscalas}
+                onEdit={handleEditEscala}
+                onDelete={handleDeleteEscala}
+                onView={handleViewEscala}
+                onCreate={handleCreateEscala}
+              />
             </TabsContent>
 
             <TabsContent value="gestao-operacional" className="mt-6">

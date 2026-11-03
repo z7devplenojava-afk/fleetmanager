@@ -33,6 +33,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Schedule, scheduleService } from '@/services/scheduleService';
+import { EscalaPdfGeneratorService } from '@/services/escalaPdfGeneratorService';
 import { DriverActivityInspectorModal } from '@/components/driver/DriverActivityInspectorModal';
 import ScheduleCalendarTab from '@/components/fretamento/ScheduleCalendarTab';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -158,46 +159,35 @@ const EscalaTrabalhoTable: React.FC<EscalaTrabalhoTableProps> = ({
     }
   };
 
-  const handleGeneratePDF = async () => {
+  const handleGeneratePDF = async (specificDriverId?: string, specificDriverName?: string) => {
     try {
       toast({
-        title: 'Gerando relatório...',
-        description: 'Por favor, aguarde enquanto o PDF é gerado.',
+        title: 'Gerando relatório PDF...',
+        description: specificDriverName
+          ? `Consolidando todas as escalas de ${specificDriverName}...`
+          : 'Agrupando todas as escalas filtradas por motorista...',
       });
 
-      const filters: any = {};
-
-      if (statusFilter && statusFilter !== 'all' && statusFilter !== 'PENDING_POINT') {
-        filters.status = statusFilter;
-      }
-
-      if (dateRange.from) {
-        filters.startDate = format(dateRange.from, 'yyyy-MM-dd');
-      }
-      if (dateRange.to) {
-        filters.endDate = format(dateRange.to, 'yyyy-MM-dd');
-      }
-
-      const blob = await scheduleService.generatePDFReport(filters);
-
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `relatorio-escalas-${format(new Date(), 'yyyy-MM-dd')}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      await EscalaPdfGeneratorService.exportEscalasToPDF({
+        escalas: filteredEscalas.length > 0 ? filteredEscalas : safeEscalas,
+        driverId: specificDriverId,
+        driverFilter: searchTerm,
+        startDate: dateRange.from ? format(dateRange.from, 'yyyy-MM-dd') : undefined,
+        endDate: dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : undefined,
+        companyName: (user as any)?.company?.name || 'Viação São Silvestre LTDA / FluxBus'
+      });
 
       toast({
-        title: 'Relatório gerado!',
-        description: 'O PDF foi baixado com sucesso.',
+        title: 'Relatório gerado com sucesso!',
+        description: specificDriverName
+          ? `PDF com todas as escalas de ${specificDriverName} exportado com sucesso.`
+          : 'PDF baixado e agrupado por motorista.',
       });
     } catch (error: any) {
       console.error('Erro ao gerar relatório PDF:', error);
       toast({
         title: 'Erro ao gerar relatório',
-        description: error.message || 'Não foi possível gerar o relatório PDF.',
+        description: error?.message || 'Não foi possível gerar o relatório PDF.',
         variant: 'destructive',
       });
     }
@@ -743,6 +733,21 @@ const EscalaTrabalhoTable: React.FC<EscalaTrabalhoTableProps> = ({
                   {/* Ações */}
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end space-x-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleGeneratePDF(
+                            escala.employeeId || escala.employee?.id,
+                            escala.employee?.name || 'Motorista'
+                          );
+                        }}
+                        className="h-8 w-8 text-amber-400 hover:text-amber-300 hover:bg-amber-400/10"
+                        title={`Gerar PDF com todas as escalas de ${escala.employee?.name || 'este motorista'}`}
+                      >
+                        <FileText className="h-4 w-4" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"

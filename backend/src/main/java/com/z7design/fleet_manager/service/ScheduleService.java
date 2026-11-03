@@ -1153,6 +1153,18 @@ public class ScheduleService {
                         .setMarginTop(20);
                 document.add(noData);
             } else {
+                schedules = new java.util.ArrayList<>(schedules);
+                schedules.sort((a, b) -> {
+                    String nameA = a.getEmployee() != null && a.getEmployee().getName() != null ? a.getEmployee().getName() : "";
+                    String nameB = b.getEmployee() != null && b.getEmployee().getName() != null ? b.getEmployee().getName() : "";
+                    int cmp = nameA.compareToIgnoreCase(nameB);
+                    if (cmp != 0) return cmp;
+                    if (a.getScheduleDate() != null && b.getScheduleDate() != null) {
+                        return a.getScheduleDate().compareTo(b.getScheduleDate());
+                    }
+                    return 0;
+                });
+
                 float[] columnWidths = { 2, 4, 3, 4, 2, 2, 2 };
                 Table table = new Table(UnitValue.createPercentArray(columnWidths))
                         .setWidth(UnitValue.createPercentValue(100));
