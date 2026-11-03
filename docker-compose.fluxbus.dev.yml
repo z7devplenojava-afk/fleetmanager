@@ -67,6 +67,9 @@ services:
       POSTGRES_DB: ${POSTGRES_DB_DEV:-fluxbus_db_dev}
       POSTGRES_USER: ${POSTGRES_USER_DEV:-fluxbus_user_dev}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_DEV:-devpass123}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-dev:5432/${POSTGRES_DB_DEV:-fluxbus_db_dev}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER_DEV:-fluxbus_user_dev}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD_DEV:-devpass123}
       DB_URL: jdbc:postgresql://postgres-dev:5432/${POSTGRES_DB_DEV:-fluxbus_db_dev}
       DB_USERNAME: ${POSTGRES_USER_DEV:-fluxbus_user_dev}
       DB_PASSWORD: ${POSTGRES_PASSWORD_DEV:-devpass123}
