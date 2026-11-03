@@ -166,8 +166,9 @@ public class UserController {
             UUID employeeId = null;
             String position = null;
             String department = null;
+            Employee emp = null;
             try {
-                Employee emp = employeeRepository.findByUserId(currentUser.getId()).orElse(null);
+                emp = employeeRepository.findByUserId(currentUser.getId()).orElse(null);
                 if (emp == null && currentUser.getUsername() != null) {
                     String cleanCpf = currentUser.getUsername().replaceAll("\\D", "");
                     if (cleanCpf.length() >= 11) {
@@ -247,15 +248,6 @@ public class UserController {
                 } catch (Exception exSave) {
                     log.debug("Nao foi possivel persistir companyId no User: {}", exSave.getMessage());
                 }
-            }
-
-            if (resolvedClientId == null && emp != null && emp.getClient() != null) {
-                resolvedClientId = emp.getClient().getId();
-                resolvedClientName = emp.getClient().getName();
-                currentUser.setClientId(resolvedClientId);
-                try {
-                    userRepository.save(currentUser);
-                } catch (Exception ignored) {}
             }
 
             if (resolvedCompanyId == null && userCompanyResolver != null) {
