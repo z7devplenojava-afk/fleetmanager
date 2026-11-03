@@ -176,6 +176,12 @@ public class Passenger implements TenantAware {
     @Column(name = "qr_code_token", length = 255)
     private String qrCodeToken;
 
+    @Column(name = "admission_date")
+    private java.time.LocalDate admissionDate;
+
+    @Column(name = "dismissal_date")
+    private java.time.LocalDate dismissalDate;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 

@@ -75,6 +75,7 @@ import clientService from '@/services/clientService';
 import { OpenMapInteractive } from '@/components/routes/OpenMapInteractive';
 import { smartRoutingService, RoutingPoint } from '@/services/smartRoutingService';
 import kmlParserService from '@/services/kmlParserService';
+import { RoutePassengerTransferList } from '@/components/fretamento/RoutePassengerTransferList';
 
 interface Unit {
     id: string;
@@ -970,7 +971,7 @@ const RoutesAndPoints: React.FC = () => {
 
             if (savedRouteId && formData.checkinType === 'LISTA_FECHADA' && selectedPassengerIds.length > 0) {
                 try {
-                    await api.post('/api/passengers/assign-route', {
+                    await api.post('/passengers/assign-route', {
                         routeId: savedRouteId,
                         passengerIds: selectedPassengerIds,
                         direction: formData.direction || 'IDA',
@@ -1991,40 +1992,9 @@ const RoutesAndPoints: React.FC = () => {
                                             </div>
                                         )}
 
-                                        {/* Painel de Atribuir Colaboradores na Rota */}
+                                        {/* Painel de Atribuir Colaboradores na Rota (Drag & Drop + Clique) */}
                                         {formData.checkinType === 'LISTA_FECHADA' && (
                                             <div className="col-span-1 md:col-span-2 bg-seguranca-black/30 p-4 rounded-xl border border-gray-700/60 space-y-3">
-                                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-gray-700/50">
-                                                    <div className="flex items-center gap-2">
-                                                        <Users className="h-4 w-4 text-seguranca-yellow" />
-                                                        <h4 className="text-sm font-bold text-white uppercase tracking-wider">
-                                                            Atribuir Colaboradores na Rota (Lista Fechada)
-                                                        </h4>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <Badge variant="outline" className="border-seguranca-yellow/50 text-seguranca-yellow text-xs font-mono">
-                                                            {selectedPassengerIds.length} selecionado(s)
-                                                        </Badge>
-                                                        {clientPassengers.length > 0 && (
-                                                            <Button
-                                                                type="button"
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                className="text-xs h-7 text-gray-400 hover:text-white"
-                                                                onClick={() => {
-                                                                    if (selectedPassengerIds.length === clientPassengers.length) {
-                                                                        setSelectedPassengerIds([]);
-                                                                    } else {
-                                                                        setSelectedPassengerIds(clientPassengers.map(p => p.id));
-                                                                    }
-                                                                }}
-                                                            >
-                                                                {selectedPassengerIds.length === clientPassengers.length ? 'Desmarcar Todos' : 'Selecionar Todos'}
-                                                            </Button>
-                                                        )}
-                                                    </div>
-                                                </div>
-
                                                 {!formData.clientId ? (
                                                     <p className="text-xs text-amber-400/90 py-2">
                                                         ⚠️ Selecione um <strong>Cliente</strong> acima para carregar e atribuir os colaboradores à rota.
@@ -2036,55 +2006,18 @@ const RoutesAndPoints: React.FC = () => {
                                                     </div>
                                                 ) : clientPassengers.length === 0 ? (
                                                     <p className="text-xs text-gray-400 py-2">
-                                                        Nenhum colaborador encontrado para este cliente. Cadastre colaboradores em Passageiros / Colaboradores.
+                                                        Nenhum colaborador encontrado para este cliente. Cadastre ou importe colaboradores na aba "Colaboradores" na gestão de Clientes.
                                                     </p>
                                                 ) : (
-                                                    <div className="space-y-2">
-                                                        <Input
-                                                            placeholder="Filtrar colaborador por nome ou matrícula..."
-                                                            value={passengerFilter}
-                                                            onChange={(e) => setPassengerFilter(e.target.value)}
-                                                            className="bg-seguranca-black/60 border-gray-700 text-xs h-8"
-                                                        />
-                                                        <div className="max-h-52 overflow-y-auto divide-y divide-gray-800 rounded-lg border border-gray-800 bg-seguranca-black/40">
-                                                            {clientPassengers
-                                                                .filter(p => !passengerFilter || (p.name && p.name.toLowerCase().includes(passengerFilter.toLowerCase())) || (p.registration && p.registration.includes(passengerFilter)))
-                                                                .map((p) => {
-                                                                    const isSelected = selectedPassengerIds.includes(p.id);
-                                                                    return (
-                                                                        <label
-                                                                            key={p.id}
-                                                                            className="flex items-center justify-between p-2.5 hover:bg-white/5 cursor-pointer transition-colors text-xs"
-                                                                        >
-                                                                            <div className="flex items-center gap-2.5 min-w-0">
-                                                                                <Checkbox
-                                                                                    checked={isSelected}
-                                                                                    onCheckedChange={(checked) => {
-                                                                                        if (checked) {
-                                                                                            setSelectedPassengerIds(prev => [...prev, p.id]);
-                                                                                        } else {
-                                                                                            setSelectedPassengerIds(prev => prev.filter(id => id !== p.id));
-                                                                                        }
-                                                                                    }}
-                                                                                    disabled={modalMode === 'view'}
-                                                                                />
-                                                                                <div className="truncate">
-                                                                                    <p className="font-semibold text-white truncate">{p.name}</p>
-                                                                                    <p className="text-[11px] text-gray-400 font-mono">
-                                                                                        {p.registration ? ('Matrícula: ' + p.registration) : ''} {p.cpf ? ('• CPF: ' + p.cpf) : ''}
-                                                                                    </p>
-                                                                                </div>
-                                                                            </div>
-                                                                            {isSelected && (
-                                                                                <Badge className="bg-emerald-950/80 text-emerald-400 border border-emerald-500/40 text-[10px] shrink-0">
-                                                                                    Vinculado
-                                                                                </Badge>
-                                                                            )}
-                                                                        </label>
-                                                                    );
-                                                                })}
-                                                        </div>
-                                                    </div>
+                                                    <RoutePassengerTransferList
+                                                        clientPassengers={clientPassengers}
+                                                        selectedPassengerIds={selectedPassengerIds}
+                                                        onChange={(ids) => setSelectedPassengerIds(ids)}
+                                                        disabled={modalMode === 'view'}
+                                                        routeName={formData.name}
+                                                        sameForReturn={formData.returnSamePassengers}
+                                                        onSameForReturnChange={(same) => setFormData(prev => ({ ...prev, returnSamePassengers: same }))}
+                                                    />
                                                 )}
                                             </div>
                                         )}

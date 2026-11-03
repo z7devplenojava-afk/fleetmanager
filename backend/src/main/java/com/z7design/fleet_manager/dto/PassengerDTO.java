@@ -55,6 +55,13 @@ public class PassengerDTO {
     private UUID returnBoardingPointId;
     private String returnBoardingPointName;
     private String qrCodeToken;
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private java.time.LocalDate admissionDate;
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private java.time.LocalDate dismissalDate;
+    private Boolean isPcd;
+    private String disabilityType;
+    private String disabilityDescription;
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime createdAt;
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")

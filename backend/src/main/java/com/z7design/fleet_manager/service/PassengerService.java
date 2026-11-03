@@ -117,6 +117,23 @@ public class PassengerService {
         if (dto.getQrCodeToken() != null) {
             existing.setQrCodeToken(dto.getQrCodeToken());
         }
+        if (dto.getAdmissionDate() != null) {
+            existing.setAdmissionDate(dto.getAdmissionDate());
+        }
+        if (dto.getDismissalDate() != null) {
+            existing.setDismissalDate(dto.getDismissalDate());
+            existing.setStatus("DEMITIDO");
+            existing.setActive(false);
+        }
+        if (dto.getIsPcd() != null) {
+            existing.setIsPcd(dto.getIsPcd());
+        }
+        if (dto.getDisabilityType() != null) {
+            existing.setDisabilityType(dto.getDisabilityType());
+        }
+        if (dto.getDisabilityDescription() != null) {
+            existing.setDisabilityDescription(dto.getDisabilityDescription());
+        }
 
         // SEGURANÇA E BLOQUEIO IMEDIATO PARA DEMITIDOS/BLOQUEADOS:
         if ("DEMITIDO".equalsIgnoreCase(existing.getStatus()) || "BLOQUEADO".equalsIgnoreCase(existing.getStatus()) || Boolean.FALSE.equals(existing.getActive())) {
@@ -193,14 +210,32 @@ public class PassengerService {
 
     @Transactional
     public int assignPassengersToRoute(UUID routeId, List<UUID> passengerIds, String direction, Boolean returnSame) {
-        if (routeId == null || passengerIds == null || passengerIds.isEmpty()) {
+        if (routeId == null) {
             return 0;
         }
         Route route = routeRepository.findById(routeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Rota não encontrada"));
-        List<Passenger> passengers = passengerRepository.findAllById(passengerIds);
+
+        java.util.Set<UUID> targetIds = (passengerIds != null) ? new java.util.HashSet<>(passengerIds) : java.util.Collections.emptySet();
         boolean applyReturn = returnSame == null || Boolean.TRUE.equals(returnSame);
 
+        // Desvincular passageiros que foram removidos da rota
+        List<Passenger> previouslyAssigned = passengerRepository.findByRouteId(routeId);
+        for (Passenger prev : previouslyAssigned) {
+            if (!targetIds.contains(prev.getId())) {
+                prev.setRoute(null);
+                if (applyReturn && prev.getReturnRoute() != null && routeId.equals(prev.getReturnRoute().getId())) {
+                    prev.setReturnRoute(null);
+                }
+                passengerRepository.save(prev);
+            }
+        }
+
+        if (targetIds.isEmpty()) {
+            return 0;
+        }
+
+        List<Passenger> passengers = passengerRepository.findAllById(targetIds);
         for (Passenger p : passengers) {
             if ("RETORNO".equalsIgnoreCase(direction)) {
                 p.setReturnRoute(route);
@@ -269,6 +304,11 @@ public class PassengerService {
                 .notificationsEnabled(passenger.getNotificationsEnabled())
                 .disembarkPointId(passenger.getDisembarkPoint() != null ? passenger.getDisembarkPoint().getId() : null)
                 .qrCodeToken(passenger.getQrCodeToken())
+                .admissionDate(passenger.getAdmissionDate())
+                .dismissalDate(passenger.getDismissalDate())
+                .isPcd(passenger.getIsPcd())
+                .disabilityType(passenger.getDisabilityType())
+                .disabilityDescription(passenger.getDisabilityDescription())
                 .createdAt(passenger.getCreatedAt())
                 .updatedAt(passenger.getUpdatedAt())
                 .build();
@@ -292,6 +332,11 @@ public class PassengerService {
         passenger.setPreferredTime(dto.getPreferredTime());
         passenger.setNotificationsEnabled(dto.getNotificationsEnabled() != null ? dto.getNotificationsEnabled() : true);
         passenger.setQrCodeToken(dto.getQrCodeToken());
+        passenger.setAdmissionDate(dto.getAdmissionDate());
+        passenger.setDismissalDate(dto.getDismissalDate());
+        passenger.setIsPcd(dto.getIsPcd() != null ? dto.getIsPcd() : false);
+        passenger.setDisabilityType(dto.getDisabilityType());
+        passenger.setDisabilityDescription(dto.getDisabilityDescription());
 
         if (dto.getEmployeeId() != null) {
             Employee employee = employeeRepository.findById(dto.getEmployeeId())

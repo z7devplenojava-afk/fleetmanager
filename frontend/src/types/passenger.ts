@@ -23,14 +23,19 @@ export interface Passenger {
   cpf?: string;
   phone?: string;
   email?: string;
+  admissionDate?: string;
+  dismissalDate?: string;
+  isPcd?: boolean;
+  disabilityType?: string;
+  disabilityDescription?: string;
   /** COMUM, ESTUDANTE, IDOSO, PCD */
   passengerType?: string;
   /** HH:mm:ss */
   preferredTime?: string;
   notificationsEnabled?: boolean;
   qrCodeToken?: string;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export type BoardingStatus = 'BOARDED' | 'ABSENT' | 'JUSTIFIED';
