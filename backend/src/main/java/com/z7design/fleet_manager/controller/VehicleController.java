@@ -23,7 +23,7 @@ import com.z7design.fleet_manager.service.VehicleExcelImportService;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
-@RequestMapping({"/api/vehicles", "/api/frota/vehicles"})
+@RequestMapping("/api/vehicles")
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Veículos", description = "API para gerenciamento de veículos da frota")
