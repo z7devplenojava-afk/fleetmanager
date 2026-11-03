@@ -253,6 +253,28 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
   const [positions, setPositions] = useState<Position[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
 
+  const [users, setUsers] = useState<User[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [workPosts, setWorkPosts] = useState<WorkPost[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [loadingData, setLoadingData] = useState(false);
+  
+  // Estados para busca e filtros
+  const [userSearchTerm, setUserSearchTerm] = useState('');
+  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  
+  // Estados para busca de cargos
+  const [positionSearchTerm, setPositionSearchTerm] = useState('');
+  const [filteredPositions, setFilteredPositions] = useState<Position[]>([]);
+  const [showPositionDropdown, setShowPositionDropdown] = useState(false);
+  const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);
+  const [selectedUnit, setSelectedUnit] = useState<Unit | null>(null);
+  
+  // Estados para empresas
+  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
+
   // Filtrar unidades estritamente pela Empresa / Filial selecionada (Opção A)
   const filteredUnits = useMemo(() => {
     if (!selectedCompany?.id) {
@@ -301,27 +323,6 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
 
     return result;
   }, [units, selectedCompany]);
-  const [users, setUsers] = useState<User[]>([]);
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [workPosts, setWorkPosts] = useState<WorkPost[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [loadingData, setLoadingData] = useState(false);
-  
-  // Estados para busca e filtros
-  const [userSearchTerm, setUserSearchTerm] = useState('');
-  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
-  const [showUserDropdown, setShowUserDropdown] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  
-  // Estados para busca de cargos
-  const [positionSearchTerm, setPositionSearchTerm] = useState('');
-  const [filteredPositions, setFilteredPositions] = useState<Position[]>([]);
-  const [showPositionDropdown, setShowPositionDropdown] = useState(false);
-  const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);
-  const [selectedUnit, setSelectedUnit] = useState<Unit | null>(null);
-  
-  // Estados para empresas
-  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
 
   // Estados para dependentes
   const [employeeDependents, setEmployeeDependents] = useState<Dependent[]>([]);
