@@ -55,6 +55,7 @@ import {
   rentalInvoiceService,
 } from '@/services/rentalInvoiceService';
 import { RentalInvoicePdfService } from '@/services/rentalInvoicePdfService';
+import { SearchableSelect, SearchableOption } from '@/components/frota/SearchableSelect';
 import {
   Truck,
   Plus,
@@ -117,6 +118,7 @@ interface InvoiceFormState {
   periodStart: string;
   periodEnd: string;
   dueDate: string;
+  receiptDate: string;
   discount: number;
   status: RentalInvoiceStatus;
   paymentMethod: string;
@@ -157,6 +159,7 @@ const emptyForm = (): InvoiceFormState => ({
   periodStart: firstDayOfPreviousMonth(),
   periodEnd: lastDayOfPreviousMonth(),
   dueDate: addDays(15),
+  receiptDate: '',
   discount: 0,
   status: 'PENDING',
   paymentMethod: 'TRANSFERÊNCIA BANCÁRIA',
@@ -193,6 +196,39 @@ const MAX_VEHICLE_ROWS = 200;
 
 const GENERIC_CLIENT_NAMES = ['cliente direto', 'a definir', 'não informado', 'sem cliente', 'geral', 'matriz'];
 
+const PLACEHOLDER_TEXTS = [
+  'a definir',
+  'nao definir',
+  'não definir',
+  'a informar',
+  'nao informado',
+  'não informado',
+  'sem informacao',
+  'sem informação',
+  'sem informacoes',
+  'sem informações',
+  '-',
+  'n/a',
+  'na',
+];
+
+/**
+ * Veículos importados em lote (planilhas de obra) entram como rascunho:
+ * placa gerada (OBR####) e marca/modelo "A definir". Não são veículos locados reais.
+ */
+const isPlaceholderVehicle = (vehicle: Vehicle): boolean => {
+  const plate = (vehicle.plate || '').trim().toUpperCase();
+  const brand = normalizeName(vehicle.brand);
+  const model = normalizeName(vehicle.model);
+  if (!plate || /^OBR\d+$/.test(plate)) return true;
+  if (PLACEHOLDER_TEXTS.includes(brand) && PLACEHOLDER_TEXTS.includes(model)) return true;
+  if (PLACEHOLDER_TEXTS.includes(brand) && !model) return true;
+  return false;
+};
+
+const hasRentalAssignment = (vehicle: Vehicle): boolean =>
+  Boolean(vehicle.clientId || vehicle.workPostId || vehicle.contractId || vehicle.allocationContractNumber);
+
 export const GestaoLocacao: React.FC = () => {
   const { toast } = useToast();
 
@@ -211,6 +247,7 @@ export const GestaoLocacao: React.FC = () => {
   const [editingInvoice, setEditingInvoice] = useState<RentalInvoice | null>(null);
   const [form, setForm] = useState<InvoiceFormState>(emptyForm());
   const [saving, setSaving] = useState(false);
+  const [vehicleSearchSelect, setVehicleSearchSelect] = useState('');
 
   const [viewInvoice, setViewInvoice] = useState<RentalInvoice | null>(null);
   const [invoiceToDelete, setInvoiceToDelete] = useState<RentalInvoice | null>(null);
@@ -379,6 +416,25 @@ export const GestaoLocacao: React.FC = () => {
     };
   }, [contracts, rentalVehicles, invoices]);
 
+  const vehicleOptions: SearchableOption[] = useMemo(() => {
+    return vehicles
+      .filter(v => v && !isPlaceholderVehicle(v) && v.plate)
+      .map(v => {
+        const isSelected = form.items.some(item => item.vehicleId === v.id);
+        const typeLabel = v.vehicleType ? (VEHICLE_TYPE_LABELS[v.vehicleType] || v.vehicleType) : 'Veículo';
+        const clientAssigned = clientForVehicle(v);
+        const modelDesc = [v.brand, v.model].filter(Boolean).join(' ') || v.model || '';
+        return {
+          value: v.id,
+          label: `${v.plate} — ${modelDesc}`,
+          subtitle: `${typeLabel}${clientAssigned ? ` · Vinculado a: ${clientAssigned.name}` : ' · Disponível na Frota'}`,
+          badge: isSelected ? 'Na Fatura' : typeLabel,
+          badgeColor: isSelected ? 'bg-amber-500/20 text-amber-300' : 'bg-zinc-800 text-zinc-300',
+          keywords: [v.plate, v.model || '', v.brand || '', typeLabel, clientAssigned?.name || ''].filter(Boolean),
+        };
+      });
+  }, [vehicles, form.items, clientForVehicle]);
+
   const availableVehicles = useMemo(() => {
     if (!form.clientId) return [];
     const selectedContract = form.contractId ? contractsById.get(form.contractId) : undefined;
@@ -465,26 +521,57 @@ export const GestaoLocacao: React.FC = () => {
       ...prev,
       clientId,
       contractId: '',
-      items: [],
       clientIe: (client as any)?.ie || prev.clientIe,
     }));
   };
 
   const handleContractChange = (contractId: string) => {
     const contract = contractsById.get(contractId);
-    setForm(prev => {
-      const nextItems = prev.items.filter(item => {
-        const vehicle = vehicles.find(v => v.id === item.vehicleId);
-        return vehicle ? contractLinksVehicle(contract as Contract, vehicle) : true;
+    setForm(prev => ({
+      ...prev,
+      contractId,
+      periodStart: contract?.startDate?.substring(0, 10) || prev.periodStart,
+      periodEnd: contract?.endDate?.substring(0, 10) || prev.periodEnd,
+    }));
+  };
+
+  const addVehicleToInvoice = (vehicleId: string) => {
+    const vehicle = vehicles.find(v => v.id === vehicleId);
+    if (!vehicle) return;
+    if (form.items.some(item => item.vehicleId === vehicle.id)) {
+      toast({
+        title: 'Veículo já adicionado',
+        description: `O veículo ${vehicle.plate} já está na fatura.`,
       });
-      return {
-        ...prev,
-        contractId,
-        periodStart: contract?.startDate?.substring(0, 10) || prev.periodStart,
-        periodEnd: contract?.endDate?.substring(0, 10) || prev.periodEnd,
-        items: nextItems,
-      };
+      return;
+    }
+    const contract = form.contractId ? contractsById.get(form.contractId) : contractForVehicle(vehicle);
+    const defaultAmount = contract?.unitVehicleValue || (vehicle as any)?.rentalValue || 0;
+    const modelDesc = [vehicle.brand, vehicle.model].filter(Boolean).join(' ') || vehicle.model || 'Veículo';
+    setForm(prev => ({
+      ...prev,
+      items: [
+        ...prev.items,
+        {
+          vehicleId: vehicle.id,
+          plate: vehicle.plate,
+          model: modelDesc,
+          description: 'LOCAÇÃO DE VEÍCULO SEM CESSÃO DE MÃO DE OBRA',
+          amount: defaultAmount,
+        },
+      ],
+    }));
+    toast({
+      title: 'Veículo incluído',
+      description: `Veículo ${vehicle.plate} adicionado à fatura.`,
     });
+  };
+
+  const removeVehicleFromInvoice = (vehicleId: string | undefined, plate?: string) => {
+    setForm(prev => ({
+      ...prev,
+      items: prev.items.filter(item => (vehicleId ? item.vehicleId !== vehicleId : item.plate !== plate)),
+    }));
   };
 
   const toggleVehicle = (vehicle: Vehicle) => {
@@ -493,7 +580,8 @@ export const GestaoLocacao: React.FC = () => {
       if (exists) {
         return { ...prev, items: prev.items.filter(item => item.vehicleId !== vehicle.id) };
       }
-      const contract = contractForVehicle(vehicle);
+      const contract = form.contractId ? contractsById.get(form.contractId) : contractForVehicle(vehicle);
+      const modelDesc = [vehicle.brand, vehicle.model].filter(Boolean).join(' ') || vehicle.model || 'Veículo';
       return {
         ...prev,
         items: [
@@ -501,9 +589,9 @@ export const GestaoLocacao: React.FC = () => {
           {
             vehicleId: vehicle.id,
             plate: vehicle.plate,
-            model: vehicle.model,
+            model: modelDesc,
             description: 'LOCAÇÃO DE VEÍCULO SEM CESSÃO DE MÃO DE OBRA',
-            amount: contract?.unitVehicleValue || 0,
+            amount: contract?.unitVehicleValue || (vehicle as any)?.rentalValue || 0,
           },
         ],
       };
@@ -1154,73 +1242,173 @@ export const GestaoLocacao: React.FC = () => {
             </div>
           </div>
 
-          {/* Veículos */}
-          <div className="pt-2 border-t border-zinc-800">
-            <div className="flex items-center justify-between mb-2">
+          {/* Veículos Locados */}
+          <div className="space-y-3 pt-2 border-t border-zinc-800">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
-                <Label className="text-zinc-200 text-sm font-bold">Veículos Locados da Fatura *</Label>
-                <p className="text-xs text-zinc-500">Somente veículos. Nenhum motorista ou funcionário é vinculado aqui.</p>
+                <Label className="text-zinc-200 text-sm font-bold flex items-center gap-2">
+                  <Car className="w-4 h-4 text-amber-400" />
+                  Veículos Locados da Fatura *
+                </Label>
+                <p className="text-xs text-zinc-400">
+                  Selecione qualquer veículo da frota para faturar a locação. Sem motorista/sem mão de obra.
+                </p>
               </div>
-              <Badge className="bg-zinc-800 text-zinc-300">{form.items.length} selecionado(s)</Badge>
+              <Badge className="bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-1 text-xs self-start sm:self-auto">
+                {form.items.length} veículo(s) selecionado(s)
+              </Badge>
             </div>
 
-            {!form.clientId ? (
-              <div className="text-sm text-zinc-500 bg-zinc-900/50 border border-dashed border-zinc-800 rounded-lg p-4 text-center">
-                Selecione um cliente para listar os veículos locados.
+            {/* Campo Seletor com Busca para Adicionar Qualquer Veículo da Frota */}
+            <div className="bg-zinc-900/60 border border-zinc-800 rounded-lg p-3 space-y-2">
+              <Label className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5">
+                <Plus className="w-3.5 h-3.5 text-amber-400" />
+                Buscar e Adicionar Veículo da Frota à Fatura
+              </Label>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <div className="flex-1">
+                  <SearchableSelect
+                    value={vehicleSearchSelect}
+                    onChange={(val) => {
+                      if (val) {
+                        addVehicleToInvoice(val);
+                        setVehicleSearchSelect("");
+                      }
+                    }}
+                    options={vehicleOptions}
+                    placeholder="Pesquisar placa ou modelo de qualquer veículo da frota..."
+                    searchPlaceholder="Digite a placa ou modelo (ex: ABC-1234, Scania, Civic...)"
+                    emptyText="Nenhum veículo encontrado na frota."
+                    maxVisibleOptions={60}
+                  />
+                </div>
               </div>
-            ) : availableVehicles.length === 0 ? (
-              <div className="text-sm text-zinc-500 bg-zinc-900/50 border border-dashed border-zinc-800 rounded-lg p-4 text-center">
-                Nenhum veículo locado para este cliente/contrato. Aloque o veículo no módulo Frota.
-              </div>
-            ) : (
-              <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                {availableVehicles.map(vehicle => {
-                  const selected = form.items.some(item => item.vehicleId === vehicle.id);
-                  const item = form.items.find(item => item.vehicleId === vehicle.id);
-                  return (
-                    <div
-                      key={vehicle.id}
-                      className={`flex flex-col sm:flex-row sm:items-center gap-3 rounded-lg border p-3 ${
-                        selected ? 'border-amber-500/40 bg-amber-500/5' : 'border-zinc-800 bg-zinc-900/40'
-                      }`}
-                    >
-                      <label className="flex items-center gap-3 flex-1 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={selected}
-                          onChange={() => toggleVehicle(vehicle)}
-                          className="h-4 w-4 accent-amber-500"
-                        />
-                        <div>
-                          <p className="text-sm font-semibold text-zinc-100">
-                            <span className="font-mono text-amber-400">{vehicle.plate}</span>
-                            {' · '}
-                            {vehicle.brand ? `${vehicle.brand} ` : ''}{vehicle.model}
-                          </p>
-                          <p className="text-xs text-zinc-500">
-                            {vehicle.vehicleType ? VEHICLE_TYPE_LABELS[vehicle.vehicleType] || vehicle.vehicleType : 'Veículo'}
-                            {vehicle.clientName ? ` · ${vehicle.clientName}` : ''}
-                          </p>
-                        </div>
-                      </label>
-                      {selected && (
-                        <div className="flex items-center gap-2">
-                          <Label className="text-xs text-zinc-400 whitespace-nowrap">Valor (R$)</Label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={item?.amount ?? 0}
-                            onChange={event => updateItemAmount(vehicle.id, Number(event.target.value) || 0)}
-                            className="w-32 h-8 bg-zinc-950 border-zinc-800 text-zinc-200 font-mono text-sm"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+            </div>
+
+            {/* Sugestões rápidas de veículos já associados a este cliente (se houver) */}
+            {form.clientId && availableVehicles.length > 0 && (
+              <div className="bg-zinc-900/30 border border-zinc-800/80 rounded-lg p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-zinc-400 flex items-center gap-1.5">
+                    <Truck className="w-3.5 h-3.5 text-blue-400" />
+                    Veículos pré-vinculados a este cliente ({availableVehicles.length}):
+                  </span>
+                  <span className="text-[11px] text-zinc-500">Clique para incluir ou remover</span>
+                </div>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {availableVehicles.map(v => {
+                    const isSelected = form.items.some(item => item.vehicleId === v.id);
+                    return (
+                      <button
+                        key={v.id}
+                        type="button"
+                        onClick={() => toggleVehicle(v)}
+                        className={`inline-flex items-center gap-2 px-2.5 py-1 rounded text-xs transition-colors border ${
+                          isSelected
+                            ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 font-medium'
+                            : 'bg-zinc-900 border-zinc-700 text-zinc-300 hover:border-zinc-500 hover:text-white'
+                        }`}
+                      >
+                        <span className="font-mono font-bold">{v.plate}</span>
+                        <span className="text-zinc-400 text-[11px]">{v.model}</span>
+                        {isSelected ? (
+                          <CheckCircle2 className="w-3.5 h-3.5 text-amber-400" />
+                        ) : (
+                          <Plus className="w-3.5 h-3.5 text-zinc-400" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             )}
+
+            {/* Lista de veículos incluídos na fatura */}
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-zinc-300 flex items-center justify-between">
+                <span>Itens da Fatura ({form.items.length})</span>
+                {form.items.length > 0 && (
+                  <span className="text-[11px] text-zinc-500">Ajuste o valor mensal/locação de cada veículo conforme necessário</span>
+                )}
+              </div>
+
+              {form.items.length === 0 ? (
+                <div className="text-sm text-zinc-400 bg-zinc-900/40 border border-dashed border-zinc-800 rounded-lg p-6 text-center space-y-2">
+                  <Car className="w-8 h-8 text-zinc-600 mx-auto" />
+                  <p className="font-medium text-zinc-300">Nenhum veículo adicionado a esta fatura ainda</p>
+                  <p className="text-xs text-zinc-500 max-w-md mx-auto">
+                    Use a barra de busca acima para pesquisar e selecionar os veículos da frota locados para este cliente.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                  {form.items.map((item, index) => {
+                    const veh = vehicles.find(v => v.id === item.vehicleId || v.plate === item.plate);
+                    const typeLabel = veh?.vehicleType ? (VEHICLE_TYPE_LABELS[veh.vehicleType] || veh.vehicleType) : "";
+                    return (
+                      <div
+                        key={item.vehicleId || item.plate || index}
+                        className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-3 rounded-lg border border-amber-500/30 bg-amber-500/5"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="p-2 rounded bg-zinc-900 border border-zinc-800 shrink-0">
+                            <Car className="w-4 h-4 text-amber-400" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-mono font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 text-sm">
+                                {item.plate}
+                              </span>
+                              <span className="text-sm font-semibold text-zinc-100 truncate">
+                                {item.model || veh?.model || "Veículo"}
+                              </span>
+                              {typeLabel && (
+                                <Badge variant="outline" className="text-[10px] bg-zinc-900/80 border-zinc-700 text-zinc-300">
+                                  {typeLabel}
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-zinc-400 mt-0.5 truncate">
+                              {item.description || "LOCAÇÃO DE VEÍCULO SEM CESSÃO DE MÃO DE OBRA"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 self-end md:self-auto shrink-0">
+                          <div className="flex items-center gap-2">
+                            <Label className="text-xs text-zinc-400 whitespace-nowrap">Valor da Locação</Label>
+                            <div className="relative">
+                              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-zinc-500 font-mono">
+                                R$
+                              </span>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={item.amount ?? 0}
+                                onChange={event => updateItemAmount(item.vehicleId, Number(event.target.value) || 0)}
+                                className="w-36 h-8 pl-8 bg-zinc-950 border-zinc-800 text-zinc-100 font-mono text-sm text-right focus:border-amber-500"
+                              />
+                            </div>
+                          </div>
+
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-zinc-400 hover:text-red-400 hover:bg-red-500/10"
+                            title="Remover veículo da fatura"
+                            onClick={() => removeVehicleFromInvoice(item.vehicleId, item.plate)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-zinc-800">

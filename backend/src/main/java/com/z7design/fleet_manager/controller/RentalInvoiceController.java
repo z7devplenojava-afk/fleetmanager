@@ -1,11 +1,14 @@
 package com.z7design.fleet_manager.controller;
 
 import com.z7design.fleet_manager.dto.RentalInvoiceDTO;
+import com.z7design.fleet_manager.service.RentalInvoiceNfsePdfService;
 import com.z7design.fleet_manager.service.RentalInvoiceService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,6 +24,7 @@ import java.util.UUID;
 public class RentalInvoiceController {
 
     private final RentalInvoiceService rentalInvoiceService;
+    private final RentalInvoiceNfsePdfService rentalInvoiceNfsePdfService;
 
     @GetMapping
     @Operation(summary = "Listar faturas de locação")
@@ -64,6 +68,16 @@ public class RentalInvoiceController {
             @PathVariable("id") UUID id,
             @RequestBody Map<String, String> body) {
         return ResponseEntity.ok(rentalInvoiceService.updateStatus(id, body.get("status")));
+    }
+
+    @GetMapping("/{id}/nfse")
+    @Operation(summary = "Gerar/baixar a Nota Fiscal (NFS-e) da fatura de locação em PDF")
+    public ResponseEntity<byte[]> nfse(@PathVariable("id") UUID id) {
+        byte[] pdf = rentalInvoiceNfsePdfService.generate(id);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"nfse-" + id + ".pdf\"")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(pdf);
     }
 
     @DeleteMapping("/{id}")

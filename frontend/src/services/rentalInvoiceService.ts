@@ -28,6 +28,7 @@ export interface RentalInvoice {
   periodStart: string;
   periodEnd: string;
   dueDate: string;
+  receiptDate?: string;
   totalAmount: number;
   discount: number;
   netAmount: number;
@@ -37,6 +38,11 @@ export interface RentalInvoice {
   bankAgency?: string;
   bankAccount?: string;
   notes?: string;
+  nfseNumber?: string;
+  nfseStatus?: string;
+  nfseIssueDate?: string;
+  nfsePdfUrl?: string;
+  receivableId?: string;
   items: RentalInvoiceItem[];
   createdAt?: string;
   updatedAt?: string;
@@ -58,6 +64,7 @@ export interface RentalInvoiceInput {
   periodStart: string;
   periodEnd: string;
   dueDate: string;
+  receiptDate?: string;
   discount?: number;
   status?: RentalInvoiceStatus;
   paymentMethod?: string;
@@ -113,5 +120,13 @@ export const rentalInvoiceService = {
 
   async remove(id: string): Promise<void> {
     await api.delete(`/api/rental-invoices/${id}`);
+  },
+
+  async downloadNfse(id: string): Promise<void> {
+    const response = await api.get(`/api/rental-invoices/${id}/nfse`, { responseType: 'blob' });
+    const blob = new Blob([response.data], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
   },
 };

@@ -48,6 +48,8 @@ public class AccountsReceivableService {
     private final EmailService emailService;
     private final com.z7design.fleet_manager.repository.MeasurementBulletinRepository measurementBulletinRepository;
     private final com.z7design.fleet_manager.repository.CharterContractRepository charterContractRepository;
+    private final com.z7design.fleet_manager.repository.RentalInvoiceRepository rentalInvoiceRepository;
+    private final RentalInvoiceService rentalInvoiceService;
     
     /**
      * Buscar todas as contas a receber com paginaÃ§Ã£o
@@ -240,7 +242,9 @@ public class AccountsReceivableService {
         
         // Calcular dias em atraso
         account.calculateOverdueDays();
-        
+
+        syncLinkedRentalInvoice(account, account.getStatus(), account.getPaymentDate());
+
         // Salvar
         AccountsReceivable savedAccount = accountsReceivableRepository.save(account);
         log.info("Conta a receber atualizada com sucesso: {}", savedAccount.getId());
@@ -386,7 +390,9 @@ public class AccountsReceivableService {
         account.setPaymentDate(paymentDate);
         account.setAmountPaid(account.getAmount());
         account.setOverdueDays(0);
-        
+
+        syncLinkedRentalInvoice(account, ReceivableStatus.PAID, paymentDate);
+
         AccountsReceivable savedAccount = accountsReceivableRepository.save(account);
         log.info("Conta a receber marcada como paga: {}", savedAccount.getId());
         
@@ -630,6 +636,28 @@ public class AccountsReceivableService {
     }
 
     /**
+     * Mantém a fatura de locação vinculada alinhada ao status/data de recebimento do título financeiro.
+     */
+    private void syncLinkedRentalInvoice(AccountsReceivable account, ReceivableStatus status, LocalDate paymentDate) {
+        if (account.getRentalInvoiceId() == null) {
+            return;
+        }
+        rentalInvoiceRepository.findById(account.getRentalInvoiceId()).ifPresent(invoice -> {
+            ReceivableStatus effective = status != null ? status : invoice.getStatus();
+            invoice.setStatus(effective);
+            if (effective == ReceivableStatus.PAID) {
+                invoice.setReceiptDate(paymentDate != null
+                        ? paymentDate
+                        : (invoice.getReceiptDate() != null ? invoice.getReceiptDate() : LocalDate.now()));
+            } else {
+                invoice.setReceiptDate(null);
+            }
+            invoice.setNfseStatus(effective == ReceivableStatus.CANCELLED ? "CANCELADA" : "EMITIDA");
+            rentalInvoiceRepository.save(invoice);
+        });
+    }
+
+    /**
      * Sincroniza todas as medições de contratos, contratos de locação e turismo sem títulos no Contas a Receber.
      */
     public int syncAllReceivables() {
@@ -682,6 +710,9 @@ public class AccountsReceivableService {
                 }
             }
         }
+
+        // 3. Sincronizar Faturas de Locação de Veículos
+        count += rentalInvoiceService.syncAllReceivables();
 
         log.info("Sincronização total concluída: {} novos títulos gerados no Contas a Receber.", count);
         return count;
