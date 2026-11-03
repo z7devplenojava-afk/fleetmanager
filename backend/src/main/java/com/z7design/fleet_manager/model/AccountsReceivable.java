@@ -51,6 +51,9 @@ public class AccountsReceivable implements TenantAware {
     @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
     private WorkPost workPost;
 
+    @Column(name = "rental_invoice_id")
+    private UUID rentalInvoiceId;
+
     @Size(max = 100, message = "Centro de custo deve ter no mÃ¡ximo 100 caracteres")
     @Column(name = "centro_custo", length = 100)
     private String centroCusto;
@@ -256,6 +259,14 @@ public class AccountsReceivable implements TenantAware {
 
     public void setWorkPost(WorkPost workPost) {
         this.workPost = workPost;
+    }
+
+    public UUID getRentalInvoiceId() {
+        return rentalInvoiceId;
+    }
+
+    public void setRentalInvoiceId(UUID rentalInvoiceId) {
+        this.rentalInvoiceId = rentalInvoiceId;
     }
 
     public String getCentroCusto() {

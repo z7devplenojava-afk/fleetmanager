@@ -2,12 +2,16 @@ package com.z7design.fleet_manager.service;
 
 import com.z7design.fleet_manager.dto.RentalInvoiceDTO;
 import com.z7design.fleet_manager.exception.ResourceNotFoundException;
+import com.z7design.fleet_manager.model.AccountsReceivable;
 import com.z7design.fleet_manager.model.Client;
 import com.z7design.fleet_manager.model.Contract;
 import com.z7design.fleet_manager.model.RentalInvoice;
 import com.z7design.fleet_manager.model.RentalInvoiceVehicle;
 import com.z7design.fleet_manager.model.Vehicle;
+import com.z7design.fleet_manager.model.enums.PaymentMethod;
+import com.z7design.fleet_manager.model.enums.ReceivableCategory;
 import com.z7design.fleet_manager.model.enums.ReceivableStatus;
+import com.z7design.fleet_manager.repository.AccountsReceivableRepository;
 import com.z7design.fleet_manager.repository.ClientRepository;
 import com.z7design.fleet_manager.repository.ContractRepository;
 import com.z7design.fleet_manager.repository.RentalInvoiceRepository;
@@ -20,6 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
@@ -39,6 +45,7 @@ public class RentalInvoiceService {
     private final ClientRepository clientRepository;
     private final ContractRepository contractRepository;
     private final VehicleRepository vehicleRepository;
+    private final AccountsReceivableRepository accountsReceivableRepository;
 
     @Transactional(readOnly = true)
     public List<RentalInvoiceDTO> list(UUID clientId, UUID contractId, String status, String search) {
@@ -77,7 +84,11 @@ public class RentalInvoiceService {
         applyItems(invoice, dto);
         recalculate(invoice);
         RentalInvoice saved = rentalInvoiceRepository.save(invoice);
-        log.info("Fatura de locação {} criada para o cliente {}", saved.getNumber(), saved.getClientName());
+        ensureFiscalData(saved);
+        saved = rentalInvoiceRepository.save(saved);
+        syncReceivable(saved);
+        log.info("Fatura de locação {} criada para o cliente {} e integrada ao Contas a Receber",
+                saved.getNumber(), saved.getClientName());
         return toDTO(saved);
     }
 
@@ -88,7 +99,10 @@ public class RentalInvoiceService {
         applyItems(invoice, dto);
         recalculate(invoice);
         RentalInvoice saved = rentalInvoiceRepository.save(invoice);
-        log.info("Fatura de locação {} atualizada", saved.getNumber());
+        ensureFiscalData(saved);
+        saved = rentalInvoiceRepository.save(saved);
+        syncReceivable(saved);
+        log.info("Fatura de locação {} atualizada e sincronizada com o Contas a Receber", saved.getNumber());
         return toDTO(saved);
     }
 
@@ -103,14 +117,38 @@ public class RentalInvoiceService {
         } catch (IllegalArgumentException ex) {
             throw new IllegalArgumentException("Status de fatura inválido: " + status);
         }
-        return toDTO(rentalInvoiceRepository.save(invoice));
+        applyReceiptDate(invoice, null);
+        ensureFiscalData(invoice);
+        RentalInvoice saved = rentalInvoiceRepository.save(invoice);
+        syncReceivable(saved);
+        return toDTO(saved);
     }
 
     @Transactional
     public void delete(UUID id) {
         RentalInvoice invoice = findEntity(id);
+        accountsReceivableRepository.findByRentalInvoiceId(id)
+                .forEach(accountsReceivableRepository::delete);
         rentalInvoiceRepository.delete(invoice);
-        log.info("Fatura de locação {} excluída", invoice.getNumber());
+        log.info("Fatura de locação {} excluída (título financeiro vinculado removido)", invoice.getNumber());
+    }
+
+    /**
+     * Gera/atualiza os títulos do Contas a Receber de todas as faturas de locação já existentes.
+     */
+    @Transactional
+    public int syncAllReceivables() {
+        int created = 0;
+        for (RentalInvoice invoice : rentalInvoiceRepository.findAll()) {
+            boolean existed = !accountsReceivableRepository.findByRentalInvoiceId(invoice.getId()).isEmpty();
+            ensureFiscalData(invoice);
+            rentalInvoiceRepository.save(invoice);
+            syncReceivable(invoice);
+            if (!existed) {
+                created++;
+            }
+        }
+        return created;
     }
 
     private void applyBasicData(RentalInvoice invoice, RentalInvoiceDTO dto, boolean isNew) {
@@ -164,6 +202,7 @@ public class RentalInvoiceService {
         } else if (isNew) {
             invoice.setStatus(ReceivableStatus.PENDING);
         }
+        applyReceiptDate(invoice, dto.getReceiptDate());
 
         invoice.setPaymentMethod(dto.getPaymentMethod());
         invoice.setBankName(dto.getBankName());
@@ -265,6 +304,138 @@ public class RentalInvoiceService {
         return BigDecimal.ZERO;
     }
 
+    /**
+     * Define a data de recebimento apenas quando a fatura está paga.
+     */
+    private void applyReceiptDate(RentalInvoice invoice, LocalDate requested) {
+        if (invoice.getStatus() == ReceivableStatus.PAID) {
+            if (requested != null) {
+                invoice.setReceiptDate(requested);
+            } else if (invoice.getReceiptDate() == null) {
+                invoice.setReceiptDate(LocalDate.now());
+            }
+        } else {
+            invoice.setReceiptDate(null);
+        }
+    }
+
+    /**
+     * Garante os dados da Nota Fiscal gerada para o cliente.
+     */
+    private void ensureFiscalData(RentalInvoice invoice) {
+        if (invoice.getId() == null) {
+            return;
+        }
+        invoice.setNfseNumber(firstNonBlank(invoice.getNfseNumber(), invoice.getNumber()));
+        if (invoice.getNfseIssueDate() == null) {
+            invoice.setNfseIssueDate(LocalDateTime.now());
+        }
+        invoice.setNfseStatus(invoice.getStatus() == ReceivableStatus.CANCELLED ? "CANCELADA" : "EMITIDA");
+        invoice.setNfsePdfUrl("/api/rental-invoices/" + invoice.getId() + "/nfse");
+    }
+
+    /**
+     * Cria/atualiza o título no Contas a Receber correspondente à fatura de locação.
+     */
+    private void syncReceivable(RentalInvoice invoice) {
+        if (invoice.getId() == null || invoice.getClientId() == null) {
+            return;
+        }
+        Client client = clientRepository.findById(invoice.getClientId()).orElse(null);
+        if (client == null) {
+            return;
+        }
+
+        List<AccountsReceivable> existing = accountsReceivableRepository.findByRentalInvoiceId(invoice.getId());
+        AccountsReceivable account = existing.isEmpty() ? new AccountsReceivable() : existing.get(0);
+
+        BigDecimal amount = scale(invoice.getNetAmount());
+        account.setRentalInvoiceId(invoice.getId());
+        account.setClient(client);
+        account.setCompanyId(client.getCompanyId());
+        account.setInvoiceNumber(invoice.getNumber());
+        account.setDescription("Locação de Veículos - Fatura " + invoice.getNumber()
+                + " (" + formatPeriod(invoice) + ")");
+        account.setAmount(amount);
+        account.setAmountPaid(invoice.getStatus() == ReceivableStatus.PAID ? amount : BigDecimal.ZERO);
+        account.setIssueDate(invoice.getIssueDate());
+        account.setDueDate(invoice.getDueDate());
+        account.setPaymentDate(invoice.getReceiptDate());
+        account.setStatus(invoice.getStatus() == null ? ReceivableStatus.PENDING : invoice.getStatus());
+        account.setCategory(ReceivableCategory.VEHICLE_RENTAL);
+        account.setPaymentMethod(resolvePaymentMethod(invoice.getPaymentMethod()));
+        account.setOverdueDays(0);
+        account.setLateFee(BigDecimal.ZERO);
+        account.setLatePenalty(BigDecimal.ZERO);
+        account.setNotes(invoice.getNotes());
+        account.setContract(invoice.getContractId() != null
+                ? contractRepository.findById(invoice.getContractId()).orElse(null)
+                : null);
+        account.setGrossAmount(scale(invoice.getTotalAmount()));
+        account.setNetAmount(amount);
+        account.setNfseNumber(invoice.getNfseNumber());
+        account.setNfseStatus(invoice.getNfseStatus());
+        account.setNfseIssueDate(invoice.getNfseIssueDate());
+        account.setNfsePdfUrl(invoice.getNfsePdfUrl());
+        account.setFaturaLocacaoNumber(invoice.getNumber());
+        account.setPeriodoLocacao(formatPeriod(invoice));
+        account.setPlacasVeiculos(joinPlates(invoice));
+        account.setDadosBancarios(formatBankData(invoice));
+        account.calculateOverdueDays();
+
+        accountsReceivableRepository.save(account);
+    }
+
+    private String formatPeriod(RentalInvoice invoice) {
+        if (invoice.getPeriodStart() == null || invoice.getPeriodEnd() == null) {
+            return "-";
+        }
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        return invoice.getPeriodStart().format(formatter) + " a " + invoice.getPeriodEnd().format(formatter);
+    }
+
+    private String joinPlates(RentalInvoice invoice) {
+        return invoice.getItems().stream()
+                .map(RentalInvoiceVehicle::getPlate)
+                .filter(plate -> plate != null && !plate.isBlank())
+                .distinct()
+                .collect(Collectors.joining(", "));
+    }
+
+    private String formatBankData(RentalInvoice invoice) {
+        List<String> parts = new ArrayList<>();
+        if (invoice.getBankName() != null && !invoice.getBankName().isBlank()) {
+            parts.add("Banco: " + invoice.getBankName().trim());
+        }
+        if (invoice.getBankAgency() != null && !invoice.getBankAgency().isBlank()) {
+            parts.add("Agência: " + invoice.getBankAgency().trim());
+        }
+        if (invoice.getBankAccount() != null && !invoice.getBankAccount().isBlank()) {
+            parts.add("Conta: " + invoice.getBankAccount().trim());
+        }
+        return parts.isEmpty() ? null : String.join(" | ", parts);
+    }
+
+    private PaymentMethod resolvePaymentMethod(String value) {
+        if (value == null || value.isBlank()) {
+            return PaymentMethod.TRANSFER;
+        }
+        String normalized = value.toUpperCase();
+        if (normalized.contains("PIX")) {
+            return PaymentMethod.PIX;
+        }
+        if (normalized.contains("BOLETO")) {
+            return PaymentMethod.BOLETO;
+        }
+        if (normalized.contains("DINHEIRO")) {
+            return PaymentMethod.CASH;
+        }
+        if (normalized.contains("CART")) {
+            return PaymentMethod.CARD;
+        }
+        return PaymentMethod.TRANSFER;
+    }
+
     private void recalculate(RentalInvoice invoice) {
         BigDecimal total = invoice.getItems().stream()
                 .map(RentalInvoiceVehicle::getAmount)
@@ -320,6 +491,16 @@ public class RentalInvoiceService {
                 .orElseThrow(() -> new ResourceNotFoundException("Fatura de locação não encontrada"));
     }
 
+    private UUID receivableId(RentalInvoice invoice) {
+        if (invoice.getId() == null) {
+            return null;
+        }
+        return accountsReceivableRepository.findByRentalInvoiceId(invoice.getId()).stream()
+                .map(AccountsReceivable::getId)
+                .findFirst()
+                .orElse(null);
+    }
+
     private RentalInvoiceDTO toDTO(RentalInvoice invoice) {
         return RentalInvoiceDTO.builder()
                 .id(invoice.getId())
@@ -338,6 +519,12 @@ public class RentalInvoiceService {
                 .periodStart(invoice.getPeriodStart())
                 .periodEnd(invoice.getPeriodEnd())
                 .dueDate(invoice.getDueDate())
+                .receiptDate(invoice.getReceiptDate())
+                .nfseNumber(invoice.getNfseNumber())
+                .nfseStatus(invoice.getNfseStatus())
+                .nfseIssueDate(invoice.getNfseIssueDate())
+                .nfsePdfUrl(invoice.getNfsePdfUrl())
+                .receivableId(receivableId(invoice))
                 .totalAmount(invoice.getTotalAmount())
                 .discount(invoice.getDiscount())
                 .netAmount(invoice.getNetAmount())

@@ -38,6 +38,13 @@ public class RentalInvoiceDTO {
     private LocalDate periodStart;
     private LocalDate periodEnd;
     private LocalDate dueDate;
+    private LocalDate receiptDate;
+
+    private String nfseNumber;
+    private String nfseStatus;
+    private LocalDateTime nfseIssueDate;
+    private String nfsePdfUrl;
+    private UUID receivableId;
 
     private BigDecimal totalAmount;
     private BigDecimal discount;

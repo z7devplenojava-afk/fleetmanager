@@ -13,7 +13,7 @@ import {
   Phone, 
   CheckCircle, 
   AlertTriangle, 
-  Route,
+  Route as RouteIcon,
   User,
   Car,
   QrCodeScanner,
@@ -178,7 +178,7 @@ export default function DriverPortal() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
-                  <Route className="h-6 w-6 text-blue-600" />
+                  <RouteIcon className="h-6 w-6 text-blue-600" />
                   <div>
                     <div className="font-bold text-lg">{currentRoute.name}</div>
                     <div className="text-sm text-muted-foreground">
@@ -228,7 +228,7 @@ export default function DriverPortal() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Route className="h-5 w-5" />
+                <RouteIcon className="h-5 w-5" />
                 Detalhes da Rota
               </CardTitle>
             </CardHeader>
@@ -314,7 +314,7 @@ export default function DriverPortal() {
                 </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
-                  <Route className="h-12 w-12 mx-auto mb-4" />
+                  <RouteIcon className="h-12 w-12 mx-auto mb-4" />
                   <p>Nenhuma rota atribuída</p>
                 </div>
               )}

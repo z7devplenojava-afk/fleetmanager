@@ -38,7 +38,6 @@ import {
   TrendingUp,
   Users,
   FolderOpen,
-  Calendar,
   FileSignature
 } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';

@@ -293,7 +293,7 @@ export default function PrecisionMeasurementForm({ device, onSave, onCancel }: P
                   <Input
                     value={formData.serialNumber}
                     onChange={(e) => setFormData(prev => ({ ...prev, serialNumber: e.target.value }))}
-                    placeholder="CD-6"PCB"
+                    placeholder={'CD-6"PCB'}
                   />
                 </div>
                 <div>
@@ -338,7 +338,7 @@ export default function PrecisionMeasurementForm({ device, onSave, onCancel }: P
                   <Input
                     value={formData.model}
                     onChange={(e) => setFormData(prev => ({ ...prev, model: e.target.value }))}
-                    placeholder="CD-6"PCB"
+                    placeholder={'CD-6"PCB'}
                   />
                 </div>
                 <div>

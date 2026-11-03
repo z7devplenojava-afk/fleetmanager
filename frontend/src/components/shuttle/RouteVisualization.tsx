@@ -6,7 +6,7 @@ import {
   MapPin, 
   Navigation, 
   Clock, 
-  Route, 
+  Route as RouteIcon, 
   Car, 
   Users, 
   Eye,
@@ -121,7 +121,7 @@ export default function RouteVisualization({
         <CardContent className="p-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <Route className="h-5 w-5 text-blue-600" />
+              <RouteIcon className="h-5 w-5 text-blue-600" />
               <div>
                 <div className="font-bold text-sm">{route.name}</div>
                 <div className="text-xs text-muted-foreground">{route.distance} km • {route.estimatedDuration} min</div>
@@ -160,7 +160,7 @@ export default function RouteVisualization({
         <CardContent className="p-4">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <Route className="h-6 w-6 text-blue-600" />
+              <RouteIcon className="h-6 w-6 text-blue-600" />
               <div>
                 <div className="font-bold text-lg">{route.name}</div>
                 <div className="text-sm text-muted-foreground">{route.description}</div>

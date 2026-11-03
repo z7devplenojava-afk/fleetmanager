@@ -288,7 +288,7 @@ const ContasAPagar: React.FC = () => {
       );
       toast({
         title: 'Baixa efetuada com sucesso!',
-        description: A conta "" foi marcada como PAGA.,
+        description: `A conta "${contaParaBaixa.invoiceNumber || contaParaBaixa.descricao}" foi marcada como PAGA.`,
       });
       setShowBaixaModal(false);
       setContaParaBaixa(null);
@@ -1405,15 +1405,6 @@ const ContasAPagar: React.FC = () => {
               Relatórios & Exportação
             </TabsTrigger>
           </TabsList>
-            <TabsTrigger value="contas" className="flex items-center gap-2 font-bold text-xs sm:text-sm data-[state=active]:bg-zinc-800 data-[state=active]:text-white">
-              <FileText size={15} className="text-emerald-400" />
-              Contas a Pagar
-            </TabsTrigger>
-            <TabsTrigger value="relatorios" className="flex items-center gap-2 font-bold text-xs sm:text-sm data-[state=active]:bg-zinc-800 data-[state=active]:text-white">
-              <BarChart3 size={15} className="text-sky-400" />
-              Relatórios & Exportação
-            </TabsTrigger>
-          </TabsList>
 
           {/* Aba de Contas */}
           <TabsContent value="contas" className="space-y-6 mt-4">
@@ -1701,7 +1692,7 @@ const ContasAPagar: React.FC = () => {
                       variant={boletoStatusFilter === st ? 'default' : 'outline'}
                       size="sm"
                       onClick={() => setBoletoStatusFilter(st)}
-                      className={h-7 px-3 text-xs rounded-lg font-semibold transition-all }
+                      className={`h-7 px-3 text-xs rounded-lg font-semibold transition-all ${boletoStatusFilter === st ? 'ring-1 ring-seguranca-red/50' : 'opacity-80 hover:opacity-100'}`}
                     >
                       {st === 'PENDENTES' && 'Pendentes'}
                       {st === 'HOJE' && 'Vencem Hoje'}

@@ -545,21 +545,21 @@ export default function Ajuda() {
                                                     <div className="border-l-4 border-green-500 pl-4">
                                                         <h5 className="font-semibold">Como cadastrar um novo funcionário?</h5>
                                                         <p className="text-sm text-muted-foreground mt-1">
-                              Vá para o módulo RH > Funcionários > Novo Funcionário. Preencha todos os campos obrigatórios (nome, CPF, cargo, etc.) e clique em Salvar. Certifique-se de que o cargo já esteja cadastrado no sistema.
+                              Vá para o módulo RH &gt; Funcionários &gt; Novo Funcionário. Preencha todos os campos obrigatórios (nome, CPF, cargo, etc.) e clique em Salvar. Certifique-se de que o cargo já esteja cadastrado no sistema.
                                                         </p>
                                                     </div>
 
                                                     <div className="border-l-4 border-green-500 pl-4">
                                                         <h5 className="font-semibold">Como gerar holerites dos funcionários?</h5>
                                                         <p className="text-sm text-muted-foreground mt-1">
-                              Acesse RH > Folha de Pagamento > Gerar Holerites. Selecione o mês/ano desejado, escolha os funcionários e clique em "Processar". Os holerites serão gerados automaticamente.
+                              Acesse RH &gt; Folha de Pagamento &gt; Gerar Holerites. Selecione o mês/ano desejado, escolha os funcionários e clique em "Processar". Os holerites serão gerados automaticamente.
                                                         </p>
                                                     </div>
 
                                                     <div className="border-l-4 border-green-500 pl-4">
                                                         <h5 className="font-semibold">Como configurar cargos e salários?</h5>
                                                         <p className="text-sm text-muted-foreground mt-1">
-                              Vá em RH > Cargos > Novo Cargo. Defina o nome do cargo, salário base, benefícios e permissões. Os cargos criados poderão ser atribuídos aos funcionários.
+                              Vá em RH &gt; Cargos &gt; Novo Cargo. Defina o nome do cargo, salário base, benefícios e permissões. Os cargos criados poderão ser atribuídos aos funcionários.
                                                         </p>
                                                     </div>
                                                 </div>
@@ -572,21 +572,21 @@ export default function Ajuda() {
                                                     <div className="border-l-4 border-purple-500 pl-4">
                                                         <h5 className="font-semibold">Como gerar relatórios financeiros?</h5>
                                                         <p className="text-sm text-muted-foreground mt-1">
-                              Acesse Financeiro > Relatórios, selecione o período desejado e o tipo de relatório (receitas, despesas, fluxo de caixa). Clique em "Gerar" para visualizar ou exportar em PDF/Excel.
+                              Acesse Financeiro &gt; Relatórios, selecione o período desejado e o tipo de relatório (receitas, despesas, fluxo de caixa). Clique em "Gerar" para visualizar ou exportar em PDF/Excel.
                                                         </p>
                                                     </div>
 
                                                     <div className="border-l-4 border-purple-500 pl-4">
                                                         <h5 className="font-semibold">Como lançar contas a pagar?</h5>
                                                         <p className="text-sm text-muted-foreground mt-1">
-                              Vá em Financeiro > Contas a Pagar > Nova Conta. Preencha fornecedor, valor, data de vencimento e categoria. O sistema alertará sobre vencimentos próximos.
+                              Vá em Financeiro &gt; Contas a Pagar &gt; Nova Conta. Preencha fornecedor, valor, data de vencimento e categoria. O sistema alertará sobre vencimentos próximos.
                                                         </p>
                                                     </div>
 
                                                     <div className="border-l-4 border-purple-500 pl-4">
                                                         <h5 className="font-semibold">Como controlar o fluxo de caixa?</h5>
                                                         <p className="text-sm text-muted-foreground mt-1">
-                              O dashboard financeiro mostra o fluxo de caixa em tempo real. Acesse Financeiro > Dashboard para ver entradas, saídas e saldo atual. Configure alertas para saldo baixo.
+                              O dashboard financeiro mostra o fluxo de caixa em tempo real. Acesse Financeiro &gt; Dashboard para ver entradas, saídas e saldo atual. Configure alertas para saldo baixo.
                                                         </p>
                                                     </div>
                                                 </div>
@@ -606,14 +606,14 @@ export default function Ajuda() {
                                                     <div className="border-l-4 border-orange-500 pl-4">
                                                         <h5 className="font-semibold">Como fazer movimentações de estoque?</h5>
                                                         <p className="text-sm text-muted-foreground mt-1">
-                              Acesse Estoque > Movimentações > Nova Movimentação. Selecione o produto, tipo (entrada/saída), quantidade e motivo. Todas as movimentações ficam registradas no histórico.
+                              Acesse Estoque &gt; Movimentações &gt; Nova Movimentação. Selecione o produto, tipo (entrada/saída), quantidade e motivo. Todas as movimentações ficam registradas no histórico.
                                                         </p>
                                                     </div>
 
                                                     <div className="border-l-4 border-orange-500 pl-4">
                                                         <h5 className="font-semibold">Como fazer inventário do estoque?</h5>
                                                         <p className="text-sm text-muted-foreground mt-1">
-                              Vá em Estoque > Inventário > Novo Inventário. O sistema gerará uma lista de produtos para contagem. Após a contagem física, insira as quantidades reais para ajustar o estoque.
+                              Vá em Estoque &gt; Inventário &gt; Novo Inventário. O sistema gerará uma lista de produtos para contagem. Após a contagem física, insira as quantidades reais para ajustar o estoque.
                                                         </p>
                                                     </div>
                                                 </div>
@@ -626,21 +626,21 @@ export default function Ajuda() {
                                                     <div className="border-l-4 border-red-500 pl-4">
                                                         <h5 className="font-semibold">Como cadastrar equipamentos de segurança?</h5>
                                                         <p className="text-sm text-muted-foreground mt-1">
-                              Acesse Operacional > Equipamentos > Novo Equipamento. Preencha tipo, modelo, número de série e responsável. Configure manutenções preventivas e alertas de vencimento.
+                              Acesse Operacional &gt; Equipamentos &gt; Novo Equipamento. Preencha tipo, modelo, número de série e responsável. Configure manutenções preventivas e alertas de vencimento.
                                                         </p>
                                                     </div>
 
                                                     <div className="border-l-4 border-red-500 pl-4">
                                                         <h5 className="font-semibold">Como registrar ocorrências?</h5>
                                                         <p className="text-sm text-muted-foreground mt-1">
-                              Vá em Operacional > Ocorrências > Nova Ocorrência. Descreva o evento, local, data/hora e pessoas envolvidas. Anexe fotos se necessário. As ocorrências geram relatórios automáticos.
+                              Vá em Operacional &gt; Ocorrências &gt; Nova Ocorrência. Descreva o evento, local, data/hora e pessoas envolvidas. Anexe fotos se necessário. As ocorrências geram relatórios automáticos.
                                                         </p>
                                                     </div>
 
                                                     <div className="border-l-4 border-red-500 pl-4">
                                                         <h5 className="font-semibold">Como agendar manutenções de equipamentos?</h5>
                                                         <p className="text-sm text-muted-foreground mt-1">
-                              Em Operacional > Equipamentos, selecione o equipamento e clique em "Agendar Manutenção". Defina data, tipo de manutenção e responsável. O sistema enviará lembretes automáticos.
+                              Em Operacional &gt; Equipamentos, selecione o equipamento e clique em "Agendar Manutenção". Defina data, tipo de manutenção e responsável. O sistema enviará lembretes automáticos.
                                                         </p>
                                                     </div>
                                                 </div>
@@ -660,7 +660,7 @@ export default function Ajuda() {
                                                     <div className="border-l-4 border-gray-500 pl-4">
                                                         <h5 className="font-semibold">Como fazer backup dos dados?</h5>
                                                         <p className="text-sm text-muted-foreground mt-1">
-                              O sistema faz backup automático diário. Para backup manual, acesse Configurações > Backup > Gerar Backup. Recomendamos fazer backups antes de grandes alterações no sistema.
+                              O sistema faz backup automático diário. Para backup manual, acesse Configurações &gt; Backup &gt; Gerar Backup. Recomendamos fazer backups antes de grandes alterações no sistema.
                                                         </p>
                                                     </div>
 

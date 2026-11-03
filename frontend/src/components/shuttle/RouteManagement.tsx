@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
-  Route, 
+  Route as RouteIcon, 
   Upload, 
   MapPin, 
   Plus, 
@@ -348,7 +348,7 @@ export default function RouteManagement() {
       <div className="flex justify-between items-center">
         <div>
           <h3 className="text-lg font-semibold flex items-center gap-2">
-            <Route className="h-5 w-5" />
+            <RouteIcon className="h-5 w-5" />
             Gestão de Rotas
           </h3>
           <p className="text-sm text-muted-foreground">
@@ -375,7 +375,7 @@ export default function RouteManagement() {
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
-                    <Route className="h-5 w-5 text-blue-600" />
+                    <RouteIcon className="h-5 w-5 text-blue-600" />
                     <div>
                       <div className="font-bold text-lg">{route.name}</div>
                       <div className="text-sm text-muted-foreground">{route.description}</div>
@@ -728,7 +728,7 @@ export default function RouteManagement() {
             </CardContent>
           </Card>
         </div>
-      )}</Card>
+      )}
 
       {/* Route View Modal */}
       {viewingRoute && (

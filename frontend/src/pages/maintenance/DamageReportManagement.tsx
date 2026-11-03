@@ -116,11 +116,6 @@ export default function DamageReportManagement() {
     setSelectedReport(null);
   };
 
-  const handleEditReport = (report: DamageReport) => {
-    setSelectedReport(report);
-    setShowCreateModal(true);
-  };
-
   const getSeverityLabel = (severity: string) => damageReportService.getSeverityLabel(severity);
   const getSeverityColor = (severity: string) => damageReportService.getSeverityColor(severity);
   const getStatusLabel = (status: string) => damageReportService.getStatusLabel(status);

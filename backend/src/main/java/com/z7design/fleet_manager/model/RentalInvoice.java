@@ -88,6 +88,21 @@ public class RentalInvoice {
     @Column(name = "due_date", nullable = false)
     private LocalDate dueDate;
 
+    @Column(name = "receipt_date")
+    private LocalDate receiptDate;
+
+    @Column(name = "nfse_number", length = 50)
+    private String nfseNumber;
+
+    @Column(name = "nfse_status", length = 30)
+    private String nfseStatus;
+
+    @Column(name = "nfse_issue_date")
+    private LocalDateTime nfseIssueDate;
+
+    @Column(name = "nfse_pdf_url", length = 500)
+    private String nfsePdfUrl;
+
     @Column(name = "total_amount", nullable = false, precision = 15, scale = 2)
     private BigDecimal totalAmount;
 

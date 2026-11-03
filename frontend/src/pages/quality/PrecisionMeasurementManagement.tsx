@@ -122,11 +122,6 @@ export default function PrecisionMeasurementManagement() {
     setSelectedDevice(null);
   };
 
-  const handleEditDevice = (device: PrecisionMeasurement) => {
-    setSelectedDevice(device);
-    setShowCreateModal(true);
-  };
-
   const getDeviceTypeLabel = (type: string) => precisionMeasurementService.getDeviceTypeLabel(type);
   const getStatusLabel = (status: string) => precisionMeasurementService.getStatusLabel(status);
   const getCalibrationStatusLabel = (status: string) => precisionMeasurementService.getCalibrationStatusLabel(status);

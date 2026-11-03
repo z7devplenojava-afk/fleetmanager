@@ -391,7 +391,7 @@ export default function PrecisionMeasurementView({ deviceId, onEdit, onDelete, o
                   <Alert>
                     <Target className="h-4 w-4" />
                     <AlertDescription>
-                      O índice Cpk ({device.statistics.cpk.toFixed(2)}) está abaixo do recomendado (>1.33). 
+                      O índice Cpk ({device.statistics.cpk.toFixed(2)}) está abaixo do recomendado (&gt;1.33). 
                       Considere revisar o processo de medição.
                     </AlertDescription>
                   </Alert>
@@ -654,25 +654,25 @@ export default function PrecisionMeasurementView({ deviceId, onEdit, onDelete, o
                 <h4 className="font-medium mb-4">Interpretação dos Índices</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="p-4 border rounded-lg">
-                    <div className="font-medium text-green-600">Cp & Cpk ≥ 1.33</div>
+                    <div className="font-medium text-green-600">Cp &amp; Cpk ≥ 1.33</div>
                     <p className="text-sm text-muted-foreground mt-1">
                       Processo capaz e estável. Atende aos requisitos de qualidade.
                     </p>
                   </div>
                   <div className="p-4 border rounded-lg">
-                    <div className="font-medium text-yellow-600">1.00 ≤ Cp & Cpk < 1.33</div>
+                    <div className="font-medium text-yellow-600">1.00 ≤ Cp &amp; Cpk &lt; 1.33</div>
                     <p className="text-sm text-muted-foreground mt-1">
                       Processo marginal. Pode melhorar com ajustes.
                     </p>
                   </div>
                   <div className="p-4 border rounded-lg">
-                    <div className="font-medium text-red-600">Cp & Cpk < 1.00</div>
+                    <div className="font-medium text-red-600">Cp &amp; Cpk &lt; 1.00</div>
                     <p className="text-sm text-muted-foreground mt-1">
                       Processo incapaz. Requer melhorias significativas.
                     </p>
                   </div>
                   <div className="p-4 border rounded-lg">
-                    <div className="font-medium text-blue-600">Cpk < Cp</div>
+                    <div className="font-medium text-blue-600">Cpk &lt; Cp</div>
                     <p className="text-sm text-muted-foreground mt-1">
                       Processo descentralizado. Requer ajuste de centralização.
                     </p>

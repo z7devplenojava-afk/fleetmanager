@@ -73,6 +73,8 @@ public class AccountsReceivableDTO {
     private UUID workPostId;
     private String workPostName;
 
+    private UUID rentalInvoiceId;
+
     // NFS-e e Retenções
     private BigDecimal grossAmount;
     private BigDecimal netAmount;
@@ -131,6 +133,8 @@ public class AccountsReceivableDTO {
             this.workPostId = entity.getWorkPost().getId();
             this.workPostName = entity.getWorkPost().getName();
         }
+
+        this.rentalInvoiceId = entity.getRentalInvoiceId();
 
         this.grossAmount = entity.getGrossAmount();
         this.netAmount = entity.getNetAmount();
@@ -233,6 +237,9 @@ public class AccountsReceivableDTO {
 
     public String getWorkPostName() { return workPostName; }
     public void setWorkPostName(String workPostName) { this.workPostName = workPostName; }
+
+    public UUID getRentalInvoiceId() { return rentalInvoiceId; }
+    public void setRentalInvoiceId(UUID rentalInvoiceId) { this.rentalInvoiceId = rentalInvoiceId; }
 
     public BigDecimal getGrossAmount() { return grossAmount; }
     public void setGrossAmount(BigDecimal grossAmount) { this.grossAmount = grossAmount; }

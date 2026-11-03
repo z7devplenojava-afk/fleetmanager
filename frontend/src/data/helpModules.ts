@@ -160,21 +160,8 @@ export const helpModules: HelpModule[] = [
     ],
     category: 'compras',
     routes: ['/compras', '/compras/solicitacoes', '/compras/aprovacoes', '/compras/relatorios']
-  }
-];
-
-export const helpCategories = [
-  { id: 'all', name: 'Todos os Módulos', icon: BarChart3 },
-  { id: 'core', name: 'Sistema Principal', icon: BarChart3 },
-  { id: 'financeiro', name: 'Financeiro', icon: DollarSign },
-  { id: 'estoque', name: 'Estoque', icon: Package },
-  { id: 'compras', name: 'Compras', icon: ShoppingCart },
-  { id: 'rh', name: 'Recursos Humanos', icon: Users },
-  { id: 'operacional', name: 'Operacional', icon: Shield },
-  { id: 'comercial', name: 'Comercial', icon: Briefcase },
-  { id: 'admin', name: 'Administrativo', icon: Settings }
-];  
-,{
+  },
+  {
     id: 'rh',
     title: 'Recursos Humanos',
     icon: Users,
@@ -365,4 +352,16 @@ export const helpCategories = [
     category: 'admin',
     routes: ['/configuracoes', '/usuarios', '/grupos', '/roles']
   }
+];
+
+export const helpCategories = [
+  { id: 'all', name: 'Todos os Módulos', icon: BarChart3 },
+  { id: 'core', name: 'Sistema Principal', icon: BarChart3 },
+  { id: 'financeiro', name: 'Financeiro', icon: DollarSign },
+  { id: 'estoque', name: 'Estoque', icon: Package },
+  { id: 'compras', name: 'Compras', icon: ShoppingCart },
+  { id: 'rh', name: 'Recursos Humanos', icon: Users },
+  { id: 'operacional', name: 'Operacional', icon: Shield },
+  { id: 'comercial', name: 'Comercial', icon: Briefcase },
+  { id: 'admin', name: 'Administrativo', icon: Settings }
 ];

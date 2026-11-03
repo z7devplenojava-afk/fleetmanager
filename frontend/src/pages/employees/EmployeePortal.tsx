@@ -14,7 +14,7 @@ import {
   CheckCircle, 
   AlertTriangle, 
   QrCode,
-  Route,
+  Route as RouteIcon,
   Car,
   MessageSquare,
   Bell,
@@ -178,7 +178,7 @@ export default function EmployeePortal() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Route className="h-5 w-5" />
+                  <RouteIcon className="h-5 w-5" />
                   Minha Rota
                 </CardTitle>
               </CardHeader>

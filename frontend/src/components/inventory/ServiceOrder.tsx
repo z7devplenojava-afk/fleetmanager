@@ -127,18 +127,13 @@ const mockInventoryItems: InventoryItem[] = [
   }
 ];
 
-export default function ServiceOrder() {
-  const { onRequestCreated, onOrderCompleted } = useInventoryNotifications();
-  const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
-  const [filteredOrders, setFilteredOrders] = useState<ServiceOrder[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+export default function ServiceOrderPage() {
+  const { onOrderCreated, onOrderCompleted } = useInventoryNotifications();
+  const [showNewOrderModal, setShowNewOrderModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<ServiceOrder | undefined>();
   const [editingOrder, setEditingOrder] = useState<ServiceOrder | undefined>();
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [dateFilter, setDateFilter] = useState('all');
+  const [selectedStatus, setSelectedStatus] = useState('all');
   const [pdfGenerating, setPdfGenerating] = useState(false);
 
   const [orders, setOrders] = useState<ServiceOrder[]>(mockServiceOrders);
@@ -188,7 +183,7 @@ export default function ServiceOrder() {
     }
   };
 
-  const handleAddItem = (type: 'PART' | 'LABOR') => {
+  const handleAddItem = (type: 'PART' | 'LABOR' = 'PART') => {
     const newItem: ServiceOrderItem = {
       id: Date.now().toString(),
       type,
@@ -662,44 +657,18 @@ export default function ServiceOrder() {
                           placeholder="Valor Unitário"
                         />
                       </div>
-                      <div className="flex items-center">
+                      <div className="flex items-center gap-2">
                         <div className="text-sm font-medium text-foreground">
                           R$ {item.totalPrice.toFixed(2)}
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleViewOrder(order)}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEditOrder(order)}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleGeneratePDF(order, 'open')}
-                            disabled={pdfGenerating}
-                            title="Visualizar PDF"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleGeneratePDF(order, 'download')}
-                            disabled={pdfGenerating}
-                            title="Baixar PDF"
-                          >
-                            <FileDown className="w-4 h-4" />
-                          </Button>
-                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveItem(item.id)}
+                          title="Remover item"
+                        >
+                          <Trash2 className="h-4 w-4 text-red-500" />
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -734,11 +703,29 @@ export default function ServiceOrder() {
                 <Button
                   variant="outline"
                   onClick={() => setShowNewOrderModal(false)}
-                  <h2 className="text-2xl font-bold text-foreground">Ordem de Serviço</h2>
-                  <p className="text-muted-foreground">{selectedOrder.orderNumber}</p>
-                </div>
-                <div>
-                  <Label>Status</Label>
+                >
+                  Cancelar
+                </Button>
+                <Button onClick={handleCreateOrder}>
+                  Criar Ordem
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Order Modal */}
+      {selectedOrder && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-card rounded-lg shadow-xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h2 className="text-2xl font-bold text-foreground">Ordem de Serviço</h2>
+                <p className="text-muted-foreground">{selectedOrder.orderNumber}</p>
+              </div>
+              <div>
+                <Label>Status</Label>
                   <Badge className={getStatusColor(selectedOrder.status)}>
                     {getStatusLabel(selectedOrder.status)}
                   </Badge>
@@ -822,7 +809,6 @@ export default function ServiceOrder() {
               </div>
             </div>
           </div>
-        </div>
       )}
     </div>
   );

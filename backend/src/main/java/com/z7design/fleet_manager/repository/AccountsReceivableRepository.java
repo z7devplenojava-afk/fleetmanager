@@ -41,6 +41,9 @@ public interface AccountsReceivableRepository extends JpaRepository<AccountsRece
     
     // Buscar por ID da medição
     List<AccountsReceivable> findByMeasurementId(UUID measurementId);
+
+    // Buscar título financeiro vinculado a uma fatura de locação
+    List<AccountsReceivable> findByRentalInvoiceId(UUID rentalInvoiceId);
     
     // Buscar por cliente e status
     List<AccountsReceivable> findByClientIdAndStatus(UUID clientId, ReceivableStatus status);
