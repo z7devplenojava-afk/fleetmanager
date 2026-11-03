@@ -301,7 +301,7 @@ export const DriverBoardingPanelModal: React.FC<DriverBoardingPanelModalProps> =
         { facingMode: 'environment' },
         {
           fps: 20,
-          aspectRatio: 1.0,
+          // native aspect ratio
           qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
             const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
             const edge = Math.max(240, Math.floor(minEdge * 0.85));
@@ -522,7 +522,7 @@ export const DriverBoardingPanelModal: React.FC<DriverBoardingPanelModalProps> =
               </Button>
             </div>
 
-            <div className="relative w-full aspect-square max-w-[340px] mx-auto min-h-[300px] rounded-2xl overflow-hidden bg-black flex items-center justify-center border-2 border-emerald-500/50 shadow-2xl">
+            <div className="relative w-full aspect-square max-w-[420px] mx-auto min-h-[340px] sm:min-h-[400px] rounded-2xl overflow-hidden bg-black flex items-center justify-center border-2 border-emerald-500/50 shadow-2xl">
               <div id={qrRegionId} className="w-full h-full [&>video]:object-cover [&>video]:w-full [&>video]:h-full" />
               {!scannerActive && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center text-gray-400 bg-slate-950/85 backdrop-blur-sm">
@@ -537,7 +537,7 @@ export const DriverBoardingPanelModal: React.FC<DriverBoardingPanelModalProps> =
               )}
               {scannerActive && (
                 <div className="absolute inset-0 pointer-events-none flex items-center justify-center p-4">
-                  <div className="w-64 h-64 border-2 border-dashed border-emerald-400/90 rounded-2xl relative shadow-[0_0_25px_rgba(16,185,129,0.35)] animate-pulse">
+                  <div className="w-[88%] max-w-[300px] aspect-square border-2 border-dashed border-emerald-400/90 rounded-2xl relative shadow-[0_0_25px_rgba(16,185,129,0.35)] animate-pulse">
                     <div className="absolute -top-1 -left-1 w-7 h-7 border-t-4 border-l-4 border-emerald-400 rounded-tl" />
                     <div className="absolute -top-1 -right-1 w-7 h-7 border-t-4 border-r-4 border-emerald-400 rounded-tr" />
                     <div className="absolute -bottom-1 -left-1 w-7 h-7 border-b-4 border-l-4 border-emerald-400 rounded-bl" />

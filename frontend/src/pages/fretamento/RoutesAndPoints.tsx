@@ -1716,7 +1716,11 @@ const RoutesAndPoints: React.FC = () => {
                                             <Select
                                                 value={formData.clientId}
                                                 onValueChange={(v) => {
-                                                    setFormData({ ...formData, clientId: v });
+                                                    setFormData({ 
+                                                        ...formData, 
+                                                        clientId: v,
+                                                        checkinType: v ? 'LISTA_FECHADA' : formData.checkinType
+                                                    });
                                                 }}
                                                 disabled={modalMode === 'view'}
                                             >
@@ -1739,6 +1743,59 @@ const RoutesAndPoints: React.FC = () => {
                                                 placeholder="-"
                                             />
                                         </div>
+
+                                        {/* Painel Imediato de Colaboradores do Cliente (Drag & Drop e Transferência) */}
+                                        <div className="col-span-1 md:col-span-2 bg-slate-900/80 p-4 rounded-xl border border-gray-700/80 space-y-3 shadow-lg">
+                                            <div className="flex items-center justify-between pb-2 border-b border-gray-800">
+                                                <div className="flex items-center gap-2">
+                                                    <Users className="w-5 h-5 text-seguranca-yellow" />
+                                                    <Label className="text-white text-sm font-bold uppercase tracking-wider">
+                                                        Colaboradores do Cliente {formData.clientId ? `(${units.find(u => u.id === formData.clientId)?.name})` : ''}
+                                                    </Label>
+                                                </div>
+                                                {Boolean(formData.clientId) && (
+                                                    <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-bold">
+                                                        {selectedPassengerIds.length} Atribuído(s) à Rota
+                                                    </Badge>
+                                                )}
+                                            </div>
+
+                                            {!formData.clientId ? (
+                                                <div className="py-4 text-center text-gray-400 bg-slate-950/40 rounded-lg border border-dashed border-gray-700/60 p-3">
+                                                    <p className="text-xs text-amber-400 font-medium">
+                                                        ⚠️ Selecione um <strong>Cliente</strong> no campo acima para carregar e atribuir os funcionários a esta rota.
+                                                    </p>
+                                                    <p className="text-[11px] text-gray-500 mt-1">
+                                                        A atribuição pode ser feita por <strong>Arrastar e Soltar (Drag and Drop)</strong> ou por um clique direto nas setas.
+                                                    </p>
+                                                </div>
+                                            ) : loadingPassengers ? (
+                                                <div className="py-6 flex items-center justify-center gap-2 text-xs text-gray-400">
+                                                    <Loader2 className="h-4 w-4 animate-spin text-seguranca-yellow" />
+                                                    <span>Carregando colaboradores do cliente...</span>
+                                                </div>
+                                            ) : clientPassengers.length === 0 ? (
+                                                <div className="py-4 text-center text-gray-400 bg-amber-950/20 rounded-lg border border-amber-500/30 p-3">
+                                                    <p className="text-xs text-amber-300 font-semibold">
+                                                        Nenhum colaborador encontrado para este cliente.
+                                                    </p>
+                                                    <p className="text-[11px] text-gray-400 mt-0.5">
+                                                        Cadastre ou importe os colaboradores na aba "Colaboradores" na tela de Gestão de Clientes.
+                                                    </p>
+                                                </div>
+                                            ) : (
+                                                <RoutePassengerTransferList
+                                                    clientPassengers={clientPassengers}
+                                                    selectedPassengerIds={selectedPassengerIds}
+                                                    onChange={(ids) => setSelectedPassengerIds(ids)}
+                                                    disabled={modalMode === 'view'}
+                                                    routeName={formData.name}
+                                                    sameForReturn={formData.returnSamePassengers}
+                                                    onSameForReturnChange={(same) => setFormData(prev => ({ ...prev, returnSamePassengers: same }))}
+                                                />
+                                            )}
+                                        </div>
+
 
                                         {/* Row 3: Trajeto Restriction */}
                                         <div className="col-span-2 bg-seguranca-black/20 p-4 rounded-lg border border-gray-700/50">
@@ -1989,36 +2046,6 @@ const RoutesAndPoints: React.FC = () => {
                                                         </p>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        )}
-
-                                        {/* Painel de Atribuir Colaboradores na Rota (Drag & Drop + Clique) */}
-                                        {formData.checkinType === 'LISTA_FECHADA' && (
-                                            <div className="col-span-1 md:col-span-2 bg-seguranca-black/30 p-4 rounded-xl border border-gray-700/60 space-y-3">
-                                                {!formData.clientId ? (
-                                                    <p className="text-xs text-amber-400/90 py-2">
-                                                        ⚠️ Selecione um <strong>Cliente</strong> acima para carregar e atribuir os colaboradores à rota.
-                                                    </p>
-                                                ) : loadingPassengers ? (
-                                                    <div className="py-4 flex items-center justify-center gap-2 text-xs text-gray-400">
-                                                        <Loader2 className="h-4 w-4 animate-spin text-seguranca-yellow" />
-                                                        <span>Carregando colaboradores do cliente...</span>
-                                                    </div>
-                                                ) : clientPassengers.length === 0 ? (
-                                                    <p className="text-xs text-gray-400 py-2">
-                                                        Nenhum colaborador encontrado para este cliente. Cadastre ou importe colaboradores na aba "Colaboradores" na gestão de Clientes.
-                                                    </p>
-                                                ) : (
-                                                    <RoutePassengerTransferList
-                                                        clientPassengers={clientPassengers}
-                                                        selectedPassengerIds={selectedPassengerIds}
-                                                        onChange={(ids) => setSelectedPassengerIds(ids)}
-                                                        disabled={modalMode === 'view'}
-                                                        routeName={formData.name}
-                                                        sameForReturn={formData.returnSamePassengers}
-                                                        onSameForReturnChange={(same) => setFormData(prev => ({ ...prev, returnSamePassengers: same }))}
-                                                    />
-                                                )}
                                             </div>
                                         )}
                                     </div>

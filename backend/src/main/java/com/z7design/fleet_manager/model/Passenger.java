@@ -123,6 +123,24 @@ public class Passenger implements TenantAware {
     @Column(name = "state", length = 2)
     private String state;
 
+    @Column(name = "boarding_cep", length = 10)
+    private String boardingCep;
+
+    @Column(name = "boarding_street", length = 150)
+    private String boardingStreet;
+
+    @Column(name = "boarding_number", length = 20)
+    private String boardingNumber;
+
+    @Column(name = "boarding_neighborhood", length = 100)
+    private String boardingNeighborhood;
+
+    @Column(name = "boarding_city", length = 100)
+    private String boardingCity;
+
+    @Column(name = "boarding_state", length = 2)
+    private String boardingState;
+
     @Column(name = "is_pcd")
     private Boolean isPcd = false;
 

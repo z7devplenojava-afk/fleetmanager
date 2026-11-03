@@ -131,7 +131,8 @@ public class BoardingService {
         boarding.setPassenger(passenger);
         boarding.setVehicle(trip.getSchedule() != null ? trip.getSchedule().getVehicle() : null);
         UUID currentTenant1 = com.z7design.fleet_manager.tenant.TenantContext.get();
-        boarding.setCompanyId(currentTenant1 != null ? currentTenant1 : (passenger.getCompanyId() != null ? passenger.getCompanyId() : trip.getCompanyId()));
+        UUID effectiveCompanyId = currentTenant1 != null ? currentTenant1 : (passenger.getCompanyId() != null ? passenger.getCompanyId() : (trip.getRoute() != null ? trip.getRoute().getCompanyId() : null));
+        boarding.setCompanyId(effectiveCompanyId);
         boarding.setClientId(passenger.getClientId());
         boarding.setBoardingTime(LocalDateTime.now());
         boarding.setBoardingLatitude(latitude);

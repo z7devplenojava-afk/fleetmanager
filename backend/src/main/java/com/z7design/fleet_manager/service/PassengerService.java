@@ -51,7 +51,7 @@ public class PassengerService {
         Passenger existing = findById(id);
 
         if (dto.getRegistration() != null) {
-            existing.setRegistration(dto.getRegistration());
+            existing.setRegistration(dto.getRegistration().replaceAll("\\D", ""));
         }
         if (dto.getName() != null) {
             existing.setName(dto.getName());
@@ -142,6 +142,19 @@ public class PassengerService {
         if (dto.getDisabilityDescription() != null) {
             existing.setDisabilityDescription(dto.getDisabilityDescription());
         }
+        if (dto.getCep() != null) existing.setCep(dto.getCep());
+        if (dto.getStreet() != null) existing.setStreet(dto.getStreet());
+        if (dto.getNumber() != null) existing.setNumber(dto.getNumber());
+        if (dto.getComplement() != null) existing.setComplement(dto.getComplement());
+        if (dto.getNeighborhood() != null) existing.setNeighborhood(dto.getNeighborhood());
+        if (dto.getCity() != null) existing.setCity(dto.getCity());
+        if (dto.getState() != null) existing.setState(dto.getState());
+        if (dto.getBoardingCep() != null) existing.setBoardingCep(dto.getBoardingCep());
+        if (dto.getBoardingStreet() != null) existing.setBoardingStreet(dto.getBoardingStreet());
+        if (dto.getBoardingNumber() != null) existing.setBoardingNumber(dto.getBoardingNumber());
+        if (dto.getBoardingNeighborhood() != null) existing.setBoardingNeighborhood(dto.getBoardingNeighborhood());
+        if (dto.getBoardingCity() != null) existing.setBoardingCity(dto.getBoardingCity());
+        if (dto.getBoardingState() != null) existing.setBoardingState(dto.getBoardingState());
 
         // SEGURANÇA E BLOQUEIO IMEDIATO PARA DEMITIDOS/BLOQUEADOS:
         if ("DEMITIDO".equalsIgnoreCase(existing.getStatus()) || "BLOQUEADO".equalsIgnoreCase(existing.getStatus()) || Boolean.FALSE.equals(existing.getActive())) {
@@ -324,6 +337,19 @@ public class PassengerService {
                 .isPcd(passenger.getIsPcd())
                 .disabilityType(passenger.getDisabilityType())
                 .disabilityDescription(passenger.getDisabilityDescription())
+                .cep(passenger.getCep())
+                .street(passenger.getStreet())
+                .number(passenger.getNumber())
+                .complement(passenger.getComplement())
+                .neighborhood(passenger.getNeighborhood())
+                .city(passenger.getCity())
+                .state(passenger.getState())
+                .boardingCep(passenger.getBoardingCep())
+                .boardingStreet(passenger.getBoardingStreet())
+                .boardingNumber(passenger.getBoardingNumber())
+                .boardingNeighborhood(passenger.getBoardingNeighborhood())
+                .boardingCity(passenger.getBoardingCity())
+                .boardingState(passenger.getBoardingState())
                 .createdAt(passenger.getCreatedAt())
                 .updatedAt(passenger.getUpdatedAt())
                 .build();
@@ -331,7 +357,7 @@ public class PassengerService {
 
     private Passenger toEntity(PassengerDTO dto) {
         Passenger passenger = new Passenger();
-        passenger.setRegistration(dto.getRegistration());
+        passenger.setRegistration(dto.getRegistration() != null ? dto.getRegistration().replaceAll("\\D", "") : null);
         passenger.setName(dto.getName());
         passenger.setCompanyId(dto.getCompanyId());
         passenger.setClientId(dto.getClientId());
@@ -352,6 +378,19 @@ public class PassengerService {
         passenger.setIsPcd(dto.getIsPcd() != null ? dto.getIsPcd() : false);
         passenger.setDisabilityType(dto.getDisabilityType());
         passenger.setDisabilityDescription(dto.getDisabilityDescription());
+        passenger.setCep(dto.getCep());
+        passenger.setStreet(dto.getStreet());
+        passenger.setNumber(dto.getNumber());
+        passenger.setComplement(dto.getComplement());
+        passenger.setNeighborhood(dto.getNeighborhood());
+        passenger.setCity(dto.getCity());
+        passenger.setState(dto.getState());
+        passenger.setBoardingCep(dto.getBoardingCep());
+        passenger.setBoardingStreet(dto.getBoardingStreet());
+        passenger.setBoardingNumber(dto.getBoardingNumber());
+        passenger.setBoardingNeighborhood(dto.getBoardingNeighborhood());
+        passenger.setBoardingCity(dto.getBoardingCity());
+        passenger.setBoardingState(dto.getBoardingState());
 
         if (dto.getEmployeeId() != null) {
             Employee employee = employeeRepository.findById(dto.getEmployeeId())
@@ -414,7 +453,10 @@ public class PassengerService {
             user.setActive(true);
             user.setBlocked(false);
             user.setRequirePasswordChange(true);
-            roleRepository.findByName("PASSAGEIRO").ifPresent(role -> user.setRoles(Set.of(role)));
+            Role passengerRole = roleRepository.findByName("PASSAGEIRO").orElse(null);
+            if (passengerRole != null) {
+                user.setRoles(Set.of(passengerRole));
+            }
         }
 
         user.setPassword(passwordEncoder.encode(newPassword));

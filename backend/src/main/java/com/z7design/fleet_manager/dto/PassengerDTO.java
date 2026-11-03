@@ -58,6 +58,19 @@ public class PassengerDTO {
     private Boolean twoFactorEnabled;
     private String twoFactorChannel;
     private Boolean unassignRoute;
+    private String cep;
+    private String street;
+    private String number;
+    private String complement;
+    private String neighborhood;
+    private String city;
+    private String state;
+    private String boardingCep;
+    private String boardingStreet;
+    private String boardingNumber;
+    private String boardingNeighborhood;
+    private String boardingCity;
+    private String boardingState;
     @JsonFormat(pattern = "yyyy-MM-dd")
     private java.time.LocalDate admissionDate;
     @JsonFormat(pattern = "yyyy-MM-dd")

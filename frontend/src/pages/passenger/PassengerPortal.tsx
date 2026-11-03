@@ -93,10 +93,10 @@ export const PassengerPortal: React.FC = () => {
     const passengerName = user?.name || user?.fullName || 'Colaborador';
     const passengerCpf = user?.cpf || '000.000.000-00';
         // Matrícula estritamente numérica (conforme regra de negócio: somente números)
-    const rawRegistration = (user as any)?.registration || user?.employeeCode || (user as any)?.matricula || '';
-    const numericFromRaw = rawRegistration.replace(/\D/g, '');
-    const numericFromUsername = (user?.username || '').replace(/\D/g, '');
-    const passengerRegistration = numericFromRaw || numericFromUsername || '7695';
+    const rawRegistration = (user as any)?.registrationNumber || (user as any)?.registration || (user as any)?.matricula || user?.employeeCode || "";
+    const numericFromRaw = String(rawRegistration).replace(/\D/g, "");
+    const numericFromUsername = (user?.username || "").replace(/\D/g, "");
+    const passengerRegistration = numericFromRaw || (numericFromUsername.length >= 3 ? numericFromUsername : "1001");
     const isFretado = user?.passengerCategory === 'FRETADO' || Boolean(user?.clientId);
     const clientName = isFretado 
         ? ((user as any)?.clientName || (user as any)?.empresa?.nome || 'Cliente Contratante')

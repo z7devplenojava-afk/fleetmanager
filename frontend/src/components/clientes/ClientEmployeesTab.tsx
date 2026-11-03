@@ -10,7 +10,8 @@ import {
   Users, UserPlus, FileSpreadsheet, Search, Edit2, Trash2, 
   CheckCircle2, XCircle, AlertCircle, Download, Upload, 
   Accessibility, Calendar, Phone, Hash, ShieldAlert, Loader2,
-  KeyRound, ShieldCheck, Bus, Send, Mail, MessageSquare, RefreshCw
+  KeyRound, ShieldCheck, Bus, Send, Mail, MessageSquare, RefreshCw,
+  MapPin, Home, Navigation
 } from 'lucide-react';
 import axios from '@/lib/axios';
 import * as XLSX from 'xlsx';
@@ -38,6 +39,22 @@ interface NewPassengerForm {
   routeId: string;
   boardingPointId: string;
   returnRouteId: string;
+  // Endereço Residencial
+  cep: string;
+  street: string;
+  number: string;
+  complement: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  // Endereço de Embarque
+  boardingCep: string;
+  boardingStreet: string;
+  boardingNumber: string;
+  boardingNeighborhood: string;
+  boardingCity: string;
+  boardingState: string;
+  // Segurança / 2FA
   twoFactorEnabled: boolean;
   twoFactorChannel: 'WHATSAPP' | 'EMAIL';
   initialPassword?: string;
@@ -57,6 +74,19 @@ const emptyForm: NewPassengerForm = {
   routeId: '',
   boardingPointId: '',
   returnRouteId: '',
+  cep: '',
+  street: '',
+  number: '',
+  complement: '',
+  neighborhood: '',
+  city: '',
+  state: '',
+  boardingCep: '',
+  boardingStreet: '',
+  boardingNumber: '',
+  boardingNeighborhood: '',
+  boardingCity: '',
+  boardingState: '',
   twoFactorEnabled: false,
   twoFactorChannel: 'WHATSAPP',
   initialPassword: ''
@@ -76,6 +106,10 @@ export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [form, setForm] = useState<NewPassengerForm>(emptyForm);
+
+  // CEP Lookups
+  const [loadingCepResidencial, setLoadingCepResidencial] = useState(false);
+  const [loadingCepEmbarque, setLoadingCepEmbarque] = useState(false);
 
   // Estados de Segurança / Reset de Senha / 2FA
   const [showPasswordReset, setShowPasswordReset] = useState(false);
@@ -188,6 +222,64 @@ export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId
     setForm(prev => ({ ...prev, phone: v }));
   };
 
+  // Busca de CEP Residencial
+  const handleCepResidencialChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    let raw = e.target.value.replace(/\D/g, '').slice(0, 8);
+    let formatted = raw.length > 5 ? raw.replace(/(\d{5})(\d{1,3})/, '$1-$2') : raw;
+    setForm(prev => ({ ...prev, cep: formatted }));
+
+    if (raw.length === 8) {
+      setLoadingCepResidencial(true);
+      try {
+        const resp = await fetch(`https://viacep.com.br/ws/${raw}/json/`);
+        const data = await resp.json();
+        if (data && !data.erro) {
+          setForm(prev => ({
+            ...prev,
+            street: data.logradouro || prev.street,
+            neighborhood: data.bairro || prev.neighborhood,
+            city: data.localidade || prev.city,
+            state: data.uf || prev.state
+          }));
+          toast({ title: 'Endereço residencial preenchido pelo CEP!' });
+        }
+      } catch (err) {
+        console.warn('Erro ao consultar ViaCEP:', err);
+      } finally {
+        setLoadingCepResidencial(false);
+      }
+    }
+  };
+
+  // Busca de CEP de Embarque
+  const handleCepEmbarqueChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    let raw = e.target.value.replace(/\D/g, '').slice(0, 8);
+    let formatted = raw.length > 5 ? raw.replace(/(\d{5})(\d{1,3})/, '$1-$2') : raw;
+    setForm(prev => ({ ...prev, boardingCep: formatted }));
+
+    if (raw.length === 8) {
+      setLoadingCepEmbarque(true);
+      try {
+        const resp = await fetch(`https://viacep.com.br/ws/${raw}/json/`);
+        const data = await resp.json();
+        if (data && !data.erro) {
+          setForm(prev => ({
+            ...prev,
+            boardingStreet: data.logradouro || prev.boardingStreet,
+            boardingNeighborhood: data.bairro || prev.boardingNeighborhood,
+            boardingCity: data.localidade || prev.boardingCity,
+            boardingState: data.uf || prev.boardingState
+          }));
+          toast({ title: 'Local de embarque preenchido pelo CEP!' });
+        }
+      } catch (err) {
+        console.warn('Erro ao consultar ViaCEP embarque:', err);
+      } finally {
+        setLoadingCepEmbarque(false);
+      }
+    }
+  };
+
   // Gerador de senha forte aleatória
   const generateRandomPassword = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%';
@@ -215,6 +307,19 @@ export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId
       routeId: emp.routeId || '',
       boardingPointId: emp.boardingPointId || '',
       returnRouteId: emp.returnRouteId || '',
+      cep: emp.cep || '',
+      street: emp.street || '',
+      number: emp.number || '',
+      complement: emp.complement || '',
+      neighborhood: emp.neighborhood || '',
+      city: emp.city || '',
+      state: emp.state || '',
+      boardingCep: emp.boardingCep || '',
+      boardingStreet: emp.boardingStreet || '',
+      boardingNumber: emp.boardingNumber || '',
+      boardingNeighborhood: emp.boardingNeighborhood || '',
+      boardingCity: emp.boardingCity || '',
+      boardingState: emp.boardingState || '',
       twoFactorEnabled: Boolean(emp.twoFactorEnabled),
       twoFactorChannel: emp.twoFactorChannel || 'WHATSAPP',
       initialPassword: ''
@@ -374,6 +479,19 @@ export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId
         routeId: form.routeId || undefined,
         boardingPointId: form.boardingPointId || undefined,
         returnRouteId: form.returnRouteId || undefined,
+        cep: form.cep || undefined,
+        street: form.street || undefined,
+        number: form.number || undefined,
+        complement: form.complement || undefined,
+        neighborhood: form.neighborhood || undefined,
+        city: form.city || undefined,
+        state: form.state || undefined,
+        boardingCep: form.boardingCep || undefined,
+        boardingStreet: form.boardingStreet || undefined,
+        boardingNumber: form.boardingNumber || undefined,
+        boardingNeighborhood: form.boardingNeighborhood || undefined,
+        boardingCity: form.boardingCity || undefined,
+        boardingState: form.boardingState || undefined,
         twoFactorEnabled: form.twoFactorEnabled,
         twoFactorChannel: form.twoFactorChannel
       };
@@ -385,7 +503,6 @@ export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId
         const res = await axios.post('/passengers', payload);
         const createdId = res.data?.id;
 
-        // Se informou senha inicial no cadastro de novo colaborador
         if (createdId && form.initialPassword?.trim()) {
           try {
             await axios.post(`/passengers/${createdId}/reset-password`, {
@@ -404,7 +521,7 @@ export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId
     } catch (err: any) {
       toast({
         title: 'Erro ao salvar colaborador',
-        description: err.response?.data?.message || 'Verifique se a matrícula já está em uso.',
+        description: err.response?.data?.message || err.message || 'Verifique se a matrícula já está em uso.',
         variant: 'destructive',
       });
     } finally {
@@ -785,9 +902,9 @@ export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId
         </div>
       </Card>
 
-      {/* Modal Cadastro / Edição com ROTA, RESET DE SENHA e 2FA */}
+      {/* Modal Cadastro / Edição com ENDEREÇOS (Residencial + Embarque), ROTA, RESET DE SENHA e 2FA */}
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto bg-slate-900 border-slate-800 text-white">
+        <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto bg-slate-900 border-slate-800 text-white">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between pr-4">
               <div className="flex items-center gap-2">
@@ -914,7 +1031,179 @@ export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId
               </div>
             </div>
 
-            {/* Bloco 2: Transporte & Rota Vinculada */}
+            {/* Bloco 2: Endereço Residencial (Com busca automática por CEP) */}
+            <div className="space-y-3 p-3 bg-slate-950/40 rounded-xl border border-slate-800/80">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Home className="h-4 w-4 text-emerald-400" />
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">Endereço Residencial</h4>
+                </div>
+                {loadingCepResidencial && (
+                  <span className="text-[10px] text-emerald-400 flex items-center gap-1 animate-pulse">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Buscando CEP...
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <Label className="text-xs text-slate-300 flex items-center justify-between">
+                    <span>CEP Residencial</span>
+                    <span className="text-[10px] text-emerald-400 font-normal">Preenche automático</span>
+                  </Label>
+                  <Input
+                    value={form.cep}
+                    onChange={handleCepResidencialChange}
+                    placeholder="00000-000"
+                    className="bg-slate-800 border-slate-700 text-white font-mono mt-1 h-9"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <Label className="text-xs text-slate-300">Logradouro / Rua</Label>
+                  <Input
+                    value={form.street}
+                    onChange={(e) => setForm({ ...form, street: e.target.value })}
+                    placeholder="Rua, Avenida, Praça..."
+                    className="bg-slate-800 border-slate-700 text-white mt-1 h-9"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div>
+                  <Label className="text-xs text-slate-300">Número</Label>
+                  <Input
+                    value={form.number}
+                    onChange={(e) => setForm({ ...form, number: e.target.value })}
+                    placeholder="123"
+                    className="bg-slate-800 border-slate-700 text-white mt-1 h-9"
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs text-slate-300">Complemento</Label>
+                  <Input
+                    value={form.complement}
+                    onChange={(e) => setForm({ ...form, complement: e.target.value })}
+                    placeholder="Apto, Bloco..."
+                    className="bg-slate-800 border-slate-700 text-white mt-1 h-9"
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs text-slate-300">Bairro</Label>
+                  <Input
+                    value={form.neighborhood}
+                    onChange={(e) => setForm({ ...form, neighborhood: e.target.value })}
+                    placeholder="Bairro"
+                    className="bg-slate-800 border-slate-700 text-white mt-1 h-9"
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs text-slate-300">Cidade - UF</Label>
+                  <div className="flex gap-1 mt-1">
+                    <Input
+                      value={form.city}
+                      onChange={(e) => setForm({ ...form, city: e.target.value })}
+                      placeholder="Cidade"
+                      className="bg-slate-800 border-slate-700 text-white h-9 flex-1 text-xs"
+                    />
+                    <Input
+                      value={form.state}
+                      onChange={(e) => setForm({ ...form, state: e.target.value })}
+                      placeholder="UF"
+                      maxLength={2}
+                      className="bg-slate-800 border-slate-700 text-white h-9 w-12 text-center uppercase text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Bloco 3: Endereço de Embarque (Com busca automática por CEP) */}
+            <div className="space-y-3 p-3 bg-slate-950/40 rounded-xl border border-slate-800/80">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-cyan-400" />
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">Local de Embarque (Parada)</h4>
+                </div>
+                {loadingCepEmbarque && (
+                  <span className="text-[10px] text-cyan-400 flex items-center gap-1 animate-pulse">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Buscando CEP...
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <Label className="text-xs text-slate-300 flex items-center justify-between">
+                    <span>CEP de Embarque</span>
+                    <span className="text-[10px] text-cyan-400 font-normal">Preenche automático</span>
+                  </Label>
+                  <Input
+                    value={form.boardingCep}
+                    onChange={handleCepEmbarqueChange}
+                    placeholder="00000-000"
+                    className="bg-slate-800 border-slate-700 text-white font-mono mt-1 h-9"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <Label className="text-xs text-slate-300">Ponto / Endereço de Embarque</Label>
+                  <Input
+                    value={form.boardingStreet}
+                    onChange={(e) => setForm({ ...form, boardingStreet: e.target.value })}
+                    placeholder="Rua, ponto de ônibus ou referência..."
+                    className="bg-slate-800 border-slate-700 text-white mt-1 h-9"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div>
+                  <Label className="text-xs text-slate-300">Número / Referência</Label>
+                  <Input
+                    value={form.boardingNumber}
+                    onChange={(e) => setForm({ ...form, boardingNumber: e.target.value })}
+                    placeholder="Ex: Em frente ao 120"
+                    className="bg-slate-800 border-slate-700 text-white mt-1 h-9"
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs text-slate-300">Bairro</Label>
+                  <Input
+                    value={form.boardingNeighborhood}
+                    onChange={(e) => setForm({ ...form, boardingNeighborhood: e.target.value })}
+                    placeholder="Bairro"
+                    className="bg-slate-800 border-slate-700 text-white mt-1 h-9"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <Label className="text-xs text-slate-300">Cidade - UF</Label>
+                  <div className="flex gap-1 mt-1">
+                    <Input
+                      value={form.boardingCity}
+                      onChange={(e) => setForm({ ...form, boardingCity: e.target.value })}
+                      placeholder="Cidade"
+                      className="bg-slate-800 border-slate-700 text-white h-9 flex-1 text-xs"
+                    />
+                    <Input
+                      value={form.boardingState}
+                      onChange={(e) => setForm({ ...form, boardingState: e.target.value })}
+                      placeholder="UF"
+                      maxLength={2}
+                      className="bg-slate-800 border-slate-700 text-white h-9 w-12 text-center uppercase text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Bloco 4: Transporte & Rota Vinculada */}
             <div className="space-y-3 p-3 bg-slate-950/40 rounded-xl border border-slate-800/80">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -948,7 +1237,7 @@ export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId
                 </div>
 
                 <div>
-                  <Label className="text-xs text-slate-300">Ponto de Embarque (Parada)</Label>
+                  <Label className="text-xs text-slate-300">Ponto de Parada Cadastrado na Rota</Label>
                   <select
                     value={form.boardingPointId}
                     onChange={(e) => setForm({ ...form, boardingPointId: e.target.value })}
@@ -982,7 +1271,7 @@ export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId
               </div>
             </div>
 
-            {/* Bloco 3: Segurança, Senha de Acesso & 2FA */}
+            {/* Bloco 5: Segurança, Senha de Acesso & 2FA */}
             <div className="space-y-3 p-3 bg-slate-950/40 rounded-xl border border-slate-800/80">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -1025,7 +1314,6 @@ export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId
                   )}
                 </div>
 
-                {/* Para novo colaborador sem ID ainda */}
                 {!form.id && (
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
@@ -1049,7 +1337,6 @@ export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId
                   </div>
                 )}
 
-                {/* Para colaborador existente com botão de reset expandido */}
                 {form.id && showPasswordReset && (
                   <div className="pt-2 border-t border-slate-800 space-y-2.5">
                     <div className="flex items-center gap-2">
@@ -1118,7 +1405,6 @@ export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId
                   </label>
                 </div>
 
-                {/* Seleção do canal de envio (WhatsApp ou E-mail) */}
                 <div className="pt-2 border-t border-slate-800/80 grid grid-cols-2 gap-2 text-xs">
                   <button
                     type="button"
@@ -1147,7 +1433,6 @@ export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId
                   </button>
                 </div>
 
-                {/* Botão de envio de código 2FA */}
                 <div className="flex items-center justify-between gap-2 pt-1">
                   <span className="text-[11px] text-slate-400">
                     Destino: <strong className="text-white font-mono">{form.twoFactorChannel === 'WHATSAPP' ? (form.phone || 'Sem WhatsApp') : (form.email || 'Sem E-mail')}</strong>
