@@ -417,5 +417,16 @@ public enum Permission {
     // ===========================================
     // ACESSO TOTAL - SUPER_ADMIN
     // ===========================================
+        // ===========================================
+    // GESTÃO DE TOTENS (DIGITAL SIGNAGE / KIOSK)
+    // ===========================================
+    KIOSK_READ,
+    KIOSK_EDIT,
+    KIOSK_PUBLISH,
+    KIOSK_ADMIN,
+
+    // ===========================================
+    // ACESSO TOTAL - SUPER_ADMIN
+    // ===========================================
     ALL_PERMISSIONS
 }

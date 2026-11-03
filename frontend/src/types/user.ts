@@ -165,6 +165,12 @@ export interface UserPermissions {
   ROUTES_CREATE: boolean;
   ROUTES_DELETE: boolean;
 
+  // Permissões de Gestão de Totens (Digital Signage / Kiosk)
+  KIOSK_READ?: boolean;
+  KIOSK_EDIT?: boolean;
+  KIOSK_PUBLISH?: boolean;
+  KIOSK_ADMIN?: boolean;
+
   // Permissão de Acesso Total
   ALL_PERMISSIONS: boolean;
 }

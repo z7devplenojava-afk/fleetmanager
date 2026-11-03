@@ -32,6 +32,7 @@ public class JwtTenantFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
         if (path.startsWith("/api/auth/") ||
+                path.startsWith("/api/player/") ||
                 path.startsWith("/swagger-ui") ||
                 path.startsWith("/v3/api-docs") ||
                 path.startsWith("/api/public/") ||

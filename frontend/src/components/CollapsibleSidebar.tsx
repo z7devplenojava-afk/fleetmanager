@@ -48,6 +48,8 @@ import {
   Sparkles,
   Mail,
   Route,
+  Tv,
+  Film,
   MessageCircle,
   Package,
   Layers,
@@ -256,6 +258,16 @@ const departamentoPessoalMenuItems = [
   // Operações
   { icon: FileCheck, text: 'Ordens de Serviço', to: '/rh/ordens-servico', id: 'dp-ordens-servico' },
   { icon: Briefcase, text: 'Vagas', to: '/rh/vagas', id: 'dp-vagas' },
+];
+
+// ===== MÓDULO DE GESTÃO DE TOTENS (DIGITAL SIGNAGE / KIOSK) =====
+const totensMenuItems = [
+  { icon: Tv, text: 'Visão Geral & Totens', to: '/totens', id: 'totens-dashboard', permission: 'KIOSK_READ' },
+  { icon: Tv, text: 'Equipamentos & Totens', to: '/totens/dispositivos', id: 'totens-dispositivos', permission: 'KIOSK_READ' },
+  { icon: Film, text: 'Biblioteca de Mídias', to: '/totens/midias', id: 'totens-midias', permission: 'KIOSK_READ' },
+  { icon: Layers, text: 'Apresentações & Slides', to: '/totens/apresentacoes', id: 'totens-apresentacoes', permission: 'KIOSK_READ' },
+  { icon: Send, text: 'Publicações & Versões', to: '/totens/publicacoes', id: 'totens-publicacoes', permission: 'KIOSK_READ' },
+  { icon: Activity, text: 'Monitoramento em Tempo Real', to: '/totens/monitoramento', id: 'totens-monitoramento', permission: 'KIOSK_READ' },
 ];
 
 // Módulo Comercial
@@ -634,12 +646,18 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
   CLIENTE: new Set([
     'dashboard',
     'portal-cliente',
+    'totens-dashboard',
+    'totens-dispositivos',
+    'totens-apresentacoes',
     'chat-interno',
     'mensagens',
   ]),
   CLIENT_USER: new Set([
     'dashboard',
     'portal-cliente',
+    'totens-dashboard',
+    'totens-dispositivos',
+    'totens-apresentacoes',
     'chat-interno',
     'mensagens',
   ]),
@@ -652,6 +670,12 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'propostas',
     'orcamentos',
     'contratos',
+    'totens-dashboard',
+    'totens-dispositivos',
+    'totens-midias',
+    'totens-apresentacoes',
+    'totens-publicacoes',
+    'totens-monitoramento',
     'chat-interno',
     'mensagens',
     'gestao-mensagens-grupos',
@@ -666,6 +690,12 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'propostas',
     'orcamentos',
     'contratos',
+    'totens-dashboard',
+    'totens-dispositivos',
+    'totens-midias',
+    'totens-apresentacoes',
+    'totens-publicacoes',
+    'totens-monitoramento',
     'chat-interno',
     'mensagens',
     'gestao-mensagens-grupos',
@@ -679,6 +709,12 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'propostas',
     'orcamentos',
     'contratos',
+    'totens-dashboard',
+    'totens-dispositivos',
+    'totens-midias',
+    'totens-apresentacoes',
+    'totens-publicacoes',
+    'totens-monitoramento',
     'chat-interno',
     'mensagens',
   ]),
@@ -1903,6 +1939,10 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
     [isMotorista, filterItemsForRole, hasPermission]
   );
   const filteredFiscalItems = useMemo(() => filterItemsForRole(fiscalMenuItems), [filterItemsForRole]);
+  const filteredTotensItems = useMemo(
+    () => (isMotorista ? [] : filterItemsForRole(totensMenuItems)),
+    [isMotorista, filterItemsForRole]
+  );
   const filteredSistemaItems = useMemo(() => filterItemsForRole(sistemaMenuItems), [filterItemsForRole]);
 
   // Sempre que a rota mudar, garantir que o item ativo fique visível na sidebar
@@ -2051,6 +2091,7 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
       atendimento: atendimentoMenuItems,
       trafego: trafegoMenuItems,
       fiscal: fiscalMenuItems,
+      totens: totensMenuItems,
       sistema: sistemaMenuItems,
     };
 
@@ -2218,6 +2259,9 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
 
           {/* Módulo de Gestão de Tráfego */}
           {!isMotorista && renderModuleSection('trafego', 'Gestão de Tráfego', filteredTrafegoItems)}
+
+          {/* Módulo Gestão de Totens */}
+          {!isMotorista && shouldShowModule('KIOSK_READ') && renderModuleSection('totens', 'Gestão de Totens', filteredTotensItems)}
 
           {/* Módulo Fiscal */}
           {shouldShowModule('FINANCIAL_READ') && renderModuleSection('fiscal', 'Módulo Fiscal', filteredFiscalItems)}

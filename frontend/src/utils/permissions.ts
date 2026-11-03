@@ -309,6 +309,12 @@ export const generatePermissions = (role: UserRole): UserPermissions => {
     ROUTES_CREATE: false,
     ROUTES_DELETE: false,
 
+    // Permissões de Gestão de Totens
+    KIOSK_READ: false,
+    KIOSK_EDIT: false,
+    KIOSK_PUBLISH: false,
+    KIOSK_ADMIN: false,
+
     // Permissão de Acesso Total
     ALL_PERMISSIONS: false,
   };
@@ -870,6 +876,9 @@ export const generatePermissions = (role: UserRole): UserPermissions => {
     case 'VENDAS':
       return {
         ...basePermissions,
+        KIOSK_READ: true,
+        KIOSK_EDIT: true,
+        KIOSK_PUBLISH: true,
         DASHBOARD_READ: true,
         PROFILE_READ: true,
         PROFILE_WRITE: true,
@@ -1110,6 +1119,8 @@ export const generatePermissions = (role: UserRole): UserPermissions => {
     case 'CLIENT_USER':
       return {
         ...basePermissions,
+        KIOSK_READ: true,
+        KIOSK_EDIT: true,
         DASHBOARD_READ: true,
         PROFILE_READ: true,
         PROFILE_WRITE: true,
@@ -1291,6 +1302,12 @@ export const generatePermissionsFromGroups = (groups: UserGroupData[]): UserPerm
     ROUTES_WRITE: false,
     ROUTES_CREATE: false,
     ROUTES_DELETE: false,
+
+    // Permissões de Gestão de Totens
+    KIOSK_READ: false,
+    KIOSK_EDIT: false,
+    KIOSK_PUBLISH: false,
+    KIOSK_ADMIN: false,
 
     // Permissão de Acesso Total
     ALL_PERMISSIONS: false,

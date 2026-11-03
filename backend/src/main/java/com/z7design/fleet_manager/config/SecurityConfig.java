@@ -37,15 +37,18 @@ public class SecurityConfig {
         private final JwtAuthenticationFilter jwtAuthenticationFilter;
         private final JwtTenantFilter jwtTenantFilter;
         private final com.z7design.fleet_manager.security.LoginRateLimitFilter loginRateLimitFilter;
+        private final com.z7design.fleet_manager.security.DeviceAuthenticationFilter deviceAuthenticationFilter;
 
         public SecurityConfig(CustomUserDetailsService customUserDetailsService,
                         @Lazy JwtAuthenticationFilter jwtAuthenticationFilter,
                         JwtTenantFilter jwtTenantFilter,
-                        com.z7design.fleet_manager.security.LoginRateLimitFilter loginRateLimitFilter) {
+                        com.z7design.fleet_manager.security.LoginRateLimitFilter loginRateLimitFilter,
+                        com.z7design.fleet_manager.security.DeviceAuthenticationFilter deviceAuthenticationFilter) {
                 this.customUserDetailsService = customUserDetailsService;
                 this.jwtAuthenticationFilter = jwtAuthenticationFilter;
                 this.jwtTenantFilter = jwtTenantFilter;
                 this.loginRateLimitFilter = loginRateLimitFilter;
+                this.deviceAuthenticationFilter = deviceAuthenticationFilter;
         }
 
         @Bean
@@ -64,6 +67,8 @@ public class SecurityConfig {
                                 .authorizeHttpRequests(auth -> auth
                                                 // Endpoints pÃƒÂºblicos (sem autenticaÃƒÂ§ÃƒÂ£o)
                                                 .requestMatchers("/api/auth/**").permitAll()
+                                                 .requestMatchers("/api/player/pair").permitAll()
+                                                 .requestMatchers("/api/player/**").authenticated()
                                                 .requestMatchers("/api/files/**").permitAll()
                                                 // SEGURANÃ‡A: /api/test/**, /api/diagnostic/** e /api/debug/** agora
                                                 // exigem autenticaÃ§Ã£o (eram portas abertas para inspeÃ§Ã£o do sistema).
@@ -513,7 +518,8 @@ public class SecurityConfig {
                                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                                 .addFilterAfter(jwtTenantFilter, UsernamePasswordAuthenticationFilter.class)
                                 // SEGURANÃ‡A: rate limiting de tentativas de login (10/15min por IP)
-                                .addFilterBefore(loginRateLimitFilter, UsernamePasswordAuthenticationFilter.class);
+                                .addFilterBefore(loginRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
+                                 .addFilterBefore(deviceAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
                 return http.build();
         }

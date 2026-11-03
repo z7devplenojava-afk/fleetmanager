@@ -175,6 +175,14 @@ const Relatorios = lazy(() => import('@/pages/Relatorios'));
 const RelatorioFuncionarios = lazy(() => import('@/pages/RH/RelatorioFuncionarios'));
 const GestaoDocumentos = lazy(() => import('@/pages/GestaoDocumentos'));
 const Grupos = lazyWithRetry(() => import('@/pages/Grupos'), 'Grupos');
+const TotensDashboardPage = lazyWithRetry(() => import('@/pages/totens/TotensDashboardPage'), 'TotensDashboardPage');
+const TotensDispositivosPage = lazyWithRetry(() => import('@/pages/totens/TotensDispositivosPage'), 'TotensDispositivosPage');
+const TotensMidiasPage = lazyWithRetry(() => import('@/pages/totens/TotensMidiasPage'), 'TotensMidiasPage');
+const TotensApresentacoesPage = lazyWithRetry(() => import('@/pages/totens/TotensApresentacoesPage'), 'TotensApresentacoesPage');
+const TotensEditorPage = lazyWithRetry(() => import('@/pages/totens/TotensEditorPage'), 'TotensEditorPage');
+const TotensPublicacoesPage = lazyWithRetry(() => import('@/pages/totens/TotensPublicacoesPage'), 'TotensPublicacoesPage');
+const TotensMonitoramentoPage = lazyWithRetry(() => import('@/pages/totens/TotensMonitoramentoPage'), 'TotensMonitoramentoPage');
+const KioskPlayerPage = lazyWithRetry(() => import('@/pages/totens/KioskPlayerPage'), 'KioskPlayerPage');
 const Configuracoes = lazy(() => import('@/pages/Configuracoes'));
 const Profile = lazy(() => import('@/pages/Profile'));
 const Holerites = lazy(() => import('@/pages/Holerites'));
@@ -375,6 +383,8 @@ function App() {
                       <Route path="/contato" element={<Suspense fallback={<LoadingSpinner />}><Contato /></Suspense>} />
                       <Route path="/politicas-privacidade" element={<Suspense fallback={<LoadingSpinner />}><PoliticasPrivacidade /></Suspense>} />
                       <Route path="/termos-condicoes" element={<Suspense fallback={<LoadingSpinner />}><TermosCondicoes /></Suspense>} />
+                      {/* Totem Kiosk Player Runtime */}
+                      <Route path="/player" element={<Suspense fallback={<LoadingSpinner />}><KioskPlayerPage /></Suspense>} />
 
                       {/* Sistema Administrativo */}
                       <Route path="/admin" element={<Navigate to="/admin/companies" replace />} />
@@ -2103,6 +2113,64 @@ function App() {
                         <ProtectedRoute>
                           <Suspense fallback={<LoadingSpinner />}>
                             <PassengerPortal />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+
+                      {/* Módulo de Gestão de Totens (Digital Signage / Kiosk) */}
+                      <Route path="/totens" element={
+                        <ProtectedRoute requiredPermission="KIOSK_READ">
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <TotensDashboardPage />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/totens/dispositivos" element={
+                        <ProtectedRoute requiredPermission="KIOSK_READ">
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <TotensDispositivosPage />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/totens/midias" element={
+                        <ProtectedRoute requiredPermission="KIOSK_READ">
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <TotensMidiasPage />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/totens/apresentacoes" element={
+                        <ProtectedRoute requiredPermission="KIOSK_READ">
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <TotensApresentacoesPage />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/totens/editor" element={
+                        <ProtectedRoute requiredPermission="KIOSK_EDIT">
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <TotensEditorPage />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/totens/editor/:id" element={
+                        <ProtectedRoute requiredPermission="KIOSK_EDIT">
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <TotensEditorPage />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/totens/publicacoes" element={
+                        <ProtectedRoute requiredPermission="KIOSK_READ">
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <TotensPublicacoesPage />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/totens/monitoramento" element={
+                        <ProtectedRoute requiredPermission="KIOSK_READ">
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <TotensMonitoramentoPage />
                           </Suspense>
                         </ProtectedRoute>
                       } />
