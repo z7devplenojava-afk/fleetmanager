@@ -25,6 +25,10 @@ export interface StockNfeInstallmentDTO {
   dueDate: string;
   amount: number;
   barcode?: string;
+  linhaDigitavel?: string;
+  boletoUrl?: string;
+  originalBoletoName?: string;
+  divergenceAlert?: string;
 }
 
 export interface StockNfeParsedDTO {
@@ -87,6 +91,10 @@ export interface ProcessInstallmentPayload {
   dueDate: string;
   amount: number;
   barcode?: string;
+  linhaDigitavel?: string;
+  boletoUrl?: string;
+  originalBoletoName?: string;
+  divergenceAlert?: string;
   notes?: string;
 }
 

@@ -83,6 +83,12 @@ export interface ContaAPagar {
   requisitionNumber?: string;
   purchaseOrderId?: string;
   purchaseOrderNumber?: string;
+  linhaDigitavel?: string;
+  boletoUrl?: string;
+  boletoOriginalName?: string;
+  nfePdfUrl?: string;
+  isNfse?: boolean;
+  divergenceAlert?: string;
 }
 
 interface ContasAPagarFormModalProps {

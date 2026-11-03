@@ -44,6 +44,35 @@ export interface BankCredential {
   isActive?: boolean;
 }
 
+export interface BoletoParsedDTO {
+  barcode: string;
+  linhaDigitavel: string;
+  amount: number;
+  dueDate?: string;
+  beneficiaryCnpjCpf?: string;
+  beneficiaryName?: string;
+  payerCnpjCpf?: string;
+  payerName?: string;
+  bankCode?: string;
+  bankName?: string;
+  originalFileName?: string;
+  fileUrl?: string;
+  divergenceDetails?: string;
+  matchedInstallmentNumber?: number;
+  parseSuccess: boolean;
+  errorMessage?: string;
+}
+
+export interface NfseValidationResultDTO {
+  parsedData: any;
+  prestadorRegistered: boolean;
+  prestadorId?: string;
+  prestadorName?: string;
+  prestadorCnpj?: string;
+  statusMessage?: string;
+  fileUrl?: string;
+}
+
 export interface DdaInvoice {
   id: string;
   companyId: string;
@@ -400,6 +429,12 @@ export const contasAPagarService = {
       balanceAmount: invoice.balanceAmount != null ? parseFloat(invoice.balanceAmount) : undefined,
       bankAccountInfo: invoice.bankAccountInfo,
       isCanceled: invoice.isCanceled,
+      linhaDigitavel: invoice.linhaDigitavel,
+      boletoUrl: invoice.boletoUrl,
+      boletoOriginalName: invoice.boletoOriginalName,
+      nfePdfUrl: invoice.nfePdfUrl,
+      isNfse: invoice.isNfse,
+      divergenceAlert: invoice.divergenceAlert,
       workOrderId: invoice.workOrderId ? String(invoice.workOrderId) : undefined,
       workOrderNumber: invoice.workOrderNumber || undefined
     };
@@ -642,8 +677,60 @@ export const contasAPagarService = {
       paidAmount: invoice.paidAmount != null ? parseFloat(invoice.paidAmount) : undefined,
       balanceAmount: invoice.balanceAmount != null ? parseFloat(invoice.balanceAmount) : undefined,
       bankAccountInfo: invoice.bankAccountInfo,
-      isCanceled: invoice.isCanceled
+      isCanceled: invoice.isCanceled,
+      linhaDigitavel: invoice.linhaDigitavel,
+      boletoUrl: invoice.boletoUrl,
+      boletoOriginalName: invoice.boletoOriginalName,
+      nfePdfUrl: invoice.nfePdfUrl,
+      isNfse: invoice.isNfse,
+      divergenceAlert: invoice.divergenceAlert
     };
+  },
+
+  // Processamento e Parse de Boletos Bancários
+  async parseBoleto(file: File): Promise<BoletoParsedDTO> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post<BoletoParsedDTO>('/api/invoices/parse-boleto', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return response.data;
+  },
+
+  async parseBoletosBatch(files: File[]): Promise<BoletoParsedDTO[]> {
+    const formData = new FormData();
+    files.forEach(f => formData.append('files', f));
+    const response = await api.post<BoletoParsedDTO[]>('/api/invoices/parse-boletos-batch', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return response.data;
+  },
+
+  async uploadComprovanteAndPay(id: string, file?: File, paymentDate?: string, paidAmount?: number): Promise<ContaAPagar> {
+    const formData = new FormData();
+    if (file) {
+      formData.append('file', file);
+    }
+    if (paymentDate) {
+      formData.append('paymentDate', paymentDate);
+    }
+    if (paidAmount !== undefined && paidAmount !== null) {
+      formData.append('paidAmount', paidAmount.toString());
+    }
+
+    const response = await api.post(/api/invoices/ + id + /comprovante, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return this.mapInvoiceToContaAPagar(response.data);
+  },
+
+  async parseNfse(file: File): Promise<NfseValidationResultDTO> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post<NfseValidationResultDTO>('/api/invoices/parse-nfse', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return response.data;
   },
 
   // Importar relatório de despesas PDF

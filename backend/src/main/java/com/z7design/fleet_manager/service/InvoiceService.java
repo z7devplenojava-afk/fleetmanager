@@ -286,6 +286,22 @@ public class InvoiceService {
                 .orElseThrow(() -> new RuntimeException("Fatura nÃ£o encontrada"));
     }
     
+    public Invoice attachComprovanteAndPay(UUID id, String comprovanteUrl, LocalDate paymentDate, BigDecimal paidAmount) {
+        return invoiceRepository.findById(id)
+                .map(invoice -> {
+                    invoice.setStatus(ExpenseStatus.PAGA);
+                    invoice.setPaymentDate(paymentDate != null ? paymentDate : LocalDate.now());
+                    if (comprovanteUrl != null && !comprovanteUrl.isBlank()) {
+                        invoice.setComprovanteUrl(comprovanteUrl);
+                    }
+                    if (paidAmount != null && paidAmount.compareTo(BigDecimal.ZERO) > 0) {
+                        invoice.setPaidAmount(paidAmount);
+                    }
+                    return invoiceRepository.save(invoice);
+                })
+                .orElseThrow(() -> new RuntimeException("Fatura não encontrada"));
+    }
+
     public Invoice markAsPaid(UUID id, LocalDate paymentDate) {
         return invoiceRepository.findById(id)
                 .map(invoice -> {

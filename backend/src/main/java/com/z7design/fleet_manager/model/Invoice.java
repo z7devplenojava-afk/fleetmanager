@@ -69,6 +69,24 @@ public class Invoice implements TenantAware {
     @Column(name = "payment_date")
     private LocalDate paymentDate;
 
+    @Column(name = "linha_digitavel", length = 60)
+    private String linhaDigitavel;
+
+    @Column(name = "boleto_url", length = 500)
+    private String boletoUrl;
+
+    @Column(name = "boleto_original_name", length = 255)
+    private String boletoOriginalName;
+
+    @Column(name = "nfe_pdf_url", length = 500)
+    private String nfePdfUrl;
+
+    @Column(name = "is_nfse")
+    private Boolean isNfse = false;
+
+    @Column(name = "divergence_alert", columnDefinition = "TEXT")
+    private String divergenceAlert;
+
     @Size(max = 255, message = "CÃ³digo de barras deve ter no mÃ¡ximo 255 caracteres")
     @Column(name = "barcode")
     private String barcode;

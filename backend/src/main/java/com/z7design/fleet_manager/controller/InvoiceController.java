@@ -43,6 +43,10 @@ public class InvoiceController {
     private final InvoiceService invoiceService;
     private final ClientService clientService;
     private final com.z7design.fleet_manager.service.ExpensePdfImportService expensePdfImportService;
+    private final com.z7design.fleet_manager.service.BoletoParserService boletoParserService;
+    private final com.z7design.fleet_manager.service.FileStorageService fileStorageService;
+    private final com.z7design.fleet_manager.service.NfseParserService nfseParserService;
+    private final com.z7design.fleet_manager.repository.SupplierRepository supplierRepository;
     
     @GetMapping
     @Operation(summary = "Listar todas as faturas", description = "Retorna uma lista paginada de todas as faturas")
@@ -846,5 +850,91 @@ public class InvoiceController {
         log.info("Recebida requisiÃ§Ã£o para importar PDF de despesas: {}", file != null ? file.getOriginalFilename() : "null");
         com.z7design.fleet_manager.dto.ExpensePdfImportResultDTO result = expensePdfImportService.importPdf(file);
         return ResponseEntity.ok(result);
+    }
+
+    @PostMapping(value = "/parse-boleto", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Realiza o parse de um boleto bancário em PDF e extrai linha digitável, código de barras e valores")
+    public ResponseEntity<com.z7design.fleet_manager.dto.BoletoParsedDTO> parseBoleto(
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        log.info("POST /api/invoices/parse-boleto - Arquivo: {}", file != null ? file.getOriginalFilename() : "null");
+        return ResponseEntity.ok(boletoParserService.parseBoleto(file));
+    }
+
+    @PostMapping(value = "/parse-boletos-batch", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Realiza o parse de múltiplos boletos bancários em lote")
+    public ResponseEntity<List<com.z7design.fleet_manager.dto.BoletoParsedDTO>> parseBoletosBatch(
+            @RequestParam("files") org.springframework.web.multipart.MultipartFile[] files) {
+        log.info("POST /api/invoices/parse-boletos-batch - Quantidade de arquivos: {}", files != null ? files.length : 0);
+        return ResponseEntity.ok(boletoParserService.parseBoletosBatch(files));
+    }
+
+    @PostMapping(value = "/{id}/comprovante", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Anexa comprovante de pagamento à fatura e dá baixa (status PAGA)")
+    public ResponseEntity<InvoiceDTO> uploadComprovanteAndPay(
+            @PathVariable UUID id,
+            @RequestParam(value = "file", required = false) org.springframework.web.multipart.MultipartFile file,
+            @RequestParam(value = "paymentDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate paymentDate,
+            @RequestParam(value = "paidAmount", required = false) BigDecimal paidAmount) {
+        log.info("POST /api/invoices/{}/comprovante - Comprovante anexado, dando baixa na conta", id);
+        String comprovanteUrl = null;
+        if (file != null && !file.isEmpty()) {
+            comprovanteUrl = fileStorageService.storeFile(file);
+        }
+        Invoice updated = invoiceService.attachComprovanteAndPay(id, comprovanteUrl, paymentDate, paidAmount);
+        return ResponseEntity.ok(InvoiceDTO.fromEntity(updated));
+    }
+
+    @PostMapping(value = "/parse-nfse", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Parseia NFS-e de terceiros (XML ou PDF) e valida vínculo com fornecedor/prestador cadastrado")
+    public ResponseEntity<com.z7design.fleet_manager.dto.NfseValidationResultDTO> parseNfse(
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        String filename = file != null ? file.getOriginalFilename() : "nfse";
+        log.info("POST /api/invoices/parse-nfse - Arquivo: {}", filename);
+        try {
+            String fileUrl = null;
+            if (file != null && !file.isEmpty()) {
+                try {
+                    fileUrl = fileStorageService.storeFile(file);
+                } catch (Exception ex) {
+                    log.warn("Erro ao salvar arquivo da NFS-e: {}", ex.getMessage());
+                }
+            }
+
+            com.z7design.fleet_manager.dto.NfseParsedDataDTO parsed;
+            if (filename != null && filename.toLowerCase().endsWith(".pdf")) {
+                parsed = nfseParserService.parsePdf(file.getInputStream());
+            } else {
+                parsed = nfseParserService.parseXml(file.getInputStream());
+            }
+
+            String cnpjLimpo = parsed.getPrestadorCnpjCpf() != null ? parsed.getPrestadorCnpjCpf().replaceAll("\\D", "") : "";
+            Optional<com.z7design.fleet_manager.model.Supplier> existingSupplier = Optional.empty();
+            if (!cnpjLimpo.isBlank()) {
+                existingSupplier = supplierRepository.findByCleanCnpjNative(cnpjLimpo);
+            }
+            if (existingSupplier.isEmpty() && parsed.getPrestadorName() != null && !parsed.getPrestadorName().isBlank()) {
+                existingSupplier = supplierRepository.findFirstByNameIgnoreCase(parsed.getPrestadorName().trim());
+            }
+
+            boolean isRegistered = existingSupplier.isPresent();
+            String statusMsg = isRegistered
+                    ? "Prestador de serviços identificado no cadastro: " + existingSupplier.get().getName()
+                    : "Prestador não cadastrado! É necessário cadastrar o prestador de serviços terceirizado para aprovar a despesa.";
+
+            com.z7design.fleet_manager.dto.NfseValidationResultDTO result = com.z7design.fleet_manager.dto.NfseValidationResultDTO.builder()
+                    .parsedData(parsed)
+                    .prestadorRegistered(isRegistered)
+                    .prestadorId(existingSupplier.map(com.z7design.fleet_manager.model.Supplier::getId).orElse(null))
+                    .prestadorName(existingSupplier.map(com.z7design.fleet_manager.model.Supplier::getName).orElse(parsed.getPrestadorName()))
+                    .prestadorCnpj(cnpjLimpo)
+                    .statusMessage(statusMsg)
+                    .fileUrl(fileUrl)
+                    .build();
+
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Erro no processamento da NFS-e {}: {}", filename, e.getMessage(), e);
+            throw new RuntimeException("Falha ao analisar arquivo da NFS-e: " + e.getMessage(), e);
+        }
     }
 } 

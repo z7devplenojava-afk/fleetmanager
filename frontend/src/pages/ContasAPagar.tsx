@@ -5,6 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Plus,
   DollarSign,
@@ -31,7 +34,14 @@ import {
   ChevronLeft,
   ChevronRight,
   Upload,
-  Layers
+  Layers,
+  Barcode,
+  Copy,
+  Check,
+  CheckCircle2,
+  ExternalLink,
+  Paperclip,
+  Loader2
 } from 'lucide-react';
 import { ContasAPagarFormModal, ContaAPagar } from '@/components/financeiro/ContasAPagarFormModal';
 import { ContasAPagarTable } from '@/components/financeiro/ContasAPagarTable';
@@ -62,7 +72,16 @@ const ContasAPagar: React.FC = () => {
   const [contasFiltradas, setContasFiltradas] = useState<ContaAPagar[]>([]);
   
   // Estados para relatórios
-  const [activeTab, setActiveTab] = useState<'contas' | 'relatorios'>('contas');
+  const [activeTab, setActiveTab] = useState<'contas' | 'boletos' | 'relatorios'>('contas');
+  const [showBaixaModal, setShowBaixaModal] = useState(false);
+  const [contaParaBaixa, setContaParaBaixa] = useState<ContaAPagar | null>(null);
+  const [comprovanteFile, setComprovanteFile] = useState<File | null>(null);
+  const [dataPagamentoBaixa, setDataPagamentoBaixa] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [valorPagoBaixa, setValorPagoBaixa] = useState<string>('');
+  const [loadingBaixa, setLoadingBaixa] = useState(false);
+  const [copiedBoletoId, setCopiedBoletoId] = useState<string | null>(null);
+  const [boletoSearchTerm, setBoletoSearchTerm] = useState('');
+  const [boletoStatusFilter, setBoletoStatusFilter] = useState<'TODOS' | 'PENDENTES' | 'HOJE' | 'VENCIDOS' | 'PAGOS'>('PENDENTES');
   const [reportLoading, setReportLoading] = useState(false);
   const [reportData, setReportData] = useState<any>(null);
   const [classificacoesList, setClassificacoesList] = useState<string[]>(Array.from(CLASSIFICACOES_SIGLO));
@@ -247,6 +266,116 @@ const ContasAPagar: React.FC = () => {
       });
     }
   };
+
+  const handleAbrirBaixa = (conta: ContaAPagar) => {
+    setContaParaBaixa(conta);
+    setDataPagamentoBaixa(new Date().toISOString().split('T')[0]);
+    setValorPagoBaixa(Number(conta.valor).toFixed(2));
+    setComprovanteFile(null);
+    setShowBaixaModal(true);
+  };
+
+  const handleConfirmarBaixa = async () => {
+    if (!contaParaBaixa?.id) return;
+    try {
+      setLoadingBaixa(true);
+      const valNum = parseFloat(valorPagoBaixa) || contaParaBaixa.valor;
+      await contasAPagarService.uploadComprovanteAndPay(
+        contaParaBaixa.id,
+        comprovanteFile || undefined,
+        dataPagamentoBaixa,
+        valNum
+      );
+      toast({
+        title: 'Baixa efetuada com sucesso!',
+        description: A conta "" foi marcada como PAGA.,
+      });
+      setShowBaixaModal(false);
+      setContaParaBaixa(null);
+      setComprovanteFile(null);
+      await loadData();
+    } catch (err: any) {
+      console.error('Erro ao efetuar baixa com comprovante:', err);
+      toast({
+        title: 'Erro na baixa',
+        description: err.response?.data?.message || err.message || 'Não foi possível registrar o pagamento.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingBaixa(false);
+    }
+  };
+
+  const copyLinhaDigitavel = (text: string, id: string) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopiedBoletoId(id);
+    toast({
+      title: 'Copiado!',
+      description: 'Código de barras / Linha digitável copiada para a área de transferência.',
+    });
+    setTimeout(() => setCopiedBoletoId(null), 2500);
+  };
+
+  const boletosList = useMemo(() => {
+    const list = contas.filter(c => Boolean(c.boletoUrl || c.linhaDigitavel || c.codigoBarras));
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
+    return list.filter(c => {
+      const d = c.vencimento ? new Date(c.vencimento) : null;
+      if (d) d.setHours(0, 0, 0, 0);
+
+      const isPaga = c.status === 'PAGA' || c.baixa;
+
+      if (boletoStatusFilter === 'PENDENTES' && isPaga) return false;
+      if (boletoStatusFilter === 'PAGOS' && !isPaga) return false;
+      if (boletoStatusFilter === 'VENCIDOS') {
+        if (isPaga || !d || d >= hoje) return false;
+      }
+      if (boletoStatusFilter === 'HOJE') {
+        if (isPaga || !d || d.getTime() !== hoje.getTime()) return false;
+      }
+
+      if (boletoSearchTerm.trim()) {
+        const term = boletoSearchTerm.toLowerCase();
+        const fornecedor = (c.fornecedor || '').toLowerCase();
+        const doc = (c.invoiceNumber || '').toLowerCase();
+        const desc = (c.descricao || '').toLowerCase();
+        const code = (c.linhaDigitavel || c.codigoBarras || '').toLowerCase();
+        return fornecedor.includes(term) || doc.includes(term) || desc.includes(term) || code.includes(term);
+      }
+
+      return true;
+    });
+  }, [contas, boletoStatusFilter, boletoSearchTerm]);
+
+  const boletosStats = useMemo(() => {
+    const allBoletos = contas.filter(c => Boolean(c.boletoUrl || c.linhaDigitavel || c.codigoBarras));
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
+    const pendentes = allBoletos.filter(c => c.status !== 'PAGA' && !c.baixa);
+    const vencidos = pendentes.filter(c => {
+      const d = c.vencimento ? new Date(c.vencimento) : null;
+      if (d) d.setHours(0, 0, 0, 0);
+      return d && d < hoje;
+    });
+    const vencendoHoje = pendentes.filter(c => {
+      const d = c.vencimento ? new Date(c.vencimento) : null;
+      if (d) d.setHours(0, 0, 0, 0);
+      return d && d.getTime() === hoje.getTime();
+    });
+
+    return {
+      totalPendentesCount: pendentes.length,
+      totalPendentesValor: pendentes.reduce((acc, curr) => acc + (curr.valor || 0), 0),
+      vencidosCount: vencidos.length,
+      vencidosValor: vencidos.reduce((acc, curr) => acc + (curr.valor || 0), 0),
+      vencendoHojeCount: vencendoHoje.length,
+      vencendoHojeValor: vencendoHoje.reduce((acc, curr) => acc + (curr.valor || 0), 0),
+    };
+  }, [contas]);
 
   const handleViewConta = (conta: ContaAPagar) => {
     setViewingConta(conta);
@@ -1256,8 +1385,26 @@ const ContasAPagar: React.FC = () => {
         </div>
 
         {/* Abas principais */}
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'contas' | 'relatorios')}>
-          <TabsList className="grid w-full grid-cols-2 bg-zinc-900 border border-zinc-800 p-1 rounded-xl">
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)}>
+          <TabsList className="grid w-full grid-cols-3 bg-zinc-900 border border-zinc-800 p-1 rounded-xl">
+            <TabsTrigger value="contas" className="flex items-center gap-2 font-bold text-xs sm:text-sm data-[state=active]:bg-zinc-800 data-[state=active]:text-white">
+              <FileText size={15} className="text-emerald-400" />
+              Contas a Pagar
+            </TabsTrigger>
+            <TabsTrigger value="boletos" className="flex items-center gap-2 font-bold text-xs sm:text-sm data-[state=active]:bg-zinc-800 data-[state=active]:text-white relative">
+              <Barcode size={15} className="text-amber-400" />
+              Boletos a Pagar
+              {boletosStats.totalPendentesCount > 0 && (
+                <Badge className="ml-1 px-1.5 py-0 text-[10px] bg-amber-500/20 text-amber-300 border-amber-500/40">
+                  {boletosStats.totalPendentesCount}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="relatorios" className="flex items-center gap-2 font-bold text-xs sm:text-sm data-[state=active]:bg-zinc-800 data-[state=active]:text-white">
+              <BarChart3 size={15} className="text-sky-400" />
+              Relatórios & Exportação
+            </TabsTrigger>
+          </TabsList>
             <TabsTrigger value="contas" className="flex items-center gap-2 font-bold text-xs sm:text-sm data-[state=active]:bg-zinc-800 data-[state=active]:text-white">
               <FileText size={15} className="text-emerald-400" />
               Contas a Pagar
@@ -1482,8 +1629,249 @@ const ContasAPagar: React.FC = () => {
               onDelete={handleDeleteConta}
               onView={handleViewConta}
               onRefresh={loadData}
+              onDarBaixa={handleAbrirBaixa}
               loading={loading}
             />
+          </TabsContent>
+
+          {/* Aba Especializada: Boletos a Pagar */}
+          <TabsContent value="boletos" className="space-y-6 mt-4">
+            {/* Cards de Métricas de Boletos */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Card className="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-4 shadow-lg">
+                <div className="flex items-center justify-between">
+                  <span className="text-zinc-400 text-xs font-medium">Boletos Pendentes</span>
+                  <div className="p-2 rounded-lg bg-amber-500/10 text-amber-400">
+                    <Barcode className="h-4 w-4" />
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <div className="text-xl font-bold font-mono text-zinc-100">
+                    R$ {boletosStats.totalPendentesValor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </div>
+                  <div className="text-[11px] text-zinc-400 mt-0.5">
+                    {boletosStats.totalPendentesCount} título(s) a pagar
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-4 shadow-lg">
+                <div className="flex items-center justify-between">
+                  <span className="text-zinc-400 text-xs font-medium">Vencendo Hoje</span>
+                  <div className="p-2 rounded-lg bg-sky-500/10 text-sky-400">
+                    <Clock className="h-4 w-4" />
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <div className="text-xl font-bold font-mono text-sky-300">
+                    R$ {boletosStats.vencendoHojeValor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </div>
+                  <div className="text-[11px] text-zinc-400 mt-0.5">
+                    {boletosStats.vencendoHojeCount} boleto(s) vence(m) hoje
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-4 shadow-lg">
+                <div className="flex items-center justify-between">
+                  <span className="text-zinc-400 text-xs font-medium">Boletos Vencidos</span>
+                  <div className="p-2 rounded-lg bg-rose-500/10 text-rose-400">
+                    <AlertTriangle className="h-4 w-4" />
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <div className="text-xl font-bold font-mono text-rose-400">
+                    R$ {boletosStats.vencidosValor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </div>
+                  <div className="text-[11px] text-zinc-400 mt-0.5">
+                    {boletosStats.vencidosCount} boleto(s) em atraso
+                  </div>
+                </div>
+              </Card>
+            </div>
+
+            {/* Filtros e Busca de Boletos */}
+            <Card className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-4">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div className="flex items-center gap-1.5 flex-wrap w-full sm:w-auto">
+                  {(['PENDENTES', 'HOJE', 'VENCIDOS', 'PAGOS', 'TODOS'] as const).map((st) => (
+                    <Button
+                      key={st}
+                      type="button"
+                      variant={boletoStatusFilter === st ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setBoletoStatusFilter(st)}
+                      className={h-7 px-3 text-xs rounded-lg font-semibold transition-all }
+                    >
+                      {st === 'PENDENTES' && 'Pendentes'}
+                      {st === 'HOJE' && 'Vencem Hoje'}
+                      {st === 'VENCIDOS' && 'Vencidos'}
+                      {st === 'PAGOS' && 'Pagos'}
+                      {st === 'TODOS' && 'Todos'}
+                    </Button>
+                  ))}
+                </div>
+
+                <div className="w-full sm:w-72">
+                  <Input
+                    type="text"
+                    placeholder="Buscar por fornecedor, NF, código..."
+                    value={boletoSearchTerm}
+                    onChange={(e) => setBoletoSearchTerm(e.target.value)}
+                    className="h-8 bg-zinc-950 border-zinc-700 text-xs text-white placeholder:text-zinc-500"
+                  />
+                </div>
+              </div>
+            </Card>
+
+            {/* Listagem de Boletos */}
+            <Card className="bg-zinc-950 border border-zinc-800 rounded-2xl shadow-xl overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-zinc-800 bg-zinc-900/60 text-zinc-400 font-semibold text-[11px] uppercase tracking-wider">
+                      <th className="py-3 px-4">Vencimento</th>
+                      <th className="py-3 px-4">Beneficiário / Fornecedor</th>
+                      <th className="py-3 px-4">Documento / Parcela</th>
+                      <th className="py-3 px-4">Valor</th>
+                      <th className="py-3 px-4">Linha Digitável / Código</th>
+                      <th className="py-3 px-4 text-center">Boleto PDF</th>
+                      <th className="py-3 px-4 text-center">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-850">
+                    {boletosList.length > 0 ? (
+                      boletosList.map((b) => {
+                        const isPaga = b.status === 'PAGA' || b.baixa;
+                        const hoje = new Date();
+                        hoje.setHours(0, 0, 0, 0);
+                        const dVenc = b.vencimento ? new Date(b.vencimento) : null;
+                        if (dVenc) dVenc.setHours(0, 0, 0, 0);
+                        const isVencido = !isPaga && dVenc && dVenc < hoje;
+                        const isHoje = !isPaga && dVenc && dVenc.getTime() === hoje.getTime();
+
+                        const code = b.linhaDigitavel || b.codigoBarras || '';
+
+                        return (
+                          <tr key={b.id} className="hover:bg-zinc-900/40 transition-colors">
+                            <td className="py-3 px-4 whitespace-nowrap">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-semibold text-zinc-200">
+                                  {b.vencimento ? format(new Date(b.vencimento), 'dd/MM/yyyy') : '—'}
+                                </span>
+                                {isVencido && (
+                                  <Badge className="bg-rose-500/20 text-rose-400 border-rose-500/40 text-[9px] py-0 px-1">
+                                    Vencido
+                                  </Badge>
+                                )}
+                                {isHoje && (
+                                  <Badge className="bg-sky-500/20 text-sky-300 border-sky-500/40 text-[9px] py-0 px-1">
+                                    Hoje
+                                  </Badge>
+                                )}
+                              </div>
+                            </td>
+
+                            <td className="py-3 px-4">
+                              <div className="font-medium text-zinc-200 truncate max-w-[220px]" title={b.fornecedor}>
+                                {b.fornecedor}
+                              </div>
+                              {b.isNfse && (
+                                <span className="text-[10px] text-cyan-400 font-medium">
+                                  Prestador de Serviços (NFS-e)
+                                </span>
+                              )}
+                            </td>
+
+                            <td className="py-3 px-4 font-mono whitespace-nowrap">
+                              <span className="text-zinc-300 font-semibold">
+                                {b.invoiceNumber || 'S/N'}
+                              </span>
+                              {b.installmentSeq && (
+                                <span className="text-zinc-500 text-[10px] ml-1">
+                                  (Parc {b.installmentSeq})
+                                </span>
+                              )}
+                            </td>
+
+                            <td className="py-3 px-4 font-mono whitespace-nowrap font-bold text-emerald-400 text-sm">
+                              R$ {Number(b.valor).toFixed(2)}
+                            </td>
+
+                            <td className="py-3 px-4">
+                              {code ? (
+                                <div className="flex items-center gap-1.5 font-mono text-[11px] text-zinc-300">
+                                  <span className="truncate max-w-[200px] select-all bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-800">
+                                    {code}
+                                  </span>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => copyLinhaDigitavel(code, b.id!)}
+                                    className="h-6 w-6 p-0 text-zinc-400 hover:text-white"
+                                    title="Copiar linha digitável"
+                                  >
+                                    {copiedBoletoId === b.id ? (
+                                      <Check className="h-3 w-3 text-emerald-400" />
+                                    ) : (
+                                      <Copy className="h-3 w-3" />
+                                    )}
+                                  </Button>
+                                </div>
+                              ) : (
+                                <span className="text-zinc-600 text-[11px] italic">Sem código</span>
+                              )}
+                            </td>
+
+                            <td className="py-3 px-4 text-center whitespace-nowrap">
+                              {b.boletoUrl ? (
+                                <a
+                                  href={b.boletoUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1 px-2 py-1 rounded bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[10px] font-semibold transition-colors"
+                                >
+                                  <ExternalLink className="h-3 w-3" />
+                                  Ver Boleto
+                                </a>
+                              ) : (
+                                <span className="text-zinc-600 text-[10px]">Sem anexo</span>
+                              )}
+                            </td>
+
+                            <td className="py-3 px-4 text-center whitespace-nowrap">
+                              {isPaga ? (
+                                <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40 text-[10px] py-0.5 px-2">
+                                  <Check className="h-2.5 w-2.5 mr-1" />
+                                  PAGO
+                                </Badge>
+                              ) : (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  onClick={() => handleAbrirBaixa(b)}
+                                  className="h-7 px-3 text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg shadow-sm gap-1 transition-all"
+                                >
+                                  <CheckCircle2 className="h-3.5 w-3.5" />
+                                  Dar Baixa
+                                </Button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td colSpan={7} className="py-12 text-center text-zinc-500 text-xs">
+                          Nenhum boleto encontrado para os critérios selecionados.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
           </TabsContent>
 
           {/* Aba de Relatórios */}
@@ -2050,6 +2438,155 @@ const ContasAPagar: React.FC = () => {
           conta={viewingConta}
           onEdit={handleEditConta}
         />
+
+        {/* Modal de Dar Baixa com Comprovante de Pagamento Bancário */}
+        <Dialog open={showBaixaModal} onOpenChange={setShowBaixaModal}>
+          <DialogContent className="max-w-md bg-zinc-950 border border-zinc-800 text-white shadow-2xl rounded-2xl">
+            <DialogHeader>
+              <DialogTitle className="text-base font-bold text-emerald-400 flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+                Dar Baixa e Anexar Comprovante
+              </DialogTitle>
+              <DialogDescription className="text-xs text-zinc-400">
+                Registre a liquidação bancária da despesa e anexe o comprovante (PDF ou imagem).
+              </DialogDescription>
+            </DialogHeader>
+
+            {contaParaBaixa && (
+              <div className="space-y-4 py-2 text-xs">
+                {/* Detalhes do Título */}
+                <div className="p-3 rounded-xl bg-zinc-900 border border-zinc-800 space-y-1.5">
+                  <div className="flex justify-between items-center">
+                    <span className="text-zinc-400">Documento / NF:</span>
+                    <span className="font-mono font-bold text-zinc-200">
+                      {contaParaBaixa.invoiceNumber || contaParaBaixa.descricao}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-zinc-400">Favorecido / Fornecedor:</span>
+                    <span className="font-medium text-zinc-300 truncate max-w-[200px]" title={contaParaBaixa.fornecedor}>
+                      {contaParaBaixa.fornecedor}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-zinc-400">Valor Nominal:</span>
+                    <span className="font-bold font-mono text-emerald-400 text-sm">
+                      R$ {Number(contaParaBaixa.valor).toFixed(2)}
+                    </span>
+                  </div>
+                  {(contaParaBaixa.linhaDigitavel || contaParaBaixa.codigoBarras) && (
+                    <div className="pt-1 border-t border-zinc-800 flex items-center justify-between text-[11px]">
+                      <span className="text-zinc-500 font-mono truncate max-w-[240px]">
+                        {contaParaBaixa.linhaDigitavel || contaParaBaixa.codigoBarras}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          const code = contaParaBaixa.linhaDigitavel || contaParaBaixa.codigoBarras || '';
+                          navigator.clipboard.writeText(code);
+                          toast({ title: 'Copiado!', description: 'Código copiado com sucesso.' });
+                        }}
+                        className="h-5 px-1.5 text-[10px] text-zinc-300 hover:text-white"
+                      >
+                        <Copy className="h-3 w-3 mr-1" /> Copiar
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Campos da Baixa */}
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <Label className="text-zinc-300 text-xs font-semibold">Data do Pagamento *</Label>
+                    <Input
+                      type="date"
+                      value={dataPagamentoBaixa}
+                      onChange={(e) => setDataPagamentoBaixa(e.target.value)}
+                      className="bg-zinc-900 border-zinc-700 text-white h-9 text-xs"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-zinc-300 text-xs font-semibold">Valor Efetivamente Pago (R$)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={valorPagoBaixa}
+                      onChange={(e) => setValorPagoBaixa(e.target.value)}
+                      placeholder={Number(contaParaBaixa.valor).toFixed(2)}
+                      className="bg-zinc-900 border-zinc-700 text-emerald-400 font-bold h-9 text-xs"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-zinc-300 text-xs font-semibold">
+                      Comprovante Bancário (PDF, PNG ou JPG)
+                    </Label>
+                    <div className="p-3 rounded-xl border border-dashed border-zinc-700 bg-zinc-900/60 hover:bg-zinc-900 transition-colors text-center cursor-pointer">
+                      <input
+                        type="file"
+                        id="comprovante-input"
+                        accept=".pdf,image/png,image/jpeg,image/jpg"
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) setComprovanteFile(f);
+                        }}
+                      />
+                      <label htmlFor="comprovante-input" className="cursor-pointer block space-y-1">
+                        <Upload className="h-5 w-5 mx-auto text-zinc-400" />
+                        {comprovanteFile ? (
+                          <div className="text-emerald-400 font-semibold text-xs flex items-center justify-center gap-1">
+                            <Check className="h-3.5 w-3.5" />
+                            {comprovanteFile.name} ({(comprovanteFile.size / 1024).toFixed(0)} KB)
+                          </div>
+                        ) : (
+                          <>
+                            <p className="text-zinc-300 text-xs font-medium">Clique para selecionar o comprovante</p>
+                            <p className="text-zinc-500 text-[10px]">PDF do banco ou foto/screenshot do comprovante</p>
+                          </>
+                        )}
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-800">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowBaixaModal(false)}
+                    className="text-zinc-400 hover:text-white"
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleConfirmarBaixa}
+                    disabled={loadingBaixa}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold gap-1.5"
+                  >
+                    {loadingBaixa ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Registrando Baixa...
+                      </>
+                    ) : (
+                      <>
+                        <Check className="h-3.5 w-3.5" />
+                        Confirmar Pagamento
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
 
         {/* Modal de Importação de PDF de Despesas (SIGLO) */}
         <ImportarDespesasPdfModal

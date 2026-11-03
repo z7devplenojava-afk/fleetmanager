@@ -84,6 +84,10 @@ public class StockNfeProcessRequestDTO {
         private LocalDate dueDate;
         private BigDecimal amount;
         private String barcode;
+        private String linhaDigitavel;
+        private String boletoUrl;
+        private String originalBoletoName;
+        private String divergenceAlert;
         private String notes;
     }
 }

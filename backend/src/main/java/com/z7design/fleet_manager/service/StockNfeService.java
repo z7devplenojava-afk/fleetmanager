@@ -2210,6 +2210,10 @@ public class StockNfeService {
                 inv.setSupplierName(request.getSupplierName());
                 inv.setSupplierCode(supplier != null ? supplier.getId().toString() : "");
                 inv.setBarcode(instReq.getBarcode());
+                inv.setLinhaDigitavel(instReq.getLinhaDigitavel());
+                inv.setBoletoUrl(instReq.getBoletoUrl());
+                inv.setBoletoOriginalName(instReq.getOriginalBoletoName());
+                inv.setDivergenceAlert(instReq.getDivergenceAlert());
                 inv.setInstallmentSeq(instReq.getInstallmentNumber());
                 inv.setCategory("ALMOXARIFADO / PEÇAS");
                 inv.setNotes(String.format("Importado NF-e nº %s | Fornecedor: %s | Chave: %s%s", 

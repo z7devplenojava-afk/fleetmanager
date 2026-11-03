@@ -70,6 +70,12 @@ public class InvoiceDTO {
     @Schema(description = "CÃ³digo de barras do boleto", example = "12345678901234567890")
     @Size(max = 255, message = "CÃ³digo de barras deve ter no mÃ¡ximo 255 caracteres")
     private String barcode;
+    private String linhaDigitavel;
+    private String boletoUrl;
+    private String boletoOriginalName;
+    private String nfePdfUrl;
+    private Boolean isNfse;
+    private String divergenceAlert;
     
     @Schema(description = "Observações sobre a fatura")
     @Size(max = 1000, message = "Observações deve ter no máximo 1000 caracteres")
@@ -204,6 +210,12 @@ public class InvoiceDTO {
             dto.setIsCanceled(invoice.getIsCanceled());
             dto.setWorkOrderId(invoice.getWorkOrderId());
             dto.setWorkOrderNumber(invoice.getWorkOrderNumber());
+            dto.setLinhaDigitavel(invoice.getLinhaDigitavel());
+            dto.setBoletoUrl(invoice.getBoletoUrl());
+            dto.setBoletoOriginalName(invoice.getBoletoOriginalName());
+            dto.setNfePdfUrl(invoice.getNfePdfUrl());
+            dto.setIsNfse(invoice.getIsNfse());
+            dto.setDivergenceAlert(invoice.getDivergenceAlert());
             
             // Tratamento seguro para relacionamentos (pode causar LazyInitializationException)
             try {

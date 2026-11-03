@@ -58,7 +58,10 @@ import {
   FileCheck,
   Trash2,
   Receipt,
-  Upload
+  Upload,
+  Copy,
+  ExternalLink,
+  AlertTriangle
 } from 'lucide-react';
 import { caepiService } from '@/services/caepiService';
 import { 
@@ -155,6 +158,11 @@ export interface InvoiceInstallment {
   number: number;
   dueDate: string;
   value: number;
+  barcode?: string;
+  linhaDigitavel?: string;
+  boletoUrl?: string;
+  originalBoletoName?: string;
+  divergenceAlert?: string;
 }
 
 export interface InvoiceData {
@@ -244,6 +252,9 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
   const [parsedNfe, setParsedNfe] = useState<StockNfeParsedDTO | null>(null);
   const [nfeImportOpen, setNfeImportOpen] = useState(false);
   const [linkedStockItem, setLinkedStockItem] = useState<StockItem | null>(null);
+  const [loadingBoletos, setLoadingBoletos] = useState(false);
+  const [copiedBoletoIdx, setCopiedBoletoIdx] = useState<number | null>(null);
+  const boletoMultiInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleXmlUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -436,7 +447,29 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
             };
           });
 
-          const installmentsPayload: ProcessInstallmentPayload[] = (data.installments || []).map(inst => ({
+          const currentInsts = invoiceData.installments.length > 0 ? invoiceData.installments : (data.installments || []).map((x: any) => ({
+            number: x.installmentNumber,
+            dueDate: x.dueDate,
+            value: x.amount,
+            barcode: x.barcode,
+            linhaDigitavel: x.linhaDigitavel,
+            boletoUrl: x.boletoUrl,
+            originalBoletoName: x.originalBoletoName,
+            divergenceAlert: x.divergenceAlert
+          }));
+
+          const installmentsPayload: ProcessInstallmentPayload[] = currentInsts.map(inst => ({
+            installmentNumber: inst.number,
+            dueDate: inst.dueDate,
+            amount: inst.value,
+            barcode: inst.barcode || inst.linhaDigitavel || '',
+            linhaDigitavel: inst.linhaDigitavel,
+            boletoUrl: inst.boletoUrl,
+            originalBoletoName: inst.originalBoletoName,
+            divergenceAlert: inst.divergenceAlert,
+            notes: inst.divergenceAlert ? [Atenção: ] : NF  - Parcela 
+          }));
+          const _ignore_original = (data.installments || []).map(inst => ({
             installmentNumber: inst.installmentNumber,
             dueDate: inst.dueDate,
             amount: inst.amount,
@@ -499,6 +532,189 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
       setLoadingXml(false);
       if (xmlInputRef.current) xmlInputRef.current.value = '';
     }
+  };
+
+  const handleBoletosUpload = async (e: React.ChangeEvent<HTMLInputElement>, specificInstallmentNumber?: number) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    try {
+      setLoadingBoletos(true);
+      const fileList = Array.from(files);
+      const parsedBoletos = await contasAPagarService.parseBoletosBatch(fileList);
+
+      if (!parsedBoletos || parsedBoletos.length === 0) {
+        toast({
+          title: 'Nenhum boleto lido',
+          description: 'Não foi possível extrair dados dos arquivos enviados.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      setInvoiceData(prev => {
+        let currentInstallments = [...prev.installments];
+
+        if (currentInstallments.length === 0) {
+          currentInstallments = parsedBoletos.map((b, idx) => ({
+            number: idx + 1,
+            dueDate: b.dueDate || new Date().toISOString().split('T')[0],
+            value: b.amount || 0,
+            barcode: b.barcode || b.linhaDigitavel || '',
+            linhaDigitavel: b.linhaDigitavel,
+            boletoUrl: b.fileUrl,
+            originalBoletoName: b.originalFileName,
+          }));
+          const totalCalculated = currentInstallments.reduce((acc, curr) => acc + curr.value, 0);
+          return {
+            ...prev,
+            paymentMethod: 'BOLETO',
+            installmentsCount: currentInstallments.length,
+            installments: currentInstallments,
+            totalAmount: totalCalculated > 0 ? totalCalculated : prev.totalAmount,
+          };
+        }
+
+        if (specificInstallmentNumber !== undefined) {
+          const b = parsedBoletos[0];
+          const updated = currentInstallments.map(inst => {
+            if (inst.number === specificInstallmentNumber) {
+              const diffVal = b.amount && Math.abs(b.amount - inst.value) > 0.05;
+              const diffDate = b.dueDate && inst.dueDate && b.dueDate !== inst.dueDate;
+              let alert: string | undefined = undefined;
+              if (diffVal || diffDate) {
+                alert = Boleto diverge da parcela: Valor Boleto R$  () vs Parcela R$  ();
+              }
+              return {
+                ...inst,
+                barcode: b.barcode || b.linhaDigitavel || inst.barcode,
+                linhaDigitavel: b.linhaDigitavel || inst.linhaDigitavel,
+                boletoUrl: b.fileUrl || inst.boletoUrl,
+                originalBoletoName: b.originalFileName || inst.originalBoletoName,
+                divergenceAlert: alert,
+              };
+            }
+            return inst;
+          });
+          return { ...prev, installments: updated };
+        }
+
+        // Matching Inteligente para múltiplos boletos
+        const matchedInstNumbers = new Set<number>();
+        const updated = currentInstallments.map(inst => ({ ...inst }));
+
+        for (const b of parsedBoletos) {
+          let bestMatchIndex = updated.findIndex(inst => {
+            if (matchedInstNumbers.has(inst.number)) return false;
+            return b.amount && Math.abs(b.amount - inst.value) <= 0.05;
+          });
+
+          if (bestMatchIndex === -1) {
+            bestMatchIndex = updated.findIndex(inst => !matchedInstNumbers.has(inst.number) && !inst.boletoUrl);
+          }
+
+          if (bestMatchIndex !== -1) {
+            const targetInst = updated[bestMatchIndex];
+            matchedInstNumbers.add(targetInst.number);
+
+            const diffVal = b.amount && Math.abs(b.amount - targetInst.value) > 0.05;
+            const diffDate = b.dueDate && targetInst.dueDate && b.dueDate !== targetInst.dueDate;
+            let alert: string | undefined = undefined;
+            if (diffVal || diffDate) {
+              alert = Boleto diverge da NF: R$  () vs Parcela R$  ();
+            }
+
+            updated[bestMatchIndex] = {
+              ...targetInst,
+              barcode: b.barcode || b.linhaDigitavel || targetInst.barcode,
+              linhaDigitavel: b.linhaDigitavel || targetInst.linhaDigitavel,
+              boletoUrl: b.fileUrl || targetInst.boletoUrl,
+              originalBoletoName: b.originalFileName || targetInst.originalBoletoName,
+              divergenceAlert: alert,
+            };
+          }
+        }
+
+        return { ...prev, installments: updated };
+      });
+
+      toast({
+        title: 'Boletos processados com sucesso!',
+        description: ${parsedBoletos.length} boleto(s) analisado(s) e associado(s) às parcelas.,
+      });
+    } catch (err: any) {
+      console.error('Erro ao ler boletos:', err);
+      toast({
+        title: 'Falha na leitura dos boletos',
+        description: err.response?.data?.message || err.message || 'Verifique se os arquivos são PDFs válidos.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingBoletos(false);
+      if (boletoMultiInputRef.current) {
+        boletoMultiInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleSyncInstallmentWithBoleto = (installmentNumber: number) => {
+    setInvoiceData(prev => {
+      const updated = prev.installments.map(inst => {
+        if (inst.number === installmentNumber && inst.divergenceAlert) {
+          const parts = inst.divergenceAlert.match(/R\$\s*([0-9.,]+)\s*\(([^)]+)\)/);
+          let newVal = inst.value;
+          let newDate = inst.dueDate;
+          if (parts) {
+            const parsedVal = parseFloat(parts[1].replace(/\./g, '').replace(',', '.'));
+            if (!isNaN(parsedVal)) newVal = parsedVal;
+            if (parts[2] && parts[2] !== 'sem data') newDate = parts[2];
+          }
+          return {
+            ...inst,
+            value: newVal,
+            dueDate: newDate,
+            divergenceAlert: undefined,
+          };
+        }
+        return inst;
+      });
+      const newTotal = updated.reduce((acc, curr) => acc + curr.value, 0);
+      return { ...prev, installments: updated, totalAmount: newTotal };
+    });
+    toast({
+      title: 'Parcela sincronizada!',
+      description: 'O valor e o vencimento da parcela foram atualizados para corresponder ao boleto bancário.',
+    });
+  };
+
+  const handleRemoveBoletoFromInstallment = (installmentNumber: number) => {
+    setInvoiceData(prev => ({
+      ...prev,
+      installments: prev.installments.map(inst => {
+        if (inst.number === installmentNumber) {
+          return {
+            ...inst,
+            barcode: undefined,
+            linhaDigitavel: undefined,
+            boletoUrl: undefined,
+            originalBoletoName: undefined,
+            divergenceAlert: undefined,
+          };
+        }
+        return inst;
+      })
+    }));
+  };
+
+  const copyBoletoToClipboard = (text: string, idx: number) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopiedBoletoIdx(idx);
+    toast({
+      title: 'Copiado!',
+      description: 'Código de barras / Linha digitável copiada para a área de transferência.',
+    });
+    setTimeout(() => setCopiedBoletoIdx(null), 2500);
   };
 
   // Função para recalcular parcelas
@@ -1025,7 +1241,29 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
       // Se a nota fiscal possuir parcelas e ainda não tiver criado no financeiro (ex.: NF de 1 item)
       if (parsedNfe && !nfeFinancialProcessedRef.current && (parsedNfe.installments?.length || 0) > 0) {
         try {
-          const installmentsPayload: ProcessInstallmentPayload[] = (parsedNfe.installments || []).map(inst => ({
+          const currentInsts2 = invoiceData.installments.length > 0 ? invoiceData.installments : (parsedNfe.installments || []).map((x: any) => ({
+            number: x.installmentNumber,
+            dueDate: x.dueDate,
+            value: x.amount,
+            barcode: x.barcode,
+            linhaDigitavel: x.linhaDigitavel,
+            boletoUrl: x.boletoUrl,
+            originalBoletoName: x.originalBoletoName,
+            divergenceAlert: x.divergenceAlert
+          }));
+
+          const installmentsPayload: ProcessInstallmentPayload[] = currentInsts2.map(inst => ({
+            installmentNumber: inst.number,
+            dueDate: inst.dueDate,
+            amount: inst.value,
+            barcode: inst.barcode || inst.linhaDigitavel || '',
+            linhaDigitavel: inst.linhaDigitavel,
+            boletoUrl: inst.boletoUrl,
+            originalBoletoName: inst.originalBoletoName,
+            divergenceAlert: inst.divergenceAlert,
+            notes: inst.divergenceAlert ? [Atenção: ] : NF  - Parcela 
+          }));
+          const _ignore_original2 = (parsedNfe.installments || []).map(inst => ({
             installmentNumber: inst.installmentNumber,
             dueDate: inst.dueDate,
             amount: inst.amount,
@@ -1898,32 +2136,166 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
                       />
                     </div>
 
-                    {/* Grade das Parcelas Geradas */}
-                    <div className="md:col-span-8">
-                      <Label className="text-gray-400 text-[11px] block mb-1">
-                        Cronograma das Parcelas ({invoiceData.installments.length}x):
-                      </Label>
+                                        {/* Grade das Parcelas Geradas e Boletos Vinculados */}
+                    <div className="md:col-span-8 space-y-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <Label className="text-gray-400 text-[11px] block font-medium">
+                          Cronograma das Parcelas ({invoiceData.installments.length}x):
+                        </Label>
+                        <div>
+                          <input
+                            type="file"
+                            ref={boletoMultiInputRef}
+                            multiple
+                            accept=".pdf"
+                            className="hidden"
+                            onChange={(e) => handleBoletosUpload(e)}
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => boletoMultiInputRef.current?.click()}
+                            disabled={loadingBoletos}
+                            className="h-7 px-2.5 border-emerald-500/40 bg-emerald-950/20 text-emerald-300 hover:text-white hover:bg-emerald-600/30 text-[11px] font-semibold gap-1.5 transition-all shadow-sm"
+                          >
+                            {loadingBoletos ? (
+                              <>
+                                <Loader2 className="h-3 w-3 animate-spin text-emerald-400" />
+                                Processando Boletos...
+                              </>
+                            ) : (
+                              <>
+                                <Upload className="h-3 w-3 text-emerald-400" />
+                                Anexar Boleto(s) em PDF (1x ou Parcelado)
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+
                       {invoiceData.installments.length > 0 ? (
-                        <div className="flex flex-wrap gap-2">
-                          {invoiceData.installments.map((inst) => (
-                            <div
-                              key={inst.number}
-                              className="px-2.5 py-1 rounded bg-seguranca-black/80 border border-gray-700 text-[11px] flex items-center gap-1.5"
-                            >
-                              <span className="text-gray-400 font-mono">#{inst.number}:</span>
-                              <span className="text-gray-200">
-                                {inst.dueDate ? new Date(inst.dueDate + 'T12:00:00').toLocaleDateString('pt-BR') : '—'}
-                              </span>
-                              <span className="text-emerald-400 font-bold">
-                                R$ {inst.value.toFixed(2)}
-                              </span>
-                            </div>
-                          ))}
+                        <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
+                          {invoiceData.installments.map((inst, idx) => {
+                            const hasBoleto = Boolean(inst.boletoUrl || inst.linhaDigitavel);
+                            return (
+                              <div
+                                key={inst.number}
+                                className={p-2.5 rounded-lg border transition-all }
+                              >
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="px-2 py-0.5 rounded text-[11px] font-bold font-mono bg-seguranca-black border border-gray-600 text-gray-300">
+                                      #{inst.number}
+                                    </span>
+                                    <span className="text-gray-300 text-xs">
+                                      Venc: <strong className="text-white">{inst.dueDate ? new Date(inst.dueDate + 'T12:00:00').toLocaleDateString('pt-BR') : '—'}</strong>
+                                    </span>
+                                    <span className="text-emerald-400 font-bold text-xs">
+                                      R$ {Number(inst.value).toFixed(2)}
+                                    </span>
+                                    {hasBoleto && (
+                                      <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40 text-[10px] font-medium py-0 px-1.5 flex items-center gap-1">
+                                        <Check className="h-2.5 w-2.5" />
+                                        Boleto Anexado
+                                      </Badge>
+                                    )}
+                                  </div>
+
+                                  <div className="flex items-center gap-1.5">
+                                    {inst.boletoUrl && (
+                                      <a
+                                        href={inst.boletoUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="h-6 px-2 rounded bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[10px] flex items-center gap-1 transition-colors"
+                                      >
+                                        <ExternalLink className="h-2.5 w-2.5" />
+                                        Ver PDF
+                                      </a>
+                                    )}
+                                    {hasBoleto ? (
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleRemoveBoletoFromInstallment(inst.number)}
+                                        className="h-6 w-6 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                                        title="Remover boleto desta parcela"
+                                      >
+                                        <Trash2 className="h-3 w-3" />
+                                      </Button>
+                                    ) : (
+                                      <label className="cursor-pointer h-6 px-2 rounded bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-600 text-[10px] flex items-center gap-1 transition-colors">
+                                        <Upload className="h-2.5 w-2.5" />
+                                        Anexar PDF
+                                        <input
+                                          type="file"
+                                          accept=".pdf"
+                                          className="hidden"
+                                          onChange={(e) => handleBoletosUpload(e, inst.number)}
+                                        />
+                                      </label>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {inst.linhaDigitavel && (
+                                  <div className="mt-1.5 pt-1.5 border-t border-gray-700/50 flex flex-wrap items-center justify-between gap-1.5 text-[11px]">
+                                    <div className="flex items-center gap-1.5 text-gray-300 font-mono overflow-hidden text-ellipsis">
+                                      <Barcode className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+                                      <span className="truncate max-w-[280px] sm:max-w-[420px] select-all">
+                                        {inst.linhaDigitavel}
+                                      </span>
+                                    </div>
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => copyBoletoToClipboard(inst.linhaDigitavel || '', idx)}
+                                      className="h-5 px-1.5 text-[10px] text-gray-300 hover:text-white bg-gray-800/80 hover:bg-gray-700 border border-gray-600 gap-1"
+                                    >
+                                      {copiedBoletoIdx === idx ? (
+                                        <>
+                                          <Check className="h-2.5 w-2.5 text-emerald-400" />
+                                          Copiado!
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Copy className="h-2.5 w-2.5" />
+                                          Copiar Código
+                                        </>
+                                      )}
+                                    </Button>
+                                  </div>
+                                )}
+
+                                {inst.divergenceAlert && (
+                                  <div className="mt-2 p-2 bg-amber-500/10 border border-amber-500/30 rounded text-amber-300 text-[11px] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                                    <div className="flex items-center gap-1.5">
+                                      <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                                      <span>{inst.divergenceAlert}</span>
+                                    </div>
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      onClick={() => handleSyncInstallmentWithBoleto(inst.number)}
+                                      className="h-6 px-2 text-[10px] font-semibold bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 shrink-0"
+                                    >
+                                      Sincronizar Parcela com Boleto
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       ) : (
-                        <span className="text-xs text-gray-500 italic">
-                          Informe o valor total para calcular as parcelas automaticamente.
-                        </span>
+                        <div className="p-3 rounded-lg border border-dashed border-gray-700 bg-seguranca-black/40 text-center">
+                          <p className="text-xs text-gray-400">
+                            Informe o valor total da nota ou anexe os boletos bancários em PDF acima para gerar as parcelas automaticamente.
+                          </p>
+                        </div>
                       )}
                     </div>
                   </div>

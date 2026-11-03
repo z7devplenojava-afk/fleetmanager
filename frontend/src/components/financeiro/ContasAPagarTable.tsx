@@ -45,6 +45,7 @@ interface ContasAPagarTableProps {
   onDelete: (id: string) => void;
   onView: (conta: ContaAPagar) => void;
   onRefresh: () => void;
+  onDarBaixa?: (conta: ContaAPagar) => void;
   loading?: boolean;
 }
 
@@ -70,6 +71,7 @@ export const ContasAPagarTable: React.FC<ContasAPagarTableProps> = ({
   onDelete,
   onView,
   onRefresh,
+  onDarBaixa,
   loading = false
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -731,6 +733,20 @@ export const ContasAPagarTable: React.FC<ContasAPagarTableProps> = ({
 
                       <TableCell className="text-center whitespace-nowrap py-1.5 px-2">
                         <div className="flex items-center justify-center gap-0.5">
+                          {conta.status !== 'PAGA' && !conta.baixa && onDarBaixa && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDarBaixa(conta);
+                              }} 
+                              className="text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/20 p-1 h-7 w-7 rounded-lg transition-colors"
+                              title="Dar Baixa e Anexar Comprovante Bancário"
+                            >
+                              <CheckCircle size={14} />
+                            </Button>
+                          )}
                           <Button 
                             variant="ghost" 
                             size="sm" 
