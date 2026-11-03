@@ -30,12 +30,23 @@ public class DailyLog {
     @JoinColumn(name = "vehicle_id", nullable = false)
     private Vehicle vehicle;
 
+    /**
+     * ID do veículo recebido/enviado pela API. Não é persistido: o vínculo real
+     * é resolvido no service antes de salvar (o formulário envia apenas o ID).
+     */
+    @Transient
+    private UUID vehicleId;
+
     @Column(name = "vehicle_plate", length = 20)
     private String vehiclePlate;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "client_id")
     private Client client;
+
+    /** ID do cliente recebido/enviado pela API (ver {@link #vehicleId}). */
+    @Transient
+    private UUID clientId;
 
     @Column(length = 100)
     private String route;

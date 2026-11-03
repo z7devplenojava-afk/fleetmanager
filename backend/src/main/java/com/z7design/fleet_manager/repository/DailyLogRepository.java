@@ -14,7 +14,8 @@ import java.util.UUID;
 public interface DailyLogRepository extends JpaRepository<DailyLog, UUID> {
     List<DailyLog> findByDateBetween(LocalDate startDate, LocalDate endDate);
 
-    List<DailyLog> findByVehicleId(UUID vehicleId);
+    @Query("SELECT d FROM DailyLog d WHERE d.vehicle.id = :vehicleId")
+    List<DailyLog> findByVehicleId(@Param("vehicleId") UUID vehicleId);
 
     /**
      * PRD Módulo 6: maior KM final registrado em Parte Diária do veículo —

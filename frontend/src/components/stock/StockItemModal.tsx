@@ -467,14 +467,7 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
             boletoUrl: inst.boletoUrl,
             originalBoletoName: inst.originalBoletoName,
             divergenceAlert: inst.divergenceAlert,
-            notes: inst.divergenceAlert ? [Atenção: ] : NF  - Parcela 
-          }));
-          const _ignore_original = (data.installments || []).map(inst => ({
-            installmentNumber: inst.installmentNumber,
-            dueDate: inst.dueDate,
-            amount: inst.amount,
-            barcode: inst.barcode,
-            notes: `NF ${data.invoiceNumber} - Parcela ${inst.installmentNumber}`
+            notes: inst.divergenceAlert ? `[Atenção: ${inst.divergenceAlert}]` : `NF ${data.invoiceNumber} - Parcela ${inst.number}`
           }));
 
           const processPayload: StockNfeProcessRequestDTO = {
@@ -1261,14 +1254,7 @@ const StockItemModal: React.FC<StockItemModalProps> = ({
             boletoUrl: inst.boletoUrl,
             originalBoletoName: inst.originalBoletoName,
             divergenceAlert: inst.divergenceAlert,
-            notes: inst.divergenceAlert ? [Atenção: ] : NF  - Parcela 
-          }));
-          const _ignore_original2 = (parsedNfe.installments || []).map(inst => ({
-            installmentNumber: inst.installmentNumber,
-            dueDate: inst.dueDate,
-            amount: inst.amount,
-            barcode: inst.barcode,
-            notes: `NF ${parsedNfe.invoiceNumber} - Parcela ${inst.installmentNumber}`
+            notes: inst.divergenceAlert ? `[Atenção: ${inst.divergenceAlert}]` : `NF ${formData.invoiceNumber || parsedNfe.invoiceNumber} - Parcela ${inst.number}`
           }));
 
           const finPayload: StockNfeProcessRequestDTO = {

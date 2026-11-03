@@ -2,7 +2,9 @@ package com.z7design.fleet_manager.service;
 
 import com.z7design.fleet_manager.model.DailyLog;
 import com.z7design.fleet_manager.model.enums.ExtraTripReason;
+import com.z7design.fleet_manager.repository.ClientRepository;
 import com.z7design.fleet_manager.repository.DailyLogRepository;
+import com.z7design.fleet_manager.repository.VehicleRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,24 +22,57 @@ import java.util.UUID;
 public class DailyLogService {
 
     private final DailyLogRepository repository;
+    private final VehicleRepository vehicleRepository;
+    private final ClientRepository clientRepository;
     private final OdometerService odometerService;
     private final ExtraTripClassifierService extraTripClassifier;
 
     public List<DailyLog> findAll() {
-        return repository.findAll();
+        return repository.findAll().stream().map(this::withRelationIds).toList();
     }
 
     public List<DailyLog> findByDateRange(LocalDate start, LocalDate end) {
-        return repository.findByDateBetween(start, end);
+        return repository.findByDateBetween(start, end).stream().map(this::withRelationIds).toList();
     }
 
     public DailyLog findById(UUID id) {
-        return repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Daily Log not found with id: " + id));
+        return withRelationIds(repository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Daily Log not found with id: " + id)));
+    }
+
+    /**
+     * Preenche os campos transientes vehicleId/clientId a partir das relações,
+     * para que o frontend receba os mesmos IDs que envia.
+     */
+    private DailyLog withRelationIds(DailyLog dailyLog) {
+        if (dailyLog == null) {
+            return null;
+        }
+        dailyLog.setVehicleId(dailyLog.getVehicle() != null ? dailyLog.getVehicle().getId() : null);
+        dailyLog.setClientId(dailyLog.getClient() != null ? dailyLog.getClient().getId() : null);
+        return dailyLog;
+    }
+
+    /**
+     * Resolve os IDs transientes recebidos do frontend (vehicleId/clientId) nas
+     * entidades correspondentes. O formulário envia apenas os IDs, mas a coluna
+     * vehicle_id é NOT NULL, então o vínculo precisa existir antes do save.
+     */
+    private void resolveRelations(DailyLog dailyLog) {
+        if (dailyLog == null) {
+            return;
+        }
+        if (dailyLog.getVehicle() == null && dailyLog.getVehicleId() != null) {
+            vehicleRepository.findById(dailyLog.getVehicleId()).ifPresent(dailyLog::setVehicle);
+        }
+        if (dailyLog.getClient() == null && dailyLog.getClientId() != null) {
+            clientRepository.findById(dailyLog.getClientId()).ifPresent(dailyLog::setClient);
+        }
     }
 
     @Transactional
     public DailyLog save(DailyLog dailyLog) {
+        resolveRelations(dailyLog);
         // PRD RF-05.3: classificação automática de viagens extras no apontamento
         extraTripClassifier.applyTo(dailyLog, null, null, null);
         if (Boolean.TRUE.equals(dailyLog.getExtraTrip())) {
@@ -55,16 +90,23 @@ public class DailyLogService {
             log.error("Erro ao atualizar hodômetro a partir da Parte Diária {}: {}",
                     saved.getId(), e.getMessage(), e);
         }
-        return saved;
+        return withRelationIds(saved);
     }
 
     @Transactional
     public DailyLog update(UUID id, DailyLog dailyLog) {
+        resolveRelations(dailyLog);
         DailyLog existing = findById(id);
 
         existing.setDate(dailyLog.getDate());
-        existing.setVehicle(dailyLog.getVehicle());
-        existing.setClient(dailyLog.getClient());
+        if (dailyLog.getVehicle() != null) {
+            existing.setVehicle(dailyLog.getVehicle());
+        }
+        if (dailyLog.getClient() != null) {
+            existing.setClient(dailyLog.getClient());
+        } else if (dailyLog.getClientId() == null) {
+            existing.setClient(null);
+        }
         existing.setRoute(dailyLog.getRoute());
         existing.setShift(dailyLog.getShift());
         existing.setInitialKm(dailyLog.getInitialKm());
@@ -94,7 +136,7 @@ public class DailyLogService {
             log.error("Erro ao atualizar hodômetro a partir da Parte Diária {}: {}",
                     saved.getId(), e.getMessage(), e);
         }
-        return saved;
+        return withRelationIds(saved);
     }
 
     /**
