@@ -191,6 +191,7 @@ const operacionalMenuItems = [
   { icon: Calculator, text: 'Rateio de Serviços', to: '/operacional?tab=rateio-servicos', id: 'operacional-rateio-servicos' },
   { icon: ClipboardCheck, text: 'Gestão Operacional', to: '/operacional?tab=gestao-operacional', id: 'operacional-gestao' },
   { icon: Ruler, text: 'Medição', to: '/operacional/medicao', id: 'operacional-medicao' },
+  { icon: Truck, text: 'Gestão de Locação', to: '/operacional/locacao', id: 'operacional-locacao' },
 ];
 
 // Módulo RH - Menu principal
@@ -777,6 +778,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'operacional-rateio-servicos',
     'operacional-gestao',
     'operacional-medicao',
+    'operacional-locacao',
     'frota',
     'garagens',
     'gestao-limpeza',
@@ -802,6 +804,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'operacional-rateio-servicos',
     'operacional-gestao',
     'operacional-medicao',
+    'operacional-locacao',
     'frota',
     'garagens',
     'gestao-limpeza',

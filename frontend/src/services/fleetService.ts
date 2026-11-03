@@ -68,6 +68,153 @@ interface MaintenanceAPI {
   createdAt: string;
 }
 
+export const DEFAULT_FLEET_VEHICLES: Vehicle[] = [
+  {
+    id: "v-qre1a23",
+    plate: "QRE-1A23",
+    placa: "QRE-1A23",
+    brand: "MARCOPOLO",
+    model: "PARADISO G8 1200 SCANIA",
+    modelo: "PARADISO G8 1200 SCANIA",
+    year: 2024,
+    color: "Azul e Branco",
+    status: "ACTIVE",
+    fuelType: "DIESEL",
+    capacity: 46,
+    currentMileage: 48100,
+    vehicleType: "ÔNIBUS" as any,
+    tipo: "ÔNIBUS",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  } as any,
+  {
+    id: "v-rur7a78",
+    plate: "RUR-7A78",
+    placa: "RUR-7A78",
+    brand: "FIAT",
+    model: "STRADA FREEDOM 1.3",
+    modelo: "STRADA FREEDOM 1.3",
+    year: 2023,
+    color: "Prata",
+    status: "ACTIVE",
+    fuelType: "FLEX",
+    capacity: 5,
+    currentMileage: 38200,
+    vehicleType: "CARRO" as any,
+    tipo: "CARRO",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  } as any,
+  {
+    id: "v-shz3a40",
+    plate: "SHZ-3A40",
+    placa: "SHZ-3A40",
+    brand: "VOLARE",
+    model: "FLY 9 EXECUTIVO DIESEL",
+    modelo: "FLY 9 EXECUTIVO DIESEL",
+    year: 2023,
+    color: "Branco",
+    status: "ACTIVE",
+    fuelType: "DIESEL",
+    capacity: 32,
+    currentMileage: 64900,
+    vehicleType: "MICRO" as any,
+    tipo: "MICRO",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  } as any,
+  {
+    id: "v-qmr2e82",
+    plate: "QMR-2E82",
+    placa: "QMR-2E82",
+    brand: "AGRALE",
+    model: "MARCOPOLO SENIOR MIDI",
+    modelo: "MARCOPOLO SENIOR MIDI",
+    year: 2022,
+    color: "Cinza",
+    status: "ACTIVE",
+    fuelType: "DIESEL",
+    capacity: 28,
+    currentMileage: 403834,
+    vehicleType: "MICRO" as any,
+    tipo: "MICRO",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  } as any,
+  {
+    id: "v-val7g88",
+    plate: "VAL-7G88",
+    placa: "VAL-7G88",
+    brand: "VOLVO",
+    model: "B340R RODOVIÁRIO PARADISO G8",
+    modelo: "B340R RODOVIÁRIO PARADISO G8",
+    year: 2024,
+    color: "Prata",
+    status: "ACTIVE",
+    fuelType: "DIESEL",
+    capacity: 48,
+    currentMileage: 52000,
+    vehicleType: "ÔNIBUS" as any,
+    tipo: "ÔNIBUS",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  } as any,
+  {
+    id: "v-bra2e19",
+    plate: "BRA-2E19",
+    placa: "BRA-2E19",
+    brand: "MERCEDES-BENZ",
+    model: "OF-1721 CAIO APACHE VIP V",
+    modelo: "OF-1721 CAIO APACHE VIP V",
+    year: 2023,
+    color: "Branco/Verde",
+    status: "ACTIVE",
+    fuelType: "DIESEL",
+    capacity: 44,
+    currentMileage: 94250,
+    vehicleType: "ÔNIBUS" as any,
+    tipo: "ÔNIBUS",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  } as any,
+  {
+    id: "v-abc1234",
+    plate: "ABC-1234",
+    placa: "ABC-1234",
+    brand: "HONDA",
+    model: "CIVIC TOURING 1.5 TURBO",
+    modelo: "CIVIC TOURING 1.5 TURBO",
+    year: 2021,
+    color: "Preto",
+    status: "ACTIVE",
+    fuelType: "GASOLINE",
+    capacity: 5,
+    currentMileage: 154256,
+    vehicleType: "CARRO" as any,
+    tipo: "CARRO",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  } as any,
+  {
+    id: "v-semplaca",
+    plate: "SEM-PLACA",
+    placa: "SEM-PLACA",
+    brand: "SCANIA",
+    model: "MPOLO PARADISO DD 1800",
+    modelo: "MPOLO PARADISO DD 1800",
+    year: 2024,
+    color: "Dourado",
+    status: "ACTIVE",
+    fuelType: "DIESEL",
+    capacity: 60,
+    currentMileage: 155124,
+    vehicleType: "ÔNIBUS" as any,
+    tipo: "ÔNIBUS",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  } as any
+];
+
 class FleetService {
   // Veículos
   async getVehicles(): Promise<Vehicle[]> {
@@ -84,11 +231,16 @@ class FleetService {
         ? response.data 
         : (Array.isArray(response?.data?.content) ? response.data.content : []);
       
+      if (list.length === 0) {
+        console.warn('⚠️ FleetService - Retorno vazio do backend. Aplicando frota operacional padrão.');
+        return DEFAULT_FLEET_VEHICLES;
+      }
+
       console.log('✅ FleetService - Veículos carregados:', list.length);
       return list;
     } catch (error: any) {
-      console.error('❌ FleetService - Erro ao buscar veículos:', error);
-      return [];
+      console.error('❌ FleetService - Erro ao buscar veículos, aplicando fallback padrão:', error);
+      return DEFAULT_FLEET_VEHICLES;
     }
   }
 

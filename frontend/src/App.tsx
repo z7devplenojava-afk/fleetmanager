@@ -270,6 +270,7 @@ const WorkPostDetailPage = lazy(() => import('@/pages/operacional/WorkPostDetail
 const GestaoEscalas = lazy(() => import('@/pages/GestaoEscalas'));
 const GestaoTarefas = lazy(() => import('@/pages/GestaoTarefas'));
 const RelatoriosOperacionais = lazy(() => import('@/pages/RelatoriosOperacionais'));
+const GestaoLocacao = lazy(() => import('@/pages/operacional/GestaoLocacao'));
 
 
 // Módulo Admin (Super Admin)
@@ -2068,6 +2069,13 @@ function App() {
                         <ProtectedRoute>
                           <Suspense fallback={<LoadingSpinner />}>
                             <RelatoriosOperacionais />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/operacional/locacao" element={
+                        <ProtectedRoute>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <GestaoLocacao />
                           </Suspense>
                         </ProtectedRoute>
                       } />

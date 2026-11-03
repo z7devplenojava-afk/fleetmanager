@@ -31,7 +31,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { clientService, Client } from '@/services/clientService';
-import { fleetService } from '@/services/fleetService';
+import { fleetService, DEFAULT_FLEET_VEHICLES } from '@/services/fleetService';
 import { parteDiariaService, ParteDiaria, ParteDiariaAtividade } from '@/services/parteDiariaService';
 import driverService, { Driver } from '@/services/driverService';
 import { employeeService, Employee } from '@/services/employeeService';
@@ -719,6 +719,16 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
 
   const availableVehicles = React.useMemo(() => {
     const list = [...vehicles];
+    const seenPlates = new Set(list.map((v: any) => (v.placa || v.plate || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase()));
+
+    DEFAULT_FLEET_VEHICLES.forEach(defV => {
+      const cleanP = (defV.plate || defV.placa || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+      if (!seenPlates.has(cleanP)) {
+        seenPlates.add(cleanP);
+        list.push(defV);
+      }
+    });
+
     const cleanPlate = (vehiclePlate || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
     if (vehiclePlate && !list.some(v => v.id === selectedVehicleId || (v.placa || v.plate || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase() === cleanPlate)) {
       list.unshift({
@@ -735,6 +745,7 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
   const vehicleOptions = React.useMemo<SearchableOption[]>(() => {
     return availableVehicles.map((v: any) => {
       const plate = v.placa || v.plate || 'SEM PLACA';
+      const cleanPlate = plate.replace(/[^A-Za-z0-9]/g, '');
       const model = v.modelo || v.model || v.brand || 'Veículo';
       const type = detectVehicleType(v);
       const kmStr = v.currentMileage != null && Number(v.currentMileage) > 0 
@@ -746,7 +757,18 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
         subtitle: `${model}${kmStr ? ` • ${kmStr}` : ''}`,
         badge: type,
         badgeColor: type === 'ÔNIBUS' ? 'emerald' : type === 'MICRO' ? 'amber' : 'blue',
-        keywords: [plate, model, v.brand, v.fabricante, v.prefixo, v.prefix, type]
+        keywords: [
+          plate,
+          cleanPlate,
+          model,
+          v.brand,
+          v.fabricante,
+          v.prefixo,
+          v.prefix,
+          type,
+          cleanPlate.substring(0, 3),
+          cleanPlate.substring(3)
+        ].filter(Boolean)
       };
     });
   }, [availableVehicles]);

@@ -27,6 +27,7 @@ const segmentLabels: Record<string, string> = {
   grupos: 'Grupos de Usuários',
   operacional: 'Operacional',
   medicao: 'Medição',
+  locacao: 'Locação',
   servicos: 'Serviços',
   leads: 'Leads',
   clientes: 'Clientes',
@@ -110,6 +111,11 @@ const breadcrumbMap: Record<string, BreadcrumbItem[]> = {
     { label: 'Dashboard', path: '/dashboard', icon: Home },
     { label: 'Operacional', path: '/operacional' },
     { label: 'Medição', path: '/operacional/medicao' }
+  ],
+  '/operacional/locacao': [
+    { label: 'Dashboard', path: '/dashboard', icon: Home },
+    { label: 'Operacional', path: '/operacional' },
+    { label: 'Locação', path: '/operacional/locacao' }
   ],
   '/servicos': [
     { label: 'Dashboard', path: '/dashboard', icon: Home },
