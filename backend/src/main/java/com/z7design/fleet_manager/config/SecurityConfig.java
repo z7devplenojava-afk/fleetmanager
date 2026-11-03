@@ -443,7 +443,7 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/equipment/**").authenticated()
                                                 .requestMatchers("/api/alerts/**").authenticated()
                                                 .requestMatchers("/api/visit-controls/**")
-                                                .hasAnyAuthority("ROLE_SUPER_ADMIN", "ROLE_ADMIN", "ROLE_PORTARIA")
+                                                .hasAnyAuthority("ROLE_SUPER_ADMIN", "ROLE_ADMIN", "ROLE_PORTARIA", "ROLE_OPERACIONAL", "OPERACIONAL", "ROLE_SUPERVISOR", "SUPERVISOR")
                                                 // Endpoints de relatÃƒÂ³rios de visitas - requerem autenticaÃƒÂ§ÃƒÂ£o
                                                 .requestMatchers(org.springframework.http.HttpMethod.OPTIONS,
                                                                 "/api/visit-control-reports/**")

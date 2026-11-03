@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,11 +37,18 @@ import {
   RefreshCw,
   Truck,
   Gauge,
+  Bus,
+  FileUp,
+  Loader2,
   X
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { parteDiariaService, ParteDiaria } from '@/services/parteDiariaService';
+import { contasAReceberService } from '@/services/contasAReceberService';
 import { clientService } from '@/services/clientService';
+import { ContractMeasurementPdfService } from '@/services/contractMeasurementPdfService';
+import { fleetService } from '@/services/fleetService';
+import { ArrowRightLeft } from 'lucide-react';
 import { ParteDiariaModal } from './ParteDiariaModal';
 import {
   Dialog,
@@ -124,6 +131,28 @@ export interface RevenueInvoiceData {
   accessKey: string;
   attachedFile?: string;
   status: 'DRAFT' | 'ISSUED' | 'SENT_TO_RECEIVABLES' | 'PAID';
+}
+
+interface NfseParsedData {
+  nfseNumber?: string;
+  nfseKey?: string;
+  issueDate?: string;
+  tomadorCnpjCpf?: string;
+  tomadorName?: string;
+  prestadorCnpjCpf?: string;
+  prestadorName?: string;
+  grossAmount?: number;
+  netAmount?: number;
+  issqnRetido?: number;
+  inssRetido?: number;
+  irRetido?: number;
+  pisRetido?: number;
+  cofinsRetido?: number;
+  csllRetido?: number;
+  serviceDescription?: string;
+  municipality?: string;
+  xmlUrl?: string;
+  pdfUrl?: string;
 }
 
 const CLIENT_CONTRACTS_MOCK = [
@@ -380,6 +409,13 @@ export const ClientContractMeasurementManager: React.FC = () => {
     status: 'ISSUED'
   });
 
+  // State: Importação da NFS-e emitida para o cliente
+  const nfFileInputRef = useRef<HTMLInputElement | null>(null);
+  const [nfFile, setNfFile] = useState<File | null>(null);
+  const [nfParsed, setNfParsed] = useState<NfseParsedData | null>(null);
+  const [isNfImporting, setIsNfImporting] = useState<boolean>(false);
+  const [isNfDragOver, setIsNfDragOver] = useState<boolean>(false);
+
   // State: Partes Diárias por Cliente
   const [partesDiariasMap, setPartesDiariasMap] = useState<Record<string, ParteDiaria[]>>(INITIAL_PARTES_DIARIAS);
   const [partesLoading, setPartesLoading] = useState<boolean>(false);
@@ -498,31 +534,177 @@ export const ClientContractMeasurementManager: React.FC = () => {
     loadPartesDiarias();
   };
 
-  // Cálculos Totais
-  const totalLeasedVehicles = leasedVehicles.reduce((sum, i) => sum + i.totalPeriod, 0);
-  const totalExtraTrips = extraTrips.reduce((sum, i) => sum + i.total, 0);
-  const totalExcessKm = excessKmItems.reduce((sum, i) => sum + i.totalExcessValue, 0);
-  const totalDeductions = deductions.reduce((sum, i) => sum + (i.type === 'DEBIT' ? i.value : -i.value), 0);
+    // Itens filtrados pelo cliente selecionado (se não tiver alocações/lançamentos, exibe vazio!)
+  const currentLeasedVehicles = leasedVehicles.filter(v => v.clientId === selectedClientId);
+  const currentExtraTrips = extraTrips.filter(t => t.clientId === selectedClientId);
+  const currentExcessKmItems = excessKmItems.filter(k => k.clientId === selectedClientId);
+  const currentDeductions = deductions.filter(d => d.clientId === selectedClientId);
+
+  // Cálculos Totais estritamente do cliente selecionado
+  const totalLeasedVehicles = currentLeasedVehicles.reduce((sum, i) => sum + i.totalPeriod, 0);
+  const totalExtraTrips = currentExtraTrips.reduce((sum, i) => sum + i.total, 0);
+  const totalExcessKm = currentExcessKmItems.reduce((sum, i) => sum + i.totalExcessValue, 0);
+  const totalDeductions = currentDeductions.reduce((sum, i) => sum + (i.type === 'DEBIT' ? i.value : -i.value), 0);
   
   const totalGrossMeasurement = totalLeasedVehicles + totalExtraTrips + totalExcessKm - totalDeductions;
 
-  // Handlers para adição
-  const handleAddLeasedVehicle = () => {
-    const newItem: LeasedVehicleItem = {
-      id: `lv-${Date.now()}`,
-      itemNumber: leasedVehicles.length + 1,
+  // Lista de veículos da frota carregados da API
+  const [fleetVehicles, setFleetVehicles] = useState<any[]>([]);
+
+  useEffect(() => {
+    fleetService.getVehicles().then(data => {
+      if (Array.isArray(data)) setFleetVehicles(data);
+    }).catch(() => {});
+  }, []);
+
+  // State e Handlers: Mover Veículo de Contrato/Cliente
+  const [isMoveVehicleModalOpen, setIsMoveVehicleModalOpen] = useState(false);
+  const [vehicleToMove, setVehicleToMove] = useState<LeasedVehicleItem | null>(null);
+  const [targetClientId, setTargetClientId] = useState<string>('');
+
+  const handleOpenMoveVehicle = (vehicle: LeasedVehicleItem) => {
+    setVehicleToMove(vehicle);
+    const otherClients = CLIENT_CONTRACTS_MOCK.filter(c => c.id !== selectedClientId);
+    setTargetClientId(otherClients[0]?.id || '');
+    setIsMoveVehicleModalOpen(true);
+  };
+
+  const handleConfirmMoveVehicle = () => {
+    if (!vehicleToMove || !targetClientId) return;
+    const targetClientObj = CLIENT_CONTRACTS_MOCK.find(c => c.id === targetClientId);
+    setLeasedVehicles(prev =>
+      prev.map(v => (v.id === vehicleToMove.id ? { ...v, clientId: targetClientId } : v))
+    );
+    toast({
+      title: 'Veículo Transferido com Sucesso!',
+      description: `O veículo ${vehicleToMove.plate} foi transferido para o contrato de ${targetClientObj?.clientName || 'novo cliente'}.`
+    });
+    setIsMoveVehicleModalOpen(false);
+    setVehicleToMove(null);
+  };
+
+  // State e Handlers: Adicionar / Editar Veículo Locado
+  const [isVehicleModalOpen, setIsVehicleModalOpen] = useState(false);
+  const [selectedVehicleItem, setSelectedVehicleItem] = useState<LeasedVehicleItem | null>(null);
+  const [vehicleForm, setVehicleForm] = useState({
+    plate: '',
+    description: '',
+    route: '',
+    monthlyRate: 30000,
+    workingDays: 30,
+    observations: '01 MOTORISTA'
+  });
+
+  const handleOpenAddVehicle = () => {
+    setSelectedVehicleItem(null);
+    setVehicleForm({
+      plate: fleetVehicles[0]?.plate || 'ABC-1234',
       description: 'PRESTAÇÃO DE SERVIÇO DE TRANSPORTE DE PASSAGEIROS',
-      route: 'NOVA ROTA X UNIDADE OPERACIONAL',
-      plate: 'ABC-1234',
-      period: '21/03/2024 À 20/04/2024',
-      monthlyRate: 30000.00,
+      route: 'ROTA OPERACIONAL X UNIDADE',
+      monthlyRate: 30000,
       workingDays: 30,
-      dailyRate: 1000.00,
-      totalPeriod: 30000.00,
       observations: '01 MOTORISTA'
-    };
-    setLeasedVehicles([...leasedVehicles, newItem]);
-    toast({ title: 'Veículo adicionado à medição' });
+    });
+    setIsVehicleModalOpen(true);
+  };
+
+  const handleOpenEditVehicle = (item: LeasedVehicleItem) => {
+    setSelectedVehicleItem(item);
+    setVehicleForm({
+      plate: item.plate,
+      description: item.description,
+      route: item.route,
+      monthlyRate: item.monthlyRate,
+      workingDays: item.workingDays,
+      observations: item.observations || ''
+    });
+    setIsVehicleModalOpen(true);
+  };
+
+  const handleSaveVehicle = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!vehicleForm.plate.trim() || !vehicleForm.description.trim()) {
+      toast({ title: 'Atenção', description: 'Preencha a placa e a descrição do serviço.', variant: 'destructive' });
+      return;
+    }
+    const days = Number(vehicleForm.workingDays) || 30;
+    const monthly = Number(vehicleForm.monthlyRate) || 0;
+    const daily = monthly / (days || 1);
+    const total = monthly;
+
+    if (selectedVehicleItem) {
+      setLeasedVehicles(prev => prev.map(v => v.id === selectedVehicleItem.id ? {
+        ...v,
+        plate: vehicleForm.plate.trim().toUpperCase(),
+        description: vehicleForm.description.trim().toUpperCase(),
+        route: vehicleForm.route.trim().toUpperCase(),
+        monthlyRate: monthly,
+        workingDays: days,
+        dailyRate: Number(daily.toFixed(2)),
+        totalPeriod: total,
+        observations: vehicleForm.observations
+      } : v));
+      toast({ title: 'Veículo Atualizado', description: 'As alterações foram salvas na medição.' });
+    } else {
+      const newItem: LeasedVehicleItem = {
+        id: `lv-${Date.now()}`,
+        clientId: selectedClientId,
+        itemNumber: currentLeasedVehicles.length + 1,
+        plate: vehicleForm.plate.trim().toUpperCase(),
+        description: vehicleForm.description.trim().toUpperCase(),
+        route: vehicleForm.route.trim().toUpperCase(),
+        period: `${currentClient.periodStart} À ${currentClient.periodEnd}`,
+        monthlyRate: monthly,
+        workingDays: days,
+        dailyRate: Number(daily.toFixed(2)),
+        totalPeriod: total,
+        observations: vehicleForm.observations
+      };
+      setLeasedVehicles(prev => [...prev, newItem]);
+      toast({ title: 'Veículo Alocado', description: `Veículo ${newItem.plate} adicionado ao contrato de ${currentClient.clientName}.` });
+    }
+    setIsVehicleModalOpen(false);
+  };
+
+  const handleDeleteVehicle = (item: LeasedVehicleItem) => {
+    setLeasedVehicles(prev => prev.filter(v => v.id !== item.id));
+    toast({ title: 'Veículo Removido', description: `Veículo ${item.plate} foi desvinculado desta medição.` });
+  };
+
+  // Handler: Gerar PDF Medição
+  const handleGenerateMeasurementPdf = async () => {
+    try {
+      toast({
+        title: 'Gerando PDF da Medição...',
+        description: `Preparando folha de medição Nº ${currentClient.measurementNumber} (${currentClient.clientName})...`
+      });
+
+      await ContractMeasurementPdfService.generateMeasurementPDF({
+        client: currentClient,
+        leasedVehicles: currentLeasedVehicles,
+        extraTrips: currentExtraTrips,
+        excessKmItems: currentExcessKmItems,
+        deductions: currentDeductions,
+        invoice: {
+          ...invoice,
+          grossValue: totalGrossMeasurement,
+          netReceivableValue: totalGrossMeasurement - (invoice.pisRetention + invoice.cofinsRetention + invoice.csllRetention)
+        },
+        companyName: 'Viação São Silvestre LTDA / FluxBus'
+      });
+
+      toast({
+        title: 'PDF Gerado com Sucesso!',
+        description: 'O download da folha de medição foi concluído.'
+      });
+    } catch (error: any) {
+      console.error('Erro ao gerar PDF da medição:', error);
+      toast({
+        title: 'Erro ao gerar PDF',
+        description: error?.message || 'Falha ao processar relatório de medição.',
+        variant: 'destructive'
+      });
+    }
   };
 
   // State e Handlers: Viagens Extras (Modal & CRUD)
@@ -846,6 +1028,106 @@ export const ClientContractMeasurementManager: React.FC = () => {
     setDeductionToDelete(null);
   };
 
+  const formatNfFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  };
+
+  const handleNfFileSelected = async (file: File) => {
+    const fileName = file.name.toLowerCase();
+    const isXml = fileName.endsWith('.xml');
+    const isPdf = fileName.endsWith('.pdf');
+
+    if (!isXml && !isPdf) {
+      toast({
+        title: 'Formato não suportado',
+        description: 'Selecione um arquivo PDF ou XML da NFS-e.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast({
+        title: 'Arquivo muito grande',
+        description: 'O arquivo da NFS-e deve ter no máximo 10 MB.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setNfFile(file);
+    setIsNfImporting(true);
+
+    try {
+      const parsed: NfseParsedData = await contasAReceberService.parseNfse(file);
+      setNfParsed(parsed);
+
+      setInvoice(prev => ({
+        ...prev,
+        invoiceNumber: parsed.nfseNumber || prev.invoiceNumber,
+        issueDate: parsed.issueDate ? parsed.issueDate.slice(0, 10) : prev.issueDate,
+        grossValue: parsed.grossAmount ?? prev.grossValue,
+        pisRetention: parsed.pisRetido ?? prev.pisRetention,
+        cofinsRetention: parsed.cofinsRetido ?? prev.cofinsRetention,
+        csllRetention: parsed.csllRetido ?? prev.csllRetention,
+        inssRetention: parsed.inssRetido ?? prev.inssRetention,
+        netReceivableValue: parsed.netAmount ?? prev.netReceivableValue,
+        accessKey: parsed.nfseKey || prev.accessKey,
+        attachedFile: parsed.pdfUrl || parsed.xmlUrl || file.name
+      }));
+
+      toast({
+        title: 'NFS-e importada com sucesso',
+        description: `Nota ${parsed.nfseNumber || 'sem número'} lida e aplicada aos dados do faturamento.`
+      });
+    } catch (err: any) {
+      console.error('Erro ao importar NFS-e:', err);
+      setNfParsed(null);
+      setInvoice(prev => ({ ...prev, attachedFile: file.name }));
+      toast({
+        title: 'Arquivo anexado, mas não foi possível ler a NFS-e',
+        description:
+          err?.response?.data?.message ||
+          'O PDF pode ser uma imagem sem texto. Os campos podem ser preenchidos manualmente.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsNfImporting(false);
+    }
+  };
+
+  const handleNfInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      void handleNfFileSelected(file);
+    }
+    e.target.value = '';
+  };
+
+  const handleNfDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsNfDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      void handleNfFileSelected(file);
+    }
+  };
+
+  const handleRemoveNfFile = () => {
+    setNfFile(null);
+    setNfParsed(null);
+    setInvoice(prev => ({ ...prev, attachedFile: undefined }));
+    if (nfFileInputRef.current) {
+      nfFileInputRef.current.value = '';
+    }
+    toast({
+      title: 'Anexo removido',
+      description: 'O arquivo da NFS-e foi desvinculado do faturamento.'
+    });
+  };
+
   const handleSendToReceivables = () => {
     setInvoice({ ...invoice, status: 'SENT_TO_RECEIVABLES' });
     toast({
@@ -922,7 +1204,7 @@ export const ClientContractMeasurementManager: React.FC = () => {
             <p className="text-xl font-bold text-white mt-1 font-mono">
               R$ {totalLeasedVehicles.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </p>
-            <span className="text-[11px] text-zinc-500">{leasedVehicles.length} veículo(s) rodando</span>
+            <span className="text-[11px] text-zinc-500">{currentLeasedVehicles.length} veículo(s) rodando</span>
           </CardContent>
         </Card>
 
@@ -932,7 +1214,7 @@ export const ClientContractMeasurementManager: React.FC = () => {
             <p className="text-xl font-bold text-blue-400 mt-1 font-mono">
               R$ {totalExtraTrips.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </p>
-            <span className="text-[11px] text-zinc-500">{extraTrips.length} viagem(ns) adicional(is)</span>
+            <span className="text-[11px] text-zinc-500">{currentExtraTrips.length} viagem(ns) adicional(is)</span>
           </CardContent>
         </Card>
 
@@ -973,7 +1255,7 @@ export const ClientContractMeasurementManager: React.FC = () => {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="bg-zinc-900 border border-zinc-800 p-1.5 rounded-xl flex flex-wrap gap-1">
           <TabsTrigger value="leased-vehicles" className="data-[state='active']:bg-amber-600 data-[state='active']:text-white font-bold text-xs">
-            🚍 1. Veículos Locados ({leasedVehicles.length})
+            🚍 1. Veículos Locados ({currentLeasedVehicles.length})
           </TabsTrigger>
           <TabsTrigger value="partes-diarias" className="data-[state='active']:bg-amber-600 data-[state='active']:text-white font-bold text-xs">
             📋 2. Partes Diárias (Boletins) ({currentPartesDiarias.length})
@@ -982,7 +1264,7 @@ export const ClientContractMeasurementManager: React.FC = () => {
             ⚡ 3. Viagens Extras & KM Excedente
           </TabsTrigger>
           <TabsTrigger value="deductions" className="data-[state='active']:bg-amber-600 data-[state='active']:text-white font-bold text-xs">
-            💳 4. Débitos / Descontos ({deductions.length})
+            💳 4. Débitos / Descontos ({currentDeductions.length})
           </TabsTrigger>
           <TabsTrigger value="invoice-billing" className="data-[state='active']:bg-emerald-600 data-[state='active']:text-white font-extrabold text-xs">
             📄 5. Nota Fiscal de Receita (NFS-e) & Faturamento
@@ -999,7 +1281,7 @@ export const ClientContractMeasurementManager: React.FC = () => {
                   Apurado com base no valor mensal contratado, dias rodados e diárias dos motoristas (Conforme layout Viação São Silvestre).
                 </CardDescription>
               </div>
-              <Button onClick={handleAddLeasedVehicle} size="sm" className="bg-amber-600 hover:bg-amber-500 text-white font-semibold">
+              <Button onClick={handleOpenAddVehicle} size="sm" className="bg-amber-600 hover:bg-amber-500 text-white font-semibold">
                 <Plus className="w-4 h-4 mr-1" /> Adicionar Veículo
               </Button>
             </CardHeader>
@@ -1015,43 +1297,87 @@ export const ClientContractMeasurementManager: React.FC = () => {
                       <TableHead className="text-center text-zinc-300">Dias Rodados</TableHead>
                       <TableHead className="text-right text-zinc-300">Valor Diário</TableHead>
                       <TableHead className="text-right text-zinc-300">Valor Período</TableHead>
+                      <TableHead className="text-center text-zinc-300 w-28">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {leasedVehicles.map((item, idx) => (
-                      <TableRow key={item.id} className="border-zinc-800 hover:bg-zinc-900/50">
-                        <TableCell className="text-center font-bold text-amber-400">{idx + 1}</TableCell>
-                        <TableCell>
-                          <div className="font-semibold text-zinc-100">{item.description}</div>
-                          <div className="text-xs text-zinc-400 flex items-center gap-1 mt-0.5">
-                            <Navigation className="w-3 h-3 text-amber-400" /> {item.route}
-                          </div>
-                          {item.observations && (
-                            <Badge className="bg-zinc-800 text-zinc-300 text-[10px] mt-1">{item.observations}</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="font-mono text-xs font-bold text-blue-400">{item.plate}</TableCell>
-                        <TableCell className="text-right font-mono text-zinc-300">
-                          R$ {item.monthlyRate.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant="outline" className="border-zinc-700 text-zinc-200">
-                            {item.workingDays} dias
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-zinc-400 text-xs">
-                          R$ {item.dailyRate.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </TableCell>
-                        <TableCell className="text-right font-mono font-bold text-emerald-400">
-                          R$ {item.totalPeriod.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    {currentLeasedVehicles.length === 0 ? (
+                      <TableRow className="border-zinc-800">
+                        <TableCell colSpan={8} className="text-center text-zinc-500 text-sm py-8">
+                          <p className="font-semibold text-zinc-300 text-base">Nenhum veículo alocado para este cliente neste período.</p>
+                          <p className="text-xs text-zinc-500 mt-1 max-w-md mx-auto">
+                            Como os veículos não são fixos por contrato, clique em "+ Adicionar Veículo" para alocar um veículo da frota ou mova um veículo de outro cliente para cá.
+                          </p>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      currentLeasedVehicles.map((item, idx) => (
+                        <TableRow key={item.id} className="border-zinc-800 hover:bg-zinc-900/50">
+                          <TableCell className="text-center font-bold text-amber-400">{idx + 1}</TableCell>
+                          <TableCell>
+                            <div className="font-semibold text-zinc-100">{item.description}</div>
+                            <div className="text-xs text-zinc-400 flex items-center gap-1 mt-0.5">
+                              <Navigation className="w-3 h-3 text-amber-400" /> {item.route}
+                            </div>
+                            {item.observations && (
+                              <Badge className="bg-zinc-800 text-zinc-300 text-[10px] mt-1">{item.observations}</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="font-mono text-xs font-bold text-blue-400">{item.plate}</TableCell>
+                          <TableCell className="text-right font-mono text-zinc-300">
+                            R$ {item.monthlyRate.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant="outline" className="border-zinc-700 text-zinc-200">
+                              {item.workingDays} dias
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-zinc-400 text-xs">
+                            R$ {item.dailyRate.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </TableCell>
+                          <TableCell className="text-right font-mono font-bold text-emerald-400">
+                            R$ {item.totalPeriod.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleOpenMoveVehicle(item)}
+                                className="h-8 w-8 p-0 text-amber-400 hover:text-amber-300 hover:bg-amber-950/40 rounded-lg"
+                                title="Mover Veículo para Outro Cliente / Contrato"
+                              >
+                                <ArrowRightLeft className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleOpenEditVehicle(item)}
+                                className="h-8 w-8 p-0 text-blue-400 hover:text-blue-300 hover:bg-blue-950/40 rounded-lg"
+                                title="Editar Veículo Locado"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleDeleteVehicle(item)}
+                                className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-950/40 rounded-lg"
+                                title="Remover da Medição"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                     <TableRow className="bg-zinc-900/80 font-bold border-t-2 border-zinc-700">
                       <TableCell colSpan={6} className="text-right uppercase text-zinc-300">Total Locações:</TableCell>
                       <TableCell className="text-right font-mono text-amber-400 text-base">
                         R$ {totalLeasedVehicles.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </TableCell>
+                      <TableCell></TableCell>
                     </TableRow>
                   </TableBody>
                 </Table>
@@ -1516,8 +1842,8 @@ export const ClientContractMeasurementManager: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" className="border-zinc-700 bg-zinc-900 text-zinc-200">
-                    <Printer className="w-4 h-4 mr-2" /> Gerar PDF Medição
+                  <Button variant="outline" onClick={handleGenerateMeasurementPdf} className="border-zinc-700 bg-zinc-900 text-zinc-200 hover:bg-zinc-800 hover:text-white font-semibold">
+                    <Printer className="w-4 h-4 mr-2 text-amber-400" /> Gerar PDF Medição
                   </Button>
                   <Button
                     onClick={handleSendToReceivables}
@@ -1617,14 +1943,108 @@ export const ClientContractMeasurementManager: React.FC = () => {
                 </div>
               </div>
 
-              {/* Upload de Anexo PDF/XML da NF */}
-              <div className="border-2 border-dashed border-zinc-800 bg-zinc-900/30 p-6 rounded-xl text-center space-y-2">
-                <Upload className="w-8 h-8 text-emerald-400 mx-auto" />
-                <h4 className="text-sm font-bold text-zinc-200">Anexo do PDF ou XML da Nota Fiscal Emitida</h4>
-                <p className="text-xs text-zinc-400">Arraste e solte a nota fiscal emitida ou clique para selecionar</p>
-                <Button variant="outline" size="sm" className="mt-2 border-zinc-700 bg-zinc-900 text-zinc-200">
-                  <Upload className="w-3.5 h-3.5 mr-1" /> Selecionar Arquivo NF (PDF/XML)
-                </Button>
+              {/* Importação / Anexo do PDF ou XML da NF emitida */}
+              <div
+                onDragOver={(e) => { e.preventDefault(); setIsNfDragOver(true); }}
+                onDragLeave={() => setIsNfDragOver(false)}
+                onDrop={handleNfDrop}
+                className={`border-2 border-dashed rounded-xl p-6 text-center space-y-2 transition-colors ${
+                  isNfDragOver ? 'border-emerald-500 bg-emerald-950/20' : 'border-zinc-800 bg-zinc-900/30'
+                }`}
+              >
+                <input
+                  ref={nfFileInputRef}
+                  type="file"
+                  accept=".xml,.pdf,application/xml,text/xml,application/pdf"
+                  className="hidden"
+                  onChange={handleNfInputChange}
+                />
+
+                {isNfImporting ? (
+                  <div className="flex flex-col items-center gap-2 py-2">
+                    <Loader2 className="w-8 h-8 text-emerald-400 animate-spin" />
+                    <p className="text-sm font-bold text-zinc-200">Lendo a NFS-e...</p>
+                    <p className="text-xs text-zinc-400">Extraindo número, valores e retenções do arquivo.</p>
+                  </div>
+                ) : nfFile ? (
+                  <div className="space-y-3">
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                      <div className="w-11 h-11 rounded-xl bg-emerald-500/15 border border-emerald-500/40 flex items-center justify-center shrink-0">
+                        <FileText className="w-5 h-5 text-emerald-400" />
+                      </div>
+                      <div className="text-left min-w-0">
+                        <p className="text-sm font-bold text-zinc-200 truncate max-w-[70vw] sm:max-w-md">{nfFile.name}</p>
+                        <p className="text-xs text-zinc-400">
+                          {formatNfFileSize(nfFile.size)} · {nfFile.name.toLowerCase().endsWith('.xml') ? 'XML' : 'PDF'}
+                          {nfParsed ? ' · NFS-e lida e aplicada' : ' · anexada (preenchimento manual)'}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => nfFileInputRef.current?.click()}
+                          className="border-zinc-700 bg-zinc-900 text-zinc-200 hover:bg-zinc-800 text-xs"
+                        >
+                          <Upload className="w-3.5 h-3.5 mr-1" /> Substituir
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleRemoveNfFile}
+                          className="text-red-400 hover:text-red-300 hover:bg-red-950/40 text-xs"
+                        >
+                          <X className="w-3.5 h-3.5 mr-1" /> Remover
+                        </Button>
+                      </div>
+                    </div>
+
+                    {nfParsed && (
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-left">
+                        <div className="bg-zinc-950/70 border border-zinc-800 rounded-lg p-2">
+                          <span className="text-[10px] text-zinc-400 block">Nº NFS-e</span>
+                          <span className="text-xs font-mono font-bold text-emerald-300">{nfParsed.nfseNumber || invoice.invoiceNumber}</span>
+                        </div>
+                        <div className="bg-zinc-950/70 border border-zinc-800 rounded-lg p-2">
+                          <span className="text-[10px] text-zinc-400 block">Emissão</span>
+                          <span className="text-xs font-mono font-bold text-zinc-200">
+                            {nfParsed.issueDate ? nfParsed.issueDate.slice(0, 10).split('-').reverse().join('/') : invoice.issueDate.split('-').reverse().join('/')}
+                          </span>
+                        </div>
+                        <div className="bg-zinc-950/70 border border-zinc-800 rounded-lg p-2">
+                          <span className="text-[10px] text-zinc-400 block">Valor Bruto</span>
+                          <span className="text-xs font-mono font-bold text-zinc-200">
+                            R$ {(nfParsed.grossAmount ?? invoice.grossValue).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                        <div className="bg-emerald-950/40 border border-emerald-500/40 rounded-lg p-2">
+                          <span className="text-[10px] text-emerald-300 block">Valor Líquido</span>
+                          <span className="text-xs font-mono font-bold text-emerald-300">
+                            R$ {(nfParsed.netAmount ?? invoice.netReceivableValue).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <FileUp className="w-8 h-8 text-emerald-400 mx-auto" />
+                    <h4 className="text-sm font-bold text-zinc-200">Importar PDF ou XML da Nota Fiscal Emitida</h4>
+                    <p className="text-xs text-zinc-400">Arraste e solte a nota fiscal emitida ou clique para selecionar</p>
+                    <p className="text-[11px] text-zinc-500">Aceita XML (ABRASF / Padrão Nacional) e PDF com texto pesquisável. Máximo 10 MB.</p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => nfFileInputRef.current?.click()}
+                      className="mt-2 border-zinc-700 bg-zinc-900 text-zinc-200 hover:bg-zinc-800"
+                    >
+                      <Upload className="w-3.5 h-3.5 mr-1" /> Selecionar Arquivo NF (PDF/XML)
+                    </Button>
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -2146,7 +2566,167 @@ export const ClientContractMeasurementManager: React.FC = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    
+      {/* MODAL: Mover Veículo de Contrato / Cliente */}
+      <Dialog open={isMoveVehicleModalOpen} onOpenChange={setIsMoveVehicleModalOpen}>
+        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-400">
+              <ArrowRightLeft className="w-5 h-5" /> Mover Veículo de Contrato / Cliente
+            </DialogTitle>
+            <DialogDescription className="text-zinc-400 text-xs">
+              Como os veículos não atendem exclusivamente um único contrato, você pode transferir a alocação deste veículo para qualquer outro cliente.
+            </DialogDescription>
+          </DialogHeader>
+
+          {vehicleToMove && (
+            <div className="space-y-4 py-2">
+              <div className="bg-zinc-950 p-3.5 rounded-lg border border-zinc-800 space-y-1">
+                <span className="text-[11px] text-zinc-400 font-semibold uppercase">Veículo Selecionado</span>
+                <p className="font-mono font-bold text-blue-400 text-base">{vehicleToMove.plate}</p>
+                <p className="text-xs text-zinc-300">{vehicleToMove.description}</p>
+                <p className="text-xs text-amber-300 pt-1">Origem atual: {currentClient.clientName}</p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-zinc-300">
+                  Transferir para o Cliente / Contrato de Destino:
+                </Label>
+                <select
+                  value={targetClientId}
+                  onChange={(e) => setTargetClientId(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-md p-2.5 text-sm text-zinc-100 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                >
+                  {CLIENT_CONTRACTS_MOCK.filter(c => c.id !== selectedClientId).map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.clientName} (Contrato: {c.contractNumber})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsMoveVehicleModalOpen(false)}
+              className="border-zinc-700 bg-zinc-950 text-zinc-300"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleConfirmMoveVehicle}
+              className="bg-amber-600 hover:bg-amber-500 text-white font-bold"
+            >
+              Confirmar Transferência
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL: Adicionar / Editar Veículo Locado */}
+      <Dialog open={isVehicleModalOpen} onOpenChange={setIsVehicleModalOpen}>
+        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-400">
+              <Bus className="w-5 h-5" /> {selectedVehicleItem ? 'Editar Veículo Locado' : 'Alocar Novo Veículo ao Contrato'}
+            </DialogTitle>
+            <DialogDescription className="text-zinc-400 text-xs">
+              Informe a placa, descrição do serviço e condições financeiras do contrato para {currentClient.clientName}.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleSaveVehicle} className="space-y-4 py-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-zinc-300">Placa do Veículo:</Label>
+                <Input
+                  value={vehicleForm.plate}
+                  onChange={(e) => setVehicleForm({ ...vehicleForm, plate: e.target.value.toUpperCase() })}
+                  placeholder="Ex: RUR-7A78"
+                  className="bg-zinc-950 border-zinc-700 text-blue-400 font-mono font-bold"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs text-zinc-300">Dias Rodados no Período:</Label>
+                <Input
+                  type="number"
+                  value={vehicleForm.workingDays}
+                  onChange={(e) => setVehicleForm({ ...vehicleForm, workingDays: parseInt(e.target.value) || 30 })}
+                  className="bg-zinc-950 border-zinc-700 text-zinc-100 font-mono"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs text-zinc-300">Descrição do Serviço:</Label>
+              <Input
+                value={vehicleForm.description}
+                onChange={(e) => setVehicleForm({ ...vehicleForm, description: e.target.value })}
+                placeholder="Ex: PRESTAÇÃO DE SERVIÇO COM ÔNIBUS RODOVIÁRIO COM CESSÃO DE MÃO DE OBRA"
+                className="bg-zinc-950 border-zinc-700 text-zinc-100 text-xs"
+                required
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs text-zinc-300">Itinerário / Trajeto:</Label>
+              <Input
+                value={vehicleForm.route}
+                onChange={(e) => setVehicleForm({ ...vehicleForm, route: e.target.value })}
+                placeholder="Ex: PRAÇA DA ESTAÇÃO - BH/MG X MINA VALE MIGUELÃO"
+                className="bg-zinc-950 border-zinc-700 text-zinc-100 text-xs"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-zinc-300">Valor Mensal Contratado (R$):</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={vehicleForm.monthlyRate}
+                  onChange={(e) => setVehicleForm({ ...vehicleForm, monthlyRate: parseFloat(e.target.value) || 0 })}
+                  className="bg-zinc-950 border-zinc-700 text-emerald-400 font-mono font-bold"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs text-zinc-300">Observações Operacionais:</Label>
+                <Input
+                  value={vehicleForm.observations}
+                  onChange={(e) => setVehicleForm({ ...vehicleForm, observations: e.target.value })}
+                  placeholder="Ex: 02 MOTORISTAS"
+                  className="bg-zinc-950 border-zinc-700 text-zinc-100 text-xs"
+                />
+              </div>
+            </div>
+
+            <DialogFooter className="gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsVehicleModalOpen(false)}
+                className="border-zinc-700 bg-zinc-950 text-zinc-300"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                className="bg-amber-600 hover:bg-amber-500 text-white font-bold"
+              >
+                {selectedVehicleItem ? 'Salvar Alterações' : 'Alocar Veículo'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+</div>
   );
 };
 

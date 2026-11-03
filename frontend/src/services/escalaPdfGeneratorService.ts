@@ -402,3 +402,4 @@ export class EscalaPdfGeneratorService {
     doc.save(filename);
   }
 }
+
