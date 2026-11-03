@@ -373,7 +373,17 @@ export const GestaoLocacao: React.FC = () => {
   );
 
   const rentalVehicles = useMemo(() => {
-    return vehicles.filter(vehicle => Boolean(clientForVehicle(vehicle)));
+    return vehicles.filter(vehicle => {
+      // Veículos em rascunho (importados de planilhas) não são locações reais
+      if (isPlaceholderVehicle(vehicle)) return false;
+      const client = clientForVehicle(vehicle);
+      if (!client) return false;
+      // Vínculo explícito de locação: cliente, posto/obra ou contrato
+      if (hasRentalAssignment(vehicle)) return true;
+      // Dados legados: veículo real vinculado somente pelo nome do cliente
+      const nameKey = normalizeName(vehicle.clientName);
+      return Boolean(nameKey && !GENERIC_CLIENT_NAMES.includes(nameKey));
+    });
   }, [vehicles, clientForVehicle]);
 
   const filteredVehicles = useMemo(() => {
@@ -438,11 +448,15 @@ export const GestaoLocacao: React.FC = () => {
   const availableVehicles = useMemo(() => {
     if (!form.clientId) return [];
     const selectedContract = form.contractId ? contractsById.get(form.contractId) : undefined;
-    return vehicles.filter(vehicle => {
+    const selectedIds = new Set(
+      form.items.map(item => item.vehicleId).filter((id): id is string => Boolean(id))
+    );
+    return rentalVehicles.filter(vehicle => {
+      if (selectedIds.has(vehicle.id)) return true;
       if (selectedContract && contractLinksVehicle(selectedContract, vehicle)) return true;
       return clientForVehicle(vehicle)?.id === form.clientId;
     });
-  }, [form.clientId, form.contractId, vehicles, contractsById, clientForVehicle]);
+  }, [form.clientId, form.contractId, form.items, rentalVehicles, contractsById, clientForVehicle]);
 
   const formTotal = useMemo(
     () => form.items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0),
@@ -462,6 +476,7 @@ export const GestaoLocacao: React.FC = () => {
         periodStart: invoice.periodStart?.substring(0, 10) || today(),
         periodEnd: invoice.periodEnd?.substring(0, 10) || today(),
         dueDate: invoice.dueDate?.substring(0, 10) || today(),
+        receiptDate: invoice.receiptDate?.substring(0, 10) || '',
         discount: invoice.discount || 0,
         status: invoice.status || 'PENDING',
         paymentMethod: invoice.paymentMethod || 'TRANSFERÊNCIA BANCÁRIA',
