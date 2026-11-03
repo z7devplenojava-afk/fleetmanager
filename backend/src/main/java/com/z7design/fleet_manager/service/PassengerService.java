@@ -173,6 +173,11 @@ public class PassengerService {
         return toDTO(passenger);
     }
 
+    public List<PassengerDTO> getAll() {
+        List<Passenger> passengers = passengerRepository.findAll();
+        return passengers.stream().map(this::toDTO).collect(Collectors.toList());
+    }
+
     @Cacheable(value = "passengers-by-company", key = "#companyId")
     public List<PassengerDTO> getByCompanyId(UUID companyId) {
         List<Passenger> passengers = passengerRepository.findByCompanyId(companyId);

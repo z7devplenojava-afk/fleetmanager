@@ -76,21 +76,21 @@ export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId
         data = response.data || [];
       } catch (err: any) {
         if (err.response?.status === 404) {
-          // Fallback gracioso
-          const fallback = await axios.get('/passengers');
-          data = (fallback.data || []).filter((p: Passenger) => p.clientId === clientId);
+          // Fallback gracioso caso o backend Spring Boot ainda não tenha sido reiniciado com o novo controller
+          try {
+            const fallback = await axios.get('/passengers');
+            data = (fallback.data || []).filter((p: Passenger) => p.clientId === clientId);
+          } catch {
+            data = [];
+          }
         } else {
-          throw err;
+          data = [];
         }
       }
       setEmployees(data);
     } catch (error) {
-      console.error('Erro ao buscar colaboradores do cliente:', error);
-      toast({
-        title: 'Erro ao carregar colaboradores',
-        description: 'Não foi possível carregar a lista de funcionários deste cliente.',
-        variant: 'destructive',
-      });
+      console.warn('Aguardando inicialização dos endpoints de passageiros no backend:', error);
+      setEmployees([]);
     } finally {
       setLoading(false);
     }

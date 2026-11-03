@@ -21,6 +21,13 @@ public class PassengerController {
 
     private final PassengerService passengerService;
 
+    @GetMapping
+    @Operation(summary = "Listar todos os passageiros", description = "Retorna todos os passageiros")
+    public ResponseEntity<List<PassengerDTO>> getAll() {
+        List<PassengerDTO> passengers = passengerService.getAll();
+        return ResponseEntity.ok(passengers);
+    }
+
     @PostMapping
     @Operation(summary = "Criar passageiro", description = "Cria um novo passageiro")
     public ResponseEntity<PassengerDTO> create(@RequestBody PassengerDTO dto) {
