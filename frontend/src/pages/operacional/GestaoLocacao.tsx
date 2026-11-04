@@ -1046,6 +1046,16 @@ export const GestaoLocacao: React.FC = () => {
                           </TableCell>
                           <TableCell className="text-xs text-zinc-300">{formatDate(invoice.issueDate)}</TableCell>
                           <TableCell className="text-xs text-zinc-300">{formatDate(invoice.dueDate)}</TableCell>
+                          <TableCell className="text-xs text-zinc-400">
+                            {invoice.receiptDate ? formatDate(invoice.receiptDate) : '-'}
+                          </TableCell>
+                          <TableCell className="text-xs text-zinc-400">
+                            {invoice.nfseNumber ? (
+                              <Badge variant="outline" className="text-[10px] font-mono border-emerald-500/30 text-emerald-400 bg-emerald-500/10">
+                                {invoice.nfseNumber}
+                              </Badge>
+                            ) : '-'}
+                          </TableCell>
                           <TableCell className="text-right font-mono text-sm font-bold text-emerald-400">
                             {formatCurrency(invoice.netAmount)}
                           </TableCell>
@@ -1067,42 +1077,46 @@ export const GestaoLocacao: React.FC = () => {
                             </Select>
                           </TableCell>
                           <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-1">
+                            <div className="flex items-center justify-end gap-1.5 flex-nowrap">
                               <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-8 w-8 text-zinc-400 hover:text-white"
-                                title="Visualizar"
-                                onClick={() => setViewInvoice(invoice)}
-                              >
-                                <Eye className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-8 w-8 text-zinc-400 hover:text-amber-400"
-                                title="Editar"
-                                onClick={() => openEditInvoice(invoice)}
-                              >
-                                <Pencil className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-8 w-8 text-zinc-400 hover:text-emerald-400"
-                                title="Gerar PDF"
+                                size="sm"
+                                variant="outline"
+                                className="h-8 px-2.5 border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 text-xs font-semibold gap-1.5 shadow-sm"
+                                title="Download da Fatura em PDF"
                                 onClick={() => handleGeneratePdf(invoice)}
                               >
-                                <Printer className="w-4 h-4" />
+                                <Download className="w-3.5 h-3.5 text-emerald-400" />
+                                Download
                               </Button>
                               <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-8 w-8 text-zinc-400 hover:text-red-400"
-                                title="Excluir"
+                                size="sm"
+                                variant="outline"
+                                className="h-8 px-2.5 border-blue-500/30 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 text-xs font-semibold gap-1.5 shadow-sm"
+                                title="Visualizar Fatura"
+                                onClick={() => setViewInvoice(invoice)}
+                              >
+                                <Eye className="w-3.5 h-3.5 text-blue-400" />
+                                Visualizar
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 px-2.5 border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 text-xs font-semibold gap-1.5 shadow-sm"
+                                title="Editar Fatura"
+                                onClick={() => openEditInvoice(invoice)}
+                              >
+                                <Pencil className="w-3.5 h-3.5 text-amber-400" />
+                                Editar
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 px-2.5 border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 text-xs font-semibold gap-1.5 shadow-sm"
+                                title="Excluir Fatura"
                                 onClick={() => setInvoiceToDelete(invoice)}
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                                Excluir
                               </Button>
                             </div>
                           </TableCell>
