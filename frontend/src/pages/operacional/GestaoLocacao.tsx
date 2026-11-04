@@ -66,6 +66,7 @@ import {
   Trash2,
   Download,
   Printer,
+  Receipt,
   Loader2,
   Building2,
   DollarSign,
@@ -642,6 +643,7 @@ export const GestaoLocacao: React.FC = () => {
 
     const client = clientsById.get(form.clientId);
     const contract = form.contractId ? contractsById.get(form.contractId) : undefined;
+    const receiptDate = form.receiptDate || (form.status === 'PAID' ? today() : '');
 
     const payload: RentalInvoiceInput = {
       number: form.number,
@@ -659,6 +661,7 @@ export const GestaoLocacao: React.FC = () => {
       periodStart: form.periodStart,
       periodEnd: form.periodEnd,
       dueDate: form.dueDate,
+      receiptDate: receiptDate || undefined,
       discount: Number(form.discount) || 0,
       status: form.status,
       paymentMethod: form.paymentMethod,
@@ -732,6 +735,19 @@ export const GestaoLocacao: React.FC = () => {
     } catch (error) {
       console.error('Erro ao gerar PDF da fatura:', error);
       toast({ title: 'Erro ao gerar PDF', description: 'Não foi possível gerar a fatura em PDF.', variant: 'destructive' });
+    }
+  };
+
+  const handleDownloadNfse = async (invoice: RentalInvoice) => {
+    try {
+      await rentalInvoiceService.downloadNfse(invoice.id);
+    } catch (error) {
+      console.error('Erro ao gerar Nota Fiscal:', error);
+      toast({
+        title: 'Erro ao abrir Nota Fiscal',
+        description: 'Não foi possível gerar a Nota Fiscal da fatura de locação.',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -1000,6 +1016,8 @@ export const GestaoLocacao: React.FC = () => {
                         <TableHead className="text-zinc-400">Período</TableHead>
                         <TableHead className="text-zinc-400">Emissão</TableHead>
                         <TableHead className="text-zinc-400">Vencimento</TableHead>
+                        <TableHead className="text-zinc-400">Recebimento</TableHead>
+                        <TableHead className="text-zinc-400">NF</TableHead>
                         <TableHead className="text-zinc-400 text-right">Valor</TableHead>
                         <TableHead className="text-zinc-400">Status</TableHead>
                         <TableHead className="text-zinc-400 text-right">Ações</TableHead>

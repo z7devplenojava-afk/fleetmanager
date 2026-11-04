@@ -33,7 +33,7 @@ public class ServiceController {
     
     @GetMapping
     @Operation(summary = "Listar serviÃ§os", description = "Lista todos os serviÃ§os com filtros opcionais")
-    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('GESTOR')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('GESTOR') or hasRole('OPERACIONAL')")
     public ResponseEntity<List<ServiceDTO>> list(
             @Parameter(description = "Status do serviÃ§o") 
             @RequestParam(value = "status", required = false) Service.ServiceStatus status,
@@ -53,7 +53,7 @@ public class ServiceController {
     
     @GetMapping("/paginated")
     @Operation(summary = "Listar serviÃ§os paginados", description = "Lista serviÃ§os com paginaÃ§Ã£o")
-    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('GESTOR')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('GESTOR') or hasRole('OPERACIONAL')")
     public ResponseEntity<Page<ServiceDTO>> listPaginated(
             @Parameter(description = "Status do serviÃ§o") 
             @RequestParam(value = "status", required = false) Service.ServiceStatus status,
@@ -74,7 +74,7 @@ public class ServiceController {
     
     @GetMapping("/all")
     @Operation(summary = "Listar todos os serviÃ§os", description = "Lista todos os serviÃ§os sem filtros")
-    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('GESTOR')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('GESTOR') or hasRole('OPERACIONAL')")
     public ResponseEntity<List<ServiceDTO>> listAll() {
         log.info("Listando todos os serviÃ§os");
         List<ServiceDTO> services = serviceService.findAll();
@@ -83,7 +83,7 @@ public class ServiceController {
     
     @GetMapping("/active")
     @Operation(summary = "Listar serviÃ§os ativos", description = "Lista apenas serviÃ§os ativos")
-    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('GESTOR')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('GESTOR') or hasRole('OPERACIONAL')")
     public ResponseEntity<List<ServiceDTO>> listActive() {
         log.info("Listando serviÃ§os ativos");
         List<ServiceDTO> services = serviceService.findActiveServices();
@@ -92,7 +92,7 @@ public class ServiceController {
     
     @GetMapping("/billable")
     @Operation(summary = "Listar serviÃ§os faturÃ¡veis", description = "Lista apenas serviÃ§os faturÃ¡veis")
-    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('GESTOR')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('GESTOR') or hasRole('OPERACIONAL')")
     public ResponseEntity<List<ServiceDTO>> listBillable() {
         log.info("Listando serviÃ§os faturÃ¡veis");
         List<ServiceDTO> services = serviceService.findBillableServices();
@@ -101,7 +101,7 @@ public class ServiceController {
     
     @GetMapping("/{id}")
     @Operation(summary = "Buscar serviÃ§o por ID", description = "Retorna um serviÃ§o especÃ­fico")
-    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('GESTOR')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('GESTOR') or hasRole('OPERACIONAL')")
     public ResponseEntity<ServiceDTO> findById(@PathVariable("id") UUID id) {
         log.info("Buscando serviÃ§o por ID: {}", id);
         ServiceDTO service = serviceService.findById(id);
@@ -110,7 +110,7 @@ public class ServiceController {
     
     @GetMapping("/code/{code}")
     @Operation(summary = "Buscar serviÃ§o por cÃ³digo", description = "Retorna um serviÃ§o especÃ­fico pelo cÃ³digo")
-    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('GESTOR')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('GESTOR') or hasRole('OPERACIONAL')")
     public ResponseEntity<ServiceDTO> findByCode(@PathVariable("code") String code) {
         log.info("Buscando serviÃ§o por cÃ³digo: {}", code);
         ServiceDTO service = serviceService.findByCode(code);
@@ -119,7 +119,7 @@ public class ServiceController {
     
     @PostMapping
     @Operation(summary = "Criar serviÃ§o", description = "Cria um novo serviÃ§o")
-    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('GESTOR') or hasRole('OPERACIONAL')")
     public ResponseEntity<ServiceDTO> create(@Valid @RequestBody CreateServiceDTO dto) {
         log.info("Criando novo serviÃ§o: {}", dto.getName());
         
@@ -133,7 +133,7 @@ public class ServiceController {
     
     @PutMapping("/{id}")
     @Operation(summary = "Atualizar serviÃ§o", description = "Atualiza um serviÃ§o existente")
-    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('GESTOR') or hasRole('OPERACIONAL')")
     public ResponseEntity<ServiceDTO> update(
             @PathVariable("id") UUID id, 
             @Valid @RequestBody UpdateServiceDTO dto) {
@@ -149,7 +149,7 @@ public class ServiceController {
     
     @DeleteMapping("/{id}")
     @Operation(summary = "Excluir serviÃ§o", description = "Exclui um serviÃ§o")
-    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('GESTOR') or hasRole('OPERACIONAL')")
     public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
         log.info("Excluindo serviÃ§o: {}", id);
         serviceService.delete(id);
@@ -160,7 +160,7 @@ public class ServiceController {
     
     @GetMapping("/category/{category}")
     @Operation(summary = "Listar serviÃ§os por categoria", description = "Lista serviÃ§os de uma categoria especÃ­fica")
-    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('GESTOR')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('GESTOR') or hasRole('OPERACIONAL')")
     public ResponseEntity<List<ServiceDTO>> findByCategory(@PathVariable("category") String category) {
         log.info("Buscando serviÃ§os por categoria: {}", category);
         List<ServiceDTO> services = serviceService.findByCategory(category);
@@ -169,7 +169,7 @@ public class ServiceController {
     
     @GetMapping("/requiring-equipment")
     @Operation(summary = "Listar serviÃ§os que requerem equipamento", description = "Lista serviÃ§os que requerem equipamento")
-    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('GESTOR')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('GESTOR') or hasRole('OPERACIONAL')")
     public ResponseEntity<List<ServiceDTO>> findServicesRequiringEquipment() {
         log.info("Buscando serviÃ§os que requerem equipamento");
         List<ServiceDTO> services = serviceService.findServicesRequiringEquipment();
@@ -178,7 +178,7 @@ public class ServiceController {
     
     @GetMapping("/requiring-certification")
     @Operation(summary = "Listar serviÃ§os que requerem certificaÃ§Ã£o", description = "Lista serviÃ§os que requerem certificaÃ§Ã£o")
-    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('GESTOR')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('GESTOR') or hasRole('OPERACIONAL')")
     public ResponseEntity<List<ServiceDTO>> findServicesRequiringCertification() {
         log.info("Buscando serviÃ§os que requerem certificaÃ§Ã£o");
         List<ServiceDTO> services = serviceService.findServicesRequiringCertification();
@@ -189,7 +189,7 @@ public class ServiceController {
     
     @GetMapping("/categories")
     @Operation(summary = "Listar categorias", description = "Lista todas as categorias distintas")
-    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('GESTOR')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('GESTOR') or hasRole('OPERACIONAL')")
     public ResponseEntity<List<String>> getCategories() {
         log.info("Listando categorias distintas");
         List<String> categories = serviceService.getDistinctCategories();
@@ -198,7 +198,7 @@ public class ServiceController {
     
     @GetMapping("/statistics")
     @Operation(summary = "EstatÃ­sticas dos serviÃ§os", description = "Retorna estatÃ­sticas dos serviÃ§os")
-    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('GESTOR')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('GESTOR') or hasRole('OPERACIONAL')")
     public ResponseEntity<Object> getStatistics() {
         log.info("Gerando estatÃ­sticas dos serviÃ§os");
         
@@ -212,7 +212,7 @@ public class ServiceController {
     
     @GetMapping("/exists/code/{code}")
     @Operation(summary = "Verificar se cÃ³digo existe", description = "Verifica se um cÃ³digo de serviÃ§o jÃ¡ existe")
-    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('GESTOR')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('GESTOR') or hasRole('OPERACIONAL')")
     public ResponseEntity<Object> existsByCode(@PathVariable("code") String code) {
         log.info("Verificando se cÃ³digo existe: {}", code);
         boolean exists = serviceService.existsByCode(code);

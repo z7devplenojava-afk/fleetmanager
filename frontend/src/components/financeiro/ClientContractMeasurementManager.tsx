@@ -48,6 +48,9 @@ import { contasAReceberService } from '@/services/contasAReceberService';
 import { clientService } from '@/services/clientService';
 import { ContractMeasurementPdfService } from '@/services/contractMeasurementPdfService';
 import { fleetService } from '@/services/fleetService';
+import { SearchableSelect, SearchableOption } from '@/components/frota/SearchableSelect';
+import { routeService, Route } from '@/services/routeService';
+import { serviceService, ServiceItem } from '@/services/serviceService';
 import { ArrowRightLeft } from 'lucide-react';
 import { ParteDiariaModal } from './ParteDiariaModal';
 import {
@@ -548,12 +551,36 @@ export const ClientContractMeasurementManager: React.FC = () => {
   
   const totalGrossMeasurement = totalLeasedVehicles + totalExtraTrips + totalExcessKm - totalDeductions;
 
+  // Helper para formatação de valores decimais até 9 casas (ex: decimal 15,9)
+  const formatDecimalRate = (val: number | undefined | null) => {
+    if (val === undefined || val === null || isNaN(val)) return '0,00';
+    return val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 9 });
+  };
+
+  // Rotas e Serviços cadastrados
+  const [routes, setRoutes] = useState<Route[]>([]);
+  const [servicesList, setServicesList] = useState<ServiceItem[]>([]);
+  const [isCustomPlate, setIsCustomPlate] = useState(false);
+  const [isNewRouteModalOpen, setIsNewRouteModalOpen] = useState(false);
+  const [savingRoute, setSavingRoute] = useState(false);
+  const [newRouteForm, setNewRouteForm] = useState({ name: '', originAddress: '', destinationAddress: '', distanceKm: 0 });
+  const [isNewServiceModalOpen, setIsNewServiceModalOpen] = useState(false);
+  const [savingService, setSavingService] = useState(false);
+  const [newServiceForm, setNewServiceForm] = useState({ name: '', category: 'FRETAMENTO_CONTINUO', description: '' });
   // Lista de veículos da frota carregados da API
   const [fleetVehicles, setFleetVehicles] = useState<any[]>([]);
 
   useEffect(() => {
     fleetService.getVehicles().then(data => {
       if (Array.isArray(data)) setFleetVehicles(data);
+    }).catch(() => {});
+
+    routeService.findAllRoutes().then(data => {
+      if (Array.isArray(data)) setRoutes(data);
+    }).catch(() => {});
+
+    serviceService.listServices().then(data => {
+      if (Array.isArray(data)) setServicesList(data);
     }).catch(() => {});
   }, []);
 
@@ -583,6 +610,105 @@ export const ClientContractMeasurementManager: React.FC = () => {
     setVehicleToMove(null);
   };
 
+  // Opções para SearchableSelect
+  const vehicleOptions: SearchableOption[] = useMemo(() => {
+    return fleetVehicles
+      .filter(v => v && v.plate)
+      .map(v => {
+        const typeStr = v.vehicleType || 'Veículo';
+        const modelStr = [v.brand, v.model].filter(Boolean).join(' ') || v.model || '';
+        return {
+          value: v.plate,
+          label: `${v.plate} — ${modelStr}`,
+          subtitle: `${typeStr}${v.clientName ? ` · Cliente: ${v.clientName}` : ' · Disponível'}`,
+          badge: typeStr,
+          badgeColor: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
+          keywords: [v.plate, v.model || '', v.brand || '', typeStr]
+        };
+      });
+  }, [fleetVehicles]);
+
+  const routeOptions: SearchableOption[] = useMemo(() => {
+    return routes.map(r => ({
+      value: r.name,
+      label: r.name,
+      subtitle: [r.originAddress, r.destinationAddress].filter(Boolean).join(' ➔ ') || r.description || 'Rota Cadastrada',
+      badge: r.distanceKm ? `${r.distanceKm} km` : 'Rota',
+      badgeColor: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+      keywords: [r.name, r.originAddress || '', r.destinationAddress || '', r.code || '']
+    }));
+  }, [routes]);
+
+  const serviceOptions: SearchableOption[] = useMemo(() => {
+    return servicesList.map(s => ({
+      value: s.name,
+      label: s.name,
+      subtitle: s.description || (s.category ? `Categoria: ${s.category}` : 'Serviço Cadastrado'),
+      badge: s.category || 'Serviço',
+      badgeColor: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+      keywords: [s.name, s.code || '', s.category || '']
+    }));
+  }, [servicesList]);
+
+  const handleCreateRoute = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newRouteForm.name.trim()) return;
+    setSavingRoute(true);
+    try {
+      const created = await routeService.createRoute({
+        name: newRouteForm.name.trim().toUpperCase(),
+        originAddress: newRouteForm.originAddress.trim(),
+        destinationAddress: newRouteForm.destinationAddress.trim(),
+        distanceKm: Number(newRouteForm.distanceKm) || undefined,
+        description: [newRouteForm.originAddress, newRouteForm.destinationAddress].filter(Boolean).join(' ➔ ')
+      });
+      setRoutes(prev => [...prev, created]);
+      setVehicleForm(prev => ({ ...prev, route: created.name }));
+      setIsNewRouteModalOpen(false);
+      toast({ title: 'Rota Criada com Sucesso!', description: `A rota ${created.name} foi adicionada à base de rotas.` });
+    } catch (err: any) {
+      // Fallback local se a API der erro
+      const fallbackRoute: Route = {
+        id: `route-${Date.now()}`,
+        name: newRouteForm.name.trim().toUpperCase(),
+        originAddress: newRouteForm.originAddress.trim(),
+        destinationAddress: newRouteForm.destinationAddress.trim(),
+        distanceKm: Number(newRouteForm.distanceKm) || 0,
+        unit: { id: 'default' },
+        location: { id: 'default' },
+        estimatedDuration: 3600,
+        checkpointsRequired: false,
+        geofenceEnabled: false
+      };
+      setRoutes(prev => [...prev, fallbackRoute]);
+      setVehicleForm(prev => ({ ...prev, route: fallbackRoute.name }));
+      setIsNewRouteModalOpen(false);
+      toast({ title: 'Rota Registrada', description: `Rota ${fallbackRoute.name} vinculada com sucesso.` });
+    } finally {
+      setSavingRoute(false);
+    }
+  };
+
+  const handleCreateService = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newServiceForm.name.trim()) return;
+    setSavingService(true);
+    try {
+      const created = await serviceService.createService({
+        name: newServiceForm.name.trim().toUpperCase(),
+        category: newServiceForm.category,
+        description: newServiceForm.description.trim()
+      });
+      setServicesList(prev => [...prev, created]);
+      setVehicleForm(prev => ({ ...prev, description: created.name }));
+      setIsNewServiceModalOpen(false);
+      toast({ title: 'Serviço Cadastrado!', description: `O serviço ${created.name} foi adicionado à tabela de serviços.` });
+    } catch (err: any) {
+      toast({ title: 'Erro ao cadastrar serviço', description: 'Não foi possível salvar o serviço.', variant: 'destructive' });
+    } finally {
+      setSavingService(false);
+    }
+  };
   // State e Handlers: Adicionar / Editar Veículo Locado
   const [isVehicleModalOpen, setIsVehicleModalOpen] = useState(false);
   const [selectedVehicleItem, setSelectedVehicleItem] = useState<LeasedVehicleItem | null>(null);
@@ -640,7 +766,7 @@ export const ClientContractMeasurementManager: React.FC = () => {
         route: vehicleForm.route.trim().toUpperCase(),
         monthlyRate: monthly,
         workingDays: days,
-        dailyRate: Number(daily.toFixed(2)),
+        dailyRate: daily,
         totalPeriod: total,
         observations: vehicleForm.observations
       } : v));
@@ -656,7 +782,7 @@ export const ClientContractMeasurementManager: React.FC = () => {
         period: `${currentClient.periodStart} À ${currentClient.periodEnd}`,
         monthlyRate: monthly,
         workingDays: days,
-        dailyRate: Number(daily.toFixed(2)),
+        dailyRate: daily,
         totalPeriod: total,
         observations: vehicleForm.observations
       };
@@ -1202,7 +1328,7 @@ export const ClientContractMeasurementManager: React.FC = () => {
           <CardContent className="p-4">
             <p className="text-xs text-zinc-400 font-bold uppercase">1. Veículos Locados</p>
             <p className="text-xl font-bold text-white mt-1 font-mono">
-              R$ {totalLeasedVehicles.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              R$ {formatDecimalRate(totalLeasedVehicles)}
             </p>
             <span className="text-[11px] text-zinc-500">{currentLeasedVehicles.length} veículo(s) rodando</span>
           </CardContent>
@@ -1325,7 +1451,7 @@ export const ClientContractMeasurementManager: React.FC = () => {
                           </TableCell>
                           <TableCell className="font-mono text-xs font-bold text-blue-400">{item.plate}</TableCell>
                           <TableCell className="text-right font-mono text-zinc-300">
-                            R$ {item.monthlyRate.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            R$ {formatDecimalRate(item.monthlyRate)}
                           </TableCell>
                           <TableCell className="text-center">
                             <Badge variant="outline" className="border-zinc-700 text-zinc-200">
@@ -1333,10 +1459,10 @@ export const ClientContractMeasurementManager: React.FC = () => {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right font-mono text-zinc-400 text-xs">
-                            R$ {item.dailyRate.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            R$ {formatDecimalRate(item.dailyRate)}
                           </TableCell>
                           <TableCell className="text-right font-mono font-bold text-emerald-400">
-                            R$ {item.totalPeriod.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            R$ {formatDecimalRate(item.totalPeriod)}
                           </TableCell>
                           <TableCell className="text-center">
                             <div className="flex items-center justify-center gap-1">
@@ -2627,31 +2753,59 @@ export const ClientContractMeasurementManager: React.FC = () => {
 
       {/* MODAL: Adicionar / Editar Veículo Locado */}
       <Dialog open={isVehicleModalOpen} onOpenChange={setIsVehicleModalOpen}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-lg">
+        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-amber-400">
               <Bus className="w-5 h-5" /> {selectedVehicleItem ? 'Editar Veículo Locado' : 'Alocar Novo Veículo ao Contrato'}
             </DialogTitle>
             <DialogDescription className="text-zinc-400 text-xs">
-              Informe a placa, descrição do serviço e condições financeiras do contrato para {currentClient.clientName}.
+              Selecione o veículo da frota, serviço cadastrado, itinerário e condições financeiras para {currentClient.clientName}.
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleSaveVehicle} className="space-y-4 py-2">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs text-zinc-300">Placa do Veículo:</Label>
-                <Input
-                  value={vehicleForm.plate}
-                  onChange={(e) => setVehicleForm({ ...vehicleForm, plate: e.target.value.toUpperCase() })}
-                  placeholder="Ex: RUR-7A78"
-                  className="bg-zinc-950 border-zinc-700 text-blue-400 font-mono font-bold"
-                  required
-                />
+            {/* 1. Placa do Veículo (Busca na Tabela de Veículos) */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="sm:col-span-2 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs text-zinc-300 flex items-center gap-1.5 font-bold">
+                    <Car className="w-3.5 h-3.5 text-blue-400" /> Placa do Veículo *:
+                  </Label>
+                  <button
+                    type="button"
+                    onClick={() => setIsCustomPlate(!isCustomPlate)}
+                    className="text-[11px] text-amber-400 hover:underline"
+                  >
+                    {isCustomPlate ? 'Buscar na Tabela de Veículos' : 'Digitar Placa Livre'}
+                  </button>
+                </div>
+
+                {isCustomPlate ? (
+                  <Input
+                    value={vehicleForm.plate}
+                    onChange={(e) => setVehicleForm({ ...vehicleForm, plate: e.target.value.toUpperCase() })}
+                    placeholder="Ex: QRE-1A23"
+                    className="bg-zinc-950 border-zinc-700 text-blue-400 font-mono font-bold"
+                    required
+                  />
+                ) : (
+                  <SearchableSelect
+                    value={vehicleForm.plate}
+                    fallbackLabel={vehicleForm.plate}
+                    onChange={(val) => {
+                      setVehicleForm(prev => ({ ...prev, plate: val }));
+                    }}
+                    options={vehicleOptions}
+                    placeholder="Buscar na tabela de veículos da frota..."
+                    searchPlaceholder="Digite a placa ou modelo (ex: QRE-1A23, Scania)..."
+                    emptyText="Nenhum veículo encontrado na tabela de veículos."
+                    maxVisibleOptions={50}
+                  />
+                )}
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs text-zinc-300">Dias Rodados no Período:</Label>
+                <Label className="text-xs text-zinc-300">Dias Rodados *:</Label>
                 <Input
                   type="number"
                   value={vehicleForm.workingDays}
@@ -2662,36 +2816,95 @@ export const ClientContractMeasurementManager: React.FC = () => {
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs text-zinc-300">Descrição do Serviço:</Label>
+            {/* 2. Descrição do Serviço (Busca na Tabela de Cadastro de Serviços) */}
+            <div className="space-y-1.5 bg-zinc-950/60 p-3 rounded-lg border border-zinc-800/80">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs text-zinc-300 flex items-center gap-1.5 font-bold">
+                  <Layers className="w-3.5 h-3.5 text-amber-400" /> Descrição do Serviço (Tabela de Serviços) *:
+                </Label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewServiceForm({ name: '', category: 'FRETAMENTO_CONTINUO', description: '' });
+                    setIsNewServiceModalOpen(true);
+                  }}
+                  className="text-[11px] text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-1"
+                >
+                  <Plus className="w-3 h-3" /> Cadastrar Novo Serviço
+                </button>
+              </div>
+
+              <SearchableSelect
+                value={vehicleForm.description}
+                fallbackLabel={vehicleForm.description}
+                onChange={(val) => setVehicleForm(prev => ({ ...prev, description: val }))}
+                options={serviceOptions}
+                placeholder="Selecione na tabela de serviços cadastrados..."
+                searchPlaceholder="Buscar por serviço cadastrado..."
+                emptyText="Nenhum serviço encontrado. Clique em Cadastrar Novo Serviço."
+                maxVisibleOptions={30}
+              />
+
               <Input
                 value={vehicleForm.description}
                 onChange={(e) => setVehicleForm({ ...vehicleForm, description: e.target.value })}
-                placeholder="Ex: PRESTAÇÃO DE SERVIÇO COM ÔNIBUS RODOVIÁRIO COM CESSÃO DE MÃO DE OBRA"
-                className="bg-zinc-950 border-zinc-700 text-zinc-100 text-xs"
+                placeholder="Personalize o texto do serviço ou preencha livremente..."
+                className="bg-zinc-950 border-zinc-800 text-zinc-200 text-xs mt-1"
                 required
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs text-zinc-300">Itinerário / Trajeto:</Label>
+            {/* 3. Itinerário / Trajeto (Busca na Base de Rotas) */}
+            <div className="space-y-1.5 bg-zinc-950/60 p-3 rounded-lg border border-zinc-800/80">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs text-zinc-300 flex items-center gap-1.5 font-bold">
+                  <Navigation className="w-3.5 h-3.5 text-emerald-400" /> Itinerário / Trajeto (Base de Rotas):
+                </Label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewRouteForm({ name: '', originAddress: '', destinationAddress: '', distanceKm: 0 });
+                    setIsNewRouteModalOpen(true);
+                  }}
+                  className="text-[11px] text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1"
+                >
+                  <Plus className="w-3 h-3" /> Cadastrar Nova Rota
+                </button>
+              </div>
+
+              <SearchableSelect
+                value={vehicleForm.route}
+                fallbackLabel={vehicleForm.route}
+                onChange={(val) => setVehicleForm(prev => ({ ...prev, route: val }))}
+                options={routeOptions}
+                placeholder="Buscar na base de rotas cadastradas..."
+                searchPlaceholder="Pesquisar por nome de rota ou endereço..."
+                emptyText="Nenhuma rota encontrada. Clique em Cadastrar Nova Rota."
+                maxVisibleOptions={30}
+              />
+
               <Input
                 value={vehicleForm.route}
                 onChange={(e) => setVehicleForm({ ...vehicleForm, route: e.target.value })}
-                placeholder="Ex: PRAÇA DA ESTAÇÃO - BH/MG X MINA VALE MIGUELÃO"
-                className="bg-zinc-950 border-zinc-700 text-zinc-100 text-xs"
+                placeholder="Personalize o itinerário / trajeto do veículo..."
+                className="bg-zinc-950 border-zinc-800 text-zinc-200 text-xs mt-1"
               />
             </div>
 
+            {/* 4. Valor Mensal Contratado (Decimal 15,9) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-xs text-zinc-300">Valor Mensal Contratado (R$):</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs text-zinc-300 font-bold">Valor Mensal Contratado (R$):</Label>
+                  <span className="text-[10px] text-emerald-400 font-mono">Decimal 15,9</span>
+                </div>
                 <Input
                   type="number"
-                  step="0.01"
+                  step="any"
                   value={vehicleForm.monthlyRate}
                   onChange={(e) => setVehicleForm({ ...vehicleForm, monthlyRate: parseFloat(e.target.value) || 0 })}
                   className="bg-zinc-950 border-zinc-700 text-emerald-400 font-mono font-bold"
+                  placeholder="0.00"
                   required
                 />
               </div>
@@ -2701,7 +2914,7 @@ export const ClientContractMeasurementManager: React.FC = () => {
                 <Input
                   value={vehicleForm.observations}
                   onChange={(e) => setVehicleForm({ ...vehicleForm, observations: e.target.value })}
-                  placeholder="Ex: 02 MOTORISTAS"
+                  placeholder="Ex: 01 MOTORISTA"
                   className="bg-zinc-950 border-zinc-700 text-zinc-100 text-xs"
                 />
               </div>
@@ -2721,6 +2934,150 @@ export const ClientContractMeasurementManager: React.FC = () => {
                 className="bg-amber-600 hover:bg-amber-500 text-white font-bold"
               >
                 {selectedVehicleItem ? 'Salvar Alterações' : 'Alocar Veículo'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* SUB-MODAL: Cadastrar Nova Rota */}
+      <Dialog open={isNewRouteModalOpen} onOpenChange={setIsNewRouteModalOpen}>
+        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-emerald-400">
+              <Navigation className="w-5 h-5" /> Cadastrar Nova Rota
+            </DialogTitle>
+            <DialogDescription className="text-zinc-400 text-xs">
+              Cadastre uma nova rota operacional na base de rotas para vincular ao contrato.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleCreateRoute} className="space-y-3 py-2">
+            <div className="space-y-1">
+              <Label className="text-xs text-zinc-300">Nome da Rota / Código *:</Label>
+              <Input
+                value={newRouteForm.name}
+                onChange={e => setNewRouteForm({ ...newRouteForm, name: e.target.value.toUpperCase() })}
+                placeholder="Ex: ROTA OPERACIONAL MATRIZ X UNIDADE OESTE"
+                className="bg-zinc-950 border-zinc-700 text-zinc-100 text-xs"
+                required
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-zinc-300">Ponto de Origem / Endereço:</Label>
+              <Input
+                value={newRouteForm.originAddress}
+                onChange={e => setNewRouteForm({ ...newRouteForm, originAddress: e.target.value })}
+                placeholder="Ex: Praça da Estação - BH/MG"
+                className="bg-zinc-950 border-zinc-700 text-zinc-100 text-xs"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-zinc-300">Ponto de Destino / Endereço:</Label>
+              <Input
+                value={newRouteForm.destinationAddress}
+                onChange={e => setNewRouteForm({ ...newRouteForm, destinationAddress: e.target.value })}
+                placeholder="Ex: Mina Vale Miguelão - Nova Lima/MG"
+                className="bg-zinc-950 border-zinc-700 text-zinc-100 text-xs"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-zinc-300">Distância Estimada (KM):</Label>
+              <Input
+                type="number"
+                step="any"
+                value={newRouteForm.distanceKm || ""}
+                onChange={e => setNewRouteForm({ ...newRouteForm, distanceKm: parseFloat(e.target.value) || 0 })}
+                placeholder="Ex: 45.5"
+                className="bg-zinc-950 border-zinc-700 text-zinc-100 text-xs font-mono"
+              />
+            </div>
+            <DialogFooter className="gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsNewRouteModalOpen(false)}
+                className="border-zinc-700 bg-zinc-950 text-zinc-300"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={savingRoute}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
+              >
+                {savingRoute ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+                Salvar e Selecionar Rota
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* SUB-MODAL: Cadastrar Novo Serviço */}
+      <Dialog open={isNewServiceModalOpen} onOpenChange={setIsNewServiceModalOpen}>
+        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-400">
+              <Layers className="w-5 h-5" /> Cadastrar Novo Serviço
+            </DialogTitle>
+            <DialogDescription className="text-zinc-400 text-xs">
+              Adicione um novo serviço à tabela de serviços cadastrados.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleCreateService} className="space-y-3 py-2">
+            <div className="space-y-1">
+              <Label className="text-xs text-zinc-300">Nome do Serviço *:</Label>
+              <Input
+                value={newServiceForm.name}
+                onChange={e => setNewServiceForm({ ...newServiceForm, name: e.target.value.toUpperCase() })}
+                placeholder="Ex: TRANSPORTE DE PASSAGEIROS COM CESSÃO DE MOTORISTA"
+                className="bg-zinc-950 border-zinc-700 text-zinc-100 text-xs"
+                required
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-zinc-300">Categoria:</Label>
+              <Select
+                value={newServiceForm.category}
+                onValueChange={val => setNewServiceForm({ ...newServiceForm, category: val })}
+              >
+                <SelectTrigger className="bg-zinc-950 border-zinc-700 text-zinc-100 text-xs">
+                  <SelectValue placeholder="Selecione a categoria" />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
+                  <SelectItem value="FRETAMENTO_CONTINUO">Fretamento Contínuo</SelectItem>
+                  <SelectItem value="LOCACAO_VEICULOS">Locação de Veículos</SelectItem>
+                  <SelectItem value="EVENTUAL_EXTRA">Viagem Extra / Eventual</SelectItem>
+                  <SelectItem value="TURISMO">Turismo / Translado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-zinc-300">Descrição Detalhada:</Label>
+              <Textarea
+                value={newServiceForm.description}
+                onChange={e => setNewServiceForm({ ...newServiceForm, description: e.target.value })}
+                placeholder="Descreva as características do serviço contratado..."
+                className="bg-zinc-950 border-zinc-700 text-zinc-100 text-xs"
+                rows={2}
+              />
+            </div>
+            <DialogFooter className="gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsNewServiceModalOpen(false)}
+                className="border-zinc-700 bg-zinc-950 text-zinc-300"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={savingService}
+                className="bg-amber-600 hover:bg-amber-500 text-white font-bold"
+              >
+                {savingService ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+                Salvar e Selecionar Serviço
               </Button>
             </DialogFooter>
           </form>
