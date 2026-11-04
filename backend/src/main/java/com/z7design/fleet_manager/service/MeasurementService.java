@@ -374,16 +374,6 @@ public class MeasurementService {
         MeasurementBulletin bulletin = bulletinRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Boletim de mediÃ§Ã£o nÃ£o encontrado: " + id));
 
-        if (existingBulletin.getNfseNumber() != null && !existingBulletin.getNfseNumber().isBlank()) {
-            if (dto.getSubtotal() != null && existingBulletin.getSubtotal() != null
-                    && dto.getSubtotal().subtract(existingBulletin.getSubtotal()).abs().compareTo(new java.math.BigDecimal("0.05")) > 0) {
-                throw new IllegalArgumentException(String.format(
-                    "Este Boletim de Medicao esta travado pois possui a NFS-e No %s vinculada. O valor da Nota Fiscal deve ser o mesmo valor da Medicao. Para alterar valores, desvincule a Nota Fiscal primeiro.",
-                    existingBulletin.getNfseNumber()
-                ));
-            }
-        }
-
         // Inicializar relacionamentos lazy dentro da transaÃ§Ã£o
         if (bulletin.getClient() != null) {
             Hibernate.initialize(bulletin.getClient());
@@ -510,6 +500,16 @@ public class MeasurementService {
 
         MeasurementBulletin existingBulletin = bulletinRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Boletim de mediÃ§Ã£o nÃ£o encontrado: " + id));
+
+        if (existingBulletin.getNfseNumber() != null && !existingBulletin.getNfseNumber().isBlank()) {
+            if (dto.getSubtotal() != null && existingBulletin.getSubtotal() != null
+                    && dto.getSubtotal().subtract(existingBulletin.getSubtotal()).abs().compareTo(new java.math.BigDecimal("0.05")) > 0) {
+                throw new IllegalArgumentException(String.format(
+                    "Este Boletim de Medicao esta travado pois possui a NFS-e No %s vinculada. O valor da Nota Fiscal deve ser o mesmo valor da Medicao. Para alterar valores, desvincule a Nota Fiscal primeiro.",
+                    existingBulletin.getNfseNumber()
+                ));
+            }
+        }
 
         // Atualizar campos bÃ¡sicos (apenas se nÃ£o forem nulos)
         if (dto.getCompanyName() != null) {

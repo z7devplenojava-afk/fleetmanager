@@ -524,7 +524,7 @@ public class AccountsReceivableService {
             expectedAmount = mb.getSubtotal() != null && mb.getSubtotal().compareTo(BigDecimal.ZERO) > 0
                     ? mb.getSubtotal()
                     : mb.getGrossAmount();
-            tipoOrigem = "Medição Nº " + (mb.getMeasurementNumber() != null ? mb.getMeasurementNumber() : mb.getId());
+            tipoOrigem = "Medição Nº " + (mb.getContractNumber() != null ? mb.getContractNumber() : mb.getId());
         }
 
         if (expectedAmount == null) {
