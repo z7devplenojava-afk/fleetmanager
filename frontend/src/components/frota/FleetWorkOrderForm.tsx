@@ -19,7 +19,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import fleetWorkOrderService, {
     WorkOrderStatus, LaborType, WorkOrderItemType, WorkOrderPriority, MaintenanceType, ChecklistStatus,
-    WorkOrderItem, FleetWorkOrder, FleetWorkOrderChecklist, WorkOrderHistoryEntry, ExecutionHistoryEntry
+    WorkOrderItem, FleetWorkOrder, FleetWorkOrderChecklist, WorkOrderHistoryEntry, ExecutionHistoryEntry,
+    getOrderResponsibleDisplay
 } from '@/services/fleetWorkOrderService';
 import fleetService from '@/services/fleetService';
 import { clientService } from '@/services/clientService';
