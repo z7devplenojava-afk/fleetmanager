@@ -767,10 +767,10 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Veículos filtrados a partir de 3 caracteres digitados
+  // Veículos filtrados a partir de 3 caracteres digitados ou lista inicial
   const filteredVehicles = useMemo(() => {
     const q = (placasVeiculos || '').trim().toLowerCase();
-    if (q.length < 3) return [];
+    if (!q) return vehicles.slice(0, 15);
     return vehicles.filter(v => {
       const plate = (v.plate || '').toLowerCase();
       const model = (v.model || '').toLowerCase();
@@ -932,7 +932,7 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
       const obsParts = [];
       if (formData.observacoes && formData.observacoes.trim()) obsParts.push(formData.observacoes.trim());
       if (periodoLocacao || placasVeiculos) {
-        obsParts.push(`[LOCAÇÃO] Período: ${periodoLocacao || 'N/I'} | Placa(s): ${placasVeiculos || 'N/I'}`);
+        obsParts.push(isLocacaoVeiculos ? `[LOCAÇÃO] Período: ${periodoLocacao || 'N/I'} | Placa(s): ${placasVeiculos || 'N/I'}` : `[VEÍCULO] Placa(s): ${placasVeiculos}`);
       }
       if (apoliceNumber || endossoNumber) {
         obsParts.push(`[SEGURO] Apólice: ${apoliceNumber || 'N/I'} | Endosso: ${endossoNumber || 'N/I'} | Veículos: ${qtdVeiculosSegurados || 'N/I'}`);
@@ -2487,17 +2487,9 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
                         onChange={(e) => {
                           const val = e.target.value.toUpperCase();
                           setPlacasVeiculos(val);
-                          if (val.trim().length >= 3) {
-                            setVehicleDropdownOpen(true);
-                          } else {
-                            setVehicleDropdownOpen(false);
-                          }
+                          setVehicleDropdownOpen(true);
                         }}
-                        onFocus={() => {
-                          if (placasVeiculos.trim().length >= 3) {
-                            setVehicleDropdownOpen(true);
-                          }
-                        }}
+                        onFocus={() => setVehicleDropdownOpen(true)}
                         placeholder="Digite 3 letras/números (ex: BRA, 104)..."
                         className="border-zinc-700/80 bg-zinc-950 text-zinc-100 placeholder:text-zinc-500 rounded-xl h-9 text-xs font-mono uppercase pr-8"
                       />
@@ -2505,7 +2497,7 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
                     </div>
 
                     {/* Dropdown de Veículos ao digitar a partir de 3 caracteres */}
-                    {vehicleDropdownOpen && placasVeiculos.trim().length >= 3 && (
+                    {vehicleDropdownOpen && (
                       <div
                         ref={vehicleDropdownRef}
                         className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl p-1.5 space-y-1"
