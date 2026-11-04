@@ -90,3 +90,4 @@ public class BusTypeConverter implements AttributeConverter<BusType, String> {
         }
     }
 }
+

@@ -732,9 +732,10 @@ export const GestaoLocacao: React.FC = () => {
     }
   };
 
-  const handleGeneratePdf = (invoice: RentalInvoice) => {
+  const handleGeneratePdf = async (invoice: RentalInvoice) => {
     try {
-      RentalInvoicePdfService.generatePDF(invoice);
+      await RentalInvoicePdfService.generatePDF(invoice);
+      toast({ title: 'Sucesso', description: 'PDF da fatura gerado no layout executivo da OS.' });
     } catch (error) {
       console.error('Erro ao gerar PDF da fatura:', error);
       toast({ title: 'Erro ao gerar PDF', description: 'Não foi possível gerar a fatura em PDF.', variant: 'destructive' });

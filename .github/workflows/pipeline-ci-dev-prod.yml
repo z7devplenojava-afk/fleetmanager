@@ -232,7 +232,7 @@ jobs:
               # com falha (PostgreSQL faz rollback, mas o Flyway mantem a linha).
               docker compose -f docker-compose.ci.yml up -d postgres-ci
               docker exec fluxbus-db-ci sh -c 'until pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" >/dev/null 2>&1; do sleep 1; done'
-              docker exec fluxbus-db-ci sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "DELETE FROM flyway_schema_history WHERE success = false;"' || true
+              docker exec fluxbus-db-ci sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT pg_advisory_unlock_all(); DELETE FROM flyway_schema_history WHERE success = false;"' || true
 
               docker compose -f docker-compose.ci.yml up -d --force-recreate --remove-orphans || {
                 echo "❌ Falha ao subir containers no CI. Logs do backend:"
@@ -266,6 +266,15 @@ jobs:
           done
           echo "Health check CI falhou"
           exit 1
+
+      - name: "📋 Exibir logs do container em caso de falha"
+        if: failure()
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y sshpass
+          SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30"
+          sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh $SSH_OPTS \
+            ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} \
+            "echo '=== DOCKER PS ===' && docker ps -a && echo '=== BACKEND LOGS ===' && docker logs fluxbus-backend-ci --tail 150 && echo '=== NGINX LOGS ===' && docker logs fluxbus-nginx-ci --tail 50" || true
 
   # ============================================================
   # JOB 4: DEPLOY DEV (so roda se CI passou)

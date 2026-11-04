@@ -49,3 +49,4 @@ public class VehicleStatusConverter implements AttributeConverter<VehicleStatus,
         }
     }
 }
+

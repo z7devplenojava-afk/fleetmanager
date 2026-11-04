@@ -50,3 +50,4 @@ public class FuelTypeConverter implements AttributeConverter<FuelType, String> {
         }
     }
 }
+

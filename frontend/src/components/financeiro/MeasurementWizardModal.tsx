@@ -362,7 +362,7 @@ export const MeasurementWizardModal: React.FC<MeasurementWizardModalProps> = ({
       const bulletinPayload = {
         companyName: selectedClient?.name || selectedClient?.clientName || 'PROMOVER VIGILÂNCIA PATRIMONIAL LTDA',
         contractNumber: contractNumber || 'CT-2024/001',
-        clientId: selectedClientId || undefined,
+        clientId: (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(selectedClientId)) ? selectedClientId : undefined,
         periodStart,
         periodEnd,
         elaboratedBy: 'José Ramos',
