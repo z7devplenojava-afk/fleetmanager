@@ -507,6 +507,49 @@ public class AccountsReceivableService {
             throw new IllegalArgumentException("Erro no processamento da NFS-e: " + e.getMessage(), e);
         }
 
+        // Validação estrita de negócio: O valor bruto da NFS-e deve ser exatamente igual ao da Fatura de Locação ou da Medição
+        BigDecimal expectedAmount = null;
+        String tipoOrigem = null;
+
+        if (receivable.getRentalInvoiceId() != null) {
+            com.z7design.fleet_manager.model.RentalInvoice invoice = rentalInvoiceRepository.findById(receivable.getRentalInvoiceId()).orElse(null);
+            if (invoice != null) {
+                expectedAmount = invoice.getTotalAmount() != null && invoice.getTotalAmount().compareTo(BigDecimal.ZERO) > 0
+                        ? invoice.getTotalAmount()
+                        : invoice.getNetAmount();
+                tipoOrigem = "Fatura de Locação Nº " + invoice.getNumber();
+            }
+        } else if (receivable.getMeasurement() != null) {
+            MeasurementBulletin mb = receivable.getMeasurement();
+            expectedAmount = mb.getSubtotal() != null && mb.getSubtotal().compareTo(BigDecimal.ZERO) > 0
+                    ? mb.getSubtotal()
+                    : mb.getGrossAmount();
+            tipoOrigem = "Medição Nº " + (mb.getMeasurementNumber() != null ? mb.getMeasurementNumber() : mb.getId());
+        }
+
+        if (expectedAmount == null) {
+            if (receivable.getGrossAmount() != null && receivable.getGrossAmount().compareTo(BigDecimal.ZERO) > 0) {
+                expectedAmount = receivable.getGrossAmount();
+                tipoOrigem = "Título a Receber (Valor Bruto)";
+            } else if (receivable.getAmount() != null) {
+                expectedAmount = receivable.getAmount();
+                tipoOrigem = "Título a Receber";
+            }
+        }
+
+        if (expectedAmount != null && parsed.getGrossAmount() != null && parsed.getGrossAmount().compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal diff = parsed.getGrossAmount().subtract(expectedAmount).abs();
+            if (diff.compareTo(new BigDecimal("0.05")) > 0) {
+                log.warn("Divergência de valores bloqueante na importação de NFS-e: NF={} (R$ {}), esperado {} (R$ {})",
+                        parsed.getNfseNumber(), parsed.getGrossAmount(), tipoOrigem, expectedAmount);
+                throw new IllegalArgumentException(String.format(
+                        "Divergência de valores detectada! O valor dos serviços na NFS-e (R$ %.2f) difere do valor da %s (R$ %.2f). " +
+                        "A Nota Fiscal de Locação ou Transporte de Funcionários deve ter exatamente o mesmo valor da Fatura ou Medição correspondente.",
+                        parsed.getGrossAmount(), tipoOrigem, expectedAmount
+                ));
+            }
+        }
+
         if (parsed.getNfseNumber() != null && !parsed.getNfseNumber().isBlank()) {
             receivable.setNfseNumber(parsed.getNfseNumber());
             receivable.setInvoiceNumber("NFS-e " + parsed.getNfseNumber());
@@ -553,6 +596,18 @@ public class AccountsReceivableService {
                     .filter(c -> c.getCnpj() != null && c.getCnpj().replaceAll("[^0-9]", "").equals(tomadorDoc))
                     .findFirst()
                     .ifPresent(receivable::setClient);
+        }
+
+        // Atualizar Fatura de Locação vinculada, se houver
+        if (receivable.getRentalInvoiceId() != null) {
+            rentalInvoiceRepository.findById(receivable.getRentalInvoiceId()).ifPresent(inv -> {
+                inv.setNfseNumber(parsed.getNfseNumber());
+                inv.setNfseStatus("EMITIDA");
+                if (parsed.getIssueDate() != null) {
+                    inv.setNfseIssueDate(parsed.getIssueDate());
+                }
+                rentalInvoiceRepository.save(inv);
+            });
         }
 
         // Atualizar boletim de medição vinculado, se houver

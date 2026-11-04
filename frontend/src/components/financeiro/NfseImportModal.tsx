@@ -25,6 +25,11 @@ export const NfseImportModal: React.FC<NfseImportModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [previewData, setPreviewData] = useState<any | null>(null);
 
+  const expectedAmount = Number(conta?.grossAmount || conta?.valor || 0);
+  const nfseGrossAmount = Number(previewData?.grossAmount || 0);
+  const valueDifference = Math.abs(nfseGrossAmount - expectedAmount);
+  const hasValueMismatch = Boolean(previewData && nfseGrossAmount > 0 && valueDifference > 0.05);
+
   if (!conta) return null;
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -205,6 +210,34 @@ export const NfseImportModal: React.FC<NfseImportModalProps> = ({
                   </div>
                 )}
               </Card>
+
+              {/* Alerta de Divergência Bloqueante de Valores */}
+              {hasValueMismatch && (
+                <div className="bg-red-500/10 border border-red-500/40 rounded-xl p-4 space-y-2 text-red-300 animate-in fade-in-50">
+                  <div className="flex items-center gap-2 font-bold text-sm text-red-400">
+                    <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
+                    Divergência de Valores Bloqueante
+                  </div>
+                  <p className="text-xs leading-relaxed">
+                    O valor bruto da NFS-e (<span className="font-mono font-bold text-white">{formatCurrency(nfseGrossAmount)}</span>) difere do valor esperado da fatura/medição (<span className="font-mono font-bold text-white">{formatCurrency(expectedAmount)}</span>).
+                  </p>
+                  <div className="text-[11px] bg-red-950/70 p-2.5 rounded-lg border border-red-900/60 font-semibold text-red-200">
+                    ⚠️ Regra Fiscal & Financeira: O valor da Nota Fiscal deve ser rigorosamente igual ao valor da fatura e da medição. O vínculo foi bloqueado até a correção da nota ou do título.
+                  </div>
+                </div>
+              )}
+
+              {!hasValueMismatch && previewData && nfseGrossAmount > 0 && (
+                <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3.5 flex items-center justify-between text-xs text-emerald-300">
+                  <div className="flex items-center gap-2 font-semibold">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    Valores Conferidos: NFS-e e Fatura/Medição com valores idênticos ({formatCurrency(nfseGrossAmount)})
+                  </div>
+                  <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 text-[10px]">
+                    Validado
+                  </Badge>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -215,8 +248,12 @@ export const NfseImportModal: React.FC<NfseImportModalProps> = ({
           </Button>
           <Button
             onClick={handleImport}
-            disabled={!file || !previewData || loading}
-            className="bg-green-600 hover:bg-green-700 text-white font-semibold"
+            disabled={!file || !previewData || loading || hasValueMismatch}
+            className={`font-semibold ${
+              hasValueMismatch
+                ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed border border-zinc-700'
+                : 'bg-green-600 hover:bg-green-700 text-white'
+            }`}
           >
             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
             Confirmar e Vincular NFS-e

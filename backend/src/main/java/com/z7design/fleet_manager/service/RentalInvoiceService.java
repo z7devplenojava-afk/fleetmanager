@@ -95,6 +95,18 @@ public class RentalInvoiceService {
     @Transactional
     public RentalInvoiceDTO update(UUID id, RentalInvoiceDTO dto) {
         RentalInvoice invoice = findEntity(id);
+        if (invoice.getNfseNumber() != null && !invoice.getNfseNumber().isBlank()
+                && !"CANCELADA".equalsIgnoreCase(invoice.getNfseStatus())) {
+            BigDecimal oldTotal = invoice.getTotalAmount() != null ? invoice.getTotalAmount() : BigDecimal.ZERO;
+            BigDecimal newTotal = dto.getTotalAmount() != null ? dto.getTotalAmount() : BigDecimal.ZERO;
+            if (newTotal.compareTo(BigDecimal.ZERO) > 0 && oldTotal.subtract(newTotal).abs().compareTo(new BigDecimal("0.05")) > 0) {
+                throw new IllegalArgumentException(String.format(
+                    "Esta Fatura de Locação está travada pois possui a NFS-e Nº %s vinculada. " +
+                    "O valor da Nota Fiscal deve ser idêntico ao valor da Fatura. Para alterar valores, desvincule ou cancele a NFS-e primeiro.",
+                    invoice.getNfseNumber()
+                ));
+            }
+        }
         applyBasicData(invoice, dto, false);
         applyItems(invoice, dto);
         recalculate(invoice);
