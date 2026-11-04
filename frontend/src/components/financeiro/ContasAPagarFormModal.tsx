@@ -20,6 +20,8 @@ import { contractService, Contract } from '@/services/contractService';
 import { garageService, Garage } from '@/services/garageService';
 import { employeeService, Employee } from '@/services/employeeService';
 import fleetWorkOrderService, { FleetWorkOrder } from '@/services/fleetWorkOrderService';
+import fleetService from '@/services/fleetService';
+import { Vehicle } from '@/types/fleet';
 import SupplierFormModal from '@/components/estoque/SupplierFormModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { generatePaymentReceiptPDF } from '@/utils/paymentReceiptPdfGenerator';
@@ -111,6 +113,7 @@ let cachedStaticData: {
   costCenters?: string[];
   employees?: Employee[];
   workOrders?: FleetWorkOrder[];
+  vehicles?: Vehicle[];
 } = {};
 
 const DEFAULT_COST_CENTERS = [
@@ -163,6 +166,10 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
 
   // Seleção e Vínculo de Ordem de Serviço (OS) para Rastreabilidade
   const [workOrders, setWorkOrders] = useState<FleetWorkOrder[]>(cachedStaticData.workOrders || []);
+  const [vehicles, setVehicles] = useState<Vehicle[]>(cachedStaticData.vehicles || []);
+  const [vehicleDropdownOpen, setVehicleDropdownOpen] = useState(false);
+  const vehicleDropdownRef = useRef<HTMLDivElement>(null);
+  const vehicleInputRef = useRef<HTMLInputElement>(null);
   const [osSearchQuery, setOsSearchQuery] = useState('');
   const [osDropdownOpen, setOsDropdownOpen] = useState(false);
   const [isLinkingWorkOrder, setIsLinkingWorkOrder] = useState(false);
@@ -554,8 +561,9 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
       garageService.list(),
       contasAPagarService.getCostCenters(),
       employeeService.getAllEmployees(),
-      fleetWorkOrderService.findAll()
-    ]).then(([resFornec, resEmp, resCli, resObr, resCont, resGar, resCost, resEmply, resWo]) => {
+      fleetWorkOrderService.findAll(),
+      fleetService.getVehicles()
+    ]).then(([resFornec, resEmp, resCli, resObr, resCont, resGar, resCost, resEmply, resWo, resVeh]) => {
       // 1. Fornecedores
       if (resFornec.status === 'fulfilled' && Array.isArray(resFornec.value)) {
         setFornecedores(resFornec.value);
@@ -609,6 +617,11 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
       if (resWo && resWo.status === 'fulfilled' && Array.isArray(resWo.value)) {
         setWorkOrders(resWo.value);
         cachedStaticData.workOrders = resWo.value;
+      }
+      // 10. Veículos da Frota
+      if (resVeh && resVeh.status === 'fulfilled' && Array.isArray(resVeh.value)) {
+        setVehicles(resVeh.value);
+        cachedStaticData.vehicles = resVeh.value;
       }
     });
   }, [open]);
@@ -731,10 +744,45 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
       ) {
         setOsDropdownOpen(false);
       }
+      if (
+        vehicleDropdownRef.current &&
+        !vehicleDropdownRef.current.contains(event.target as Node) &&
+        vehicleInputRef.current &&
+        !vehicleInputRef.current.contains(event.target as Node)
+      ) {
+        setVehicleDropdownOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Veículos filtrados a partir de 3 caracteres digitados
+  const filteredVehicles = useMemo(() => {
+    const q = (placasVeiculos || '').trim().toLowerCase();
+    if (q.length < 3) return [];
+    return vehicles.filter(v => {
+      const plate = (v.plate || '').toLowerCase();
+      const model = (v.model || '').toLowerCase();
+      const brand = (v.brand || '').toLowerCase();
+      const prefix = (v.prefix || v.vehicleNumber || '').toLowerCase();
+      return plate.includes(q) || model.includes(q) || brand.includes(q) || prefix.includes(q);
+    }).slice(0, 10);
+  }, [vehicles, placasVeiculos]);
+
+  // Se a despesa tiver OS como referência de lançamento, o campo veículo é preenchido automaticamente
+  useEffect(() => {
+    if (formData.workOrderNumber && workOrders.length > 0 && !placasVeiculos) {
+      const q = formData.workOrderNumber.trim().toLowerCase();
+      const matched = workOrders.find(wo => 
+        (wo.osNumber && wo.osNumber.toLowerCase() === q) ||
+        (wo.id && String(wo.id).toLowerCase() === q)
+      );
+      if (matched?.vehiclePlate) {
+        setPlacasVeiculos(matched.vehiclePlate.toUpperCase());
+      }
+    }
+  }, [formData.workOrderNumber, workOrders, placasVeiculos]);
 
   // Funcionários filtrados por pesquisa de nome, CPF ou cargo
   const filteredEmployees = useMemo(() => {
@@ -2386,22 +2434,103 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
                     </label>
                     <Input
                       value={formData.workOrderNumber || ''}
-                      onChange={(e) => handleInputChange('workOrderNumber', e.target.value)}
+                      onChange={(e) => {
+                        const newWo = e.target.value;
+                        handleInputChange('workOrderNumber', newWo);
+                        if (newWo.trim() && workOrders.length > 0) {
+                          const q = newWo.trim().toLowerCase();
+                          const matched = workOrders.find(wo => 
+                            (wo.osNumber && wo.osNumber.toLowerCase() === q) ||
+                            (wo.id && String(wo.id).toLowerCase() === q)
+                          );
+                          if (matched?.vehiclePlate) {
+                            setPlacasVeiculos(matched.vehiclePlate.toUpperCase());
+                          }
+                        }
+                      }}
                       placeholder="Ex: OS-2026-000105 ou #4501"
                       className="border-zinc-700/80 bg-zinc-950 text-zinc-100 placeholder:text-zinc-500 rounded-xl h-9 text-xs font-mono"
                     />
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
-                      <Truck size={12} className="text-amber-400" />
-                      Placa do Veículo / Equipamento
-                    </label>
-                    <Input
-                      value={placasVeiculos}
-                      onChange={(e) => setPlacasVeiculos(e.target.value.toUpperCase())}
-                      placeholder="Ex: BRA2E19 ou ABC-1234"
-                      className="border-zinc-700/80 bg-zinc-950 text-zinc-100 placeholder:text-zinc-500 rounded-xl h-9 text-xs font-mono uppercase"
-                    />
+                  <div className="space-y-1 relative">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
+                        <Truck size={12} className="text-amber-400" />
+                        Placa do Veículo / Equipamento
+                      </label>
+                      {placasVeiculos && (
+                        <button
+                          type="button"
+                          onClick={() => setPlacasVeiculos('')}
+                          className="text-[10px] text-zinc-500 hover:text-red-400 transition-colors"
+                        >
+                          Limpar
+                        </button>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <Input
+                        ref={vehicleInputRef}
+                        value={placasVeiculos}
+                        onChange={(e) => {
+                          const val = e.target.value.toUpperCase();
+                          setPlacasVeiculos(val);
+                          if (val.trim().length >= 3) {
+                            setVehicleDropdownOpen(true);
+                          } else {
+                            setVehicleDropdownOpen(false);
+                          }
+                        }}
+                        onFocus={() => {
+                          if (placasVeiculos.trim().length >= 3) {
+                            setVehicleDropdownOpen(true);
+                          }
+                        }}
+                        placeholder="Digite 3 letras/números (ex: BRA, 104)..."
+                        className="border-zinc-700/80 bg-zinc-950 text-zinc-100 placeholder:text-zinc-500 rounded-xl h-9 text-xs font-mono uppercase pr-8"
+                      />
+                      <Search size={13} className="absolute right-2.5 top-2.5 text-zinc-500 pointer-events-none" />
+                    </div>
+
+                    {/* Dropdown de Veículos ao digitar a partir de 3 caracteres */}
+                    {vehicleDropdownOpen && placasVeiculos.trim().length >= 3 && (
+                      <div
+                        ref={vehicleDropdownRef}
+                        className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl p-1.5 space-y-1"
+                      >
+                        {filteredVehicles.length === 0 ? (
+                          <div className="p-2.5 text-center text-xs text-zinc-400">
+                            Nenhum veículo encontrado com &quot;{placasVeiculos}&quot;.
+                            <p className="text-[10px] text-zinc-500 mt-0.5">A placa digitada manualmente será mantida.</p>
+                          </div>
+                        ) : (
+                          filteredVehicles.map((v: any) => (
+                            <div
+                              key={v.id || v.plate}
+                              onClick={() => {
+                                setPlacasVeiculos((v.plate || '').toUpperCase());
+                                setVehicleDropdownOpen(false);
+                              }}
+                              className="p-2 rounded-lg hover:bg-zinc-800 cursor-pointer flex items-center justify-between gap-2 transition-colors border border-transparent hover:border-zinc-700"
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-xs font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded">
+                                  {v.plate}
+                                </span>
+                                <span className="text-xs text-zinc-200 font-medium">
+                                  {v.model || v.brand || 'Veículo Frota'}
+                                </span>
+                              </div>
+                              {(v.prefix || v.vehicleNumber) && (
+                                <span className="text-[10px] text-zinc-400 font-mono bg-zinc-800 px-1.5 py-0.5 rounded">
+                                  Prefixo: {v.prefix || v.vehicleNumber}
+                                </span>
+                              )}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
