@@ -50,7 +50,7 @@ public class Vehicle implements TenantAware {
     @Column
     private String color;
 
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = com.z7design.fleet_manager.converter.VehicleStatusConverter.class)
     @Column(nullable = false)
     private VehicleStatus status;
 
@@ -115,7 +115,7 @@ public class Vehicle implements TenantAware {
     @Column(name = "vehicle_type")
     private VehicleType vehicleType;
 
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = com.z7design.fleet_manager.converter.FuelTypeConverter.class)
     @Column(nullable = false)
     private FuelType fuelType;
 
@@ -208,7 +208,7 @@ public class Vehicle implements TenantAware {
     // =====================================================================
     // CAMPOS ESPECÍFICOS PARA ÔNIBUS / VAN
     // =====================================================================
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = com.z7design.fleet_manager.converter.BusTypeConverter.class)
     @Column(name = "bus_type")
     private BusType busType;
 
@@ -285,7 +285,7 @@ public class Vehicle implements TenantAware {
     // =====================================================================
     // CAMPOS DE FINANCIAMENTO
     // =====================================================================
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = com.z7design.fleet_manager.converter.FinancingStatusConverter.class)
     @Column(name = "financing_status")
     private FinancingStatus financingStatus;
 
@@ -551,7 +551,11 @@ public class Vehicle implements TenantAware {
         HIBRIDO("Híbrido"),
         ESCOLA("Escolar"),
         FRETADO("Fretado"),
-        INTERMUNICIPAL("Intermunicipal");
+        INTERMUNICIPAL("Intermunicipal"),
+        CONVENCIONAL("Convencional"),
+        MICROS("Micro-Ã´nibus"),
+        VIP("VIP"),
+        OUTRO("Outro");
 
         private final String displayName;
         BusType(String displayName) { this.displayName = displayName; }

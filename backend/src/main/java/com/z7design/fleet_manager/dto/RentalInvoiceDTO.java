@@ -74,5 +74,31 @@ public class RentalInvoiceDTO {
         private String model;
         private String description;
         private BigDecimal amount;
+
+        public void setVehicleId(UUID vehicleId) {
+            this.vehicleId = vehicleId;
+        }
+
+        @com.fasterxml.jackson.annotation.JsonSetter("vehicleId")
+        public void setVehicleIdFromJson(Object val) {
+            if (val == null) {
+                this.vehicleId = null;
+                return;
+            }
+            if (val instanceof UUID) {
+                this.vehicleId = (UUID) val;
+                return;
+            }
+            String str = val.toString().trim();
+            if (str.isEmpty()) {
+                this.vehicleId = null;
+                return;
+            }
+            try {
+                this.vehicleId = UUID.fromString(str);
+            } catch (Exception ignored) {
+                this.vehicleId = null;
+            }
+        }
     }
 }

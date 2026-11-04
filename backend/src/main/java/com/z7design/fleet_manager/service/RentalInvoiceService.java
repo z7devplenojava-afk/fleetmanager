@@ -236,6 +236,13 @@ public class RentalInvoiceService {
             if (itemDto.getVehicleId() != null) {
                 vehicle = vehicleRepository.findById(itemDto.getVehicleId()).orElse(null);
             }
+            if (vehicle == null && itemDto.getPlate() != null && !itemDto.getPlate().isBlank()) {
+                String cleanPlate = itemDto.getPlate().trim().toUpperCase();
+                vehicle = vehicleRepository.findByPlate(cleanPlate).orElse(null);
+                if (vehicle == null) {
+                    vehicle = vehicleRepository.findByPlateRaw(cleanPlate).orElse(null);
+                }
+            }
             String plate = firstNonBlank(itemDto.getPlate(), vehicle != null ? vehicle.getPlate() : null);
             if (plate == null || plate.isBlank()) {
                 continue;

@@ -268,7 +268,11 @@ export const MeasurementWizardModal: React.FC<MeasurementWizardModalProps> = ({
           { id: 'pt-1', vehiclePlate: 'QRE-1A23', vehicleModel: 'PARADISO G8 1200 SCANIA', daysExpected: baseDays, daysWorked: baseDays, daysStopped: 0, dailyRate: 1100.00 },
           { id: 'pt-2', vehiclePlate: 'RUR-7A78', vehicleModel: 'STRADA FREEDOM 1.3', daysExpected: baseDays, daysWorked: baseDays, daysStopped: 0, dailyRate: 1100.00 },
           { id: 'pt-3', vehiclePlate: 'SHZ-3A40', vehicleModel: 'FLY 9 EXECUTIVO DIESEL', daysExpected: baseDays, daysWorked: baseDays, daysStopped: 0, dailyRate: 1100.00 },
-          { id: 'pt-4', vehiclePlate: 'QMR-2E82', vehicleModel: 'MARCOPOLO SENIOR AGRALE', daysExpected: baseDays, daysWorked: baseDays, daysStopped: 0, dailyRate: 1100.00 }
+          { id: 'pt-4', vehiclePlate: 'QMR-2E82', vehicleModel: 'MARCOPOLO SENIOR AGRALE', daysExpected: baseDays, daysWorked: baseDays, daysStopped: 0, dailyRate: 1100.00 },
+          { id: 'pt-5', vehiclePlate: 'RZS-3E89', vehicleModel: 'MPOLO PARADISO G8 1800 DD SCANIA', daysExpected: baseDays, daysWorked: baseDays, daysStopped: 0, dailyRate: 1100.00 },
+          { id: 'pt-6', vehiclePlate: 'PLN-8G21', vehicleModel: 'MERCEDES-BENZ SPRINTER 416 CDI VAN', daysExpected: baseDays, daysWorked: baseDays, daysStopped: 0, dailyRate: 1100.00 },
+          { id: 'pt-7', vehiclePlate: 'KXD-4H12', vehicleModel: 'COMIL CAMPIONE INVICTUS 1200 VOLVO', daysExpected: baseDays, daysWorked: baseDays, daysStopped: 0, dailyRate: 1100.00 },
+          { id: 'pt-8', vehiclePlate: 'RTZ-9B55', vehicleModel: 'VOLKSBUS 18.330 OT RODOVIARIO', daysExpected: baseDays, daysWorked: baseDays, daysStopped: 0, dailyRate: 1100.00 }
         ]);
       }
 

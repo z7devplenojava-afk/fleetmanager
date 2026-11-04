@@ -669,13 +669,16 @@ export const GestaoLocacao: React.FC = () => {
       bankAgency: form.bankAgency,
       bankAccount: form.bankAccount,
       notes: form.notes,
-      items: form.items.map(item => ({
-        vehicleId: item.vehicleId,
-        plate: item.plate,
-        model: item.model,
-        description: item.description,
-        amount: Number(item.amount) || 0,
-      })),
+      items: form.items.map(item => {
+        const isUuid = item.vehicleId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.vehicleId);
+        return {
+          vehicleId: isUuid ? item.vehicleId : null,
+          plate: item.plate,
+          model: item.model,
+          description: item.description,
+          amount: Number(item.amount) || 0,
+        };
+      }),
     };
 
     setSaving(true);
