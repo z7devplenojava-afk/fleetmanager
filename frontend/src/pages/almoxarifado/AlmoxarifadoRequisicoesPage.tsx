@@ -23,7 +23,8 @@ import {
   Truck,
   TrendingDown,
   ShieldAlert,
-  Loader2
+  Loader2,
+  Wrench
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -40,10 +41,13 @@ import { TripleQuoteComparisonModal } from '@/components/almoxarifado/TripleQuot
 import { PurchaseOrderModal } from '@/components/financeiro/PurchaseOrderModal';
 import { InvoiceEntryModal } from '@/components/almoxarifado/InvoiceEntryModal';
 import ModuloDespesasPanel from '@/components/financeiro/ModuloDespesasPanel';
+import fleetWorkOrderService, { FleetWorkOrder } from '@/services/fleetWorkOrderService';
+import { StockWorkOrdersTab } from '@/components/stock/StockWorkOrdersTab';
 
 export const AlmoxarifadoRequisicoesPage: React.FC = () => {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<'requisitions' | 'orders' | 'invoices' | 'despesas'>('requisitions');
+  const [activeTab, setActiveTab] = useState<'work-orders' | 'requisitions' | 'orders' | 'invoices' | 'despesas'>('work-orders');
+  const [workOrders, setWorkOrders] = useState<FleetWorkOrder[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
@@ -66,14 +70,16 @@ export const AlmoxarifadoRequisicoesPage: React.FC = () => {
   const loadAllData = async () => {
     try {
       setLoading(true);
-      const [reqs, pos, invs] = await Promise.all([
-        materialRequisitionService.listRequisitions(),
-        procurementService.listPurchaseOrders(),
-        procurementService.listInvoiceEntries()
+      const [reqs, pos, invs, wos] = await Promise.all([
+        materialRequisitionService.listRequisitions().catch(() => []),
+        procurementService.listPurchaseOrders().catch(() => []),
+        procurementService.listInvoiceEntries().catch(() => []),
+        fleetWorkOrderService.findAll().catch(() => [])
       ]);
-      setRequisitions(reqs);
-      setPurchaseOrders(pos);
-      setInvoiceEntries(invs);
+      setRequisitions(Array.isArray(reqs) ? reqs : []);
+      setPurchaseOrders(Array.isArray(pos) ? pos : []);
+      setInvoiceEntries(Array.isArray(invs) ? invs : []);
+      setWorkOrders(Array.isArray(wos) ? wos : []);
     } catch (error) {
       console.error('Erro ao carregar dados do almoxarifado/compras:', error);
       toast({
@@ -118,7 +124,22 @@ export const AlmoxarifadoRequisicoesPage: React.FC = () => {
     >
       <div className="space-y-6 pb-12">
         {/* CARDS DE METRICAS E KPIs */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <Card 
+            className="bg-zinc-900 border-zinc-800 text-zinc-100 cursor-pointer hover:border-blue-500/50 transition-colors"
+            onClick={() => setActiveTab('work-orders')}
+          >
+            <CardContent className="p-5 flex items-center justify-between">
+              <div>
+                <span className="text-xs font-medium text-zinc-400">Ordens de Serviço</span>
+                <p className="text-2xl font-bold text-blue-400 mt-1">{workOrders.length}</p>
+                <span className="text-[11px] text-zinc-500">OSs de manutenção da frota</span>
+              </div>
+              <div className="p-3 bg-blue-500/10 text-blue-400 rounded-xl">
+                <Wrench className="w-6 h-6" />
+              </div>
+            </CardContent>
+          </Card>
           <Card className="bg-zinc-900 border-zinc-800 text-zinc-100">
             <CardContent className="p-5 flex items-center justify-between">
               <div>
@@ -179,7 +200,14 @@ export const AlmoxarifadoRequisicoesPage: React.FC = () => {
           className="space-y-4"
         >
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-            <TabsList className="bg-zinc-900 border border-zinc-800 p-1">
+            <TabsList className="bg-zinc-900 border border-zinc-800 p-1 flex-wrap h-auto">
+              <TabsTrigger
+                value="work-orders"
+                className="data-[state=active]:bg-amber-600 data-[state=active]:text-white flex items-center gap-2 text-xs font-medium"
+              >
+                <Wrench className="w-4 h-4" />
+                Ordens de Serviço (OS) ({workOrders.length})
+              </TabsTrigger>
               <TabsTrigger
                 value="requisitions"
                 className="data-[state=active]:bg-amber-600 data-[state=active]:text-white flex items-center gap-2 text-xs font-medium"
@@ -235,6 +263,11 @@ export const AlmoxarifadoRequisicoesPage: React.FC = () => {
               </Button>
             </div>
           </div>
+
+          {/* ABA 0: ORDENS DE SERVIÇO (OS DA FROTA) */}
+          <TabsContent value="work-orders" className="space-y-4">
+            <StockWorkOrdersTab onGoToRequisitions={() => setActiveTab('requisitions')} />
+          </TabsContent>
 
           {/* ABA 1: REQUISIÇÕES DE PEÇAS */}
           <TabsContent value="requisitions" className="space-y-4">
@@ -428,6 +461,8 @@ export const AlmoxarifadoRequisicoesPage: React.FC = () => {
                     <thead className="bg-zinc-800/60 text-zinc-400 uppercase tracking-wider font-semibold border-b border-zinc-800">
                       <tr>
                         <th className="p-3.5">Número OC</th>
+                        <th className="p-3.5">Ordem de Serviço (OS)</th>
+                        <th className="p-3.5">Veículo / Placa</th>
                         <th className="p-3.5">Fornecedor</th>
                         <th className="p-3.5">Item Solicitado</th>
                         <th className="p-3.5">Valor Total</th>
@@ -440,14 +475,39 @@ export const AlmoxarifadoRequisicoesPage: React.FC = () => {
                     <tbody className="divide-y divide-zinc-800">
                       {purchaseOrders.length === 0 ? (
                         <tr>
-                          <td colSpan={8} className="p-8 text-center text-zinc-500">
-                            Nenhuma Ordem de Compra registrada.
+                          <td colSpan={10} className="p-10 text-center text-zinc-400">
+                            <div className="max-w-md mx-auto space-y-3">
+                              <div className="w-12 h-12 rounded-full bg-amber-500/10 text-amber-400 flex items-center justify-center mx-auto">
+                                <FileText className="w-6 h-6" />
+                              </div>
+                              <p className="font-semibold text-zinc-200 text-sm">Nenhuma Ordem de Compra registrada no momento.</p>
+                              <p className="text-xs text-zinc-400">
+                                As OCs são emitidas ao aprovar as 3 cotações de peças das Ordens de Serviço. Você pode acompanhar todas as OSs abertas e emitir cotações/compras diretamente na aba Ordens de Serviço (OS).
+                              </p>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="border-amber-500/40 text-amber-300 hover:bg-amber-500/10 text-xs mt-2"
+                                onClick={() => setActiveTab('work-orders')}
+                              >
+                                <Wrench className="w-3.5 h-3.5 mr-1.5 text-blue-400" />
+                                Ver Ordens de Serviço (OS) ({workOrders.length})
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       ) : (
                         purchaseOrders.map((po) => (
                           <tr key={po.id} className="hover:bg-zinc-800/40 transition-colors">
                             <td className="p-3.5 font-bold text-zinc-100">{po.ocNumber}</td>
+                            <td className="p-3.5">
+                              <span className="font-mono font-bold text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded text-[11px]">
+                                {po.workOrderNumber || (po.requisitionNumber ? `OS #${po.requisitionNumber.replace('REQ-', '')}` : 'OS Direta')}
+                              </span>
+                            </td>
+                            <td className="p-3.5">
+                              <span className="font-semibold text-zinc-200 font-mono">{po.vehiclePlate || 'Frota Operacional'}</span>
+                            </td>
                             <td className="p-3.5 font-semibold text-zinc-200">{po.supplierName}</td>
                             <td className="p-3.5 text-zinc-300">
                               {po.quantity}x {po.itemName}
