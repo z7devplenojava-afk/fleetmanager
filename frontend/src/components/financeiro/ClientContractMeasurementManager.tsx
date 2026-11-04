@@ -2190,6 +2190,7 @@ export const ClientContractMeasurementManager: React.FC = () => {
         initialContractNumber={currentClient.contractNumber}
         initialObraName={leasedVehicles[0]?.route || ''}
         initialVehiclePlate={leasedVehicles[0]?.plate || ''}
+        contractVehicles={currentLeasedVehicles}
         parteDiariaToEdit={selectedParteDiaria}
         isReadOnly={isModalReadOnly}
       />
@@ -2751,189 +2752,256 @@ export const ClientContractMeasurementManager: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* MODAL: Adicionar / Editar Veículo Locado */}
+      {/* MODAL: Adicionar / Editar Veículo Locado com Design Funcional */}
       <Dialog open={isVehicleModalOpen} onOpenChange={setIsVehicleModalOpen}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-amber-400">
-              <Bus className="w-5 h-5" /> {selectedVehicleItem ? 'Editar Veículo Locado' : 'Alocar Novo Veículo ao Contrato'}
-            </DialogTitle>
-            <DialogDescription className="text-zinc-400 text-xs">
-              Selecione o veículo da frota, serviço cadastrado, itinerário e condições financeiras para {currentClient.clientName}.
+        <DialogContent className="bg-zinc-950 border-zinc-800 text-white max-w-2xl max-h-[92vh] overflow-y-auto rounded-2xl p-6 shadow-2xl">
+          <DialogHeader className="border-b border-zinc-800/80 pb-4">
+            <div className="flex items-center justify-between">
+              <DialogTitle className="flex items-center gap-2.5 text-amber-400 text-lg font-bold">
+                <Bus className="w-5 h-5 text-amber-400" />
+                {selectedVehicleItem ? 'Editar Veículo Locado' : 'Alocar Novo Veículo ao Contrato'}
+              </DialogTitle>
+              <Badge className="bg-amber-500/10 text-amber-300 border border-amber-500/30 text-[11px] font-mono">
+                {currentClient.contractNumber}
+              </Badge>
+            </div>
+            <DialogDescription className="text-zinc-400 text-xs mt-1">
+              Vincule o veículo da frota, descrição do serviço e trajeto da operação para <span className="text-zinc-200 font-semibold">{currentClient.clientName}</span>.
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleSaveVehicle} className="space-y-4 py-2">
-            {/* 1. Placa do Veículo (Busca na Tabela de Veículos) */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="sm:col-span-2 space-y-1.5">
+          <form onSubmit={handleSaveVehicle} className="space-y-4 py-3">
+            {/* 1. SEÇÃO: Identificação do Veículo na Frota */}
+            <div className="bg-zinc-900/60 border border-zinc-800/90 rounded-xl p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs font-bold text-amber-400 uppercase tracking-wider">
+                  <Car className="w-4 h-4 text-blue-400" />
+                  Veículo da Frota Operacional
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsCustomPlate(!isCustomPlate)}
+                  className="text-[11px] text-amber-400 hover:text-amber-300 font-medium underline-offset-2 hover:underline"
+                >
+                  {isCustomPlate ? '← Selecionar da Tabela de Veículos' : 'Digitar Placa Livre'}
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-2 space-y-1.5">
+                  <Label className="text-xs text-zinc-300 font-semibold">
+                    Placa do Veículo *
+                  </Label>
+                  {isCustomPlate ? (
+                    <Input
+                      value={vehicleForm.plate}
+                      onChange={(e) => setVehicleForm({ ...vehicleForm, plate: e.target.value.toUpperCase() })}
+                      placeholder="Ex: QRE-1A23"
+                      className="bg-zinc-950 border-zinc-700 text-blue-400 font-mono font-bold text-sm h-10"
+                      required
+                    />
+                  ) : (
+                    <SearchableSelect
+                      value={vehicleForm.plate}
+                      fallbackLabel={vehicleForm.plate}
+                      onChange={(val, opt) => {
+                        setVehicleForm(prev => ({
+                          ...prev,
+                          plate: val,
+                          description: prev.description || (opt?.subtitle ? `TRANSPORTE EM ${opt.subtitle}` : prev.description)
+                        }));
+                      }}
+                      options={vehicleOptions}
+                      placeholder="Buscar placa ou modelo na frota..."
+                      searchPlaceholder="Digite a placa ou modelo (ex: QRE-1A23, Scania, Agrale)..."
+                      emptyText="Nenhum veículo encontrado na tabela de veículos."
+                      maxVisibleOptions={50}
+                    />
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-zinc-300 font-semibold">
+                    Dias Rodados *
+                  </Label>
+                  <Input
+                    type="number"
+                    value={vehicleForm.workingDays}
+                    onChange={(e) => setVehicleForm({ ...vehicleForm, workingDays: parseInt(e.target.value) || 30 })}
+                    className="bg-zinc-950 border-zinc-700 text-zinc-100 font-mono text-sm h-10"
+                    placeholder="30"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* 2. SEÇÃO: Serviço & Rota Operacional */}
+            <div className="bg-zinc-900/60 border border-zinc-800/90 rounded-xl p-4 space-y-3.5">
+              <div className="flex items-center gap-2 text-xs font-bold text-amber-400 uppercase tracking-wider">
+                <Layers className="w-4 h-4 text-amber-400" />
+                Serviço Contratado & Operação
+              </div>
+
+              {/* Serviço (com tabela de serviços + cadastrar novo na hora) */}
+              <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs text-zinc-300 flex items-center gap-1.5 font-bold">
-                    <Car className="w-3.5 h-3.5 text-blue-400" /> Placa do Veículo *:
+                  <Label className="text-xs text-zinc-300 font-semibold">
+                    Descrição do Serviço *
                   </Label>
                   <button
                     type="button"
-                    onClick={() => setIsCustomPlate(!isCustomPlate)}
-                    className="text-[11px] text-amber-400 hover:underline"
+                    onClick={() => {
+                      setNewServiceForm({ name: '', category: 'FRETAMENTO_CONTINUO', description: '' });
+                      setIsNewServiceModalOpen(true);
+                    }}
+                    className="text-[11px] text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-1 transition-colors"
                   >
-                    {isCustomPlate ? 'Buscar na Tabela de Veículos' : 'Digitar Placa Livre'}
+                    <Plus className="w-3 h-3" /> Cadastrar Novo Serviço
                   </button>
                 </div>
 
-                {isCustomPlate ? (
+                <SearchableSelect
+                  value={vehicleForm.description}
+                  fallbackLabel={vehicleForm.description}
+                  onChange={(val) => setVehicleForm(prev => ({ ...prev, description: val }))}
+                  options={serviceOptions}
+                  placeholder="Selecione na tabela de serviços cadastrados..."
+                  searchPlaceholder="Pesquisar serviço cadastrado..."
+                  emptyText="Nenhum serviço encontrado. Clique em Cadastrar Novo Serviço."
+                  maxVisibleOptions={30}
+                />
+
+                <Input
+                  value={vehicleForm.description}
+                  onChange={(e) => setVehicleForm({ ...vehicleForm, description: e.target.value })}
+                  placeholder="Texto do serviço que sairá no faturamento e na medição..."
+                  className="bg-zinc-950 border-zinc-800 text-zinc-200 text-xs mt-1"
+                  required
+                />
+              </div>
+
+              {/* Itinerário / Trajeto (com base de rotas + cadastrar nova rota na hora) */}
+              <div className="space-y-1.5 pt-1 border-t border-zinc-800/60">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs text-zinc-300 font-semibold flex items-center gap-1.5">
+                    <Navigation className="w-3.5 h-3.5 text-emerald-400" /> Itinerário / Trajeto (Base de Rotas)
+                  </Label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewRouteForm({ name: '', originAddress: '', destinationAddress: '', distanceKm: 0 });
+                      setIsNewRouteModalOpen(true);
+                    }}
+                    className="text-[11px] text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1 transition-colors"
+                  >
+                    <Plus className="w-3 h-3" /> Cadastrar Nova Rota
+                  </button>
+                </div>
+
+                <SearchableSelect
+                  value={vehicleForm.route}
+                  fallbackLabel={vehicleForm.route}
+                  onChange={(val) => setVehicleForm(prev => ({ ...prev, route: val }))}
+                  options={routeOptions}
+                  placeholder="Buscar na base de rotas cadastradas..."
+                  searchPlaceholder="Pesquisar por nome de rota ou itinerário..."
+                  emptyText="Nenhuma rota encontrada. Clique em Cadastrar Nova Rota."
+                  maxVisibleOptions={30}
+                />
+
+                <Input
+                  value={vehicleForm.route}
+                  onChange={(e) => setVehicleForm({ ...vehicleForm, route: e.target.value })}
+                  placeholder="Personalize o itinerário / trajeto do veículo..."
+                  className="bg-zinc-950 border-zinc-800 text-zinc-200 text-xs mt-1"
+                />
+              </div>
+            </div>
+
+            {/* 3. SEÇÃO: Informações Comerciais (Design Funcional estilo Estoque / Fiscal) */}
+            <div className="bg-zinc-900/60 border border-amber-500/30 rounded-xl p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs font-bold text-amber-400 uppercase tracking-wider">
+                  <DollarSign className="w-4 h-4 text-emerald-400" />
+                  Informações Comerciais
+                </div>
+                <Badge className="bg-emerald-500/10 border-emerald-500/30 text-emerald-400 text-[10px] font-mono">
+                  Precisão Decimal 15,9
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs text-zinc-300 font-bold">
+                    VALOR Mensal (R$) *
+                  </Label>
                   <Input
-                    value={vehicleForm.plate}
-                    onChange={(e) => setVehicleForm({ ...vehicleForm, plate: e.target.value.toUpperCase() })}
-                    placeholder="Ex: QRE-1A23"
-                    className="bg-zinc-950 border-zinc-700 text-blue-400 font-mono font-bold"
+                    type="number"
+                    step="any"
+                    value={vehicleForm.monthlyRate}
+                    onChange={(e) => setVehicleForm({ ...vehicleForm, monthlyRate: parseFloat(e.target.value) || 0 })}
+                    className="bg-zinc-950 border-zinc-700 text-emerald-400 font-mono font-bold text-base h-11"
+                    placeholder="0.00"
                     required
                   />
-                ) : (
-                  <SearchableSelect
-                    value={vehicleForm.plate}
-                    fallbackLabel={vehicleForm.plate}
-                    onChange={(val) => {
-                      setVehicleForm(prev => ({ ...prev, plate: val }));
-                    }}
-                    options={vehicleOptions}
-                    placeholder="Buscar na tabela de veículos da frota..."
-                    searchPlaceholder="Digite a placa ou modelo (ex: QRE-1A23, Scania)..."
-                    emptyText="Nenhum veículo encontrado na tabela de veículos."
-                    maxVisibleOptions={50}
-                  />
-                )}
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs text-zinc-300">Dias Rodados *:</Label>
-                <Input
-                  type="number"
-                  value={vehicleForm.workingDays}
-                  onChange={(e) => setVehicleForm({ ...vehicleForm, workingDays: parseInt(e.target.value) || 30 })}
-                  className="bg-zinc-950 border-zinc-700 text-zinc-100 font-mono"
-                  required
-                />
-              </div>
-            </div>
-
-            {/* 2. Descrição do Serviço (Busca na Tabela de Cadastro de Serviços) */}
-            <div className="space-y-1.5 bg-zinc-950/60 p-3 rounded-lg border border-zinc-800/80">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs text-zinc-300 flex items-center gap-1.5 font-bold">
-                  <Layers className="w-3.5 h-3.5 text-amber-400" /> Descrição do Serviço (Tabela de Serviços) *:
-                </Label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNewServiceForm({ name: '', category: 'FRETAMENTO_CONTINUO', description: '' });
-                    setIsNewServiceModalOpen(true);
-                  }}
-                  className="text-[11px] text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-1"
-                >
-                  <Plus className="w-3 h-3" /> Cadastrar Novo Serviço
-                </button>
-              </div>
-
-              <SearchableSelect
-                value={vehicleForm.description}
-                fallbackLabel={vehicleForm.description}
-                onChange={(val) => setVehicleForm(prev => ({ ...prev, description: val }))}
-                options={serviceOptions}
-                placeholder="Selecione na tabela de serviços cadastrados..."
-                searchPlaceholder="Buscar por serviço cadastrado..."
-                emptyText="Nenhum serviço encontrado. Clique em Cadastrar Novo Serviço."
-                maxVisibleOptions={30}
-              />
-
-              <Input
-                value={vehicleForm.description}
-                onChange={(e) => setVehicleForm({ ...vehicleForm, description: e.target.value })}
-                placeholder="Personalize o texto do serviço ou preencha livremente..."
-                className="bg-zinc-950 border-zinc-800 text-zinc-200 text-xs mt-1"
-                required
-              />
-            </div>
-
-            {/* 3. Itinerário / Trajeto (Busca na Base de Rotas) */}
-            <div className="space-y-1.5 bg-zinc-950/60 p-3 rounded-lg border border-zinc-800/80">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs text-zinc-300 flex items-center gap-1.5 font-bold">
-                  <Navigation className="w-3.5 h-3.5 text-emerald-400" /> Itinerário / Trajeto (Base de Rotas):
-                </Label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNewRouteForm({ name: '', originAddress: '', destinationAddress: '', distanceKm: 0 });
-                    setIsNewRouteModalOpen(true);
-                  }}
-                  className="text-[11px] text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1"
-                >
-                  <Plus className="w-3 h-3" /> Cadastrar Nova Rota
-                </button>
-              </div>
-
-              <SearchableSelect
-                value={vehicleForm.route}
-                fallbackLabel={vehicleForm.route}
-                onChange={(val) => setVehicleForm(prev => ({ ...prev, route: val }))}
-                options={routeOptions}
-                placeholder="Buscar na base de rotas cadastradas..."
-                searchPlaceholder="Pesquisar por nome de rota ou endereço..."
-                emptyText="Nenhuma rota encontrada. Clique em Cadastrar Nova Rota."
-                maxVisibleOptions={30}
-              />
-
-              <Input
-                value={vehicleForm.route}
-                onChange={(e) => setVehicleForm({ ...vehicleForm, route: e.target.value })}
-                placeholder="Personalize o itinerário / trajeto do veículo..."
-                className="bg-zinc-950 border-zinc-800 text-zinc-200 text-xs mt-1"
-              />
-            </div>
-
-            {/* 4. Valor Mensal Contratado (Decimal 15,9) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs text-zinc-300 font-bold">Valor Mensal Contratado (R$):</Label>
-                  <span className="text-[10px] text-emerald-400 font-mono">Decimal 15,9</span>
                 </div>
-                <Input
-                  type="number"
-                  step="any"
-                  value={vehicleForm.monthlyRate}
-                  onChange={(e) => setVehicleForm({ ...vehicleForm, monthlyRate: parseFloat(e.target.value) || 0 })}
-                  className="bg-zinc-950 border-zinc-700 text-emerald-400 font-mono font-bold"
-                  placeholder="0.00"
-                  required
-                />
+
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs text-zinc-400 font-semibold">Diária Estimada</Label>
+                    <span className="text-[10px] text-zinc-500">Mensal ÷ Dias</span>
+                  </div>
+                  <div className="h-11 rounded-md border border-zinc-800 bg-zinc-950 px-3 flex items-center justify-between">
+                    <span className="text-xs text-zinc-500 font-mono">R$</span>
+                    <span className="text-sm font-mono font-bold text-emerald-400 truncate">
+                      {((Number(vehicleForm.monthlyRate) || 0) / (Number(vehicleForm.workingDays) || 30)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs text-zinc-400 font-semibold">Valor Total (R$)</Label>
+                    <span className="text-[10px] text-zinc-500">Período</span>
+                  </div>
+                  <div className="h-11 rounded-md border border-zinc-800 bg-zinc-950 px-3 flex items-center justify-between">
+                    <span className="text-xs text-zinc-500 font-mono">R$</span>
+                    <span className="text-sm font-mono font-bold text-white truncate">
+                      {(Number(vehicleForm.monthlyRate) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
               </div>
 
-              <div className="space-y-1.5">
-                <Label className="text-xs text-zinc-300">Observações Operacionais:</Label>
+              {/* Observações Operacionais */}
+              <div className="space-y-1 pt-1">
+                <Label className="text-xs text-zinc-300 font-semibold">
+                  Observações Operacionais & Alocação de Condutor
+                </Label>
                 <Input
                   value={vehicleForm.observations}
                   onChange={(e) => setVehicleForm({ ...vehicleForm, observations: e.target.value })}
-                  placeholder="Ex: 01 MOTORISTA"
-                  className="bg-zinc-950 border-zinc-700 text-zinc-100 text-xs"
+                  placeholder="Ex: 01 MOTORISTA DEDICADO, ESCALA 6x1, HORÁRIO ADMINISTRATIVO"
+                  className="bg-zinc-950 border-zinc-800 text-zinc-200 text-xs h-9"
                 />
               </div>
             </div>
 
-            <DialogFooter className="gap-2 pt-2">
+            <DialogFooter className="gap-2 pt-3 border-t border-zinc-800/80">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setIsVehicleModalOpen(false)}
-                className="border-zinc-700 bg-zinc-950 text-zinc-300"
+                className="border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white"
               >
                 Cancelar
               </Button>
               <Button
                 type="submit"
-                className="bg-amber-600 hover:bg-amber-500 text-white font-bold"
+                className="bg-amber-600 hover:bg-amber-500 text-white font-bold px-6 shadow-lg shadow-amber-600/20"
               >
-                {selectedVehicleItem ? 'Salvar Alterações' : 'Alocar Veículo'}
+                {selectedVehicleItem ? 'Salvar Alterações' : 'Alocar Veículo ao Contrato'}
               </Button>
             </DialogFooter>
           </form>

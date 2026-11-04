@@ -99,9 +99,48 @@ public class NfseParserService {
      * Extrai os campos do PDF da NFS-e (exemplo: padrão MUNICÍPIO DE MOEDA/MG, ABRASF, etc).
      */
     public NfseParsedDataDTO parsePdf(InputStream pdfInputStream) {
-        try (PDDocument document = PDDocument.load(pdfInputStream)) {
+        if (pdfInputStream == null) {
+            log.warn("Stream do PDF da NFS-e é nulo.");
+            return NfseParsedDataDTO.builder()
+                    .issueDate(LocalDateTime.now())
+                    .grossAmount(BigDecimal.ZERO)
+                    .netAmount(BigDecimal.ZERO)
+                    .build();
+        }
+
+        byte[] bytes;
+        try {
+            bytes = pdfInputStream.readAllBytes();
+        } catch (Exception e) {
+            log.warn("Erro ao ler bytes do PDF da NFS-e: {}", e.getMessage());
+            return NfseParsedDataDTO.builder()
+                    .issueDate(LocalDateTime.now())
+                    .grossAmount(BigDecimal.ZERO)
+                    .netAmount(BigDecimal.ZERO)
+                    .build();
+        }
+
+        if (bytes == null || bytes.length == 0) {
+            log.warn("PDF da NFS-e vazio recebido (0 bytes).");
+            return NfseParsedDataDTO.builder()
+                    .issueDate(LocalDateTime.now())
+                    .grossAmount(BigDecimal.ZERO)
+                    .netAmount(BigDecimal.ZERO)
+                    .build();
+        }
+
+        try (PDDocument document = PDDocument.load(bytes)) {
             PDFTextStripper stripper = new PDFTextStripper();
             String pdfText = stripper.getText(document);
+
+            if (pdfText == null || pdfText.trim().isEmpty()) {
+                log.warn("PDF da NFS-e não possui texto pesquisável (possível imagem escaneada).");
+                return NfseParsedDataDTO.builder()
+                        .issueDate(LocalDateTime.now())
+                        .grossAmount(BigDecimal.ZERO)
+                        .netAmount(BigDecimal.ZERO)
+                        .build();
+            }
 
             log.info("Texto extraído do PDF da NFS-e (tamanho {}): {}", pdfText.length(), pdfText.substring(0, Math.min(300, pdfText.length())));
 
@@ -173,8 +212,12 @@ public class NfseParserService {
                     .build();
 
         } catch (Exception e) {
-            log.error("Erro ao ler PDF da NFS-e: {}", e.getMessage(), e);
-            throw new IllegalArgumentException("Não foi possível extrair dados do PDF da NFS-e. Verifique se o PDF contém texto pesquisável.", e);
+            log.warn("Aviso ao ler PDF da NFS-e (fallback seguro para preenchimento manual): {}", e.getMessage());
+            return NfseParsedDataDTO.builder()
+                    .issueDate(LocalDateTime.now())
+                    .grossAmount(BigDecimal.ZERO)
+                    .netAmount(BigDecimal.ZERO)
+                    .build();
         }
     }
 

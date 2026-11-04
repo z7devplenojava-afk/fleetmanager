@@ -125,6 +125,7 @@ interface ParteDiariaModalProps {
   initialDriverId?: string;
   parteDiariaToEdit?: ParteDiaria | null;
   isReadOnly?: boolean;
+  contractVehicles?: Array<{ plate: string; description?: string; route?: string; model?: string }>;
 }
 
 type ModalStep = 'veiculo' | 'atividades' | 'totais';
@@ -141,7 +142,8 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
   initialDriverName,
   initialDriverId,
   parteDiariaToEdit,
-  isReadOnly = false
+  isReadOnly = false,
+  contractVehicles = []
 }) => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -487,7 +489,7 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
 
   const handleVehicleChange = (vId: string) => {
     setSelectedVehicleId(vId);
-    const found = vehicles.find(v => v.id === vId);
+    const found = availableVehicles.find(v => v.id === vId || (v.placa || v.plate) === vId) || vehicles.find(v => v.id === vId);
     if (found) {
       setVehiclePlate(found.placa || found.plate || '');
       setVehicleType(detectVehicleType(found));
@@ -718,9 +720,37 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
   }, [clients, selectedClientId, clientName]);
 
   const availableVehicles = React.useMemo(() => {
-    const list = [...vehicles];
-    const seenPlates = new Set(list.map((v: any) => (v.placa || v.plate || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase()));
+    const list: any[] = [];
+    const seenPlates = new Set<string>();
 
+    // 1. Veículos do contrato vinculados diretamente (Prioridade Máxima)
+    if (contractVehicles && contractVehicles.length > 0) {
+      contractVehicles.forEach((cv, idx) => {
+        const cleanP = (cv.plate || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+        if (cleanP && !seenPlates.has(cleanP)) {
+          seenPlates.add(cleanP);
+          list.push({
+            id: `contract-veh-${idx}-${cleanP}`,
+            placa: cv.plate.toUpperCase(),
+            plate: cv.plate.toUpperCase(),
+            modelo: cv.description || cv.model || 'Veículo do Contrato',
+            model: cv.description || cv.model || 'Veículo do Contrato',
+            isContractVehicle: true
+          });
+        }
+      });
+    }
+
+    // 2. Veículos do backend / frota
+    vehicles.forEach((v: any) => {
+      const cleanP = (v.placa || v.plate || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+      if (cleanP && !seenPlates.has(cleanP)) {
+        seenPlates.add(cleanP);
+        list.push(v);
+      }
+    });
+
+    // 3. Frota operacional padrão (garante placas como QRE-1A23, RUR-7A78, SHZ-3A40)
     DEFAULT_FLEET_VEHICLES.forEach(defV => {
       const cleanP = (defV.plate || defV.placa || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
       if (!seenPlates.has(cleanP)) {
@@ -729,18 +759,19 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
       }
     });
 
+    // 4. Placa atualmente digitada
     const cleanPlate = (vehiclePlate || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-    if (vehiclePlate && !list.some(v => v.id === selectedVehicleId || (v.placa || v.plate || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase() === cleanPlate)) {
+    if (vehiclePlate && !seenPlates.has(cleanPlate)) {
       list.unshift({
         id: selectedVehicleId || 'custom-vehicle',
-        placa: vehiclePlate,
-        plate: vehiclePlate,
+        placa: vehiclePlate.toUpperCase(),
+        plate: vehiclePlate.toUpperCase(),
         modelo: vehicleType || 'Veículo',
         model: vehicleType || 'Veículo'
       } as any);
     }
     return list;
-  }, [vehicles, selectedVehicleId, vehiclePlate, vehicleType]);
+  }, [vehicles, selectedVehicleId, vehiclePlate, vehicleType, contractVehicles]);
 
   const vehicleOptions = React.useMemo<SearchableOption[]>(() => {
     return availableVehicles.map((v: any) => {
@@ -748,15 +779,16 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
       const cleanPlate = plate.replace(/[^A-Za-z0-9]/g, '');
       const model = v.modelo || v.model || v.brand || 'Veículo';
       const type = detectVehicleType(v);
+      const isContract = Boolean(v.isContractVehicle);
       const kmStr = v.currentMileage != null && Number(v.currentMileage) > 0 
         ? `${Number(v.currentMileage).toLocaleString('pt-BR')} km` 
         : '';
       return {
         value: v.id || plate,
         label: plate,
-        subtitle: `${model}${kmStr ? ` • ${kmStr}` : ''}`,
-        badge: type,
-        badgeColor: type === 'ÔNIBUS' ? 'emerald' : type === 'MICRO' ? 'amber' : 'blue',
+        subtitle: isContract ? `Veículo Alocado ao Contrato • ${model}` : `${model}${kmStr ? ` • ${kmStr}` : ''}`,
+        badge: isContract ? 'CONTRATO' : type,
+        badgeColor: isContract ? 'emerald' : type === 'ÔNIBUS' ? 'emerald' : type === 'MICRO' ? 'amber' : 'blue',
         keywords: [
           plate,
           cleanPlate,
@@ -766,6 +798,7 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
           v.prefixo,
           v.prefix,
           type,
+          isContract ? 'CONTRATO' : '',
           cleanPlate.substring(0, 3),
           cleanPlate.substring(3)
         ].filter(Boolean)
