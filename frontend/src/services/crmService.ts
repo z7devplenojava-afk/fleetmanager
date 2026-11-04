@@ -1,104 +1,65 @@
 import api from '@/lib/axios';
+import { Opportunity, Lead } from '@/types/crm';
 
-// Oportunidades
-export async function fetchOpportunities() {
-  const { data } = await api.get('/opportunities');
+// Oportunidades do Kanban
+export async function fetchOpportunities(): Promise<Opportunity[]> {
+  const { data } = await api.get('/api/opportunities');
   return data;
 }
 
-export async function createOpportunity(opportunity) {
-  const { data } = await api.post('/opportunities', opportunity);
+export async function createOpportunity(opportunity: Partial<Opportunity>): Promise<Opportunity> {
+  const { data } = await api.post('/api/opportunities', opportunity);
   return data;
 }
 
-export async function updateOpportunity(id, opportunity) {
-  const { data } = await api.put(`/opportunities/${id}`, opportunity);
+export async function updateOpportunity(id: string, updates: Partial<Opportunity>): Promise<Opportunity> {
+  const { data } = await api.put(`/api/opportunities/${id}`, updates);
   return data;
 }
 
-export async function deleteOpportunity(id) {
-  await api.delete(`/opportunities/${id}`);
-}
-
-// Status do Kanban
-export async function fetchKanbanStatuses() {
-  const { data } = await api.get('/kanban-status');
+export async function updateOpportunityStage(id: string, stage: string, order?: number): Promise<Opportunity> {
+  const { data } = await api.patch(`/api/opportunities/${id}/stage`, { stage, order });
   return data;
 }
 
-export async function createKanbanStatus(status) {
-  const { data } = await api.post('/kanban-status', status);
+export async function deleteOpportunity(id: string): Promise<void> {
+  await api.delete(`/api/opportunities/${id}`);
+}
+
+// Leads (se necessário para seleção)
+export async function fetchLeads(): Promise<Lead[]> {
+  const { data } = await api.get('/api/leads');
   return data;
 }
 
-export async function updateKanbanStatus(id, status) {
-  const { data } = await api.put(`/kanban-status/${id}`, status);
-  return data;
-}
-
-export async function deleteKanbanStatus(id) {
-  await api.delete(`/kanban-status/${id}`);
-}
-
-// Tarefas
-export async function fetchTasks() {
-  const { data } = await api.get('/tasks');
-  return data;
-}
-
-export async function createTask(task) {
-  const { data } = await api.post('/tasks', task);
-  return data;
-}
-
-export async function updateTask(id, task) {
-  const { data } = await api.put(`/api/tasks/${id}`, task);
-  return data;
-}
-
-export async function deleteTask(id) {
-  await api.delete(`/api/tasks/${id}`);
-}
-
-// Histórico de Interações
-export async function fetchInteractionHistory() {
-  const { data } = await api.get('/interaction-history');
-  return data;
-}
-
-export async function createInteractionHistory(history) {
-  const { data } = await api.post('/interaction-history', history);
-  return data;
-}
-
-export async function updateInteractionHistory(id, history) {
-  const { data } = await api.put(`/api/interaction-history/${id}`, history);
-  return data;
-}
-
-export async function deleteInteractionHistory(id) {
-  await api.delete(`/api/interaction-history/${id}`);
-}
-
-// Busca e Filtros
-export async function searchOpportunities(query) {
-  const { data } = await api.get(`/api/opportunities/search?q=${encodeURIComponent(query)}`);
-  return data;
-}
-
-export async function filterOpportunities(filters) {
-  const { data } = await api.get('/opportunities/filter', { params: filters });
-  return data;
-}
-
-// Resumo Kanban para o dashboard do CRM
+// Resumo do Kanban (contadores por status de lead)
 export async function fetchKanbanSummary() {
-  const { data } = await api.get('/crm/dashboard/kanban-summary');
-  return data;
+  try {
+    const { data } = await api.get('/api/crm/dashboard/kanban-summary');
+    return data;
+  } catch (err) {
+    console.warn('[crmService] Falha ao buscar kanban summary, fallback vazio:', err);
+    return { summary: {} };
+  }
 }
 
 // Métricas e gráficos do dashboard CRM
 export async function fetchCrmMetrics() {
-  const { data } = await api.get('/api/crm/dashboard/metrics');
-  return data;
-} 
+  try {
+    const { data } = await api.get('/api/crm/dashboard/metrics');
+    return data;
+  } catch (err) {
+    console.warn('[crmService] Falha ao buscar métricas do CRM, utilizando fallback:', err);
+    return {
+      totalLeads: 0,
+      activeOpportunities: 0,
+      totalProposals: 0,
+      totalQuotes: 0,
+      conversionRate: 0,
+      estimatedRevenue: 0,
+      totalValue: 0,
+      monthlyCount: {},
+      statusHistory: {}
+    };
+  }
+}
