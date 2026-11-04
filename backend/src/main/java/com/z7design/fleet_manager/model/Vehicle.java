@@ -111,7 +111,7 @@ public class Vehicle implements TenantAware {
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate operationEntryDate;
 
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = com.z7design.fleet_manager.converter.VehicleTypeConverter.class)
     @Column(name = "vehicle_type")
     private VehicleType vehicleType;
 
@@ -495,6 +495,9 @@ public class Vehicle implements TenantAware {
         BUS_INTERCITY("Ônibus Intermunicipal / Fretamento"),
         BUS_LUXURY_TOURISM("Ônibus Luxo Turismo / Double Decker"),
         MINIBUS("Micro-ônibus"),
+        MICROBUS("Micro-ônibus"),
+        MICRO_ONIBUS("Micro-ônibus"),
+        BUS("Ônibus"),
         VAN("Van"),
         BUS_URBAN("Ônibus Urbano"),
         CAR_UTILITY("Carro Utilitário"),
@@ -508,6 +511,31 @@ public class Vehicle implements TenantAware {
         private final String displayName;
         VehicleType(String displayName) { this.displayName = displayName; }
         public String getDisplayName() { return displayName; }
+
+        @com.fasterxml.jackson.annotation.JsonCreator
+        public static VehicleType fromString(String value) {
+            if (value == null || value.trim().isEmpty()) {
+                return null;
+            }
+            String norm = value.trim().toUpperCase().replace("-", "_").replace(" ", "_");
+            try {
+                return VehicleType.valueOf(norm);
+            } catch (IllegalArgumentException e) {
+                if (norm.contains("MICRO")) return MINIBUS;
+                if (norm.contains("VAN")) return VAN;
+                if (norm.contains("RODOV")) return BUS_ROAD;
+                if (norm.contains("URBAN")) return BUS_URBAN;
+                if (norm.contains("TURISMO") || norm.contains("DOUBLE")) return BUS_LUXURY_TOURISM;
+                if (norm.contains("BUS") || norm.contains("ONIBUS")) return BUS_ROAD;
+                if (norm.contains("CAMINHAO") || norm.contains("TRUCK") || norm.contains("CAVALO")) return TRUCK;
+                if (norm.contains("UTIL")) return CAR_UTILITY;
+                if (norm.contains("PICKUP") || norm.contains("PICAPE")) return PICKUP;
+                if (norm.contains("SUV")) return SUV;
+                if (norm.contains("MOTO")) return MOTORCYCLE;
+                if (norm.contains("CAR")) return CAR;
+                return OTHER;
+            }
+        }
     }
 
     public enum BusType {
