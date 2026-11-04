@@ -49,6 +49,11 @@ public class StockNfeParsedDTO {
     private String customerPhone;
 
     // Validação de Duplicidade
+    // Tipo da Nota: NFE (Produtos) ou NFSE (Serviços)
+    @Builder.Default
+    private boolean isNfse = false;
+    private String suggestedServiceOrder;
+
     private boolean alreadyImported;
     private String duplicateWarning;
 
@@ -82,6 +87,7 @@ public class StockNfeParsedDTO {
         private StockCategory suggestedCategory;
         private boolean isBattery;
         private boolean isTire;
+        private boolean isService;
     }
 
     @Data

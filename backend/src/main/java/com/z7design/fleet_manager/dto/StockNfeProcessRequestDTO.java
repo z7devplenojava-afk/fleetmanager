@@ -36,6 +36,13 @@ public class StockNfeProcessRequestDTO {
     private String supplierEmail;
     private UUID supplierId;
 
+    // Metadados de Boleto Bancário e NFS-e / Ordem de Serviço
+    private String boletoAttachmentUrl;
+    private String originalBoletoFileName;
+    private boolean isNfse;
+    private String workOrderId;
+    private String workOrderNumber;
+
     // Configurações de processamento
     @Builder.Default
     private boolean createFinancialAccounts = true;

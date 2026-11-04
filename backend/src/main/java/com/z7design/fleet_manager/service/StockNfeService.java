@@ -203,9 +203,17 @@ public class StockNfeService {
             boolean alreadyImported = duplicateCheck.alreadyImported;
             String duplicateWarning = duplicateCheck.warning;
 
+            // Detectar se é NFS-e (Nota de Serviços)
+            boolean isNfseDetected = doc.getElementsByTagName("CompNfse").getLength() > 0 ||
+                                     doc.getElementsByTagName("InfNfse").getLength() > 0 ||
+                                     doc.getElementsByTagName("tcDeclaracaoPrestacaoServico").getLength() > 0 ||
+                                     doc.getElementsByTagName("Servico").getLength() > 0 ||
+                                     doc.getElementsByTagName("prestadorServico").getLength() > 0;
+
             StockNfeParsedDTO dto = StockNfeParsedDTO.builder()
                     .accessKey(accessKey)
                     .invoiceNumber(nNf)
+                    .isNfse(isNfseDetected)
                     .series(serie)
                     .issueDate(issueDate)
                     .totalProductsAmount(vProd)
@@ -522,9 +530,25 @@ public class StockNfeService {
             UUID existingSupplierId = findExistingSupplierId(supplierInfo.cnpj, companyId);
             DuplicateCheck duplicateCheck = checkAlreadyImported(nNf, accessKey, supplierInfo.cnpj, supplierInfo.name, companyId);
 
+            String upperPdfText = flat.toUpperCase();
+            boolean isNfsePdf = upperPdfText.contains("NOTA FISCAL DE SERVIÇOS") || 
+                                upperPdfText.contains("NFS-E") || 
+                                upperPdfText.contains("PRESTADOR DE SERVIÇOS") ||
+                                upperPdfText.contains("14.04.01") ||
+                                upperPdfText.contains("RECAPAGEM DE PNEUS") ||
+                                upperPdfText.contains("PARAUAPEBAS");
+
+            String suggestedOsFromPdf = null;
+            java.util.regex.Matcher osMatcher = java.util.regex.Pattern.compile("(?:OS|ORDEM\\s+DE\\s+SERVI[ÇC]O)[-\\s]?(\\d+)", java.util.regex.Pattern.CASE_INSENSITIVE).matcher(flat);
+            if (osMatcher.find()) {
+                suggestedOsFromPdf = osMatcher.group(0);
+            }
+
             return StockNfeParsedDTO.builder()
                     .accessKey(accessKey)
                     .invoiceNumber(nNf)
+                    .isNfse(isNfsePdf)
+                    .suggestedServiceOrder(suggestedOsFromPdf)
                     .series(serie)
                     .issueDate(issueDate)
                     .totalProductsAmount(vProd)
@@ -1841,7 +1865,9 @@ public class StockNfeService {
                 movementsByDoc = stockMovementRepository.findByDocumentNumber("NF-" + cleanNf);
             }
             for (StockMovement sm : movementsByDoc) {
-                if (cleanSuppName.isEmpty() || sm.getSupplier() == null || isSupplierMatching(sm.getSupplier(), cleanCnpj, cleanSuppName)) {
+                String smDocClean = sm.getDocumentNumber() != null ? sm.getDocumentNumber().replaceAll("\\D", "").replaceFirst("^0+(?!$)", "") : "";
+                boolean exactDocMatch = smDocClean.equals(cleanNf) || (sm.getDocumentNumber() != null && sm.getDocumentNumber().trim().equalsIgnoreCase(nNf.trim()));
+                if (exactDocMatch && (cleanSuppName.isEmpty() || sm.getSupplier() == null || isSupplierMatching(sm.getSupplier(), cleanCnpj, cleanSuppName))) {
                     foundInStock = true;
                     if (matchDetail.isEmpty()) {
                         matchDetail = String.format("Movimentação de Entrada doc nº %s", sm.getDocumentNumber());
@@ -1854,7 +1880,15 @@ public class StockNfeService {
             List<Invoice> existingInvoices = invoiceRepository.findByInvoiceNumberContaining(cleanNf);
             for (Invoice inv : existingInvoices) {
                 String invNumClean = (inv.getInvoiceNumber() != null) ? inv.getInvoiceNumber().replaceAll("\\D", "").replaceFirst("^0+(?!$)", "") : "";
-                if (invNumClean.contains(cleanNf)) {
+                boolean exactMatch = invNumClean.equals(cleanNf) || 
+                                     invNumClean.startsWith(cleanNf + "-") || 
+                                     invNumClean.startsWith(cleanNf + "/") ||
+                                     (inv.getInvoiceNumber() != null && (
+                                         inv.getInvoiceNumber().trim().equalsIgnoreCase(nNf.trim()) ||
+                                         inv.getInvoiceNumber().trim().equalsIgnoreCase("NF-" + nNf.trim()) ||
+                                         inv.getInvoiceNumber().trim().equalsIgnoreCase("NFS-" + nNf.trim())
+                                     ));
+                if (exactMatch) {
                     String invSupplier = (inv.getSupplier() != null && inv.getSupplier().getName() != null) 
                             ? inv.getSupplier().getName() 
                             : (inv.getSupplierName() != null ? inv.getSupplierName() : "");
@@ -1880,7 +1914,9 @@ public class StockNfeService {
             }
             if (!itemsByInvoice.isEmpty()) {
                 for (StockItem si : itemsByInvoice) {
-                    if (cleanSuppName.isEmpty() || si.getSupplier() == null || isSupplierMatching(si.getSupplier(), cleanCnpj, cleanSuppName)) {
+                    String siDocClean = si.getInvoiceNumber() != null ? si.getInvoiceNumber().replaceAll("\\D", "").replaceFirst("^0+(?!$)", "") : "";
+                    boolean exactItemMatch = siDocClean.equals(cleanNf) || (si.getInvoiceNumber() != null && si.getInvoiceNumber().trim().equalsIgnoreCase(nNf.trim()));
+                    if (exactItemMatch && (cleanSuppName.isEmpty() || si.getSupplier() == null || isSupplierMatching(si.getSupplier(), cleanCnpj, cleanSuppName))) {
                         foundInStock = true;
                         if (matchDetail.isEmpty()) {
                             matchDetail = String.format("Item de Estoque '%s' (NF %s)", si.getName(), si.getInvoiceNumber());
@@ -2211,11 +2247,30 @@ public class StockNfeService {
                 inv.setSupplierCode(supplier != null ? supplier.getId().toString() : "");
                 inv.setBarcode(instReq.getBarcode());
                 inv.setLinhaDigitavel(instReq.getLinhaDigitavel());
-                inv.setBoletoUrl(instReq.getBoletoUrl());
-                inv.setBoletoOriginalName(instReq.getOriginalBoletoName());
+                String boletoToUse = (instReq.getBoletoUrl() != null && !instReq.getBoletoUrl().isBlank()) 
+                        ? instReq.getBoletoUrl() 
+                        : request.getBoletoAttachmentUrl();
+                String boletoNameToUse = (instReq.getOriginalBoletoName() != null && !instReq.getOriginalBoletoName().isBlank())
+                        ? instReq.getOriginalBoletoName()
+                        : request.getOriginalBoletoFileName();
+                inv.setBoletoUrl(boletoToUse);
+                inv.setBoletoOriginalName(boletoNameToUse);
                 inv.setDivergenceAlert(instReq.getDivergenceAlert());
                 inv.setInstallmentSeq(instReq.getInstallmentNumber());
-                inv.setCategory("ALMOXARIFADO / PEÇAS");
+                if (request.isNfse()) {
+                    inv.setCategory("2.01 - SERVIÇOS DE TERCEIROS / MANUTENÇÃO DE FROTAS");
+                    inv.setCentroCusto("MANUTENÇÃO E FROTAS");
+                    if (request.getWorkOrderNumber() != null && !request.getWorkOrderNumber().isBlank()) {
+                        inv.setWorkOrderNumber(request.getWorkOrderNumber());
+                    }
+                    if (request.getWorkOrderId() != null && !request.getWorkOrderId().isBlank()) {
+                        try {
+                        inv.setWorkOrderId(UUID.fromString(request.getWorkOrderId().trim()));
+                    } catch (Exception ignored) {}
+                    }
+                } else {
+                    inv.setCategory("ALMOXARIFADO / PEÇAS");
+                }
                 inv.setNotes(String.format("Importado NF-e nº %s | Fornecedor: %s | Chave: %s%s", 
                         request.getInvoiceNumber(), 
                         request.getSupplierName(), 

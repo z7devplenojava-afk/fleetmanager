@@ -22,6 +22,8 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { stockService } from '@/services/stockService';
+import contasAPagarService from '@/services/contasAPagarService';
+import fleetWorkOrderService, { FleetWorkOrder } from '@/services/fleetWorkOrderService';
 import {
   stockNfeService,
   StockNfeParsedDTO,
@@ -47,7 +49,10 @@ import {
   Link2,
   Loader2,
   Hash,
-  UserCheck
+  UserCheck,
+  Paperclip,
+  Wrench,
+  FileCheck
 } from 'lucide-react';
 
 interface StockNfeImportModalProps {
@@ -102,11 +107,21 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
   // Form states
   const [itemsRows, setItemsRows] = useState<EditableItemRow[]>([]);
   const [createFinancialAccounts, setCreateFinancialAccounts] = useState(true);
+  const [workOrders, setWorkOrders] = useState<FleetWorkOrder[]>([]);
+  const [selectedWorkOrderId, setSelectedWorkOrderId] = useState<string>('');
+  const [selectedWorkOrderNumber, setSelectedWorkOrderNumber] = useState<string>('');
+  const [isNfse, setIsNfse] = useState<boolean>(false);
+  const [boletoFile, setBoletoFile] = useState<File | null>(null);
+  const [uploadingBoleto, setUploadingBoleto] = useState(false);
+  const [boletoAttachmentUrl, setBoletoAttachmentUrl] = useState<string>('');
+  const [originalBoletoFileName, setOriginalBoletoFileName] = useState<string>('');
+  const [boletoLinhaDigitavel, setBoletoLinhaDigitavel] = useState<string>('');
 
   // Carregar itens existentes do estoque para o dropdown de "Vincular a existente"
   useEffect(() => {
     if (open) {
       loadStockItems();
+      loadWorkOrders();
       setCreateFinancialAccounts(!itemsOnly);
       setForceImport(false);
       if (initialData) {
@@ -149,7 +164,7 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
           matchedStockItemId: it.matchedStockItemId || undefined,
           productCode: it.productCode || '',
           name: it.description || '',
-          category: (it.suggestedCategory as StockCategory) || StockCategory.PECAS_MECANICA,
+          category: it.isBattery ? StockCategory.PECAS_ELETRICA : ((it.suggestedCategory as StockCategory) || StockCategory.PECAS_MECANICA),
           quantity: it.quantity || 1,
           unitCost: it.unitPrice || 0,
           totalPrice: it.totalPrice || 0,
@@ -163,6 +178,53 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
         };
       });
     setItemsRows(rows);
+
+    const hasServiceItem = (data.items || []).some(it => it.isService || (it.ncm && it.ncm.includes('14.04')));
+    const isSupplierRecanorte = (data.supplierName || '').toUpperCase().includes('RECANORTE');
+    const nfseFlag = !!data.isNfse || hasServiceItem || isSupplierRecanorte;
+    setIsNfse(nfseFlag);
+
+    if (data.suggestedServiceOrder) {
+      setSelectedWorkOrderNumber(data.suggestedServiceOrder);
+    }
+  };
+
+  const loadWorkOrders = async () => {
+    try {
+      const orders = await fleetWorkOrderService.findAll();
+      setWorkOrders(Array.isArray(orders) ? orders : []);
+    } catch (e) {
+      console.error('Erro ao carregar Ordens de Serviço:', e);
+    }
+  };
+
+  const handleBoletoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploadingBoleto(true);
+      const res = await contasAPagarService.parseBoleto(file);
+      setBoletoFile(file);
+      setBoletoAttachmentUrl(res.fileUrl || '');
+      setOriginalBoletoFileName(res.originalFileName || file.name);
+      if (res.linhaDigitavel) {
+        setBoletoLinhaDigitavel(res.linhaDigitavel);
+      }
+      toast({
+        title: 'Boleto anexado com sucesso!',
+        description: `Arquivo "${file.name}" pronto para ser disponibilizado no Contas a Pagar.`
+      });
+    } catch (err: any) {
+      console.error('Erro no upload de boleto:', err);
+      toast({
+        title: 'Falha no upload do boleto',
+        description: err.message || 'Não foi possível carregar o boleto.',
+        variant: 'destructive'
+      });
+    } finally {
+      setUploadingBoleto(false);
+    }
   };
 
   const loadStockItems = async () => {
@@ -270,10 +332,10 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
   const handleSubmit = async () => {
     if (!parsedData) return;
 
-    if (parsedData.alreadyImported) {
+    if (parsedData.alreadyImported && !forceImport) {
       toast({
         title: 'Operação Bloqueada',
-        description: parsedData.duplicateWarning || 'Esta nota fiscal já foi importada anteriormente no sistema. A importação está bloqueada para não alterar a quantidade dos itens no estoque.',
+        description: parsedData.duplicateWarning || 'Esta nota fiscal já foi importada anteriormente. Marque a opção de forçar reimportação se desejar reprocessar.',
         variant: 'destructive'
       });
       return;
@@ -340,6 +402,11 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
       supplierId: parsedData.existingSupplierId,
       createFinancialAccounts,
       forceImport,
+      boletoAttachmentUrl: boletoAttachmentUrl || undefined,
+      originalBoletoFileName: originalBoletoFileName || undefined,
+      isNfse,
+      workOrderId: selectedWorkOrderId || undefined,
+      workOrderNumber: selectedWorkOrderNumber || undefined,
       items: itemsToProcess,
       installments: installmentsPayload
     };
@@ -460,8 +527,85 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
                       {parsedData.duplicateWarning || 'Esta nota fiscal já possui lançamentos anteriores no sistema (Estoque ou Financeiro).'}
                     </p>
                     <p className="text-xs text-amber-300 font-semibold mt-1">
-                      ⚠️ A reimportação está bloqueada para proteger o saldo de estoque e evitar que as quantidades dos itens sejam alteradas em duplicidade.
+                      ⚠️ A reimportação está protegida para evitar alteração em duplicidade de quantidades no estoque.
                     </p>
+                    <div className="flex items-center gap-2 mt-2 pt-2 border-t border-red-500/40">
+                      <input
+                        type="checkbox"
+                        id="modal-force-import-toggle"
+                        checked={forceImport}
+                        onChange={(e) => setForceImport(e.target.checked)}
+                        className="rounded border-red-400 text-red-600 focus:ring-red-500 w-4 h-4 cursor-pointer"
+                      />
+                      <label htmlFor="modal-force-import-toggle" className="text-xs font-bold text-white cursor-pointer select-none">
+                        Desejo forçar a importação desta nota (atualizar financeiro e reprocessar lançamento)
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Card de NFS-e / Serviços Prestados com vínculo da OS */}
+            {isNfse && (
+              <div className="p-4 bg-blue-950/50 border border-blue-500/60 rounded-xl space-y-3 text-blue-100 shadow-lg">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-blue-500/30 pb-2.5">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded-lg bg-blue-500/20 text-blue-400 shrink-0">
+                      <Wrench className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <strong className="text-sm font-bold text-white">Nota Fiscal de Serviços Prestados (NFS-e)</strong>
+                        <Badge className="bg-blue-500/30 text-blue-200 border border-blue-500/50 text-[10px]">
+                          Gestão de Serviços
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-blue-200/80 mt-0.5">
+                        Prestação de serviço identificada (ex: Recapagem / Manutenção). Será lançado no Contas a Pagar como Serviço de Terceiros e vinculado à OS.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <label className="text-[11px] font-semibold text-blue-200 block mb-1">
+                      Vincular à Ordem de Serviço (OS):
+                    </label>
+                    <Select
+                      value={selectedWorkOrderId || ''}
+                      onValueChange={(val) => {
+                        setSelectedWorkOrderId(val);
+                        const found = workOrders.find(wo => wo.id === val);
+                        if (found) {
+                          setSelectedWorkOrderNumber(found.osNumber || `OS #${found.id.slice(0, 8)}`);
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="h-9 text-xs bg-gray-900 border-blue-500/40 text-white">
+                        <SelectValue placeholder="Selecione a OS correspondente..." />
+                      </SelectTrigger>
+                      <SelectContent className="bg-seguranca-graphite border-gray-700 text-white max-h-56">
+                        {workOrders.map((wo) => (
+                          <SelectItem key={wo.id} value={wo.id} className="text-xs">
+                            {wo.osNumber || `OS #${wo.id.slice(0, 8)}`} {wo.vehiclePlate ? `• ${wo.vehiclePlate}` : ''} ({wo.maintenanceType || 'Manutenção'})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-semibold text-blue-200 block mb-1">
+                      Nº da OS (Manual ou Identificado na NF):
+                    </label>
+                    <Input
+                      value={selectedWorkOrderNumber}
+                      onChange={(e) => setSelectedWorkOrderNumber(e.target.value)}
+                      placeholder="Ex: OS-2026-000104..."
+                      className="h-9 text-xs font-mono uppercase bg-gray-900 border-blue-500/40 text-white placeholder:text-gray-500"
+                    />
                   </div>
                 </div>
               </div>
@@ -885,6 +1029,77 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
                       Esta nota fiscal não possui grupo de duplicatas/parcelamento declarado no XML. O valor total de R$ {parsedData.totalInvoiceAmount.toFixed(2)} será lançado à vista no vencimento padrão.
                     </p>
                   )}
+
+                  {/* Anexo de Boleto Bancário para Contas a Pagar */}
+                  <div className="mt-4 pt-3.5 border-t border-gray-700/80 space-y-2.5">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                      <div>
+                        <span className="text-xs font-semibold text-gray-200 flex items-center gap-1.5">
+                          <Paperclip className="h-3.5 w-3.5 text-seguranca-yellow" />
+                          Boleto Bancário da Cobrança (PDF ou Imagem)
+                        </span>
+                        <span className="text-[11px] text-gray-400 block mt-0.5">
+                          Faça upload do boleto para disponibilizá-lo para conferência e liquidação no Contas a Pagar.
+                        </span>
+                      </div>
+
+                      <div>
+                        <input
+                          type="file"
+                          id="nfe-boleto-file-input"
+                          accept=".pdf,image/*"
+                          className="hidden"
+                          onChange={handleBoletoUpload}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={uploadingBoleto}
+                          onClick={() => document.getElementById('nfe-boleto-file-input')?.click()}
+                          className="h-8 text-xs border-seguranca-yellow/40 text-seguranca-yellow hover:bg-seguranca-yellow/10"
+                        >
+                          {uploadingBoleto ? (
+                            <>
+                              <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                              Processando Boleto...
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="h-3.5 w-3.5 mr-1.5" />
+                              {originalBoletoFileName ? 'Trocar Boleto' : 'Anexar Boleto'}
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {originalBoletoFileName && (
+                      <div className="p-2.5 bg-gray-900/90 border border-green-500/40 rounded-lg flex items-center justify-between gap-2 text-xs">
+                        <div className="flex items-center gap-2 truncate">
+                          <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />
+                          <span className="text-gray-200 font-medium truncate">{originalBoletoFileName}</span>
+                          {boletoLinhaDigitavel && (
+                            <span className="text-[10px] font-mono text-gray-400 bg-gray-800 px-1.5 py-0.5 rounded truncate max-w-xs">
+                              {boletoLinhaDigitavel}
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setBoletoFile(null);
+                            setBoletoAttachmentUrl('');
+                            setOriginalBoletoFileName('');
+                            setBoletoLinhaDigitavel('');
+                          }}
+                          className="text-xs text-red-400 hover:text-red-300 font-medium shrink-0 ml-2"
+                        >
+                          Remover
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </Card>
@@ -914,7 +1129,7 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
             {parsedData && (
               <Button
                 onClick={handleSubmit}
-                disabled={processing || selectedCount === 0 || parsedData.alreadyImported}
+                disabled={processing || selectedCount === 0 || (parsedData.alreadyImported && !forceImport)}
                 className="bg-seguranca-red hover:bg-seguranca-red/90 text-white font-semibold flex items-center gap-2"
               >
                 {processing ? (

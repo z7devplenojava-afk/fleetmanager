@@ -18,6 +18,7 @@ export interface StockNfeItemDTO {
   suggestedCategory?: string;
   isBattery?: boolean;
   isTire?: boolean;
+  isService?: boolean;
 }
 
 export interface StockNfeInstallmentDTO {
@@ -62,6 +63,8 @@ export interface StockNfeParsedDTO {
 
   alreadyImported: boolean;
   duplicateWarning?: string;
+  isNfse?: boolean;
+  suggestedServiceOrder?: string;
   items: StockNfeItemDTO[];
   installments: StockNfeInstallmentDTO[];
 }
@@ -116,6 +119,11 @@ export interface StockNfeProcessRequestDTO {
   supplierId?: string;
   createFinancialAccounts: boolean;
   forceImport?: boolean;
+  boletoAttachmentUrl?: string;
+  originalBoletoFileName?: string;
+  isNfse?: boolean;
+  workOrderId?: string;
+  workOrderNumber?: string;
   items: ProcessItemPayload[];
   installments: ProcessInstallmentPayload[];
 }

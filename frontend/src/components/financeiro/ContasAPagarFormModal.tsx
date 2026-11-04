@@ -672,6 +672,16 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
       setPaymentConfirmDate((typeof initialData.dataPagamento === 'string' ? parseDateFromBackend(initialData.dataPagamento) : initialData.dataPagamento) || new Date());
       setSupplierSearchQuery('');
       setAccountSearchQuery('');
+
+      const rawPlate = (initialData as any).placasVeiculos || (initialData as any).veiculo || (initialData as any).vehiclePlate || '';
+      if (rawPlate) {
+        setPlacasVeiculos(String(rawPlate).toUpperCase().trim());
+      } else if (initialData.observacoes) {
+        const plateMatch = initialData.observacoes.match(/Placa(?:\(s\))?:\s*([A-Za-z0-9\-]+)/i);
+        if (plateMatch && plateMatch[1] && plateMatch[1] !== 'N/I') {
+          setPlacasVeiculos(plateMatch[1].toUpperCase().trim());
+        }
+      }
     } else {
       // Resetar formulário para nova conta com a empresa do usuário já definida
       const defaultCompany = displayEmpresas.length > 0 ? displayEmpresas[0] : null;
@@ -772,17 +782,19 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
 
   // Se a despesa tiver OS como referência de lançamento, o campo veículo é preenchido automaticamente
   useEffect(() => {
-    if (formData.workOrderNumber && workOrders.length > 0 && !placasVeiculos) {
-      const q = formData.workOrderNumber.trim().toLowerCase();
+    const woNum = formData.workOrderNumber?.trim().toLowerCase();
+    const woId = formData.workOrderId?.trim().toLowerCase();
+    if ((woNum || woId) && workOrders.length > 0 && !placasVeiculos) {
       const matched = workOrders.find(wo => 
-        (wo.osNumber && wo.osNumber.toLowerCase() === q) ||
-        (wo.id && String(wo.id).toLowerCase() === q)
+        (woNum && wo.osNumber && wo.osNumber.toLowerCase() === woNum) ||
+        (woId && wo.id && String(wo.id).toLowerCase() === woId) ||
+        (woNum && wo.id && String(wo.id).toLowerCase() === woNum)
       );
       if (matched?.vehiclePlate) {
         setPlacasVeiculos(matched.vehiclePlate.toUpperCase());
       }
     }
-  }, [formData.workOrderNumber, workOrders, placasVeiculos]);
+  }, [formData.workOrderNumber, formData.workOrderId, workOrders, placasVeiculos]);
 
   // Funcionários filtrados por pesquisa de nome, CPF ou cargo
   const filteredEmployees = useMemo(() => {
@@ -2471,7 +2483,7 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
                     <div className="relative">
                       <Input
                         ref={vehicleInputRef}
-                        value={placasVeiculos}
+                        value={placasVeiculos || matchedWorkOrder?.vehiclePlate || ''}
                         onChange={(e) => {
                           const val = e.target.value.toUpperCase();
                           setPlacasVeiculos(val);
