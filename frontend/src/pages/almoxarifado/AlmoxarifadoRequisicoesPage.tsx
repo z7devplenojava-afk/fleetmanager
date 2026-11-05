@@ -92,21 +92,91 @@ export const AlmoxarifadoRequisicoesPage: React.FC = () => {
     }
   };
 
+  // Combina requisições explícitas com as peças solicitadas nas Ordens de Serviço (OS)
+  const allCombinedRequisitions = React.useMemo(() => {
+    const result: MaterialRequisition[] = [...requisitions];
+    const existingKeys = new Set(requisitions.map(r => `${r.workOrderId || r.workOrderNumber}_${r.itemName}`.toLowerCase()));
+
+    workOrders.forEach(wo => {
+      // 1. Peças na lista de items da OS
+      if (wo.items && Array.isArray(wo.items)) {
+        wo.items.forEach((item: any, idx: number) => {
+          const itemType = (item.type || '').toUpperCase();
+          if (itemType === 'PART' || itemType === 'PECA' || itemType === 'PECAS' || !itemType) {
+            const desc = item.description || `Peça #${idx + 1}`;
+            const key = `${wo.id || wo.osNumber}_${desc}`.toLowerCase();
+            if (!existingKeys.has(key)) {
+              existingKeys.add(key);
+              result.push({
+                id: item.id || `wo-item-${wo.id}-${idx}`,
+                companyId: wo.companyId,
+                requisitionNumber: `REQ-${wo.osNumber || wo.id.slice(0, 8)}-${idx + 1}`,
+                workOrderId: wo.id,
+                workOrderNumber: wo.osNumber || `OS #${wo.id.slice(0, 8)}`,
+                vehicleId: wo.vehicleId,
+                vehiclePlate: wo.vehiclePlate || 'Frota Operacional',
+                vehicleModel: wo.vehicleModel,
+                itemName: desc,
+                itemCode: item.code || '',
+                quantity: Number(item.quantity) || 1,
+                unit: 'UN',
+                urgency: wo.priority === 'CRITICAL' || wo.maintenanceType === 'CORRECTIVE' ? 'EMERGENCIA' : 'NORMAL',
+                justification: wo.anomaliesDescription || wo.notes || `Manutenção ${wo.maintenanceType || 'OS'}`,
+                status: 'WAITING_QUOTES',
+                statusDescription: 'Aguardando 3 Cotações',
+                createdAt: wo.createdAt || new Date().toISOString()
+              } as any);
+            }
+          }
+        });
+      }
+
+      // 2. Se a OS possui custo de peças ou anomalias mas sem itens individuais
+      if ((!wo.items || wo.items.length === 0) && (Number(wo.partsCost || 0) > 0 || wo.stopReason)) {
+        const desc = wo.maintenancePerformed || wo.stopReason || 'Peças / Insumos de Manutenção';
+        const key = `${wo.id || wo.osNumber}_${desc}`.toLowerCase();
+        if (!existingKeys.has(key)) {
+          existingKeys.add(key);
+          result.push({
+            id: `wo-gen-${wo.id}`,
+            companyId: wo.companyId,
+            requisitionNumber: `REQ-${wo.osNumber || wo.id.slice(0, 8)}`,
+            workOrderId: wo.id,
+            workOrderNumber: wo.osNumber || `OS #${wo.id.slice(0, 8)}`,
+            vehicleId: wo.vehicleId,
+            vehiclePlate: wo.vehiclePlate || 'Frota Operacional',
+            vehicleModel: wo.vehicleModel,
+            itemName: desc,
+            quantity: 1,
+            unit: 'SV/PC',
+            urgency: wo.priority === 'CRITICAL' || wo.maintenanceType === 'CORRECTIVE' ? 'EMERGENCIA' : 'NORMAL',
+            justification: wo.anomaliesDescription || wo.notes || `Manutenção ${wo.maintenanceType || 'OS'}`,
+            status: 'WAITING_QUOTES',
+            statusDescription: 'Aguardando 3 Cotações',
+            createdAt: wo.createdAt || new Date().toISOString()
+          } as any);
+        }
+      }
+    });
+
+    return result;
+  }, [requisitions, workOrders]);
+
   // KPIs
-  const totalPendingReqs = requisitions.filter(
+  const totalPendingReqs = allCombinedRequisitions.filter(
     (r) => r.status !== 'INSTALLED_COMPLETED' && r.status !== 'REJECTED' && r.status !== 'CANCELLED'
   ).length;
-  const totalEmergency = requisitions.filter(
+  const totalEmergency = allCombinedRequisitions.filter(
     (r) => r.urgency === 'EMERGENCIA' && r.status !== 'INSTALLED_COMPLETED' && r.status !== 'REJECTED'
   ).length;
   const pendingFinancialApproval = purchaseOrders.filter(
     (po) => po.status === 'PENDING_FINANCIAL_APPROVAL'
   ).length;
-  const readyForInstallation = requisitions.filter(
+  const readyForInstallation = allCombinedRequisitions.filter(
     (r) => r.status === 'AVAILABLE_FOR_INSTALLATION'
   ).length;
 
-  const filteredRequisitions = requisitions.filter((r) => {
+  const filteredRequisitions = allCombinedRequisitions.filter((r) => {
     const matchesSearch =
       r.requisitionNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       r.itemName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -213,7 +283,7 @@ export const AlmoxarifadoRequisicoesPage: React.FC = () => {
                 className="data-[state=active]:bg-amber-600 data-[state=active]:text-white flex items-center gap-2 text-xs font-medium"
               >
                 <ShoppingCart className="w-4 h-4" />
-                Requisições de Peças ({requisitions.length})
+                Requisições de Peças ({allCombinedRequisitions.length})
               </TabsTrigger>
               <TabsTrigger
                 value="orders"
