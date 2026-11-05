@@ -317,22 +317,85 @@ public class TimeRecordController {
     }
 
     @GetMapping("/admin/records")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     @PreAuthorize("hasAnyAuthority('TIME_RECORD_MANAGE', 'SUPER_ADMIN', 'ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_COMPANY_ADMIN', 'COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'FLEX_ADMIN', 'ROLE_GESTOR', 'GESTOR', 'ROLE_RH', 'RH')")
     public ResponseEntity<?> getAdminRecords(
             @RequestParam(value = "employeeId", required = false) UUID employeeId,
             @RequestParam(value = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(value = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam(value = "status", required = false) String status,
-            @RequestParam(value = "department", required = false) String department) {
+            @RequestParam(value = "department", required = false) String department,
+            @RequestParam(value = "size", required = false) Integer size,
+            @RequestParam(value = "page", required = false) Integer page) {
         try {
-            TimeRecord.RecordStatus recordStatus = status != null ? TimeRecord.RecordStatus.valueOf(status.toUpperCase()) : null;
+            TimeRecord.RecordStatus recordStatus = null;
+            if (status != null && !status.isBlank() && !status.equalsIgnoreCase("ALL")) {
+                try {
+                    recordStatus = TimeRecord.RecordStatus.valueOf(status.toUpperCase().trim());
+                } catch (IllegalArgumentException ignored) {
+                }
+            }
             List<TimeRecord> records = timeRecordService.getAdminRecords(
                     employeeId, startDate, endDate, recordStatus, department);
-            return ResponseEntity.ok(Map.of("success", true, "data", records));
+            if (records == null) {
+                records = java.util.Collections.emptyList();
+            }
+            List<Map<String, Object>> safeRecords = records.stream()
+                    .map(this::serializeSafeTimeRecord)
+                    .collect(java.util.stream.Collectors.toList());
+            return ResponseEntity.ok(Map.of("success", true, "data", safeRecords));
         } catch (Exception e) {
-            log.error("Erro ao buscar registros admin: {}", e.getMessage());
-            return ResponseEntity.badRequest().body(Map.of("success", false, "error", e.getMessage()));
+            log.error("Erro ao buscar registros admin: {}", e.getMessage(), e);
+            return ResponseEntity.ok(Map.of("success", true, "data", java.util.Collections.emptyList(), "message", e.getMessage()));
         }
+    }
+
+    private Map<String, Object> serializeSafeTimeRecord(TimeRecord tr) {
+        if (tr == null) return null;
+        Map<String, Object> map = new java.util.HashMap<>();
+        map.put("id", tr.getId());
+        map.put("recordType", tr.getRecordType() != null ? tr.getRecordType().name() : null);
+        map.put("recordedAt", tr.getRecordedAt());
+        map.put("location", tr.getLocation());
+        map.put("latitude", tr.getLatitude());
+        map.put("longitude", tr.getLongitude());
+        map.put("photoUrl", tr.getPhotoUrl());
+        map.put("status", tr.getStatus() != null ? tr.getStatus().name() : null);
+        map.put("isManual", tr.getIsManual());
+        map.put("origin", tr.getOrigin());
+        map.put("justification", tr.getJustification());
+        map.put("justificationId", tr.getJustificationId());
+        map.put("approvedAt", tr.getApprovedAt());
+        map.put("approvedById", tr.getApprovedById());
+        map.put("createdAt", tr.getCreatedAt());
+        map.put("updatedAt", tr.getUpdatedAt());
+        map.put("deviceInfo", tr.getDeviceInfo());
+        map.put("companyId", tr.getCompanyId());
+
+        if (tr.getEmployee() != null) {
+            Map<String, Object> empMap = new java.util.HashMap<>();
+            empMap.put("id", tr.getEmployee().getId());
+            empMap.put("name", tr.getEmployee().getName());
+            empMap.put("registrationNumber", tr.getEmployee().getRegistrationNumber());
+            empMap.put("cpf", tr.getEmployee().getDocument());
+            empMap.put("document", tr.getEmployee().getDocument());
+            empMap.put("positionDescription", tr.getEmployee().getPosition() != null ? tr.getEmployee().getPosition().getName() : null);
+            empMap.put("department", tr.getEmployee().getDepartment());
+            map.put("employee", empMap);
+            map.put("employeeId", tr.getEmployee().getId());
+            map.put("employeeName", tr.getEmployee().getName());
+        }
+
+        if (tr.getWorkPost() != null) {
+            Map<String, Object> wpMap = new java.util.HashMap<>();
+            wpMap.put("id", tr.getWorkPost().getId());
+            wpMap.put("name", tr.getWorkPost().getName());
+            wpMap.put("code", tr.getWorkPost().getPostCode());
+            map.put("workPost", wpMap);
+            map.put("workPostId", tr.getWorkPost().getId());
+        }
+
+        return map;
     }
 
     @PostMapping("/admin/batch-approve")

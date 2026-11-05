@@ -505,4 +505,5 @@ export function getOrderResponsibleDisplay(order?: Partial<FleetWorkOrder> | nul
 }
 
 export const fleetWorkOrderService = new FleetWorkOrderService();
+(fleetWorkOrderService as any).getOrderResponsibleDisplay = getOrderResponsibleDisplay;
 export default fleetWorkOrderService;

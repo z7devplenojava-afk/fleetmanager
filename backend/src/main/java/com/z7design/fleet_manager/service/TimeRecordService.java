@@ -797,6 +797,7 @@ public class TimeRecordService {
     /**
      * Get all time records for admin view with optional filters.
      */
+    @Transactional(readOnly = true)
     public List<TimeRecord> getAdminRecords(
             UUID employeeId, LocalDate startDate, LocalDate endDate,
             TimeRecord.RecordStatus status, String department) {

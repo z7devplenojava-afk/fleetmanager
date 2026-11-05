@@ -59,10 +59,16 @@ public class PassengerController {
     }
 
     @GetMapping("/client/{clientId}")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     @Operation(summary = "Listar passageiros por cliente", description = "Retorna todos os colaboradores/passageiros de um cliente contratante")
-    public ResponseEntity<List<PassengerDTO>> getByClientId(@PathVariable("clientId") UUID clientId) {
-        List<PassengerDTO> passengers = passengerService.getByClientId(clientId);
-        return ResponseEntity.ok(passengers);
+    public ResponseEntity<List<PassengerDTO>> getByClientId(@PathVariable("clientId") String clientIdStr) {
+        try {
+            UUID clientId = UUID.fromString(clientIdStr);
+            List<PassengerDTO> passengers = passengerService.getByClientId(clientId);
+            return ResponseEntity.ok(passengers != null ? passengers : java.util.Collections.emptyList());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.ok(java.util.Collections.emptyList());
+        }
     }
 
     @PostMapping("/assign-route")

@@ -15,6 +15,12 @@ public interface PassengerRepository extends JpaRepository<Passenger, UUID> {
     List<Passenger> findByActiveTrueAndCompanyId(UUID companyId);
     List<Passenger> findByClientId(UUID clientId);
     List<Passenger> findByClientIdAndActiveTrue(UUID clientId);
+
+    @org.springframework.data.jpa.repository.Query(value = "SELECT * FROM passengers WHERE client_id = :clientId ORDER BY name ASC", nativeQuery = true)
+    List<Passenger> findByClientIdNative(@org.springframework.data.repository.query.Param("clientId") UUID clientId);
+
+    @org.springframework.data.jpa.repository.Query(value = "SELECT * FROM passengers WHERE client_id = :clientId AND active = true ORDER BY name ASC", nativeQuery = true)
+    List<Passenger> findByClientIdAndActiveTrueNative(@org.springframework.data.repository.query.Param("clientId") UUID clientId);
     java.util.Optional<Passenger> findByRegistration(String registration);
     java.util.Optional<Passenger> findByCpf(String cpf);
     java.util.Optional<Passenger> findByUserId(UUID userId);

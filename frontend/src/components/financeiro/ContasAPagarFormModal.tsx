@@ -939,6 +939,7 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
       }
       const assembledObs = obsParts.join(' | ');
 
+      const finalVehiclePlate = (placasVeiculos || (formData.workOrderNumber ? workOrders.find(wo => wo.osNumber === formData.workOrderNumber || String(wo.id) === String(formData.workOrderId))?.vehiclePlate : '') || '').toUpperCase().trim();
       const commonPayload = {
         ...formData,
         fornecedor: finalFornecedor,
@@ -946,7 +947,10 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
         paymentMethod,
         bankAccountInfo: assembledBankInfo,
         observacoes: assembledObs,
-        nfeKey: nfeKey || undefined
+        nfeKey: nfeKey || undefined,
+        veiculo: finalVehiclePlate || undefined,
+        placasVeiculos: finalVehiclePlate || undefined,
+        vehiclePlate: finalVehiclePlate || undefined
       };
 
       if (editMode && initialData?.id) {
@@ -2483,13 +2487,18 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
                     <div className="relative">
                       <Input
                         ref={vehicleInputRef}
-                        value={placasVeiculos || matchedWorkOrder?.vehiclePlate || ''}
+                        value={placasVeiculos || (matchedWorkOrder?.vehiclePlate ? matchedWorkOrder.vehiclePlate.toUpperCase() : '')}
                         onChange={(e) => {
                           const val = e.target.value.toUpperCase();
                           setPlacasVeiculos(val);
                           setVehicleDropdownOpen(true);
                         }}
-                        onFocus={() => setVehicleDropdownOpen(true)}
+                        onFocus={() => {
+                          if (!placasVeiculos && matchedWorkOrder?.vehiclePlate) {
+                            setPlacasVeiculos(matchedWorkOrder.vehiclePlate.toUpperCase());
+                          }
+                          setVehicleDropdownOpen(true);
+                        }}
                         placeholder="Digite 3 letras/números (ex: BRA, 104)..."
                         className="border-zinc-700/80 bg-zinc-950 text-zinc-100 placeholder:text-zinc-500 rounded-xl h-9 text-xs font-mono uppercase pr-8"
                       />

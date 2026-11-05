@@ -281,8 +281,14 @@ public class PassengerService {
         return passengers.size();
     }
 
+    @Transactional(readOnly = true)
     public List<PassengerDTO> getByClientId(UUID clientId) {
-        List<Passenger> passengers = passengerRepository.findByClientId(clientId);
+        if (clientId == null) return java.util.Collections.emptyList();
+        List<Passenger> passengers = passengerRepository.findByClientIdNative(clientId);
+        if (passengers == null || passengers.isEmpty()) {
+            passengers = passengerRepository.findByClientId(clientId);
+        }
+        if (passengers == null) return java.util.Collections.emptyList();
         return passengers.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
@@ -359,7 +365,11 @@ public class PassengerService {
         Passenger passenger = new Passenger();
         passenger.setRegistration(dto.getRegistration() != null ? dto.getRegistration().replaceAll("\\D", "") : null);
         passenger.setName(dto.getName());
-        passenger.setCompanyId(dto.getCompanyId());
+        UUID resolvedCompanyId = dto.getCompanyId();
+        if (resolvedCompanyId == null) {
+            resolvedCompanyId = com.z7design.fleet_manager.tenant.TenantContext.get();
+        }
+        passenger.setCompanyId(resolvedCompanyId);
         passenger.setClientId(dto.getClientId());
         passenger.setShift(dto.getShift());
         passenger.setActive(dto.getActive() != null ? dto.getActive() : true);

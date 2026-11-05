@@ -144,16 +144,25 @@ export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId
       let data: Passenger[] = [];
       try {
         const response = await axios.get(`/passengers/client/${clientId}`);
-        data = response.data || [];
-      } catch (err: any) {
-        if (err.response?.status === 404) {
-          try {
-            const fallback = await axios.get('/passengers');
-            data = (fallback.data || []).filter((p: Passenger) => p.clientId === clientId);
-          } catch {
-            data = [];
-          }
-        } else {
+        const raw = response.data;
+        data = Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : []);
+      } catch {
+        data = [];
+      }
+
+      if (!data || data.length === 0) {
+        try {
+          const fallback = await axios.get('/passengers');
+          const rawFallback = fallback.data;
+          const all = Array.isArray(rawFallback) ? rawFallback : (Array.isArray(rawFallback?.data) ? rawFallback.data : []);
+          const targetId = String(clientId).toLowerCase().trim();
+          const targetName = (clientName || '').toLowerCase().trim();
+          data = all.filter((p: Passenger) => {
+            const pClientId = p.clientId ? String(p.clientId).toLowerCase().trim() : '';
+            const pClientName = (p.clientName || (p as any).client?.name || '').toLowerCase().trim();
+            return pClientId === targetId || (targetName && pClientName && pClientName === targetName);
+          });
+        } catch {
           data = [];
         }
       }
@@ -164,7 +173,7 @@ export const ClientEmployeesTab: React.FC<ClientEmployeesTabProps> = ({ clientId
     } finally {
       setLoading(false);
     }
-  }, [clientId]);
+  }, [clientId, clientName]);
 
   useEffect(() => {
     fetchEmployees();

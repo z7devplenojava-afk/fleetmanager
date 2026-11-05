@@ -652,21 +652,39 @@ const RoutesAndPoints: React.FC = () => {
             try {
                 setLoadingPassengers(true);
                 let data: any[] = [];
+                const clientUnit = units.find(u => u.id === formData.clientId);
+                const clientNameNormalized = clientUnit?.name?.trim().toLowerCase();
+
                 try {
                     const res = await api.get(`/passengers/client/${formData.clientId}`);
-                    data = res.data || [];
-                } catch (e: any) {
-                    // Fallback gracioso caso o backend Spring Boot ainda não tenha sido reiniciado com o novo endpoint
-                    if (e?.response?.status === 404) {
-                        try {
-                            const resAll = await api.get('/passengers');
-                            const all = Array.isArray(resAll.data) ? resAll.data : [];
-                            data = all.filter((p: any) => p.clientId === formData.clientId);
-                        } catch {
-                            data = [];
-                        }
+                    const raw = res.data;
+                    data = Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : []);
+                } catch {
+                    data = [];
+                }
+
+                // Se não retornou colaboradores pelo endpoint direto, busca lista geral com filtros resilientes por ID e Nome
+                if (!data || data.length === 0) {
+                    try {
+                        const resAll = await api.get('/passengers');
+                        const rawAll = resAll.data;
+                        const all = Array.isArray(rawAll) ? rawAll : (Array.isArray(rawAll?.data) ? rawAll.data : []);
+                        const targetId = String(formData.clientId).toLowerCase().trim();
+                        data = all.filter((p: any) => {
+                            const pClientId = p.clientId ? String(p.clientId).toLowerCase().trim() : '';
+                            const pNestedClientId = p.client?.id ? String(p.client.id).toLowerCase().trim() : '';
+                            const pClientName = (p.clientName || p.client?.name || '').trim().toLowerCase();
+                            return (
+                                pClientId === targetId ||
+                                pNestedClientId === targetId ||
+                                (clientNameNormalized && pClientName && pClientName === clientNameNormalized)
+                            );
+                        });
+                    } catch {
+                        // ignore
                     }
                 }
+
                 setClientPassengers(data);
                 if (selectedRoute?.id) {
                     const assigned = data
@@ -681,7 +699,7 @@ const RoutesAndPoints: React.FC = () => {
             }
         };
         fetchPassengers();
-    }, [formData.clientId, selectedRoute?.id]);
+    }, [formData.clientId, selectedRoute?.id, units]);
 
     // Apply filters
     useEffect(() => {
