@@ -1784,7 +1784,13 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
 }) => {
   const location = useLocation();
   const { user, empresa, logout } = useAuth();
-  const hasSelectedCompany = Boolean(empresa?.id || (user as any)?.companyId || (user as any)?.company?.id);
+  const rawCompanyName = empresa?.nome || (user as any)?.company?.name || (user as any)?.companyName || '';
+  const hasSelectedCompany = Boolean(
+    (empresa?.id || (user as any)?.companyId || (user as any)?.company?.id) &&
+    rawCompanyName &&
+    rawCompanyName !== 'Sem Empresa' &&
+    rawCompanyName !== 'FluxBus'
+  );
   const { forceScrollToTop } = useScrollPreservation();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
@@ -2192,7 +2198,7 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
           >
             {collapsed && !isMobile ? (
               <img
-                src="/favicon.png"
+                src={hasSelectedCompany && empresa?.logoUrl ? (resolveCompanyLogoUrl(empresa.logoUrl) || '/fluxbus-icon.png') : '/fluxbus-icon.png'}
                 alt="FluxBus Icon"
                 className="h-8 w-8 object-contain drop-shadow-md transition-transform hover:scale-105 mx-auto"
               />

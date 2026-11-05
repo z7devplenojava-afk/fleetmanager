@@ -108,8 +108,8 @@ const Logo: React.FC<LogoProps> = ({
     );
   }
 
-  // Se o usuário tem empresa vinculada, mas não tem logo cadastrada (ou falhou ao carregar):
-  if (!forceDefault && companyName && companyName !== 'FluxBus') {
+  // Se o usuário tem empresa vinculada válida, mas não tem logo cadastrada (ou falhou ao carregar):
+  if (!forceDefault && companyName && companyName !== 'FluxBus' && companyName !== 'Sem Empresa') {
     return (
       <div className={`flex items-center gap-2 select-none ${className}`}>
         <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-seguranca-red to-red-700 flex items-center justify-center text-white font-bold text-xs shadow-md shadow-red-950/40 flex-shrink-0 border border-red-500/30">
@@ -129,13 +129,27 @@ const Logo: React.FC<LogoProps> = ({
     );
   }
 
-  // Fallback padrão do sistema FluxBus
+  // Fallback padrão do sistema FluxBus quando não tiver empresa definida:
+  // Se showText for falso (ex: Topbar junto ao texto "FluxBus v2.0"), exibe o ícone oficial
+  if (!showText) {
+    return (
+      <div className={`flex items-center select-none ${className}`}>
+        <img
+          src="/fluxbus-icon.png"
+          alt="FluxBus Icon"
+          className={`${heightClasses[size]} w-auto object-contain drop-shadow-md hover:scale-[1.05] transition-all duration-300`}
+        />
+      </div>
+    );
+  }
+
+  // Se showText for verdadeiro (ex: Sidebar expandida, Login, telas públicas), exibe a logo completa horizontal
   return (
     <div className={`flex items-center select-none ${className}`}>
       <img
         src="/fluxbus-logo.png"
-        alt="FluxBus"
-        className={`${heightClasses[size]} w-auto max-w-[190px] object-contain drop-shadow-md hover:scale-[1.03] transition-all duration-300`}
+        alt="FluxBus - Transporte Corporativo e Fretamento"
+        className={`${heightClasses[size]} w-auto max-w-[200px] object-contain drop-shadow-md hover:scale-[1.03] transition-all duration-300 rounded-md`}
       />
     </div>
   );

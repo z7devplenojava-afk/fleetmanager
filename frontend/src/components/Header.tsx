@@ -15,7 +15,13 @@ const Header: React.FC = () => {
   const [logoError, setLogoError] = React.useState(false);
 
   // Se o usuário não tiver empresa associada (ou for SUPER_ADMIN sem empresa selecionada), usa o padrão FluxBus
-  const hasSelectedCompany = Boolean(empresa?.id || (user as any)?.companyId || (user as any)?.company?.id);
+  const rawCompanyName = empresa?.nome || (user as any)?.company?.name || (user as any)?.companyName || '';
+  const hasSelectedCompany = Boolean(
+    (empresa?.id || (user as any)?.companyId || (user as any)?.company?.id) &&
+    rawCompanyName &&
+    rawCompanyName !== 'Sem Empresa' &&
+    rawCompanyName !== 'FluxBus'
+  );
 
   // Monta URL completa da logo da empresa (se relativa)
   const resolvedLogo = (hasSelectedCompany && empresa?.logoUrl)

@@ -125,8 +125,14 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     return raw.includes('VSS') || raw.includes('SILVESTRE') || raw.includes('SAO SILVESTRE') || raw.includes('SÃO SILVESTRE');
   }, [empresa, user]);
 
-  const hasSelectedCompany = Boolean(empresa?.id || (user as any)?.companyId || (user as any)?.company?.id);
-  const companyName = hasSelectedCompany ? (empresa?.nome || (user as any)?.company?.name || (user as any)?.companyName || '') : '';
+  const rawCompanyName = empresa?.nome || (user as any)?.company?.name || (user as any)?.companyName || '';
+  const hasSelectedCompany = Boolean(
+    (empresa?.id || (user as any)?.companyId || (user as any)?.company?.id) &&
+    rawCompanyName &&
+    rawCompanyName !== 'Sem Empresa' &&
+    rawCompanyName !== 'FluxBus'
+  );
+  const companyName = hasSelectedCompany ? rawCompanyName : '';
 
   return (
     <div className="flex min-h-screen bg-background text-foreground transition-colors duration-300 relative">
