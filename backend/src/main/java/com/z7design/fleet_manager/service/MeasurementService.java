@@ -193,6 +193,7 @@ public class MeasurementService {
         }
     }
 
+    @Transactional(readOnly = true)
     public List<MeasurementBulletinDTO> getAllBulletins() {
         log.info("Buscando todos os boletins de mediÃ§Ã£o");
         try {
@@ -297,6 +298,7 @@ public class MeasurementService {
         }
     }
 
+    @Transactional(readOnly = true)
     public Page<MeasurementBulletinDTO> getBulletinsWithFilters(
             MeasurementStatus status,
             String contractNumber,
@@ -310,22 +312,23 @@ public class MeasurementService {
                 status, contractNumber, clientId, unitId);
 
         try {
-            // Usar consulta personalizada que evita entidades relacionadas problemÃ¡ticas
             List<MeasurementBulletin> allBulletins = bulletinRepository.findAllBasicData();
+            if (allBulletins == null) {
+                allBulletins = java.util.Collections.emptyList();
+            }
 
-            // Aplicar filtros manualmente
+            // Aplicar filtros com proteção total contra NullPointerException
             List<MeasurementBulletin> filteredBulletins = allBulletins.stream()
                     .filter(bulletin -> status == null || bulletin.getStatus() == status)
-                    .filter(bulletin -> contractNumber == null || bulletin.getContractNumber().contains(contractNumber))
+                    .filter(bulletin -> contractNumber == null || (bulletin.getContractNumber() != null && bulletin.getContractNumber().contains(contractNumber)))
                     .filter(bulletin -> clientId == null
-                            || (bulletin.getClient() != null && bulletin.getClient().getId().equals(clientId)))
+                            || (bulletin.getClient() != null && bulletin.getClient().getId() != null && bulletin.getClient().getId().equals(clientId)))
                     .filter(bulletin -> unitId == null
-                            || (bulletin.getUnit() != null && bulletin.getUnit().getId().equals(unitId)))
-                    .filter(bulletin -> periodStart == null || !bulletin.getPeriodStart().isBefore(periodStart))
-                    .filter(bulletin -> periodEnd == null || !bulletin.getPeriodEnd().isAfter(periodEnd))
+                            || (bulletin.getUnit() != null && bulletin.getUnit().getId() != null && bulletin.getUnit().getId().equals(unitId)))
+                    .filter(bulletin -> periodStart == null || (bulletin.getPeriodStart() != null && !bulletin.getPeriodStart().isBefore(periodStart)))
+                    .filter(bulletin -> periodEnd == null || (bulletin.getPeriodEnd() != null && !bulletin.getPeriodEnd().isAfter(periodEnd)))
                     .collect(Collectors.toList());
 
-            // Aplicar paginaÃ§Ã£o manualmente
             int start = (int) pageable.getOffset();
             int end = Math.min((start + pageable.getPageSize()), filteredBulletins.size());
 
@@ -333,17 +336,13 @@ public class MeasurementService {
                     ? filteredBulletins.subList(start, end)
                     : new ArrayList<>();
 
-            Page<MeasurementBulletin> bulletinPage = new PageImpl<>(
-                    pagedBulletins,
-                    pageable,
-                    filteredBulletins.size());
-
-            return bulletinPage.map(bulletin -> {
+            // Mapeamento antecipado (eager) para DTOs evitando LazyInitializationException na serialização
+            List<MeasurementBulletinDTO> dtoList = new ArrayList<>();
+            for (MeasurementBulletin bulletin : pagedBulletins) {
                 try {
-                    return MeasurementBulletinDTO.fromEntity(bulletin);
+                    dtoList.add(MeasurementBulletinDTO.fromEntity(bulletin));
                 } catch (Exception e) {
                     log.error("Erro ao converter boletim {}: {}", bulletin.getId(), e.getMessage());
-                    // Retornar DTO bÃ¡sico em caso de erro
                     MeasurementBulletinDTO dto = new MeasurementBulletinDTO();
                     dto.setId(bulletin.getId());
                     dto.setCompanyName(bulletin.getCompanyName());
@@ -352,9 +351,11 @@ public class MeasurementService {
                     dto.setContractNumber(bulletin.getContractNumber());
                     dto.setStatus(bulletin.getStatus());
                     dto.setSubtotal(bulletin.getSubtotal());
-                    return dto;
+                    dtoList.add(dto);
                 }
-            });
+            }
+
+            return new PageImpl<>(dtoList, pageable, filteredBulletins.size());
         } catch (Exception e) {
             log.error("Erro ao buscar boletins com filtros: {}", e.getMessage(), e);
             return Page.empty(pageable);

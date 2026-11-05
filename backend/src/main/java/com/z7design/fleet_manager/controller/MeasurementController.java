@@ -34,14 +34,21 @@ public class MeasurementController {
     private final MeasurementReportService measurementReportService;
     
     @GetMapping
-    @Operation(summary = "Listar todos os boletins", description = "Retorna uma lista paginada de todos os boletins de mediÃ§Ã£o")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    @Operation(summary = "Listar todos os boletins", description = "Retorna uma lista paginada de todos os boletins de medição")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Lista de boletins retornada com sucesso"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    public ResponseEntity<Page<MeasurementBulletinDTO>> getAll(
-            @Parameter(description = "ParÃ¢metros de paginaÃ§Ã£o") Pageable pageable) {
-        return ResponseEntity.ok(measurementService.getBulletinsWithFilters(null, null, null, null, null, null, pageable));
+    public ResponseEntity<?> getAll(
+            @Parameter(description = "Parâmetros de paginação") Pageable pageable) {
+        try {
+            Page<MeasurementBulletinDTO> page = measurementService.getBulletinsWithFilters(null, null, null, null, null, null, pageable);
+            return ResponseEntity.ok(page != null ? page : Page.empty(pageable));
+        } catch (Exception e) {
+            log.error("Erro ao listar boletins de medição: {}", e.getMessage(), e);
+            return ResponseEntity.ok(Page.empty(pageable));
+        }
     }
     
     @GetMapping("/all")

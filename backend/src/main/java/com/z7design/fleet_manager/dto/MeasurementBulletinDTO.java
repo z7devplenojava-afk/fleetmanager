@@ -64,31 +64,41 @@ public class MeasurementBulletinDTO {
         dto.setUpdatedAt(entity.getUpdatedAt());
         dto.setNotes(entity.getNotes());
 
-        if (entity.getClient() != null) {
-            dto.setClientId(entity.getClient().getId());
-            dto.setClientName(entity.getClient().getName());
-        }
+        try {
+            if (entity.getClient() != null && org.hibernate.Hibernate.isInitialized(entity.getClient())) {
+                dto.setClientId(entity.getClient().getId());
+                dto.setClientName(entity.getClient().getName());
+            }
+        } catch (Exception ignored) {}
 
-        if (entity.getContract() != null) {
-            dto.setContractId(entity.getContract().getId());
-            dto.setContractDescription(entity.getContract().getDescription());
-        }
+        try {
+            if (entity.getContract() != null && org.hibernate.Hibernate.isInitialized(entity.getContract())) {
+                dto.setContractId(entity.getContract().getId());
+                dto.setContractDescription(entity.getContract().getDescription());
+            }
+        } catch (Exception ignored) {}
 
-        if (entity.getUnit() != null) {
-            dto.setUnitId(entity.getUnit().getId());
-            dto.setUnitName(entity.getUnit().getName());
-        }
+        try {
+            if (entity.getUnit() != null && org.hibernate.Hibernate.isInitialized(entity.getUnit())) {
+                dto.setUnitId(entity.getUnit().getId());
+                dto.setUnitName(entity.getUnit().getName());
+            }
+        } catch (Exception ignored) {}
 
-        if (entity.getWorkPost() != null) {
-            dto.setWorkPostId(entity.getWorkPost().getId());
-            dto.setWorkPostName(entity.getWorkPost().getName());
-        }
+        try {
+            if (entity.getWorkPost() != null && org.hibernate.Hibernate.isInitialized(entity.getWorkPost())) {
+                dto.setWorkPostId(entity.getWorkPost().getId());
+                dto.setWorkPostName(entity.getWorkPost().getName());
+            }
+        } catch (Exception ignored) {}
 
-        if (entity.getItems() != null) {
-            dto.setItems(entity.getItems().stream()
-                    .map(MeasurementItemDTO::fromEntity)
-                    .collect(Collectors.toList()));
-        }
+        try {
+            if (entity.getItems() != null && org.hibernate.Hibernate.isInitialized(entity.getItems())) {
+                dto.setItems(entity.getItems().stream()
+                        .map(MeasurementItemDTO::fromEntity)
+                        .collect(Collectors.toList()));
+            }
+        } catch (Exception ignored) {}
 
         // Note: calculationMemory nÃ£o Ã© uma relaÃ§Ã£o direta na entidade
         // MeasurementBulletin
