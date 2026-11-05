@@ -494,6 +494,227 @@ public class UserController {
         return ResponseEntity.ok(convertToDTO(user));
     }
 
+    private User resolveAuthenticatedUser(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return null;
+        }
+        if (authentication.getPrincipal() instanceof User) {
+            User u = (User) authentication.getPrincipal();
+            if (u.getId() != null) return u;
+        }
+        String username = authentication.getName();
+        String cleanDigits = username != null ? username.replaceAll("\\D", "") : "";
+        return userRepository.findByIdentifierNative(username, cleanDigits)
+                .or(() -> userRepository.findByUsernameNative(username))
+                .or(() -> userRepository.findByEmailNative(username))
+                .or(() -> userService.findByUsername(username))
+                .or(() -> userService.findByEmail(username))
+                .orElse(null);
+    }
+
+    @GetMapping("/current/match-employee")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Verificar status de vínculo e sugestão de funcionário por CPF")
+    public ResponseEntity<?> getMatchEmployee(Authentication authentication) {
+        try {
+            User currentUser = resolveAuthenticatedUser(authentication);
+            if (currentUser == null) {
+                return ResponseEntity.status(401).body(Map.of("error", "Não autenticado"));
+            }
+
+            // 1. Verificar se já possui funcionário vinculado
+            Optional<Employee> linkedEmp = employeeRepository.findByUserIdGlobal(currentUser.getId())
+                    .or(() -> employeeRepository.findByUserId(currentUser.getId()));
+
+            if (linkedEmp.isPresent()) {
+                Employee emp = linkedEmp.get();
+                return ResponseEntity.ok(Map.of(
+                        "linked", true,
+                        "employeeId", emp.getId(),
+                        "employeeName", emp.getName(),
+                        "cpf", emp.getDocument() != null ? emp.getDocument() : "",
+                        "companyId", emp.getCompanyId() != null ? emp.getCompanyId().toString() : ""
+                ));
+            }
+
+            // 2. Extrair CPF do usuário logado
+            String cleanCpf = currentUser.getCpf() != null ? currentUser.getCpf().replaceAll("\\D", "") : "";
+            if (cleanCpf.length() < 11 && currentUser.getUsername() != null) {
+                cleanCpf = currentUser.getUsername().replaceAll("\\D", "");
+            }
+
+            Employee suggestedEmp = null;
+            if (cleanCpf.length() >= 11) {
+                suggestedEmp = employeeRepository.findByCpfGlobal(cleanCpf).orElse(null);
+            }
+            if (suggestedEmp == null && currentUser.getEmail() != null && !currentUser.getEmail().isBlank()) {
+                suggestedEmp = employeeRepository.findByEmail(currentUser.getEmail().trim()).orElse(null);
+            }
+            if (suggestedEmp == null && currentUser.getName() != null && !currentUser.getName().isBlank()) {
+                List<Employee> emps = employeeRepository.findByNameContainingIgnoreCase(currentUser.getName().trim());
+                if (!emps.isEmpty()) {
+                    suggestedEmp = emps.get(0);
+                }
+            }
+
+            if (suggestedEmp != null) {
+                Map<String, Object> empData = new HashMap<>();
+                empData.put("id", suggestedEmp.getId());
+                empData.put("name", suggestedEmp.getName());
+                empData.put("document", suggestedEmp.getDocument());
+                empData.put("registrationNumber", suggestedEmp.getRegistrationNumber());
+                empData.put("companyId", suggestedEmp.getCompanyId());
+                empData.put("positionName", suggestedEmp.getPosition() != null ? suggestedEmp.getPosition().getName() : "");
+                empData.put("departmentName", suggestedEmp.getDepartment() != null ? suggestedEmp.getDepartment().getName() : "");
+
+                return ResponseEntity.ok(Map.of(
+                        "linked", false,
+                        "hasSuggestion", true,
+                        "userCpf", cleanCpf,
+                        "suggestedEmployee", empData
+                ));
+            }
+
+            return ResponseEntity.ok(Map.of(
+                    "linked", false,
+                    "hasSuggestion", false,
+                    "userCpf", cleanCpf
+            ));
+        } catch (Exception e) {
+            log.error("Erro ao verificar match de funcionário: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/link-employee")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Vincular funcionário ao usuário logado")
+    public ResponseEntity<?> linkEmployeeToCurrentUser(@RequestBody Map<String, Object> body, Authentication authentication) {
+        try {
+            User currentUser = resolveAuthenticatedUser(authentication);
+            if (currentUser == null) {
+                return ResponseEntity.status(401).body(Map.of("error", "Não autenticado"));
+            }
+
+            String employeeIdStr = body.get("employeeId") != null ? body.get("employeeId").toString() : null;
+            String cpfStr = body.get("cpf") != null ? body.get("cpf").toString() : null;
+
+            Employee employee = null;
+            if (employeeIdStr != null && !employeeIdStr.isBlank()) {
+                UUID empId = UUID.fromString(employeeIdStr);
+                employee = employeeRepository.findByIdGlobal(empId)
+                        .or(() -> employeeRepository.findById(empId))
+                        .orElse(null);
+            }
+
+            if (employee == null && cpfStr != null && !cpfStr.isBlank()) {
+                String cleanCpf = cpfStr.replaceAll("\\D", "");
+                if (cleanCpf.length() >= 11) {
+                    employee = employeeRepository.findByCpfGlobal(cleanCpf).orElse(null);
+                }
+            }
+
+            if (employee == null) {
+                return ResponseEntity.badRequest().body(Map.of("success", false, "error", "Colaborador não encontrado"));
+            }
+
+            final UUID targetEmpId = employee.getId();
+            // Desvincular de outros que apontem para este usuário
+            employeeRepository.findByUserIdGlobal(currentUser.getId()).ifPresent(old -> {
+                if (!old.getId().equals(targetEmpId)) {
+                    old.setUser(null);
+                    employeeRepository.save(old);
+                }
+            });
+
+            employee.setUser(currentUser);
+            // Garantir que funcionário tenha companyId
+            if (employee.getCompanyId() == null) {
+                if (currentUser.getCompanyId() != null) {
+                    employee.setCompanyId(currentUser.getCompanyId());
+                } else {
+                    List<Company> companies = companyRepository.findAllByOrderByNameAsc();
+                    if (!companies.isEmpty()) {
+                        employee.setCompanyId(companies.get(0).getId());
+                    }
+                }
+            }
+            employeeRepository.save(employee);
+
+            // Sincronizar CPF no usuário caso não preenchido
+            if ((currentUser.getCpf() == null || currentUser.getCpf().isBlank()) && employee.getDocument() != null) {
+                currentUser.setCpf(employee.getDocument());
+                userRepository.save(currentUser);
+            }
+
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Colaborador vinculado com sucesso ao usuário",
+                    "employeeId", employee.getId(),
+                    "employeeName", employee.getName()
+            ));
+        } catch (Exception e) {
+            log.error("Erro ao vincular colaborador ao usuário logado: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/update-cpf-and-match")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Atualizar CPF do usuário e tentar auto-vínculo com funcionário")
+    public ResponseEntity<?> updateCpfAndMatch(@RequestBody Map<String, String> body, Authentication authentication) {
+        try {
+            User currentUser = resolveAuthenticatedUser(authentication);
+            if (currentUser == null) {
+                return ResponseEntity.status(401).body(Map.of("error", "Não autenticado"));
+            }
+
+            String cpf = body.get("cpf");
+            if (cpf == null || cpf.replaceAll("\\D", "").length() < 11) {
+                return ResponseEntity.badRequest().body(Map.of("success", false, "error", "CPF inválido. Forneça os 11 dígitos do CPF."));
+            }
+
+            String cleanCpf = cpf.replaceAll("\\D", "");
+            currentUser.setCpf(cleanCpf);
+            userRepository.save(currentUser);
+
+            Optional<Employee> empOpt = employeeRepository.findByCpfGlobal(cleanCpf);
+            if (empOpt.isPresent()) {
+                Employee emp = empOpt.get();
+                emp.setUser(currentUser);
+                if (emp.getCompanyId() == null) {
+                    if (currentUser.getCompanyId() != null) {
+                        emp.setCompanyId(currentUser.getCompanyId());
+                    } else {
+                        List<Company> companies = companyRepository.findAllByOrderByNameAsc();
+                        if (!companies.isEmpty()) {
+                            emp.setCompanyId(companies.get(0).getId());
+                        }
+                    }
+                }
+                employeeRepository.save(emp);
+
+                return ResponseEntity.ok(Map.of(
+                        "success", true,
+                        "matched", true,
+                        "message", "CPF salvo e colaborador " + emp.getName() + " vinculado com sucesso!",
+                        "employeeId", emp.getId(),
+                        "employeeName", emp.getName()
+                ));
+            }
+
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "matched", false,
+                    "userCpf", cleanCpf,
+                    "message", "CPF atualizado com sucesso. Nenhum colaborador existente possui esse CPF."
+            ));
+        } catch (Exception e) {
+            log.error("Erro ao atualizar CPF e buscar correspondência: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", e.getMessage()));
+        }
+    }
+
     @PostMapping
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','FLEX_ADMIN','COMPANY_ADMIN','ADMIN')")
     @Operation(summary = "Criar usuÃ¡rio", description = "Cria um novo usuÃ¡rio no sistema")

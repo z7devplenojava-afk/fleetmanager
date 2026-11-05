@@ -60,7 +60,10 @@ public class TimeRecordService {
                     .or(() -> userRepository.findById(employeeId))
                     .orElse(null);
             if (user != null) {
-                String cleanCpf = user.getUsername() != null ? user.getUsername().replaceAll("\\D", "") : "";
+                String cleanCpf = user.getCpf() != null ? user.getCpf().replaceAll("\\D", "") : "";
+                if (cleanCpf.length() < 11 && user.getUsername() != null) {
+                    cleanCpf = user.getUsername().replaceAll("\\D", "");
+                }
                 if (cleanCpf.length() >= 11) {
                     empOpt = employeeRepository.findByCpfGlobal(cleanCpf);
                 }
@@ -76,6 +79,9 @@ public class TimeRecordService {
                 empOpt.ifPresent(emp -> {
                     try {
                         emp.setUser(user);
+                        if (emp.getCompanyId() == null) {
+                            emp.setCompanyId(resolveEffectiveCompanyId(emp));
+                        }
                         employeeRepository.save(emp);
                         log.info("🔗 Vínculo automático restaurado com sucesso: User {} -> Employee {}", user.getUsername(), emp.getId());
                     } catch (Exception ex) {
@@ -89,9 +95,13 @@ public class TimeRecordService {
                         newEmp.setName(user.getName() != null && !user.getName().isBlank() ? user.getName() : user.getUsername());
                         newEmp.setUser(user);
                         newEmp.setEmail(user.getEmail());
-                        newEmp.setCompanyId(user.getCompanyId());
+                        UUID fallbackCompId = user.getCompanyId() != null ? user.getCompanyId() : resolveDefaultCompanyId();
+                        newEmp.setCompanyId(fallbackCompId);
+                        if (cleanCpf.length() >= 11) {
+                            newEmp.setDocument(cleanCpf);
+                        }
                         newEmp.setStatus(EmploymentStatus.ACTIVE);
-                                                newEmp = employeeRepository.save(newEmp);
+                        newEmp = employeeRepository.save(newEmp);
                         empOpt = Optional.of(newEmp);
                         log.info("Colaborador provisionado automaticamente para ponto: {} (ID: {})", newEmp.getName(), newEmp.getId());
                     } catch (Exception eProv) {
@@ -101,7 +111,55 @@ public class TimeRecordService {
             }
         }
 
-        return empOpt.orElseThrow(() -> new RuntimeException("Funcionário não encontrado"));
+        Employee resolved = empOpt.orElseThrow(() -> new RuntimeException("Funcionário não encontrado"));
+        if (resolved.getCompanyId() == null) {
+            UUID resolvedComp = resolveEffectiveCompanyId(resolved);
+            if (resolvedComp != null) {
+                resolved.setCompanyId(resolvedComp);
+                try {
+                    resolved = employeeRepository.save(resolved);
+                } catch (Exception ignored) {}
+            }
+        }
+        return resolved;
+    }
+
+    public UUID resolveDefaultCompanyId() {
+        try {
+            List<Company> companies = companyRepository.findAllByOrderByNameAsc();
+            if (companies != null && !companies.isEmpty()) {
+                return companies.get(0).getId();
+            }
+        } catch (Exception e) {
+            log.warn("Não foi possível buscar empresa padrão: {}", e.getMessage());
+        }
+        return null;
+    }
+
+    public UUID resolveEffectiveCompanyId(Employee employee) {
+        UUID tenantCompanyId = TenantContext.get();
+        if (tenantCompanyId != null) {
+            return tenantCompanyId;
+        }
+        if (employee != null && employee.getCompanyId() != null) {
+            return employee.getCompanyId();
+        }
+        if (employee != null && employee.getUser() != null && employee.getUser().getCompanyId() != null) {
+            UUID userCompId = employee.getUser().getCompanyId();
+            employee.setCompanyId(userCompId);
+            try {
+                employeeRepository.save(employee);
+            } catch (Exception ignored) {}
+            return userCompId;
+        }
+        UUID defaultCompId = resolveDefaultCompanyId();
+        if (defaultCompId != null && employee != null && employee.getCompanyId() == null) {
+            employee.setCompanyId(defaultCompId);
+            try {
+                employeeRepository.save(employee);
+            } catch (Exception ignored) {}
+        }
+        return defaultCompId;
     }
 
     @Transactional
@@ -162,15 +220,9 @@ public class TimeRecordService {
         record.setIsManual(false);
         record.setStatus(TimeRecord.RecordStatus.APPROVED);
 
-        // Multi-tenant: set company_id from TenantContext (extracted from JWT)
-        UUID tenantCompanyId = TenantContext.get();
-        if (tenantCompanyId != null) {
-            record.setCompanyId(tenantCompanyId);
-        } else if (employee.getCompanyId() != null) {
-            record.setCompanyId(employee.getCompanyId());
-        } else {
-            log.warn("⚠️ TenantContext está vazio e employee não tem companyId - registro sem empresa");
-        }
+        // Multi-tenant: set company_id com fallback resiliente para evitar erro 23502 (NOT NULL)
+        UUID effectiveCompanyId = resolveEffectiveCompanyId(employee);
+        record.setCompanyId(effectiveCompanyId);
 
         TimeRecord saved = timeRecordRepository.save(record);
         log.info("✅ Ponto registrado com sucesso - ID: {}", saved.getId());
@@ -967,12 +1019,7 @@ public class TimeRecordService {
         record.setJustification(reason);
         record.setProcessingNotes("Criado manualmente pelo RH/DPE em " + LocalDateTime.now() + ". Motivo: " + reason);
 
-        UUID tenantCompanyId = TenantContext.get();
-        if (tenantCompanyId != null) {
-            record.setCompanyId(tenantCompanyId);
-        } else if (employee.getCompanyId() != null) {
-            record.setCompanyId(employee.getCompanyId());
-        }
+        record.setCompanyId(resolveEffectiveCompanyId(employee));
 
         log.info("➕ Ponto manual criado para funcionário {} pelo RH/DPE (Manager: {})", employeeId, managerId);
         return timeRecordRepository.save(record);
@@ -998,12 +1045,7 @@ public class TimeRecordService {
         record.setJustification(justification);
         record.setProcessingNotes("Solicitação de ajuste enviada pelo colaborador em " + LocalDateTime.now() + ". Aguardando análise do RH/DPE.");
 
-        UUID tenantCompanyId = TenantContext.get();
-        if (tenantCompanyId != null) {
-            record.setCompanyId(tenantCompanyId);
-        } else if (employee.getCompanyId() != null) {
-            record.setCompanyId(employee.getCompanyId());
-        }
+        record.setCompanyId(resolveEffectiveCompanyId(employee));
 
         log.info("📩 Solicitação de ajuste de ponto enviada pelo colaborador {} para horário {}", employeeId, suggestedTime);
         return timeRecordRepository.save(record);

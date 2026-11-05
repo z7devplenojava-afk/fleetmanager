@@ -45,12 +45,14 @@ import { isDriverUser } from '@/utils/roleRouting';
 import { UniversalQrScannerModal } from '@/components/common/UniversalQrScannerModal';
 import { DriverPontoOperacionalSection } from '@/components/driver/DriverPontoOperacionalSection';
 import { scheduleService } from '@/services/scheduleService';
+import { VincularFuncionarioModal } from '@/components/ponto/VincularFuncionarioModal';
 
 const PontoEletronico: React.FC = () => {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [resolvedEmployeeId, setResolvedEmployeeId] = useState<string | null>(user?.employeeId || null);
   const activeEmployeeId = user?.employeeId || resolvedEmployeeId;
+  const [showVincularModal, setShowVincularModal] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [registrosHoje, setRegistrosHoje] = useState<TimeRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -222,6 +224,16 @@ const PontoEletronico: React.FC = () => {
     let isMounted = true;
     const resolveEmployee = async () => {
       try {
+        const matchRes = await api.get('/api/users/current/match-employee');
+        if (matchRes.data?.linked && matchRes.data?.employeeId && isMounted) {
+          setResolvedEmployeeId(matchRes.data.employeeId);
+          return;
+        }
+      } catch (e) {
+        // Fallback
+      }
+
+      try {
         const profileRes = await api.get('/users/profile');
         if (profileRes.data?.employeeId && isMounted) {
           setResolvedEmployeeId(profileRes.data.employeeId);
@@ -336,16 +348,26 @@ const PontoEletronico: React.FC = () => {
     [proximoRegistro]
   );
 
-  const registrarPonto = async (tipo?: 'ENTRADA' | 'SAIDA_ALMOCO' | 'RETORNO_ALMOCO' | 'SAIDA') => {
+  const handleVincularSuccess = async (empId: string, empName: string) => {
+    setResolvedEmployeeId(empId);
+    setShowVincularModal(false);
+    try {
+      if (refreshUser) await refreshUser();
+    } catch (e) {}
+    await loadTodayRecords(empId);
+    await loadNextRecordType(empId);
+    await registrarPonto(proximoRegistro, empId);
+  };
+
+  const registrarPonto = async (
+    tipo?: 'ENTRADA' | 'SAIDA_ALMOCO' | 'RETORNO_ALMOCO' | 'SAIDA',
+    overrideEmpId?: string
+  ) => {
     const tipoRegistro = tipo || proximoRegistro;
     let resolvedLocation = 'Sem localização';
-    const targetId = activeEmployeeId;
+    const targetId = overrideEmpId || activeEmployeeId;
     if (!targetId) {
-      toast({
-        title: "❌ Erro",
-        description: "Funcionário não identificado. Aguarde a sincronização do perfil.",
-        variant: "destructive",
-      });
+      setShowVincularModal(true);
       return;
     }
 
@@ -1517,8 +1539,17 @@ const PontoEletronico: React.FC = () => {
                   <User className="h-4 w-4 text-seguranca-yellow mt-0.5 shrink-0" />
                   <div className="min-w-0">
                     <div className="text-seguranca-gray text-[10px] uppercase font-semibold">Nome / Perfil</div>
-                    <div className="text-seguranca-lightgray text-xs sm:text-sm font-bold truncate">
-                      {user?.name || 'Colaborador'} ({user?.role || 'Usuário'})
+                    <div className="text-seguranca-lightgray text-xs sm:text-sm font-bold truncate flex items-center gap-2">
+                      <span>{user?.name || 'Colaborador'} ({user?.role || 'Usuário'})</span>
+                      {!activeEmployeeId && (
+                        <button
+                          type="button"
+                          onClick={() => setShowVincularModal(true)}
+                          className="px-2 py-0.5 rounded text-[10px] bg-seguranca-yellow/20 text-seguranca-yellow border border-seguranca-yellow/40 hover:bg-seguranca-yellow/30 font-semibold cursor-pointer shrink-0"
+                        >
+                          Vincular Colaborador
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -2009,6 +2040,16 @@ const PontoEletronico: React.FC = () => {
         description="Aponte a câmera para o QR Code fixado no posto ou no veículo"
         placeholderManual="Cole ou digite o código do posto/veículo..."
         allowManualInput={true}
+      />
+
+      {/* ========================================================================= */}
+      {/* MODAL 8: VINCULAR FUNCIONÁRIO AO USUÁRIO LOGADO                          */}
+      {/* ========================================================================= */}
+      <VincularFuncionarioModal
+        isOpen={showVincularModal}
+        onClose={() => setShowVincularModal(false)}
+        onSuccess={handleVincularSuccess}
+        user={user}
       />
     </StandardLayout>
   );

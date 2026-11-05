@@ -43,6 +43,12 @@ public class TimeRecordController {
                     employeeId = UUID.fromString(rawEmpId);
                 } catch (IllegalArgumentException ignored) {}
             }
+            if (employeeId == null) {
+                org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+                if (auth != null && auth.getPrincipal() instanceof com.z7design.fleet_manager.model.User) {
+                    employeeId = ((com.z7design.fleet_manager.model.User) auth.getPrincipal()).getId();
+                }
+            }
             TimeRecord.RecordType recordType = TimeRecord.RecordType.valueOf(
                     (String) request.get("recordType"));
             String qrCode = (String) request.get("qrCode");

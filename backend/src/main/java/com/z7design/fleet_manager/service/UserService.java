@@ -68,11 +68,6 @@ public class UserService {
 
     public void autoLinkEmployeeIfMatched(User user) {
         if (user == null || user.getId() == null) return;
-        // REGRA: Usuário sem empresa (Acesso Global) não deve ser auto-vinculado a funcionário de empresa específica
-        if (user.getCompanyId() == null) {
-            log.debug("AutoLink ignorado para usuário @{} pois está sem empresa (Acesso Global)", user.getUsername());
-            return;
-        }
         try {
             String cleanCpf = user.getCpf() != null ? user.getCpf().replaceAll("\\D", "") : "";
             if (cleanCpf.length() < 11 && user.getUsername() != null) {
@@ -92,9 +87,9 @@ public class UserService {
                 }
             }
             if (emp != null) {
-                UUID empCompanyId = emp.getCompany() != null ? emp.getCompany().getId() : null;
-                // REGRA: Usuário só pode ser vinculado a funcionário da mesma empresa
-                if (empCompanyId == null || !user.getCompanyId().equals(empCompanyId)) {
+                UUID empCompanyId = emp.getCompany() != null ? emp.getCompany().getId() : (emp.getCompanyId() != null ? emp.getCompanyId() : null);
+                // Se o usuário possui empresa específica e o funcionário também, devem ser da mesma empresa (se o usuário for global/Super Admin, permite vínculo)
+                if (user.getCompanyId() != null && empCompanyId != null && !user.getCompanyId().equals(empCompanyId)) {
                     log.info("AutoLink recusado: Funcionário {} pertence à empresa {} e Usuário @{} pertence à empresa {}",
                             emp.getName(), empCompanyId, user.getCompanyId());
                     return;
@@ -761,7 +756,7 @@ public class UserService {
             final String username = savedUser.getUsername();
 
             // Gerenciar vínculo de funcionário na atualização de usuário
-            if (Boolean.TRUE.equals(request.getRemoveEmployee()) || savedUser.getCompanyId() == null) {
+            if (Boolean.TRUE.equals(request.getRemoveEmployee())) {
                 employeeRepository.findByUserIdGlobal(userId).ifPresent(emp -> {
                     emp.setUser(null);
                     employeeRepository.save(emp);
