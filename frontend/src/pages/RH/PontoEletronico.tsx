@@ -71,15 +71,9 @@ const PontoEletronico: React.FC = () => {
     user?.role === 'RH' || 
     user?.role === 'DEPARTAMENTO_PESSOAL';
 
-  const isMotorista = isDriverUser(user) || !isRHOrAdmin;
-  const isPortalMotorista =
-    isDriverUser(user) ||
-    user?.role === 'MOTORISTA' ||
-    user?.role === 'ROLE_MOTORISTA' ||
-    Boolean(user?.position?.toLowerCase().includes('motorista')) ||
-    Boolean((user as any)?.cargo?.toLowerCase().includes('motorista')) ||
-    Boolean((user as any)?.jobTitle?.toLowerCase().includes('motorista')) ||
-    isMotorista;
+  const isDriver = isDriverUser(user);
+  const isMotorista = isDriver;
+  const isPortalMotorista = isDriver;
 
   // Modais de ações rápidas
   const [showHistoryDialog, setShowHistoryDialog] = useState(false);
@@ -1077,8 +1071,10 @@ const PontoEletronico: React.FC = () => {
             </div>
             <p className="text-xs sm:text-sm text-seguranca-gray mt-0.5">
               {isMotorista 
-                ? 'Registre sua jornada e consulte sua folha de ponto oficial'
-                : 'Gestão, visualização e conferência de registros de ponto'}
+                ? 'Registre sua jornada da viagem e consulte sua folha de ponto oficial'
+                : isRHOrAdmin
+                ? 'Gestão, visualização e conferência de registros de ponto'
+                : 'Registre suas marcações de ponto diárias e consulte seu espelho de ponto'}
             </p>
           </div>
 
@@ -1162,8 +1158,8 @@ const PontoEletronico: React.FC = () => {
                 </Button>
               )}
 
-              {/* Se for Motorista: botão para solicitar ajuste ao RH/DPE */}
-              {isMotorista && (
+              {/* Se for Colaborador/Motorista (não-RH): botão para solicitar ajuste ao RH/DPE */}
+              {!isRHOrAdmin && (
                 <Button
                   size="sm"
                   variant="outline"
@@ -1253,8 +1249,8 @@ const PontoEletronico: React.FC = () => {
                           </Button>
                         )}
 
-                        {/* Motorista não pode editar: se notar divergência, botão para solicitar ajuste */}
-                        {isMotorista && (
+                        {/* Colaborador/Motorista não pode editar: se notar divergência, botão para solicitar ajuste */}
+                        {!isRHOrAdmin && (
                           <Button
                             size="sm"
                             variant="ghost"
@@ -1308,8 +1304,8 @@ const PontoEletronico: React.FC = () => {
                 <span className="text-xs sm:text-sm font-semibold text-seguranca-lightgray">Histórico</span>
               </Button>
 
-              {/* Solicitar Ajuste (Motorista) ou Registrar Ponto Manual (RH) */}
-              {isMotorista ? (
+              {/* Solicitar Ajuste (Colaboradores/Motoristas) ou Registrar Ponto Manual (RH) */}
+              {!isRHOrAdmin ? (
                 <Button
                   variant="outline"
                   className="h-20 sm:h-22 flex flex-col items-center justify-center border-amber-500/30 bg-amber-950/10 hover:border-amber-500/60 hover:bg-amber-900/20 rounded-xl transition-all"
