@@ -579,7 +579,7 @@ public class MaterialRequisitionService {
                     .itemName(item.getDescription() != null && !item.getDescription().isBlank() ? item.getDescription() : "Peça")
                     .itemCode(item.getCode() != null ? item.getCode() : (finalStockItem != null ? finalStockItem.getCode() : null))
                     .quantity(needed)
-                    .unit(finalStockItem != null && finalStockItem.getUnit() != null ? finalStockItem.getUnit() : "UN")
+                    .unit(finalStockItem != null && finalStockItem.getUnitMeasure() != null ? finalStockItem.getUnitMeasure() : "UN")
                     .urgency(workOrder.getPriority() == FleetWorkOrder.WorkOrderPriority.URGENT ? MaterialRequisition.UrgencyLevel.EMERGENCIA : MaterialRequisition.UrgencyLevel.NORMAL)
                     .status(MaterialRequisition.RequisitionStatus.PENDING_CHECK)
                     .justification("Falta de estoque na OS #" + osLabel + " - Veículo: " + vehicleLabel)
@@ -597,8 +597,11 @@ public class MaterialRequisitionService {
             try {
                 SystemNotification notif = SystemNotification.builder()
                         .title("Falta de Estoque - OS #" + osLabel)
-                        .message("A OS #" + osLabel + " (" + vehicleLabel + ") notificou " + createdList.size() + " peça(s) sem estoque para cotação/compra.")
+                        .description("A OS #" + osLabel + " (" + vehicleLabel + ") notificou " + createdList.size() + " peça(s) sem estoque para cotação/compra.")
                         .type(SystemNotification.NotificationType.ALERTA_GERAL)
+                        .priority(SystemNotification.NotificationPriority.ALTA)
+                        .department("ALMOXARIFADO")
+                        .timestamp(LocalDateTime.now())
                         .build();
                 systemNotificationService.createNotification(notif);
             } catch (Exception e) {

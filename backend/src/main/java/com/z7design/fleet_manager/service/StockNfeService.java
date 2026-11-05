@@ -2541,10 +2541,13 @@ public class StockNfeService {
 
                             SystemNotification notification = SystemNotification.builder()
                                     .title("Peça Liberada para Instalação - OS #" + woLabel)
-                                    .message("A peça '" + req.getItemName() + "' da OS #" + woLabel +
+                                    .description("A peça '" + req.getItemName() + "' da OS #" + woLabel +
                                             (!vehPlate.isEmpty() ? " (Veículo: " + vehPlate + ")" : "") +
                                             " deu entrada no estoque (NF-e " + (invoiceNumber != null ? invoiceNumber : "") + ") e está pronta para retirada no Almoxarifado.")
                                     .type(SystemNotification.NotificationType.ALERTA_GERAL)
+                                    .priority(SystemNotification.NotificationPriority.ALTA)
+                                    .department("MANUTENCAO")
+                                    .timestamp(java.time.LocalDateTime.now())
                                     .recipient(req.getRequesterId() != null ? userRepository.findById(req.getRequesterId()).orElse(null) : null)
                                     .build();
                             systemNotificationService.createNotification(notification);
