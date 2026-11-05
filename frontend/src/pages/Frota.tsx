@@ -154,7 +154,9 @@ const mapVehicleToComponent = (vehicle: Vehicle): VeiculoComponent => {
     vehicleType: vehicle.vehicleType,
     data_aquisicao: vehicle.acquisitionDate,
     valor_aquisicao: vehicle.acquisitionValue ? Number(vehicle.acquisitionValue) : undefined,
-    photos: vehicle.photos ? Array.from(vehicle.photos).map(file => file.name).join(',') : undefined,
+    photos: Array.isArray(vehicle.photos)
+      ? (vehicle.photos as any[]).map((f: any) => typeof f === 'string' ? f : f?.name || '').filter(Boolean).join(',')
+      : (typeof vehicle.photos === 'string' ? vehicle.photos : undefined),
     capacidade: vehicle.capacity,
     observacoes: vehicle.notes,
     // Campos adicionais para edição
@@ -2062,7 +2064,9 @@ const Frota: React.FC = () => {
             status: v.status.toLowerCase(),
             data_aquisicao: v.acquisitionDate,
             valor_aquisicao: v.acquisitionValue ? Number(v.acquisitionValue) : undefined,
-            photos: v.photos ? Array.from(v.photos).map(file => file.name).join(',') : undefined,
+            photos: Array.isArray(v.photos)
+              ? (v.photos as any[]).map((f: any) => typeof f === 'string' ? f : f?.name || '').filter(Boolean).join(',')
+              : (typeof v.photos === 'string' ? v.photos : undefined),
             capacidade: v.capacity,
             observacoes: v.notes
           })) : []}

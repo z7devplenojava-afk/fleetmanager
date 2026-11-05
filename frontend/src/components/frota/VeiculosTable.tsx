@@ -121,12 +121,13 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
   // Estado para visualização de OS
   const [selectedWorkOrderForView, setSelectedWorkOrderForView] = useState<FleetWorkOrder | null>(null);
 
-  // Buscar Ordens de Serviço (OS) ativas da frota
+  // Buscar Ordens de Serviço (OS) ativas da frota (com cache de 60s para evitar refetch contínuo)
   const { data: workOrders = [] } = useQuery({
     queryKey: ['fleet-work-orders'],
     queryFn: () => fleetWorkOrderService.findAll(),
-    retry: 2,
-    refetchOnWindowFocus: true,
+    staleTime: 60 * 1000,
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
 
   // Função para obter a OS ativa do veículo

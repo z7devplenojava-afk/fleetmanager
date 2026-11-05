@@ -310,46 +310,18 @@ function App() {
     window.addEventListener('error', handleMessageChannelError);
     window.addEventListener('unhandledrejection', handleUnhandledRejection);
 
-    // Salvaguarda global para evitar que diálogos Radix travem a tela com pointer-events: none ou overflow: hidden
-    let isCleaning = false;
-    let cleanupTimer: any = null;
-
+    // Salvaguarda segura para evitar que diálogos Radix travem a tela ao navegar
     const cleanupStuckBodyStyles = () => {
-      // Se nem pointer-events nem overflow estiverem bloqueando o body, não faz nada
-      const hasStuckStyle = document.body.style.pointerEvents === 'none' || document.body.style.overflow === 'hidden';
-      if (!hasStuckStyle || isCleaning) return;
-
-      clearTimeout(cleanupTimer);
-      cleanupTimer = setTimeout(() => {
-        if (isCleaning) return;
-        const currentStuck = document.body.style.pointerEvents === 'none' || document.body.style.overflow === 'hidden';
-        if (!currentStuck) return;
-
-        isCleaning = true;
-        try {
-          const hasOpenDialog = document.querySelector('[role="dialog"], [role="alertdialog"], [data-state="open"]');
-          if (!hasOpenDialog) {
-            if (document.body.style.pointerEvents === 'none') {
-              document.body.style.pointerEvents = '';
-            }
-            if (document.body.style.overflow === 'hidden') {
-              document.body.style.overflow = '';
-            }
-          }
-        } finally {
-          setTimeout(() => { isCleaning = false; }, 100);
+      const hasOpenDialog = document.querySelector('[role="dialog"], [role="alertdialog"]');
+      if (!hasOpenDialog) {
+        if (document.body.style.pointerEvents === 'none') {
+          document.body.style.pointerEvents = '';
         }
-      }, 200);
+        if (document.body.style.overflow === 'hidden') {
+          document.body.style.overflow = '';
+        }
+      }
     };
-
-    const bodyObserver = new MutationObserver(() => {
-      cleanupStuckBodyStyles();
-    });
-
-    bodyObserver.observe(document.body, {
-      attributes: true,
-      attributeFilter: ['style']
-    });
 
     window.addEventListener('popstate', cleanupStuckBodyStyles);
 
@@ -361,8 +333,6 @@ function App() {
       window.removeEventListener('error', handleMessageChannelError);
       window.removeEventListener('unhandledrejection', handleUnhandledRejection);
       window.removeEventListener('popstate', cleanupStuckBodyStyles);
-      clearTimeout(cleanupTimer);
-      bodyObserver.disconnect();
     };
   }, []);
 
