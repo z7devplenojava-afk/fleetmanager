@@ -21,10 +21,10 @@ import java.util.Map;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/admin/services")
+@RequestMapping({"/api/admin/services", "/api/services"})
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Services", description = "API para gerenciamento de serviÃ§os")
+@Tag(name = "Services", description = "API para gerenciamento de serviços")
 public class ServiceController {
     
     private final ServiceService serviceService;
@@ -32,8 +32,8 @@ public class ServiceController {
     // ===== CRUD OPERATIONS =====
     
     @GetMapping
-    @Operation(summary = "Listar serviÃ§os", description = "Lista todos os serviÃ§os com filtros opcionais")
-    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('GESTOR') or hasRole('OPERACIONAL')")
+    @Operation(summary = "Listar serviços", description = "Lista todos os serviços com filtros opcionais")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<ServiceDTO>> list(
             @Parameter(description = "Status do serviÃ§o") 
             @RequestParam(value = "status", required = false) Service.ServiceStatus status,

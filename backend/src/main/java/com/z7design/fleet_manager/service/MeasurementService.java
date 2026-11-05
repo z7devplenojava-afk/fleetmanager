@@ -312,7 +312,18 @@ public class MeasurementService {
                 status, contractNumber, clientId, unitId);
 
         try {
-            List<MeasurementBulletin> allBulletins = bulletinRepository.findAllBasicData();
+            List<MeasurementBulletin> allBulletins;
+            try {
+                allBulletins = bulletinRepository.findAllBasicData();
+            } catch (Exception e1) {
+                log.warn("findAllBasicData falhou, tentando findAllSimple: {}", e1.getMessage());
+                try {
+                    allBulletins = bulletinRepository.findAllSimple();
+                } catch (Exception e2) {
+                    log.warn("findAllSimple falhou, tentando findAll: {}", e2.getMessage());
+                    allBulletins = bulletinRepository.findAll();
+                }
+            }
             if (allBulletins == null) {
                 allBulletins = java.util.Collections.emptyList();
             }
@@ -329,8 +340,10 @@ public class MeasurementService {
                     .filter(bulletin -> periodEnd == null || (bulletin.getPeriodEnd() != null && !bulletin.getPeriodEnd().isAfter(periodEnd)))
                     .collect(Collectors.toList());
 
-            int start = (int) pageable.getOffset();
-            int end = Math.min((start + pageable.getPageSize()), filteredBulletins.size());
+            boolean isPaged = pageable != null && pageable.isPaged();
+            int pageSize = isPaged ? pageable.getPageSize() : Math.max(1, filteredBulletins.size());
+            int start = isPaged ? (int) pageable.getOffset() : 0;
+            int end = isPaged ? Math.min((start + pageSize), filteredBulletins.size()) : filteredBulletins.size();
 
             List<MeasurementBulletin> pagedBulletins = start < filteredBulletins.size()
                     ? filteredBulletins.subList(start, end)
@@ -355,10 +368,10 @@ public class MeasurementService {
                 }
             }
 
-            return new PageImpl<>(dtoList, pageable, filteredBulletins.size());
+            return new PageImpl<>(dtoList, pageable != null ? pageable : Pageable.unpaged(), filteredBulletins.size());
         } catch (Exception e) {
             log.error("Erro ao buscar boletins com filtros: {}", e.getMessage(), e);
-            return Page.empty(pageable);
+            return pageable != null ? Page.empty(pageable) : Page.empty();
         }
     }
 

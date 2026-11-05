@@ -41,13 +41,14 @@ public class MeasurementController {
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<?> getAll(
-            @Parameter(description = "Parâmetros de paginação") Pageable pageable) {
+            @Parameter(description = "Parâmetros de paginação") @org.springframework.data.web.PageableDefault(size = 20) Pageable pageable) {
         try {
-            Page<MeasurementBulletinDTO> page = measurementService.getBulletinsWithFilters(null, null, null, null, null, null, pageable);
-            return ResponseEntity.ok(page != null ? page : Page.empty(pageable));
+            Pageable effectivePageable = pageable != null ? pageable : org.springframework.data.domain.PageRequest.of(0, 20);
+            Page<MeasurementBulletinDTO> page = measurementService.getBulletinsWithFilters(null, null, null, null, null, null, effectivePageable);
+            return ResponseEntity.ok(page != null ? page : Page.empty(effectivePageable));
         } catch (Exception e) {
             log.error("Erro ao listar boletins de medição: {}", e.getMessage(), e);
-            return ResponseEntity.ok(Page.empty(pageable));
+            return ResponseEntity.ok(pageable != null ? Page.empty(pageable) : Page.empty());
         }
     }
     

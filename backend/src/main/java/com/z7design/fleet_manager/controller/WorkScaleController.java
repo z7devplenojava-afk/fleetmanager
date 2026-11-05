@@ -19,7 +19,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/work-scales")
+@RequestMapping({"/api/work-scales", "/api/escala-trabalho"})
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Escalas de Trabalho", description = "Listagem e cadastro de escalas de trabalho usadas na precificação e operação")

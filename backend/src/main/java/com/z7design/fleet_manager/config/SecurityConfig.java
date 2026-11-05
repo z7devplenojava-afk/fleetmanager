@@ -282,12 +282,18 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/user-terms-consent/**")
                                                 .hasAnyAuthority("SUPER_ADMIN", "ADMIN", "ROLE_SUPER_ADMIN",
                                                                 "ROLE_ADMIN", "ROLE_COMPANY_ADMIN", "ROLE_FLEX_ADMIN")
-                                                // Endpoints de contratos - requerem permissÃƒÂµes especÃƒÂ­ficas
+                                                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/contracts/**").authenticated()
                                                 .requestMatchers("/api/contracts/**")
                                                 .hasAnyAuthority("CONTRACTS_READ", "CONTRACTS_WRITE",
                                                                 "CONTRACTS_CREATE", "CONTRACTS_DELETE",
                                                                 "ROLE_SUPER_ADMIN", "ROLE_ADMIN", "ROLE_COMPANY_ADMIN",
-                                                                "ROLE_FLEX_ADMIN", "ROLE_GESTOR")
+                                                                "ROLE_FLEX_ADMIN", "ROLE_GESTOR", "ROLE_OPERACIONAL",
+                                                                "ROLE_GESTOR_OPERACIONAL", "OPERACIONAL", "GESTOR_OPERACIONAL",
+                                                                "ROLE_TRAFFIC_MANAGER")
+                                                .requestMatchers("/api/services/**", "/api/admin/services/**").authenticated()
+                                                .requestMatchers("/api/escala-trabalho/**", "/api/escalas/**", "/api/work-scales/**").authenticated()
+                                                .requestMatchers("/api/expenses/**", "/api/expense-classifications/**").authenticated()
+                                                .requestMatchers("/api/mobilization/**", "/api/operational-mobilization/**").authenticated()
                                                 // Endpoints de propostas - requerem permissÃƒÂµes especÃƒÂ­ficas
                                                 .requestMatchers("/api/proposals/**")
                                                 .hasAnyAuthority("PROPOSALS_READ", "PROPOSALS_WRITE",

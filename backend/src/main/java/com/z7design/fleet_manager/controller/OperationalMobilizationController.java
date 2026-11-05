@@ -27,7 +27,7 @@ import java.util.UUID;
  * RF-03.1 (elegibilidade), RF-03.3 (vistoria de mobilização) e RF-03.5 (talões).
  */
 @RestController
-@RequestMapping("/api/operational-mobilization")
+@RequestMapping({"/api/operational-mobilization", "/api/mobilization"})
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Operacional & Mobilização", description = "Elegibilidade de frota, vistorias e talões (PRD Módulo 3)")

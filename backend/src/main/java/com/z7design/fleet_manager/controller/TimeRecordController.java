@@ -323,7 +323,7 @@ public class TimeRecordController {
     }
 
     @GetMapping("/admin/dashboard")
-    @PreAuthorize("hasAnyAuthority('TIME_RECORD_MANAGE', 'SUPER_ADMIN', 'ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_COMPANY_ADMIN', 'COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'FLEX_ADMIN', 'ROLE_GESTOR', 'GESTOR', 'ROLE_RH', 'RH')")
+    @PreAuthorize("hasAnyAuthority('TIME_RECORD_MANAGE', 'SUPER_ADMIN', 'ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_COMPANY_ADMIN', 'COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'FLEX_ADMIN', 'ROLE_GESTOR', 'GESTOR', 'ROLE_RH', 'RH', 'ROLE_OPERACIONAL', 'OPERACIONAL', 'ROLE_GESTOR_OPERACIONAL', 'GESTOR_OPERACIONAL', 'ROLE_TRAFFIC_MANAGER', 'TRAFFIC_MANAGER', 'ROLE_SUPERVISOR', 'SUPERVISOR')")
     public ResponseEntity<?> getAdminDashboard() {
         try {
             Map<String, Object> stats = timeRecordService.getDashboardStats();
@@ -336,7 +336,7 @@ public class TimeRecordController {
 
     @GetMapping("/admin/records")
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
-    @PreAuthorize("hasAnyAuthority('TIME_RECORD_MANAGE', 'SUPER_ADMIN', 'ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_COMPANY_ADMIN', 'COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'FLEX_ADMIN', 'ROLE_GESTOR', 'GESTOR', 'ROLE_RH', 'RH')")
+    @PreAuthorize("hasAnyAuthority('TIME_RECORD_MANAGE', 'SUPER_ADMIN', 'ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_COMPANY_ADMIN', 'COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'FLEX_ADMIN', 'ROLE_GESTOR', 'GESTOR', 'ROLE_RH', 'RH', 'ROLE_OPERACIONAL', 'OPERACIONAL', 'ROLE_GESTOR_OPERACIONAL', 'GESTOR_OPERACIONAL', 'ROLE_TRAFFIC_MANAGER', 'TRAFFIC_MANAGER', 'ROLE_SUPERVISOR', 'SUPERVISOR')")
     public ResponseEntity<?> getAdminRecords(
             @RequestParam(value = "employeeId", required = false) UUID employeeId,
             @RequestParam(value = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
@@ -421,7 +421,7 @@ public class TimeRecordController {
     }
 
     @PostMapping("/admin/batch-approve")
-    @PreAuthorize("hasAnyAuthority('TIME_RECORD_MANAGE', 'SUPER_ADMIN', 'ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_COMPANY_ADMIN', 'COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'FLEX_ADMIN', 'ROLE_GESTOR', 'GESTOR', 'ROLE_RH', 'RH')")
+    @PreAuthorize("hasAnyAuthority('TIME_RECORD_MANAGE', 'SUPER_ADMIN', 'ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_COMPANY_ADMIN', 'COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'FLEX_ADMIN', 'ROLE_GESTOR', 'GESTOR', 'ROLE_RH', 'RH', 'ROLE_OPERACIONAL', 'OPERACIONAL', 'ROLE_GESTOR_OPERACIONAL', 'GESTOR_OPERACIONAL', 'ROLE_TRAFFIC_MANAGER', 'TRAFFIC_MANAGER')")
     public ResponseEntity<?> batchApproveRecords(
             @RequestBody Map<String, Object> request,
             @AuthenticationPrincipal UserDetails userDetails) {
@@ -446,7 +446,7 @@ public class TimeRecordController {
     }
 
     @PostMapping("/admin/batch-reject")
-    @PreAuthorize("hasAnyAuthority('TIME_RECORD_MANAGE', 'SUPER_ADMIN', 'ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_COMPANY_ADMIN', 'COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'FLEX_ADMIN', 'ROLE_GESTOR', 'GESTOR', 'ROLE_RH', 'RH')")
+    @PreAuthorize("hasAnyAuthority('TIME_RECORD_MANAGE', 'SUPER_ADMIN', 'ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_COMPANY_ADMIN', 'COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'FLEX_ADMIN', 'ROLE_GESTOR', 'GESTOR', 'ROLE_RH', 'RH', 'ROLE_OPERACIONAL', 'OPERACIONAL', 'ROLE_GESTOR_OPERACIONAL', 'GESTOR_OPERACIONAL', 'ROLE_TRAFFIC_MANAGER', 'TRAFFIC_MANAGER')")
     public ResponseEntity<?> batchRejectRecords(
             @RequestBody Map<String, Object> request) {
         try {

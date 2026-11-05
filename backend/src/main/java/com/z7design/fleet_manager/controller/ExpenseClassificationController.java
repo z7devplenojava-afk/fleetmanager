@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/expense-classifications")
+@RequestMapping({"/api/expense-classifications", "/api/expenses"})
 @RequiredArgsConstructor
 @Slf4j
 @CrossOrigin(origins = "*")
