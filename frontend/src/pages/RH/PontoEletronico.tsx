@@ -44,7 +44,7 @@ import { employeeService } from '@/services/employeeService';
 import { isDriverUser } from '@/utils/roleRouting';
 import { UniversalQrScannerModal } from '@/components/common/UniversalQrScannerModal';
 import { DriverPontoOperacionalSection } from '@/components/driver/DriverPontoOperacionalSection';
-import { scheduleService } from '@/services/scheduleService';
+import { scheduleService, emitDriverRecordsUpdated } from '@/services/scheduleService';
 import { VincularFuncionarioModal } from '@/components/ponto/VincularFuncionarioModal';
 
 const PontoEletronico: React.FC = () => {
@@ -417,7 +417,15 @@ const PontoEletronico: React.FC = () => {
         } catch {
           // ignore
         }
-        scheduleService.emitDriverRecordsUpdated();
+        try {
+          if (typeof emitDriverRecordsUpdated === 'function') {
+            emitDriverRecordsUpdated();
+          } else if (typeof scheduleService?.emitDriverRecordsUpdated === 'function') {
+            scheduleService.emitDriverRecordsUpdated();
+          }
+        } catch (e) {
+          console.warn('Falha ao emitir atualização de escalas:', e);
+        }
       } else {
         throw new Error(response.error || 'Erro ao registrar ponto');
       }
@@ -439,7 +447,15 @@ const PontoEletronico: React.FC = () => {
           title: 'Ponto Registrado Operacionalmente',
           description: `${getTipoLabel(tipoRegistro)} registrado às ${format(new Date(), 'HH:mm:ss')} (aguardando sincronização cadastral).`,
         });
-        scheduleService.emitDriverRecordsUpdated();
+        try {
+          if (typeof emitDriverRecordsUpdated === 'function') {
+            emitDriverRecordsUpdated();
+          } else if (typeof scheduleService?.emitDriverRecordsUpdated === 'function') {
+            scheduleService.emitDriverRecordsUpdated();
+          }
+        } catch (e) {
+          console.warn('Falha ao emitir atualização de escalas:', e);
+        }
         return;
       }
       toast({

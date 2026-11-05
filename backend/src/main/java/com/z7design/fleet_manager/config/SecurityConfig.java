@@ -220,10 +220,8 @@ public class SecurityConfig {
                                                                 "ROLE_GESTOR", "ROLE_SUPERVISOR")
                                                 // Endpoints da frota - requerem apenas autenticaÃƒÂ§ÃƒÂ£o (temporÃƒÂ¡rio para
                                                 // desenvolvimento)
-                                                .requestMatchers("/api/frota/vehicle-gate-checklists/**")
-                                                .hasAnyAuthority("ROLE_SUPER_ADMIN", "ROLE_ADMIN", "ROLE_COMPANY_ADMIN",
-                                                                "ROLE_FLEX_ADMIN", "ROLE_PORTARIA",
-                                                                "ROLE_MECANICO", "ROLE_MOTORISTA")
+                                                .requestMatchers("/api/frota/vehicle-gate-checklists/**", "/api/frota/vehicle-gate-checklists")
+                                                .authenticated()
                                                 // ConfiguraÃ§Ã£o de itens de checklist por veÃ­culo - leitura autenticada
                                                 // (motorista lÃª para executar o checklist), escrita para admin/portaria
                                                 .requestMatchers(org.springframework.http.HttpMethod.GET,

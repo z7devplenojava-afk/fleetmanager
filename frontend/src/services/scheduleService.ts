@@ -1144,6 +1144,7 @@ function getAllDriverDailySheetsFromLocalStorage(): Array<{
 const persistedSyncFingerprints = new Map<string, string>();
 
 export const scheduleService = {
+  emitDriverRecordsUpdated,
   checkPointTolerance,
 
   /**
