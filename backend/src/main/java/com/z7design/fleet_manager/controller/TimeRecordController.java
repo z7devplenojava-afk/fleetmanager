@@ -69,7 +69,7 @@ public class TimeRecordController {
             return ResponseEntity.ok(Map.of(
                     "success", true,
                     "message", "Ponto registrado com sucesso",
-                    "data", record));
+                    "data", serializeSafeTimeRecord(record)));
 
         } catch (Exception e) {
             log.error("Erro ao registrar ponto: {}", e.getMessage(), e);
@@ -80,15 +80,19 @@ public class TimeRecordController {
     }
 
     @GetMapping("/today/{employeeId}")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     @PreAuthorize("hasAnyAuthority('TIME_RECORD_READ', 'SUPER_ADMIN', 'ADMIN', 'ROLE_MOTORISTA', 'MOTORISTA', 'ROLE_EMPLOYEE', 'ROLE_COLABORADOR') or isAuthenticated()")
     public ResponseEntity<?> getTodayRecords(@PathVariable("employeeId") UUID employeeId) {
         try {
             List<TimeRecord> records = timeRecordService.getTodayRecords(employeeId);
+            List<Map<String, Object>> safeRecords = (records != null ? records : java.util.Collections.<TimeRecord>emptyList()).stream()
+                    .map(this::serializeSafeTimeRecord)
+                    .collect(java.util.stream.Collectors.toList());
             return ResponseEntity.ok(Map.of(
                     "success", true,
-                    "data", records));
+                    "data", safeRecords));
         } catch (Exception e) {
-            log.error("Erro ao buscar registros do dia: {}", e.getMessage());
+            log.error("Erro ao buscar registros do dia: {}", e.getMessage(), e);
             return ResponseEntity.badRequest().body(Map.of(
                     "success", false,
                     "error", e.getMessage()));
@@ -96,6 +100,7 @@ public class TimeRecordController {
     }
 
     @GetMapping("/employee/{employeeId}")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     @PreAuthorize("hasAnyAuthority('TIME_RECORD_READ', 'SUPER_ADMIN', 'ADMIN', 'ROLE_MOTORISTA', 'MOTORISTA', 'ROLE_EMPLOYEE', 'ROLE_COLABORADOR') or isAuthenticated()")
     public ResponseEntity<?> getEmployeeRecords(
             @PathVariable("employeeId") UUID employeeId,
@@ -104,14 +109,17 @@ public class TimeRecordController {
         try {
             Pageable pageable = PageRequest.of(page, size);
             Page<TimeRecord> records = timeRecordService.getRecordsByEmployee(employeeId, pageable);
+            List<Map<String, Object>> safeRecords = records.getContent().stream()
+                    .map(this::serializeSafeTimeRecord)
+                    .collect(java.util.stream.Collectors.toList());
             return ResponseEntity.ok(Map.of(
                     "success", true,
-                    "data", records.getContent(),
+                    "data", safeRecords,
                     "totalPages", records.getTotalPages(),
                     "totalElements", records.getTotalElements(),
                     "currentPage", records.getNumber()));
         } catch (Exception e) {
-            log.error("Erro ao buscar registros do funcionário: {}", e.getMessage());
+            log.error("Erro ao buscar registros do funcionário: {}", e.getMessage(), e);
             return ResponseEntity.badRequest().body(Map.of(
                     "success", false,
                     "error", e.getMessage()));
@@ -119,6 +127,7 @@ public class TimeRecordController {
     }
 
     @GetMapping("/period/{employeeId}")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     @PreAuthorize("hasAnyAuthority('TIME_RECORD_READ', 'SUPER_ADMIN', 'ADMIN', 'ROLE_MOTORISTA', 'MOTORISTA', 'ROLE_EMPLOYEE', 'ROLE_COLABORADOR') or isAuthenticated()")
     public ResponseEntity<?> getRecordsByPeriod(
             @PathVariable("employeeId") UUID employeeId,
@@ -127,11 +136,14 @@ public class TimeRecordController {
         try {
             List<TimeRecord> records = timeRecordService.getRecordsByPeriod(
                     employeeId, startDate, endDate);
+            List<Map<String, Object>> safeRecords = (records != null ? records : java.util.Collections.<TimeRecord>emptyList()).stream()
+                    .map(this::serializeSafeTimeRecord)
+                    .collect(java.util.stream.Collectors.toList());
             return ResponseEntity.ok(Map.of(
                     "success", true,
-                    "data", records));
+                    "data", safeRecords));
         } catch (Exception e) {
-            log.error("Erro ao buscar registros por período: {}", e.getMessage());
+            log.error("Erro ao buscar registros por período: {}", e.getMessage(), e);
             return ResponseEntity.badRequest().body(Map.of(
                     "success", false,
                     "error", e.getMessage()));
@@ -187,7 +199,7 @@ public class TimeRecordController {
             return ResponseEntity.ok(Map.of(
                     "success", true,
                     "message", "Registro aprovado com sucesso",
-                    "data", record));
+                    "data", serializeSafeTimeRecord(record)));
         } catch (Exception e) {
             log.error("Erro ao aprovar registro: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of(
@@ -208,7 +220,7 @@ public class TimeRecordController {
             return ResponseEntity.ok(Map.of(
                     "success", true,
                     "message", "Registro rejeitado com sucesso",
-                    "data", record));
+                    "data", serializeSafeTimeRecord(record)));
         } catch (Exception e) {
             log.error("Erro ao rejeitar registro: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of(
@@ -385,8 +397,12 @@ public class TimeRecordController {
             empMap.put("registrationNumber", tr.getEmployee().getRegistrationNumber());
             empMap.put("cpf", tr.getEmployee().getDocument());
             empMap.put("document", tr.getEmployee().getDocument());
-            empMap.put("positionDescription", tr.getEmployee().getPosition() != null ? tr.getEmployee().getPosition().getName() : null);
-            empMap.put("department", tr.getEmployee().getDepartment());
+            try {
+                empMap.put("positionDescription", tr.getEmployee().getPosition() != null ? tr.getEmployee().getPosition().getName() : null);
+            } catch (Exception ignored) {}
+            try {
+                empMap.put("department", tr.getEmployee().getDepartment() != null ? tr.getEmployee().getDepartment().getName() : null);
+            } catch (Exception ignored) {}
             map.put("employee", empMap);
             map.put("employeeId", tr.getEmployee().getId());
             map.put("employeeName", tr.getEmployee().getName());
@@ -416,10 +432,13 @@ public class TimeRecordController {
             UUID approverId = UUID.fromString((String) request.get("approverId"));
 
             List<TimeRecord> records = timeRecordService.batchApproveRecords(recordIds, approverId);
+            List<Map<String, Object>> safeRecords = (records != null ? records : java.util.Collections.<TimeRecord>emptyList()).stream()
+                    .map(this::serializeSafeTimeRecord)
+                    .collect(java.util.stream.Collectors.toList());
             return ResponseEntity.ok(Map.of(
                     "success", true,
-                    "message", records.size() + " registro(s) aprovado(s)",
-                    "data", records));
+                    "message", safeRecords.size() + " registro(s) aprovado(s)",
+                    "data", safeRecords));
         } catch (Exception e) {
             log.error("Erro ao aprovar registros em lote: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("success", false, "error", e.getMessage()));
@@ -438,10 +457,13 @@ public class TimeRecordController {
             String reason = (String) request.getOrDefault("reason", "Rejeitado em lote");
 
             List<TimeRecord> records = timeRecordService.batchRejectRecords(recordIds, approverId, reason);
+            List<Map<String, Object>> safeRecords = (records != null ? records : java.util.Collections.<TimeRecord>emptyList()).stream()
+                    .map(this::serializeSafeTimeRecord)
+                    .collect(java.util.stream.Collectors.toList());
             return ResponseEntity.ok(Map.of(
                     "success", true,
-                    "message", records.size() + " registro(s) rejeitado(s)",
-                    "data", records));
+                    "message", safeRecords.size() + " registro(s) rejeitado(s)",
+                    "data", safeRecords));
         } catch (Exception e) {
             log.error("Erro ao rejeitar registros em lote: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("success", false, "error", e.getMessage()));
@@ -462,7 +484,7 @@ public class TimeRecordController {
             return ResponseEntity.ok(Map.of(
                     "success", true,
                     "message", "Justificativa enviada com sucesso",
-                    "data", record));
+                    "data", serializeSafeTimeRecord(record)));
         } catch (Exception e) {
             log.error("Erro ao enviar justificativa: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("success", false, "error", e.getMessage()));
@@ -494,7 +516,7 @@ public class TimeRecordController {
             return ResponseEntity.ok(Map.of(
                     "success", true,
                     "message", "Ponto atualizado com sucesso pelo RH/DPE",
-                    "data", record));
+                    "data", serializeSafeTimeRecord(record)));
         } catch (Exception e) {
             log.error("Erro ao atualizar ponto pelo RH/DPE: {}", e.getMessage(), e);
             return ResponseEntity.badRequest().body(Map.of(
@@ -522,7 +544,7 @@ public class TimeRecordController {
             return ResponseEntity.ok(Map.of(
                     "success", true,
                     "message", "Ponto manual registrado com sucesso pelo RH/DPE",
-                    "data", record));
+                    "data", serializeSafeTimeRecord(record)));
         } catch (Exception e) {
             log.error("Erro ao registrar ponto manual: {}", e.getMessage(), e);
             return ResponseEntity.badRequest().body(Map.of(
@@ -545,7 +567,7 @@ public class TimeRecordController {
             return ResponseEntity.ok(Map.of(
                     "success", true,
                     "message", "Solicitação de ajuste de ponto enviada com sucesso ao RH/DPE",
-                    "data", record));
+                    "data", serializeSafeTimeRecord(record)));
         } catch (Exception e) {
             log.error("Erro ao solicitar ajuste de ponto: {}", e.getMessage(), e);
             return ResponseEntity.badRequest().body(Map.of(

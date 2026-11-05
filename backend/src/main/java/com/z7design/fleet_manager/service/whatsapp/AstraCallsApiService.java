@@ -79,6 +79,16 @@ public class AstraCallsApiService {
         return enabled && hasText(apiUrl) && hasText(apiKey);
     }
 
+    /** URL base da API do AstraCalls (sem barra final). */
+    public String apiUrl() {
+        return baseUrl();
+    }
+
+    /** API key usada no header {@code X-API-Key}. */
+    public String apiKey() {
+        return apiKey;
+    }
+
     /**
      * Considera configurado quando habilitado, com URL, API key e uma sessao
      * (global ou por empresa) preenchidos.

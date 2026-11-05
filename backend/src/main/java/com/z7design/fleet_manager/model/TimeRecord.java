@@ -18,18 +18,21 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Filter(name = "tenantFilter", condition = "company_id = :companyId")
+@JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
 public class TimeRecord {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "employee_id", nullable = false)
+    @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler", "timeRecords", "documents", "benefits", "dependents", "payrolls", "epis", "occurrences", "schedules", "user" })
     private Employee employee;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "work_post_id")
+    @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler", "client", "contract", "responsible", "nrs", "epis", "trainings", "workSchedules" })
     private WorkPost workPost;
 
     @Column(name = "record_type", nullable = false)

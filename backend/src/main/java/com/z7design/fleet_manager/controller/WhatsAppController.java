@@ -1,6 +1,8 @@
 package com.z7design.fleet_manager.controller;
 
 import com.z7design.fleet_manager.service.EvolutionApiService;
+import com.z7design.fleet_manager.service.whatsapp.WhatsAppProviderRouter;
+import com.z7design.fleet_manager.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -9,6 +11,7 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/whatsapp")
@@ -18,6 +21,7 @@ import java.util.Map;
 public class WhatsAppController {
 
     private final EvolutionApiService evolutionApiService;
+    private final WhatsAppProviderRouter whatsAppProviderRouter;
 
     @Value("${whatsapp.provider:evolution}")
     private String whatsappProvider;
@@ -218,17 +222,21 @@ public class WhatsAppController {
             }
             fullMessage.append("\nMensagem:\n").append(message);
 
-            log.info("Enviando mensagem do chatbot para número da empresa via Evolution API");
+            log.info("Enviando mensagem do chatbot para número da empresa");
 
-            boolean sent = evolutionApiService.sendTextMessage(companyWhatsAppNumber, fullMessage.toString());
+            WhatsAppProviderRouter.ResolvedProvider resolved =
+                    whatsAppProviderRouter.resolve(TenantContext.get());
+            boolean sent = resolved.provider().sendText(
+                    resolved.sessionId(), companyWhatsAppNumber, fullMessage.toString(),
+                    UUID.randomUUID().toString()).success();
 
             if (sent) {
-                return ResponseEntity.ok(Map.of("success", true, "message", "Mensagem enviada com sucesso! Nossa equipe entrará em contato em breve.", "provider", "evolution"));
+                return ResponseEntity.ok(Map.of("success", true, "message", "Mensagem enviada com sucesso! Nossa equipe entrará em contato em breve.", "provider", resolved.providerId()));
             }
-            return ResponseEntity.badRequest().body(Map.of("success", false, "error", "Falha ao enviar mensagem. Tente novamente ou entre em contato diretamente.", "provider", "evolution"));
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", "Falha ao enviar mensagem. Tente novamente ou entre em contato diretamente.", "provider", resolved.providerId()));
         } catch (Exception e) {
             log.error("Erro ao enviar mensagem do chatbot: {}", e.getMessage(), e);
-            return ResponseEntity.internalServerError().body(Map.of("success", false, "error", "Erro interno: " + e.getMessage(), "provider", "evolution"));
+            return ResponseEntity.internalServerError().body(Map.of("success", false, "error", "Erro interno: " + e.getMessage(), "provider", "unknown"));
         }
     }
 }

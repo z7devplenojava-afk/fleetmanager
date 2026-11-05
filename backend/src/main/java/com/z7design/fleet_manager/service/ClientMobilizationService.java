@@ -8,6 +8,7 @@ import com.z7design.fleet_manager.model.enums.NotificationStatus;
 import com.z7design.fleet_manager.model.enums.NotificationType;
 import com.z7design.fleet_manager.repository.NotificationRepository;
 import com.z7design.fleet_manager.repository.UserRepository;
+import com.z7design.fleet_manager.service.whatsapp.WhatsAppGateway;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -30,7 +31,7 @@ public class ClientMobilizationService {
     private final NotificationRepository notificationRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final JavaMailSender mailSender;
-    private final EvolutionApiService evolutionApiService;
+    private final WhatsAppGateway whatsAppGateway;
     private final UserCompanyResolver userCompanyResolver;
 
     @Value("${app.notification.email.from:noreply@secureguard.com}")
@@ -183,7 +184,7 @@ public class ClientMobilizationService {
 
     @Async
     public void enviarWhatsAppsSetoriais(ClientMobilizationDTO dto, Map<String, String> briefings) {
-        if (evolutionApiService == null) return;
+        if (whatsAppGateway == null) return;
 
         List<User> allUsers = userRepository.findAll();
 
@@ -195,7 +196,7 @@ public class ClientMobilizationService {
             if (sector != null && briefings.containsKey(sector)) {
                 try {
                     String cleanPhone = whatsapp.replaceAll("[^0-9]", "");
-                    evolutionApiService.sendTextMessage(cleanPhone, briefings.get(sector));
+                    whatsAppGateway.sendText(user.getCompanyId(), cleanPhone, briefings.get(sector));
                     log.info("📲 WhatsApp de mobilização enviado para {} ({})", cleanPhone, sector);
                 } catch (Exception e) {
                     log.warn("Falha ao enviar WhatsApp de mobilização para {}: {}", whatsapp, e.getMessage());

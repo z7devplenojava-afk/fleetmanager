@@ -12,6 +12,8 @@ import com.z7design.fleet_manager.repository.EmployeeRepository;
 import com.z7design.fleet_manager.repository.PayslipDeliveryLogRepository;
 import com.z7design.fleet_manager.repository.PayslipRepository;
 import com.z7design.fleet_manager.repository.UserRepository;
+import com.z7design.fleet_manager.service.whatsapp.WhatsAppGateway;
+import com.z7design.fleet_manager.service.whatsapp.WhatsAppSendResult;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -48,9 +50,9 @@ public class EnvioService {
     @Autowired
     private com.z7design.fleet_manager.service.email.EmailQueueService emailQueueService;
 
-    // WhatsApp provider: Evolution API
+    // WhatsApp provider: roteado por empresa (AstraCalls/Evolution)
     @Autowired(required = false)
-    private EvolutionApiService evolutionApiService;
+    private WhatsAppGateway whatsAppGateway;
 
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
@@ -776,33 +778,43 @@ public class EnvioService {
     }
 
     /**
-     * Envia mensagem via WhatsApp usando Evolution API
+     * Envia holerite via WhatsApp pelo provedor configurado para a empresa
      */
     private boolean sendWhatsAppMessage(String phoneNumber, String message, String filePath) {
-        log.info("Enviando via Evolution API");
-        if (evolutionApiService == null) {
-            log.error("EvolutionApiService não disponível!");
+        log.info("Enviando holerite via WhatsApp");
+        if (whatsAppGateway == null) {
+            log.error("WhatsAppGateway não disponível!");
             return false;
         }
-        return evolutionApiService.sendFileMessage(phoneNumber, message, filePath);
+        try {
+            Path path = Path.of(filePath);
+            byte[] content = Files.readAllBytes(path);
+            return whatsAppGateway.sendDocument(phoneNumber, content, path.getFileName().toString(),
+                    "application/pdf", message).success();
+        } catch (Exception e) {
+            log.error("Erro ao ler o holerite para envio via WhatsApp: {}", e.getMessage(), e);
+            return false;
+        }
     }
 
     private String[] sendWhatsAppMessageWithError(String phoneNumber, String message, String filePath) {
-        log.info("Enviando via Evolution API");
-        if (evolutionApiService == null) {
-            log.error("EvolutionApiService não disponível!");
-            return new String[] { "false", "Serviço Evolution não disponível" };
+        log.info("Enviando holerite via WhatsApp");
+        if (whatsAppGateway == null) {
+            log.error("WhatsAppGateway não disponível!");
+            return new String[] { "false", "Serviço de WhatsApp não disponível" };
         }
         try {
-            boolean sent = evolutionApiService.sendFileMessage(phoneNumber, message, filePath);
-            if (sent) {
+            Path path = Path.of(filePath);
+            byte[] content = Files.readAllBytes(path);
+            WhatsAppSendResult result = whatsAppGateway.sendDocument(phoneNumber, content,
+                    path.getFileName().toString(), "application/pdf", message);
+            if (result.success()) {
                 return new String[] { "true", null };
             }
-            String errorDetail = evolutionApiService.getLastErrorMessage();
-            return new String[] { "false", errorDetail != null ? errorDetail : "Erro sem detalhes do Evolution" };
+            return new String[] { "false", result.errorMessage() != null ? result.errorMessage() : "Erro sem detalhes do provedor de WhatsApp" };
         } catch (Exception e) {
-            log.error("Exceção ao enviar via Evolution: {}", e.getMessage(), e);
-            return new String[] { "false", "Erro ao comunicar com Evolution API: " + e.getMessage() };
+            log.error("Exceção ao enviar holerite via WhatsApp: {}", e.getMessage(), e);
+            return new String[] { "false", "Erro ao comunicar com o provedor de WhatsApp: " + e.getMessage() };
         }
     }
 

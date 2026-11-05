@@ -11,6 +11,7 @@ import com.z7design.fleet_manager.model.Company;
 import com.z7design.fleet_manager.model.Company.CompanyStatus;
 import com.z7design.fleet_manager.repository.CompanyRepository;
 import com.z7design.fleet_manager.service.StandardReportLayoutService;
+import com.z7design.fleet_manager.service.whatsapp.WhatsAppGateway;
 import com.z7design.fleet_manager.dto.FineDTO;
 import com.z7design.fleet_manager.dto.FineReportDTO;
 import com.z7design.fleet_manager.model.Fine;
@@ -52,7 +53,7 @@ public class FineService {
     private final JasperReportService jasperReportService;
     private final StandardReportLayoutService standardReportLayoutService;
     private final CompanyRepository companyRepository;
-    private final EvolutionApiService evolutionApiService;
+    private final WhatsAppGateway whatsAppGateway;
     
     public List<FineDTO> getAllFines() {
         log.info("Buscando todas as multas");
@@ -175,14 +176,25 @@ public class FineService {
         String whatsappMessage = "\uD83D\uDEA8 *Nova Multa Registrada*\n\n" + message;
         boolean sent = false;
         try {
-            sent = evolutionApiService.sendTextMessage(normalized, whatsappMessage);
+            sent = whatsAppGateway.sendText(resolveCompanyId(fine), normalized, whatsappMessage).success();
         } catch (Exception e) {
-            log.warn("Evolution API falhou ao notificar multa {}: {}", fine.getId(), e.getMessage());
+            log.warn("Envio de WhatsApp falhou ao notificar multa {}: {}", fine.getId(), e.getMessage());
         }
 
         log.info("Notificação WhatsApp de multa {} para {}: {}", fine.getId(), normalized, sent ? "enviada" : "falhou");
     }
     
+    /** Resolve a empresa da multa (para escolher o provedor de WhatsApp correto). */
+    private UUID resolveCompanyId(Fine fine) {
+        if (fine.getVehicle() != null && fine.getVehicle().getCompanyId() != null) {
+            return fine.getVehicle().getCompanyId();
+        }
+        if (fine.getDriver() != null) {
+            return fine.getDriver().getCompanyId();
+        }
+        return null;
+    }
+
     /** Job diário às 08:00: alerta multas PENDING próximas do vencimento ou vencidas via WhatsApp. */
     @Scheduled(cron = "0 0 8 * * ?")
     public int enviarAlertasVencimentoMultas() {
@@ -260,9 +272,9 @@ public class FineService {
         String whatsappMessage = (vencida ? "\uD83D\uDD34 " : "\uD83D\uDFE1 ") + "*" + title + "*\n\n" + message;
         boolean sent = false;
         try {
-            sent = evolutionApiService.sendTextMessage(normalized, whatsappMessage);
+            sent = whatsAppGateway.sendText(resolveCompanyId(fine), normalized, whatsappMessage).success();
         } catch (Exception e) {
-            log.warn("Evolution API falhou ao alertar vencimento da multa {}: {}", fine.getId(), e.getMessage());
+            log.warn("Envio de WhatsApp falhou ao alertar vencimento da multa {}: {}", fine.getId(), e.getMessage());
         }
 
         if (sent) {

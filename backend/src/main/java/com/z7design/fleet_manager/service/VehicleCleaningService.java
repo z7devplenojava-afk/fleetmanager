@@ -11,6 +11,7 @@ import com.z7design.fleet_manager.model.*;
 import com.z7design.fleet_manager.model.enums.NotificationStatus;
 import com.z7design.fleet_manager.model.enums.NotificationType;
 import com.z7design.fleet_manager.repository.*;
+import com.z7design.fleet_manager.service.whatsapp.WhatsAppGateway;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -56,7 +57,7 @@ public class VehicleCleaningService {
     private final DriverRepository driverRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
-    private final EvolutionApiService evolutionApiService;
+    private final WhatsAppGateway whatsAppGateway;
     private final ObjectMapper objectMapper;
     private final FleetWorkOrderService fleetWorkOrderService;
     private final CarWashRepository carWashRepository;
@@ -634,7 +635,7 @@ public class VehicleCleaningService {
             if (phone == null) {
                 log.warn("Número de WhatsApp inválido/sem DDD para limpeza {}", order.getId());
             } else {
-                sendWhatsAppNotification(phone, title, message, order.getId());
+                sendWhatsAppNotification(phone, title, message, order.getId(), order.getCompanyId());
             }
         }
     }
@@ -678,14 +679,14 @@ public class VehicleCleaningService {
         return "+55" + digits;
     }
 
-    /** Envia a mensagem via Evolution API com fallback para Baileys. */
-    private void sendWhatsAppNotification(String phone, String title, String message, UUID orderId) {
+    /** Envia a mensagem pelo provedor de WhatsApp configurado para a empresa. */
+    private void sendWhatsAppNotification(String phone, String title, String message, UUID orderId, UUID companyId) {
         String whatsappMessage = "🧼 *" + title + "*\n\n" + message;
         boolean sent = false;
         try {
-            sent = evolutionApiService.sendTextMessage(phone, whatsappMessage);
+            sent = whatsAppGateway.sendText(companyId, phone, whatsappMessage).success();
         } catch (Exception e) {
-            log.warn("Evolution API falhou ao notificar limpeza {}: {}", orderId, e.getMessage());
+            log.warn("Envio de WhatsApp falhou ao notificar limpeza {}: {}", orderId, e.getMessage());
         }
 
         if (!sent) {

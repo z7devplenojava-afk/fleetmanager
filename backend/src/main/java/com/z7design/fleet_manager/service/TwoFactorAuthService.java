@@ -5,6 +5,7 @@ import com.z7design.fleet_manager.model.TwoFactorCode.DeliveryChannel;
 import com.z7design.fleet_manager.model.User;
 import com.z7design.fleet_manager.repository.TwoFactorCodeRepository;
 import com.z7design.fleet_manager.repository.UserRepository;
+import com.z7design.fleet_manager.service.whatsapp.WhatsAppGateway;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,7 +27,7 @@ public class TwoFactorAuthService {
     private final EmailService emailService;
     
     @Autowired(required = false)
-    private EvolutionApiService evolutionApiService;
+    private WhatsAppGateway whatsAppGateway;
 
     private static final Random RANDOM = new Random();
 
@@ -183,7 +184,7 @@ public class TwoFactorAuthService {
      * Envia cÃ³digo via WhatsApp
      */
     private boolean sendViaWhatsApp(String code, String phoneNumber, String userName) {
-        if (evolutionApiService == null) {
+        if (whatsAppGateway == null) {
             log.error("âŒ EvolutionApiService nÃ£o disponÃ­vel!");
             return false;
         }
@@ -199,7 +200,7 @@ public class TwoFactorAuthService {
                 userName, code
         );
 
-        return evolutionApiService.sendTextMessage(phoneNumber, message);
+        return whatsAppGateway.sendText(phoneNumber, message).success();
     }
 
     /**

@@ -9,7 +9,7 @@ import com.z7design.fleet_manager.model.User;
 import com.z7design.fleet_manager.repository.UserRepository;
 import com.z7design.fleet_manager.service.LogService;
 import com.z7design.fleet_manager.service.TwoFactorService;
-import com.z7design.fleet_manager.service.EvolutionApiService;
+import com.z7design.fleet_manager.service.whatsapp.WhatsAppGateway;
 import org.springframework.beans.factory.annotation.Autowired;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -37,7 +37,7 @@ public class FirstAccessController {
     private final LogService logService;
     
     @Autowired(required = false)
-    private EvolutionApiService evolutionApiService;
+    private WhatsAppGateway whatsAppGateway;
 
     @Operation(summary = "Verifica status do primeiro acesso", description = "Retorna informaÃ§Ãµes sobre primeiro acesso e 2FA")
     @GetMapping("/status")
@@ -185,9 +185,9 @@ public class FirstAccessController {
             );
 
             boolean sent = false;
-            if (evolutionApiService != null) {
+            if (whatsAppGateway != null) {
                 try {
-                    sent = evolutionApiService.sendTextMessage(user.getWhatsapp(), message);
+                    sent = whatsAppGateway.sendText(user.getCompanyId(), user.getWhatsapp(), message).success();
                     if (sent) {
                         log.info("âœ… CÃ³digo 2FA enviado via WhatsApp com sucesso");
                     } else {

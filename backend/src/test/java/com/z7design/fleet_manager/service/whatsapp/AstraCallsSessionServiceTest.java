@@ -29,12 +29,15 @@ class AstraCallsSessionServiceTest {
     @Mock
     private CompanyWhatsAppConfigService configService;
 
+    @Mock
+    private AstraCallsEventStreamService eventStreamService;
+
     private AstraCallsSessionService service;
     private UUID companyId;
 
     @BeforeEach
     void setUp() {
-        service = new AstraCallsSessionService(apiService, configService);
+        service = new AstraCallsSessionService(apiService, configService, eventStreamService);
         companyId = UUID.randomUUID();
     }
 

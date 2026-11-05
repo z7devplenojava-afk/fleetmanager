@@ -24,6 +24,7 @@ public class AstraCallsSessionService {
 
     private final AstraCallsApiService apiService;
     private final CompanyWhatsAppConfigService configService;
+    private final AstraCallsEventStreamService eventStreamService;
 
     /**
      * Situacao da conexao AstraCalls para uma empresa.
@@ -36,6 +37,7 @@ public class AstraCallsSessionService {
      * @param state       estado da sessao (open, qr, logged_out...)
      * @param phoneNumber numero conectado
      * @param error       mensagem de erro (quando houver)
+     * @param qr          QR Code atual da sessao (quando aguardando leitura)
      */
     public record ConnectionStatus(
             boolean enabled,
@@ -45,7 +47,8 @@ public class AstraCallsSessionService {
             String sessionName,
             String state,
             String phoneNumber,
-            String error) {
+            String error,
+            String qr) {
     }
 
     public boolean isEnabled() {
@@ -72,8 +75,11 @@ public class AstraCallsSessionService {
 
         if (!configured) {
             return new ConnectionStatus(enabled, false, false, sessionId, null, null, null,
-                    "AstraCalls nao configurado. Defina ASTRACALLS_API_URL, ASTRACALLS_API_KEY e ASTRACALLS_SESSION_ID.");
+                    "AstraCalls nao configurado. Defina ASTRACALLS_API_URL, ASTRACALLS_API_KEY e ASTRACALLS_SESSION_ID.",
+                    null);
         }
+
+        eventStreamService.ensureConnected();
 
         try {
             List<AstraCallsSession> sessions = apiService.listSessions();
@@ -83,7 +89,8 @@ public class AstraCallsSessionService {
                 return new ConnectionStatus(enabled, true, false, sessionId, null, null, null,
                         sessionId == null
                                 ? "Nenhuma sessao AstraCalls configurada."
-                                : "Sessao AstraCalls " + sessionId + " nao encontrada.");
+                                : "Sessao AstraCalls " + sessionId + " nao encontrada.",
+                        null);
             }
 
             boolean connected = "open".equalsIgnoreCase(session.state()) || session.paired();
@@ -95,10 +102,11 @@ public class AstraCallsSessionService {
                     session.name(),
                     session.displayState(),
                     session.phoneNumber(),
-                    null);
+                    null,
+                    connected ? null : eventStreamService.qr(session.id()));
         } catch (AstraCallsException e) {
             log.warn("Falha ao consultar o status do AstraCalls: {}", e.getMessage());
-            return new ConnectionStatus(enabled, true, false, sessionId, null, null, null, e.getMessage());
+            return new ConnectionStatus(enabled, true, false, sessionId, null, null, null, e.getMessage(), null);
         }
     }
 
@@ -119,8 +127,11 @@ public class AstraCallsSessionService {
 
     /**
      * Dispara o pareamento por QR Code da sessao da empresa.
+     *
+     * <p>Garante o SSE aberto antes, pois o QR so chega por esse canal.</p>
      */
     public void requestPairing(UUID companyId) {
+        eventStreamService.ensureConnected();
         apiService.requestPairing(resolveSessionId(companyId));
     }
 

@@ -4,6 +4,7 @@ import com.z7design.fleet_manager.model.PasswordResetToken;
 import com.z7design.fleet_manager.model.User;
 import com.z7design.fleet_manager.repository.PasswordResetTokenRepository;
 import com.z7design.fleet_manager.repository.UserRepository;
+import com.z7design.fleet_manager.service.whatsapp.WhatsAppGateway;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,7 +26,7 @@ public class PasswordResetService {
     private final PasswordResetTokenRepository tokenRepository;
     private final UserRepository userRepository;
     private final EmailService emailService;
-    private final EvolutionApiService evolutionApiService;
+    private final WhatsAppGateway whatsAppGateway;
     private final PasswordEncoder passwordEncoder;
 
     @Value("${app.url:http://localhost:3000}")
@@ -293,7 +294,7 @@ public class PasswordResetService {
      * Envia link de recuperaÃ§Ã£o via WhatsApp
      */
     private boolean sendPasswordResetWhatsApp(String whatsapp, String userName, String resetLink) {
-        if (evolutionApiService == null) {
+        if (whatsAppGateway == null) {
             log.error("âŒ EvolutionApiService nÃ£o disponÃ­vel!");
             return false;
         }
@@ -319,7 +320,7 @@ public class PasswordResetService {
                 normalized = "55" + normalized;
             }
             
-            return evolutionApiService.sendTextMessage(normalized, message);
+            return whatsAppGateway.sendText(normalized, message).success();
         } catch (Exception e) {
             log.error("âŒ Erro ao enviar WhatsApp de recuperaÃ§Ã£o: {}", e.getMessage(), e);
             return false;
