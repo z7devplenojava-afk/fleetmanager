@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { stockService } from '@/services/stockService';
-import contasAPagarService from '@/services/contasAPagarService';
+import { contasAPagarService } from '@/services/contasAPagarService';
 import fleetWorkOrderService, { FleetWorkOrder } from '@/services/fleetWorkOrderService';
 import {
   stockNfeService,

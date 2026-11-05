@@ -1224,3 +1224,5 @@ function mapBackendStatusToFrontend(backendStatus: string): 'ABERTA' | 'PAGA' | 
       return 'ABERTA';
   }
 }
+
+export default contasAPagarService;
