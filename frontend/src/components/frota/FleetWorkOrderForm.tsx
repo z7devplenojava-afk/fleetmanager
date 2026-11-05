@@ -29,6 +29,7 @@ import { employeeService } from '@/services/employeeService';
 import { workPostService, WorkPost } from '@/services/workPostService';
 import { garageService, Garage } from '@/services/garageService';
 import { stockService } from '@/services/stockService';
+import { materialRequisitionService } from '@/services/materialRequisitionService';
 import { StockItem } from '@/types/stock';
 import { Vehicle } from '@/types/fleet';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -824,34 +825,70 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
 
     const [isRequestingPurchase, setIsRequestingPurchase] = useState(false);
 
+    // Requisições existentes no Almoxarifado para esta OS (Anti-duplicidade)
+    const { data: woRequisitions = [], refetch: refetchWoRequisitions } = useQuery({
+        queryKey: ['material-requisitions-wo', order?.id],
+        queryFn: () => order?.id ? materialRequisitionService.listByWorkOrder(order.id) : Promise.resolve([]),
+        enabled: !!order?.id,
+    });
 
-    const handleRequestPurchase = async () => {
+    const outOfStockParts = React.useMemo(() => {
+        return (formData.items || []).filter(i => 
+            (i.type || WorkOrderItemType.PART) === WorkOrderItemType.PART && 
+            (i.inStock === undefined || i.inStock <= 0 || i.quantity > i.inStock)
+        );
+    }, [formData.items]);
+
+    const unnotifiedParts = React.useMemo(() => {
+        return outOfStockParts.filter(part => {
+            const already = (woRequisitions || []).some(r => 
+                r.status !== 'REJECTED' && r.status !== 'CANCELLED' &&
+                ((part.productId && r.stockItemId === part.productId) ||
+                 (part.code && r.itemCode && r.itemCode.toLowerCase() === part.code.toLowerCase()) ||
+                 (part.description && r.itemName && r.itemName.trim().toLowerCase() === part.description.trim().toLowerCase()))
+            );
+            return !already;
+        });
+    }, [outOfStockParts, woRequisitions]);
+
+    const handleNotifyAlmoxarifado = async () => {
         if (!order?.id) {
             toast({
                 title: "Salve a OS primeiro",
-                description: "Por favor, salve a Ordem de Serviço antes de enviar a solicitação de compra ao Almoxarifado.",
+                description: "Por favor, salve a Ordem de Serviço antes de notificar o Almoxarifado.",
                 variant: "destructive",
+            });
+            return;
+        }
+        if (unnotifiedParts.length === 0) {
+            toast({
+                title: "Peças já Solicitadas",
+                description: "Todas as peças sem estoque desta OS já foram notificadas ao Almoxarifado anteriormente.",
             });
             return;
         }
         setIsRequestingPurchase(true);
         try {
-            const res = await fleetWorkOrderService.requestPurchase(order.id);
+            const res = await fleetWorkOrderService.notifyAlmoxarifado(order.id);
             toast({
-                title: "Solicitação de Compra Enviada!",
-                description: `Solicitação ${res?.requestNumber || ''} enviada com sucesso para o Almoxarifado / Setor de Compras.`,
+                title: res?.alreadyNotified ? "Peças já Notificadas" : "Almoxarifado Notificado com Sucesso!",
+                description: res?.message || `Notificação de ${unnotifiedParts.length} peça(s) enviada ao Almoxarifado.`,
             });
+            await refetchWoRequisitions();
             queryClient.invalidateQueries({ queryKey: ['fleet-work-order-history', order.id] });
+            queryClient.invalidateQueries({ queryKey: ['material-requisitions-wo', order.id] });
         } catch (err: any) {
             toast({
-                title: "Erro ao solicitar compra",
-                description: err?.response?.data?.message || err?.message || "Ocorreu um erro ao enviar a solicitação ao Almoxarifado.",
+                title: "Erro ao notificar almoxarifado",
+                description: err?.response?.data?.error || err?.response?.data?.message || err?.message || "Ocorreu um erro ao enviar a notificação ao Almoxarifado.",
                 variant: "destructive",
             });
         } finally {
             setIsRequestingPurchase(false);
         }
     };
+
+    const handleRequestPurchase = handleNotifyAlmoxarifado;
 
     // ── Items helpers ──────────────────────────────────────────────────────────
     const handleAddItem = (type: WorkOrderItemType = WorkOrderItemType.PART) => {
@@ -2250,19 +2287,26 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                     icon={<Wrench className="h-4 w-4 text-blue-400" />}
                     action={
                         <div className="flex items-center gap-2 flex-wrap justify-end">
-                            {order?.id && (
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={isRequestingPurchase}
-                                    onClick={handleRequestPurchase}
-                                    className="border-amber-600/60 text-amber-300 hover:bg-amber-500/10 text-xs h-8"
-                                    title="Notificar Almoxarifado / Compras para gerar solicitação de compra e cotações"
-                                >
-                                    <Send className="h-3.5 w-3.5 mr-1 text-amber-400" />
-                                    {isRequestingPurchase ? 'Enviando...' : '📦 Notificar Almoxarifado / Solicitar Compra'}
-                                </Button>
+                            {order?.id && outOfStockParts.length > 0 && (
+                                unnotifiedParts.length === 0 ? (
+                                    <Badge className="bg-emerald-950/80 text-emerald-300 border border-emerald-600/70 text-xs px-2.5 py-1.5 flex items-center gap-1.5 shrink-0">
+                                        <CheckCircle className="h-3.5 w-3.5 text-emerald-400" />
+                                        ✓ Almoxarifado Já Notificado
+                                    </Badge>
+                                ) : (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        disabled={isRequestingPurchase}
+                                        onClick={handleNotifyAlmoxarifado}
+                                        className="border-amber-600/60 bg-amber-950/30 text-amber-300 hover:bg-amber-500/20 text-xs h-8"
+                                        title="Notificar Almoxarifado sobre peças sem estoque nesta OS"
+                                    >
+                                        <Send className="h-3.5 w-3.5 mr-1 text-amber-400" />
+                                        {isRequestingPurchase ? 'Notificando...' : `📦 Notificar Almoxarifado (${unnotifiedParts.length})`}
+                                    </Button>
+                                )
                             )}
                             <Button
                                 type="button"
@@ -2304,24 +2348,36 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                             </div>
                         </div>
 
-                        {formData.items?.some(i => (i.type || WorkOrderItemType.PART) === WorkOrderItemType.PART && (i.inStock === undefined || i.inStock <= 0 || i.quantity > i.inStock)) && (
+                        {outOfStockParts.length > 0 && (
                             <div className="p-3 bg-amber-950/40 border border-amber-800/60 rounded-md flex items-center justify-between gap-3 text-xs text-amber-200">
                                 <div className="flex items-center gap-2">
                                     <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
-                                    <span>Existem peças nesta OS sem saldo em estoque no Almoxarifado. Notifique o Almoxarifado para criar solicitações de compra e cotações com fornecedores.</span>
+                                    <span>
+                                        Existem <strong>{outOfStockParts.length} peça(s)</strong> nesta OS sem saldo em estoque no Almoxarifado.
+                                        {unnotifiedParts.length === 0
+                                            ? " O Almoxarifado já foi notificado e está providenciando cotações com fornecedores."
+                                            : " Notifique o Almoxarifado para criar solicitações de compra e cotações com fornecedores."}
+                                    </span>
                                 </div>
                                 {order?.id ? (
-                                    <Button
-                                        type="button"
-                                        size="sm"
-                                        variant="outline"
-                                        disabled={isRequestingPurchase}
-                                        onClick={handleRequestPurchase}
-                                        className="border-amber-600 bg-amber-900/50 text-amber-200 hover:bg-amber-800/70 shrink-0 text-xs h-7"
-                                    >
-                                        <Send className="h-3 w-3 mr-1 text-amber-400" />
-                                        {isRequestingPurchase ? 'Enviando...' : 'Notificar Compras Agora'}
-                                    </Button>
+                                    unnotifiedParts.length === 0 ? (
+                                        <Badge className="bg-emerald-950/80 text-emerald-300 border border-emerald-600/70 text-xs px-2.5 py-1 flex items-center gap-1.5 shrink-0">
+                                            <CheckCircle className="h-3.5 w-3.5 text-emerald-400" />
+                                            ✓ Já Notificado ao Almoxarifado
+                                        </Badge>
+                                    ) : (
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            disabled={isRequestingPurchase}
+                                            onClick={handleNotifyAlmoxarifado}
+                                            className="border-amber-600 bg-amber-900/50 text-amber-200 hover:bg-amber-800/70 shrink-0 text-xs h-7 font-medium"
+                                        >
+                                            <Send className="h-3 w-3 mr-1 text-amber-400" />
+                                            {isRequestingPurchase ? 'Notificando...' : `Notificar Almoxarifado (${unnotifiedParts.length})`}
+                                        </Button>
+                                    )
                                 ) : (
                                     <span className="text-[11px] text-amber-400/80 italic shrink-0">(Salve a OS para notificar)</span>
                                 )}

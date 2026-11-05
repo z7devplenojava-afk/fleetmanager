@@ -4,10 +4,13 @@ import com.z7design.fleet_manager.dto.StockNfeParsedDTO;
 import com.z7design.fleet_manager.dto.StockNfeProcessRequestDTO;
 import com.z7design.fleet_manager.dto.StockNfeProcessResponseDTO;
 import com.z7design.fleet_manager.exception.BusinessException;
+import com.z7design.fleet_manager.model.FleetWorkOrderHistory;
 import com.z7design.fleet_manager.model.Invoice;
+import com.z7design.fleet_manager.model.MaterialRequisition;
 import com.z7design.fleet_manager.model.StockItem;
 import com.z7design.fleet_manager.model.StockMovement;
 import com.z7design.fleet_manager.model.Supplier;
+import com.z7design.fleet_manager.model.SystemNotification;
 import com.z7design.fleet_manager.model.Unit;
 import com.z7design.fleet_manager.model.User;
 import com.z7design.fleet_manager.model.enums.ExpenseStatus;
@@ -15,7 +18,9 @@ import com.z7design.fleet_manager.model.enums.ExpenseType;
 import com.z7design.fleet_manager.model.enums.MovementReason;
 import com.z7design.fleet_manager.model.enums.MovementType;
 import com.z7design.fleet_manager.model.enums.StockCategory;
+import com.z7design.fleet_manager.repository.FleetWorkOrderHistoryRepository;
 import com.z7design.fleet_manager.repository.InvoiceRepository;
+import com.z7design.fleet_manager.repository.MaterialRequisitionRepository;
 import com.z7design.fleet_manager.repository.StockItemRepository;
 import com.z7design.fleet_manager.repository.StockMovementRepository;
 import com.z7design.fleet_manager.repository.SupplierRepository;
@@ -65,6 +70,9 @@ public class StockNfeService {
     private final StockService stockService;
     private final UserCompanyResolver userCompanyResolver;
     private final TesseractService tesseractService;
+    private final MaterialRequisitionRepository materialRequisitionRepository;
+    private final FleetWorkOrderHistoryRepository workOrderHistoryRepository;
+    private final SystemNotificationService systemNotificationService;
 
     /**
      * Faz o parse seguro do XML da NF-e e analisa previamente os itens e financeiro
@@ -2126,6 +2134,7 @@ public class StockNfeService {
 
                 itemsUpdated++;
                 details.add(String.format("Item '%s' atualizado (+%d un, saldo: %d)", stockItem.getName(), qty, newQty));
+                fulfillPendingRequisitionsForStockItem(stockItem, request.getInvoiceNumber(), request.getSupplierName());
 
             } else {
                 // Criar novo item no estoque com código seguro e único
@@ -2202,6 +2211,7 @@ public class StockNfeService {
 
                 itemsCreated++;
                 details.add(String.format("Novo item '%s' (cód %s) cadastrado com %d un", newItem.getName(), newItem.getCode(), qty));
+                fulfillPendingRequisitionsForStockItem(newItem, request.getInvoiceNumber(), request.getSupplierName());
             }
         }
 
@@ -2458,6 +2468,94 @@ public class StockNfeService {
             return new BigDecimal(value.trim().replace(",", "."));
         } catch (Exception ex) {
             return BigDecimal.ZERO;
+        }
+    }
+
+    private void fulfillPendingRequisitionsForStockItem(StockItem stockItem, String invoiceNumber, String supplierName) {
+        if (stockItem == null || materialRequisitionRepository == null) return;
+        try {
+            List<MaterialRequisition.RequisitionStatus> eligibleStatuses = List.of(
+                    MaterialRequisition.RequisitionStatus.PENDING_CHECK,
+                    MaterialRequisition.RequisitionStatus.WAITING_QUOTES,
+                    MaterialRequisition.RequisitionStatus.QUOTES_RECEIVED,
+                    MaterialRequisition.RequisitionStatus.APPROVED_BY_MANAGER,
+                    MaterialRequisition.RequisitionStatus.OC_GENERATED,
+                    MaterialRequisition.RequisitionStatus.WAITING_DELIVERY
+            );
+
+            UUID companyId = stockItem.getCompanyId();
+            List<MaterialRequisition> allReqs = (companyId != null)
+                    ? materialRequisitionRepository.findByCompanyIdOrderByCreatedAtDesc(companyId)
+                    : materialRequisitionRepository.findAll();
+
+            for (MaterialRequisition req : allReqs) {
+                if (!eligibleStatuses.contains(req.getStatus())) {
+                    continue;
+                }
+
+                boolean matches = false;
+                if (req.getStockItemId() != null && req.getStockItemId().equals(stockItem.getId())) {
+                    matches = true;
+                } else if (stockItem.getCode() != null && req.getItemCode() != null &&
+                           stockItem.getCode().trim().equalsIgnoreCase(req.getItemCode().trim())) {
+                    matches = true;
+                } else if (stockItem.getName() != null && req.getItemName() != null &&
+                           stockItem.getName().trim().equalsIgnoreCase(req.getItemName().trim())) {
+                    matches = true;
+                }
+
+                if (matches) {
+                    req.setStatus(MaterialRequisition.RequisitionStatus.AVAILABLE_FOR_INSTALLATION);
+                    req.setReleasedAt(LocalDateTime.now());
+                    if (req.getStockItemId() == null) {
+                        req.setStockItemId(stockItem.getId());
+                    }
+                    String note = "Peça recebida no estoque via NF-e " + (invoiceNumber != null ? "nº " + invoiceNumber : "") +
+                            (supplierName != null ? " (" + supplierName + ")" : "") + " e liberada para instalação.";
+                    req.setDeliveryNotes(req.getDeliveryNotes() != null ? req.getDeliveryNotes() + " | " + note : note);
+                    materialRequisitionRepository.save(req);
+                    log.info("📦 Requisição #{} atualizada para AVAILABLE_FOR_INSTALLATION via entrada da NF-e {}", req.getRequisitionNumber(), invoiceNumber);
+
+                    // Registrar no histórico da OS
+                    if (req.getWorkOrderId() != null && workOrderHistoryRepository != null) {
+                        try {
+                            FleetWorkOrderHistory history = new FleetWorkOrderHistory();
+                            history.setWorkOrderId(req.getWorkOrderId());
+                            history.setActionType("NOTE");
+                            history.setDescription("Peça '" + req.getItemName() + "' recebida no almoxarifado via NF-e " + (invoiceNumber != null ? invoiceNumber : "") + " e liberada para instalação.");
+                            history.setPerformedBy("Almoxarifado / NF-e");
+                            history.setCreatedAt(LocalDateTime.now());
+                            workOrderHistoryRepository.save(history);
+                        } catch (Exception eh) {
+                            log.warn("Erro ao registrar histórico na OS {}: {}", req.getWorkOrderId(), eh.getMessage());
+                        }
+                    }
+
+                    // Enviar notificação de sistema
+                    if (systemNotificationService != null) {
+                        try {
+                            String woLabel = req.getWorkOrder() != null && req.getWorkOrder().getOsNumber() != null
+                                    ? req.getWorkOrder().getOsNumber()
+                                    : (req.getWorkOrderId() != null ? req.getWorkOrderId().toString().substring(0, 8) : "N/D");
+                            String vehPlate = req.getVehicle() != null ? req.getVehicle().getPlate() : "";
+
+                            SystemNotification notification = SystemNotification.builder()
+                                    .title("Peça Liberada para Instalação - OS #" + woLabel)
+                                    .message("A peça '" + req.getItemName() + "' da OS #" + woLabel +
+                                            (!vehPlate.isEmpty() ? " (Veículo: " + vehPlate + ")" : "") +
+                                            " deu entrada no estoque (NF-e " + (invoiceNumber != null ? invoiceNumber : "") + ") e está pronta para retirada no Almoxarifado.")
+                                    .type(SystemNotification.NotificationType.ALERTA_GERAL)
+                                    .recipient(req.getRequesterId() != null ? userRepository.findById(req.getRequesterId()).orElse(null) : null)
+                                    .build();
+                            systemNotificationService.createNotification(notification);
+                        } catch (Exception en) {
+                            log.warn("Erro ao gerar notificação de liberação de peça: {}", en.getMessage());
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("Erro ao atualizar requisições pendentes para item {}: {}", stockItem.getName(), e.getMessage(), e);
         }
     }
 }

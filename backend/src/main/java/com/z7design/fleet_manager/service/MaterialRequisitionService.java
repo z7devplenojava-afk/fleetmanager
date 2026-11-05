@@ -20,7 +20,9 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -38,6 +40,7 @@ public class MaterialRequisitionService {
     private final UserRepository userRepository;
     private final ProcurementQuoteComparisonRepository comparisonRepository;
     private final ProcurementPurchaseOrderRepository purchaseOrderRepository;
+    private final SystemNotificationService systemNotificationService;
 
     private User resolveCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -456,6 +459,11 @@ public class MaterialRequisitionService {
         req.setDeliveredById(currentUser != null ? currentUser.getId() : null);
         req.setReceivedByName(receivedBy);
         req.setDeliveryNotes(notes);
+        if (dto != null && dto.getAuthorizedByName() != null && !dto.getAuthorizedByName().trim().isEmpty()) {
+            req.setManagerApprovalName(dto.getAuthorizedByName().trim());
+            req.setManagerApprovalId(dto.getAuthorizedById());
+            req.setManagerApprovalDate(deliveryDate);
+        }
         req.setStatus(MaterialRequisition.RequisitionStatus.INSTALLED_COMPLETED);
         // Se a OS associada ainda não tiver data de início de execução, inicializa com a data de entrega dos materiais
         if (req.getWorkOrderId() != null) {
@@ -472,6 +480,146 @@ public class MaterialRequisitionService {
         req = requisitionRepository.save(req);
 
         return toDTO(req);
+    }
+
+    @Transactional
+    public Map<String, Object> notifyAlmoxarifadoOutOfStock(FleetWorkOrder workOrder, User requester) {
+        if (workOrder == null) {
+            throw new IllegalArgumentException("Ordem de Serviço não informada.");
+        }
+        UUID workOrderId = workOrder.getId();
+        UUID companyId = workOrder.getCompanyId() != null ? workOrder.getCompanyId() : TenantContext.get();
+        if (companyId == null) {
+            throw new IllegalStateException("Empresa não selecionada no contexto.");
+        }
+
+        List<WorkOrderItem> items = workOrder.getItems();
+        if (items == null || items.isEmpty()) {
+            throw new IllegalArgumentException("A OS não possui itens cadastrados.");
+        }
+
+        // Buscar requisições já existentes para esta OS
+        List<MaterialRequisition> existingReqs = requisitionRepository.findByWorkOrderIdOrderByCreatedAtDesc(workOrderId);
+
+        String osLabel = workOrder.getOsNumber() != null ? workOrder.getOsNumber() : workOrderId.toString().substring(0, 8);
+        String vehicleLabel = workOrder.getVehicle() != null
+                ? workOrder.getVehicle().getPlate() + (workOrder.getVehicle().getModel() != null ? " (" + workOrder.getVehicle().getModel() + ")" : "")
+                : "Sem veículo";
+
+        List<MaterialRequisition> createdList = new ArrayList<>();
+        List<String> alreadyNotifiedNames = new ArrayList<>();
+
+        for (WorkOrderItem item : items) {
+            if (item.getType() != WorkOrderItem.ItemType.PART) {
+                continue; // Apenas itens do tipo PEÇA
+            }
+
+            // Verificar se o item está em estoque
+            StockItem stockItem = null;
+            if (item.getProductId() != null) {
+                stockItem = stockItemRepository.findById(item.getProductId()).orElse(null);
+            }
+            if (stockItem == null && item.getCode() != null && !item.getCode().isBlank()) {
+                stockItem = stockItemRepository.findByCode(item.getCode().trim()).orElse(null);
+            }
+            if (stockItem == null && item.getDescription() != null && !item.getDescription().isBlank()) {
+                List<StockItem> matches = stockItemRepository.findByNameContainingIgnoreCase(item.getDescription().trim());
+                if (!matches.isEmpty()) {
+                    stockItem = matches.get(0);
+                }
+            }
+
+            int currentStock = (stockItem != null && stockItem.getCurrentQuantity() != null) ? stockItem.getCurrentQuantity() : 0;
+            BigDecimal needed = item.getQuantity() != null ? item.getQuantity() : BigDecimal.ONE;
+
+            // Se tem estoque suficiente (saldo >= quantidade necessária na OS), não gera requisição de compra
+            if (BigDecimal.valueOf(currentStock).compareTo(needed) >= 0) {
+                continue;
+            }
+
+            // O item NÃO tem saldo suficiente no estoque.
+            // Verificar se já existe requisição ativa para este item nesta OS
+            final StockItem finalStockItem = stockItem;
+            boolean alreadyNotified = existingReqs.stream().anyMatch(r -> {
+                if (r.getStatus() == MaterialRequisition.RequisitionStatus.REJECTED ||
+                    r.getStatus() == MaterialRequisition.RequisitionStatus.CANCELLED) {
+                    return false;
+                }
+                if (finalStockItem != null && r.getStockItemId() != null && r.getStockItemId().equals(finalStockItem.getId())) {
+                    return true;
+                }
+                if (item.getCode() != null && r.getItemCode() != null && r.getItemCode().equalsIgnoreCase(item.getCode())) {
+                    return true;
+                }
+                if (item.getDescription() != null && r.getItemName() != null && r.getItemName().trim().equalsIgnoreCase(item.getDescription().trim())) {
+                    return true;
+                }
+                return false;
+            });
+
+            if (alreadyNotified) {
+                alreadyNotifiedNames.add(item.getDescription() != null ? item.getDescription() : "Peça");
+                continue;
+            }
+
+            // Criar a requisição de material para o Almoxarifado
+            String reqNumber = "REQ-" + (System.currentTimeMillis() % 1000000) + "-" + (createdList.size() + 1);
+            MaterialRequisition req = MaterialRequisition.builder()
+                    .companyId(companyId)
+                    .requisitionNumber(reqNumber)
+                    .workOrderId(workOrderId)
+                    .workOrder(workOrder)
+                    .vehicleId(workOrder.getVehicle() != null ? workOrder.getVehicle().getId() : null)
+                    .vehicle(workOrder.getVehicle())
+                    .stockItemId(finalStockItem != null ? finalStockItem.getId() : item.getProductId())
+                    .stockItem(finalStockItem)
+                    .itemName(item.getDescription() != null && !item.getDescription().isBlank() ? item.getDescription() : "Peça")
+                    .itemCode(item.getCode() != null ? item.getCode() : (finalStockItem != null ? finalStockItem.getCode() : null))
+                    .quantity(needed)
+                    .unit(finalStockItem != null && finalStockItem.getUnit() != null ? finalStockItem.getUnit() : "UN")
+                    .urgency(workOrder.getPriority() == FleetWorkOrder.WorkOrderPriority.URGENT ? MaterialRequisition.UrgencyLevel.EMERGENCIA : MaterialRequisition.UrgencyLevel.NORMAL)
+                    .status(MaterialRequisition.RequisitionStatus.PENDING_CHECK)
+                    .justification("Falta de estoque na OS #" + osLabel + " - Veículo: " + vehicleLabel)
+                    .requesterId(requester != null ? requester.getId() : null)
+                    .requesterName(requester != null ? requester.getName() : "Oficina / Mecânica")
+                    .originDepartment("OPERATIONAL")
+                    .build();
+
+            MaterialRequisition saved = requisitionRepository.save(req);
+            createdList.add(saved);
+        }
+
+        // Criar notificação para a equipe do Almoxarifado se itens foram requisitados
+        if (!createdList.isEmpty() && systemNotificationService != null) {
+            try {
+                SystemNotification notif = SystemNotification.builder()
+                        .title("Falta de Estoque - OS #" + osLabel)
+                        .message("A OS #" + osLabel + " (" + vehicleLabel + ") notificou " + createdList.size() + " peça(s) sem estoque para cotação/compra.")
+                        .type(SystemNotification.NotificationType.ALERTA_GERAL)
+                        .build();
+                systemNotificationService.createNotification(notif);
+            } catch (Exception e) {
+                log.warn("Falha ao criar notificação de sistema para almoxarifado: {}", e.getMessage());
+            }
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("createdCount", createdList.size());
+        result.put("alreadyNotifiedCount", alreadyNotifiedNames.size());
+        result.put("createdRequisitions", createdList.stream().map(this::toDTO).collect(Collectors.toList()));
+
+        if (createdList.isEmpty() && !alreadyNotifiedNames.isEmpty()) {
+            result.put("message", "Todas as peças sem estoque desta OS já foram notificadas ao Almoxarifado anteriormente.");
+            result.put("alreadyNotified", true);
+        } else if (createdList.isEmpty()) {
+            result.put("message", "Todas as peças desta OS possuem saldo disponível no estoque!");
+            result.put("alreadyNotified", false);
+        } else {
+            result.put("message", "Almoxarifado notificado com sucesso! " + createdList.size() + " peça(s) adicionada(s) ao painel de requisições.");
+            result.put("alreadyNotified", false);
+        }
+
+        return result;
     }
 
 

@@ -142,6 +142,26 @@ public class FleetWorkOrderController {
      * Gera uma solicitação de compra ao almoxarifado a partir das peças (PART)
      * da O.S. O almoxarifado então realiza as cotações no módulo de Compras.
      */
+    @PostMapping("/{id}/notify-almoxarifado")
+    public ResponseEntity<?> notifyAlmoxarifado(@PathVariable("id") UUID id) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            User requester = authenticationService.getCurrentUser(authentication);
+            Map<String, Object> result = service.notifyAlmoxarifado(id, requester);
+            return ResponseEntity.ok(result);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (com.z7design.fleet_manager.exception.ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger(FleetWorkOrderController.class)
+                    .error("Erro ao notificar almoxarifado sobre peças sem estoque da O.S. {}", id, e);
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "Erro ao notificar almoxarifado."));
+        }
+    }
+
     @PostMapping("/{id}/request-purchase")
     public ResponseEntity<?> requestPurchase(@PathVariable("id") UUID id) {
         try {

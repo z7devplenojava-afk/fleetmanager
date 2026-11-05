@@ -46,6 +46,8 @@ import { stockService } from '@/services/stockService';
 import { StockItem } from '@/types/stock';
 import fleetWorkOrderService, { FleetWorkOrder } from '@/services/fleetWorkOrderService';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { employeeService } from '@/services/employeeService';
 
 interface StockRequisitionsTabProps {
   onRefreshStock?: () => void;
@@ -78,6 +80,9 @@ export const StockRequisitionsTab: React.FC<StockRequisitionsTabProps> = ({ onRe
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedReq, setSelectedReq] = useState<MaterialRequisition | null>(null);
 
+  const { user } = useAuth();
+  const [employees, setEmployees] = useState<any[]>([]);
+
   // Estados do formulário de Entrega/Baixa
   const [deliveryDate, setDeliveryDate] = useState<string>(() => {
     const now = new Date();
@@ -85,6 +90,10 @@ export const StockRequisitionsTab: React.FC<StockRequisitionsTabProps> = ({ onRe
   });
   const [receivedByName, setReceivedByName] = useState('');
   const [deliveryNotes, setDeliveryNotes] = useState('');
+  const [authorizedByName, setAuthorizedByName] = useState('');
+  const [authorizedById, setAuthorizedById] = useState<string | undefined>(undefined);
+  const [authorizerSearch, setAuthorizerSearch] = useState('');
+  const [showAuthorizerDropdown, setShowAuthorizerDropdown] = useState(false);
   const [isSubmittingDelivery, setIsSubmittingDelivery] = useState(false);
 
   // Estados do formulário de Nova Requisição
@@ -105,14 +114,16 @@ export const StockRequisitionsTab: React.FC<StockRequisitionsTabProps> = ({ onRe
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [reqs, items, wos] = await Promise.all([
+      const [reqs, items, wos, emps] = await Promise.all([
         materialRequisitionService.listRequisitions().catch(() => []),
         stockService.getAllItems().catch(() => []),
-        fleetWorkOrderService.findAll().catch(() => [])
+        fleetWorkOrderService.findAll().catch(() => []),
+        employeeService.getAllEmployees().catch(() => [])
       ]);
       setRequisitions(Array.isArray(reqs) ? reqs : []);
       setStockItems(Array.isArray(items) ? items : []);
       setWorkOrders(Array.isArray(wos) ? wos : []);
+      setEmployees(Array.isArray(emps) ? emps : []);
     } catch (error) {
       console.error('Erro ao carregar requisições do almoxarifado:', error);
       toast({
@@ -164,8 +175,35 @@ export const StockRequisitionsTab: React.FC<StockRequisitionsTabProps> = ({ onRe
     setSelectedReq(req);
     setDeliveryDate(new Date().toISOString().slice(0, 16));
     setReceivedByName(req.requesterName || '');
+    setAuthorizedByName(req.managerApprovalName || '');
+    setAuthorizedById(req.managerApprovalId);
+    setAuthorizerSearch(req.managerApprovalName || '');
+    setShowAuthorizerDropdown(false);
     setDeliveryNotes('');
     setShowDeliveryModal(true);
+  };
+
+  const filteredEmployees = useMemo(() => {
+    if (!authorizerSearch || authorizerSearch.trim().length < 3) return [];
+    const q = authorizerSearch.trim().toLowerCase();
+    return employees.filter(emp => {
+      const nameMatch = emp.name && emp.name.toLowerCase().includes(q);
+      const regMatch = emp.registrationNumber && String(emp.registrationNumber).toLowerCase().includes(q);
+      const posMatch = (emp.position?.name || emp.positionDescription) && 
+        String(emp.position?.name || emp.positionDescription).toLowerCase().includes(q);
+      return nameMatch || regMatch || posMatch;
+    }).slice(0, 8);
+  }, [employees, authorizerSearch]);
+
+  const handleGroupIntoQuotation = () => {
+    if (selectedIds.size === 0) return;
+    const selectedReqs = requisitions.filter(r => selectedIds.has(r.id));
+    navigate('/compras/cotacoes', { 
+      state: { 
+        groupedRequisitions: selectedReqs,
+        fromAlmoxarifado: true 
+      } 
+    });
   };
 
   // Submeter Entrega e Baixa Automática no Estoque
@@ -175,7 +213,9 @@ export const StockRequisitionsTab: React.FC<StockRequisitionsTabProps> = ({ onRe
       setIsSubmittingDelivery(true);
       const payload: ConfirmDeliveryPayload = {
         deliveryDate: deliveryDate ? new Date(deliveryDate).toISOString() : new Date().toISOString(),
-        receivedByName: receivedByName.trim() || 'Mecânico / Solicitante',
+        receivedByName: receivedByName.trim() || selectedReq.requesterName || 'Mecânico / Solicitante',
+        authorizedByName: authorizedByName.trim() || undefined,
+        authorizedById: authorizedById,
         notes: deliveryNotes.trim() || undefined
       };
 
@@ -536,19 +576,31 @@ export const StockRequisitionsTab: React.FC<StockRequisitionsTabProps> = ({ onRe
             </Button>
 
             {selectedIds.size > 0 && (
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={handleBulkDelete}
-                disabled={isBulkDeleting}
-                className="bg-red-700 hover:bg-red-800 text-white font-semibold text-xs gap-1.5 animate-in fade-in"
-              >
-                {isBulkDeleting ? (
-                  <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Excluindo...</>
-                ) : (
-                  <><Trash2 className="h-3.5 w-3.5" /> Excluir Selecionadas ({selectedIds.size})</>
-                )}
-              </Button>
+              <>
+                <Button
+                  size="sm"
+                  onClick={handleGroupIntoQuotation}
+                  className="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs gap-1.5 animate-in fade-in shadow-md"
+                  title="Agrupar requisições selecionadas de várias OSs em uma única Cotação com o setor de Compras"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Agrupar em Cotação ({selectedIds.size})
+                </Button>
+
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={handleBulkDelete}
+                  disabled={isBulkDeleting}
+                  className="bg-red-700 hover:bg-red-800 text-white font-semibold text-xs gap-1.5 animate-in fade-in"
+                >
+                  {isBulkDeleting ? (
+                    <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Excluindo...</>
+                  ) : (
+                    <><Trash2 className="h-3.5 w-3.5" /> Excluir ({selectedIds.size})</>
+                  )}
+                </Button>
+              </>
             )}
 
             <Button
@@ -851,7 +903,7 @@ export const StockRequisitionsTab: React.FC<StockRequisitionsTabProps> = ({ onRe
               {/* Resumo da Requisição e OS */}
               <div className="bg-seguranca-black/60 p-3.5 rounded-lg border border-gray-700 space-y-2">
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-gray-400">Nº Requisição:</span>
+                  <span className="text-gray-400">Nº da Requisição:</span>
                   <span className="font-mono font-bold text-seguranca-yellow">{selectedReq.requisitionNumber}</span>
                 </div>
                 <div className="flex justify-between items-center text-xs">
@@ -868,6 +920,18 @@ export const StockRequisitionsTab: React.FC<StockRequisitionsTabProps> = ({ onRe
                     </span>
                   </div>
                 )}
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-gray-400">Solicitante (OS):</span>
+                  <span className="font-semibold text-sky-300">
+                    {selectedReq.requesterName || 'Mecânico / Solicitante da OS'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-gray-400">Responsável pela Entrega:</span>
+                  <span className="font-semibold text-emerald-400">
+                    {user?.name || 'Almoxarife / Usuário Atual'}
+                  </span>
+                </div>
                 <div className="flex justify-between items-center text-xs pt-1 border-t border-gray-700">
                   <span className="text-gray-400">Item Solicitado:</span>
                   <span className="font-bold text-emerald-400">
@@ -898,7 +962,7 @@ export const StockRequisitionsTab: React.FC<StockRequisitionsTabProps> = ({ onRe
                 </div>
 
                 <div>
-                  <Label className="text-xs text-gray-300 mb-1 block">Recebido Por (Mecânico / Solicitante) *</Label>
+                  <Label className="text-xs text-gray-300 mb-1 block">Recebido Por / Solicitante (Vem da OS) *</Label>
                   <Input
                     placeholder="Nome do mecânico ou colaborador que retirou a peça"
                     value={receivedByName}
@@ -906,6 +970,83 @@ export const StockRequisitionsTab: React.FC<StockRequisitionsTabProps> = ({ onRe
                     className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm"
                     required
                   />
+                </div>
+
+                {/* Campo Inteligente: Autorizado Por (Pesquisa a partir de 3 caracteres) */}
+                <div className="relative">
+                  <Label className="text-xs text-gray-300 mb-1 flex items-center justify-between">
+                    <span>Autorizado Por (Pesquisa Inteligente) *</span>
+                    {authorizerSearch.length > 0 && authorizerSearch.length < 3 && (
+                      <span className="text-[10px] text-amber-400 italic">Digite ao menos 3 caracteres...</span>
+                    )}
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      placeholder="Digite os 3 primeiros caracteres do nome ou matrícula..."
+                      value={authorizerSearch}
+                      onChange={(e) => {
+                        setAuthorizerSearch(e.target.value);
+                        setAuthorizedByName(e.target.value);
+                        setShowAuthorizerDropdown(true);
+                      }}
+                      onFocus={() => {
+                        if (authorizerSearch.length >= 3) setShowAuthorizerDropdown(true);
+                      }}
+                      className="bg-seguranca-black border-gray-600 text-seguranca-lightgray text-sm pr-8"
+                      required
+                    />
+                    {authorizerSearch && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAuthorizerSearch('');
+                          setAuthorizedByName('');
+                          setAuthorizedById(undefined);
+                          setShowAuthorizerDropdown(false);
+                        }}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-xs font-bold"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Dropdown de sugestões flutuante */}
+                  {showAuthorizerDropdown && authorizerSearch.trim().length >= 3 && (
+                    <div className="absolute z-50 left-0 right-0 mt-1 bg-gray-900 border border-gray-700 rounded-lg shadow-2xl overflow-hidden max-h-48 overflow-y-auto">
+                      {filteredEmployees.length === 0 ? (
+                        <div className="p-3 text-xs text-gray-400 italic text-center">
+                          Nenhum funcionário encontrado para "{authorizerSearch}".
+                        </div>
+                      ) : (
+                        <div className="divide-y divide-gray-800">
+                          {filteredEmployees.map((emp) => (
+                            <div
+                              key={emp.id}
+                              onClick={() => {
+                                setAuthorizedByName(emp.name);
+                                setAuthorizedById(emp.id);
+                                setAuthorizerSearch(emp.name);
+                                setShowAuthorizerDropdown(false);
+                              }}
+                              className="p-2.5 hover:bg-gray-800 cursor-pointer flex items-center justify-between transition-colors text-xs"
+                            >
+                              <div>
+                                <p className="font-semibold text-gray-200">{emp.name}</p>
+                                <p className="text-[11px] text-gray-400">
+                                  {emp.position?.name || emp.positionDescription || 'Colaborador'}
+                                  {emp.registrationNumber ? ` · Matrícula: ${emp.registrationNumber}` : ''}
+                                </p>
+                              </div>
+                              <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-300">
+                                Selecionar
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div>

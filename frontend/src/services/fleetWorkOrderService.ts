@@ -356,6 +356,13 @@ class FleetWorkOrderService {
         return data;
     }
 
+    // ── Notificar Almoxarifado sobre peças sem estoque ───────────────────────
+
+    async notifyAlmoxarifado(id: string): Promise<any> {
+        const { data } = await api.post(`/fleet-work-orders/${id}/notify-almoxarifado`);
+        return data;
+    }
+
     // ── Solicitar compra ao almoxarifado ─────────────────────────────────────
 
     async requestPurchase(id: string): Promise<any> {

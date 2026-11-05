@@ -115,6 +115,8 @@ export interface ConfirmDeliveryPayload {
   deliveryDate?: string;
   receivedByName?: string;
   notes?: string;
+  authorizedByName?: string;
+  authorizedById?: string;
 }
 
 export const materialRequisitionService = {

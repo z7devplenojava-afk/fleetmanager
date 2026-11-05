@@ -932,6 +932,26 @@ public class FleetWorkOrderService {
         return map;
     }
 
+    // ── Notificar Almoxarifado sobre peças sem estoque ───────────────────────
+
+    @Transactional
+    public Map<String, Object> notifyAlmoxarifado(UUID workOrderId, User requester) {
+        FleetWorkOrder entity = repository.findById(workOrderId)
+                .orElseThrow(() -> new ResourceNotFoundException("FleetWorkOrder not found: " + workOrderId));
+
+        Map<String, Object> result = materialRequisitionService.notifyAlmoxarifadoOutOfStock(entity, requester);
+
+        Integer createdCount = (Integer) result.get("createdCount");
+        if (createdCount != null && createdCount > 0) {
+            String osLabel = entity.getOsNumber() != null ? entity.getOsNumber() : workOrderId.toString().substring(0, 8);
+            addHistory(workOrderId, "NOTE",
+                    "Almoxarifado notificado sobre " + createdCount + " peça(s) sem estoque para cotação/compra (OS #" + osLabel + ").",
+                    requester != null ? requester.getName() : "Oficina / Mecânica", null, null);
+        }
+
+        return result;
+    }
+
     // ── Solicitar compra ao almoxarifado ─────────────────────────────────────
 
     @Transactional

@@ -15,4 +15,6 @@ public class ConfirmDeliveryRequestDTO {
     private LocalDateTime deliveryDate;
     private String receivedByName;
     private String notes;
+    private String authorizedByName;
+    private java.util.UUID authorizedById;
 }
