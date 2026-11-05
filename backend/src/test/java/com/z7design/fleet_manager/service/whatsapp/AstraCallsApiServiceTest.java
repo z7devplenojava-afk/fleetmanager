@@ -231,8 +231,8 @@ class AstraCallsApiServiceTest {
         service.logout("session-1");
 
         verify(restTemplate).exchange(
-                "http://astracalls.local:8090/api/sessions/session-1/logout",
-                HttpMethod.POST, any(HttpEntity.class), eq(String.class));
+                eq("http://astracalls.local:8090/api/sessions/session-1/logout"),
+                eq(HttpMethod.POST), any(HttpEntity.class), eq(String.class));
     }
 
     @Test

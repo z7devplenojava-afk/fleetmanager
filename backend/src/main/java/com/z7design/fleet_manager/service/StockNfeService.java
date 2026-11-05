@@ -1,5 +1,6 @@
 package com.z7design.fleet_manager.service;
 
+import com.z7design.fleet_manager.dto.StockNfeDuplicateCheck;
 import com.z7design.fleet_manager.dto.StockNfeParsedDTO;
 import com.z7design.fleet_manager.dto.StockNfeProcessRequestDTO;
 import com.z7design.fleet_manager.dto.StockNfeProcessResponseDTO;
@@ -207,9 +208,9 @@ public class StockNfeService {
             UUID existingSupplierId = findExistingSupplierId(cnpj, companyId);
 
             // Verificar duplicidade da Nota Fiscal
-            DuplicateCheck duplicateCheck = checkAlreadyImported(nNf, accessKey, cnpj, xNome, companyId);
-            boolean alreadyImported = duplicateCheck.alreadyImported;
-            String duplicateWarning = duplicateCheck.warning;
+            StockNfeDuplicateCheck duplicateCheck = checkAlreadyImported(nNf, accessKey, cnpj, xNome, companyId);
+            boolean alreadyImported = duplicateCheck.isAlreadyImported();
+            String duplicateWarning = duplicateCheck.getWarning();
 
             // Detectar se é NFS-e (Nota de Serviços)
             boolean isNfseDetected = doc.getElementsByTagName("CompNfse").getLength() > 0 ||
@@ -536,7 +537,7 @@ public class StockNfeService {
             List<StockNfeParsedDTO.StockNfeInstallmentDTO> installments = extractInstallments(lines, issueDate, vNF);
 
             UUID existingSupplierId = findExistingSupplierId(supplierInfo.cnpj, companyId);
-            DuplicateCheck duplicateCheck = checkAlreadyImported(nNf, accessKey, supplierInfo.cnpj, supplierInfo.name, companyId);
+            StockNfeDuplicateCheck duplicateCheck = checkAlreadyImported(nNf, accessKey, supplierInfo.cnpj, supplierInfo.name, companyId);
 
             String upperPdfText = flat.toUpperCase();
             boolean isNfsePdf = upperPdfText.contains("NOTA FISCAL DE SERVIÇOS") || 
@@ -580,8 +581,8 @@ public class StockNfeService {
                     .customerState(customerInfo.state)
                     .customerZipCode(customerInfo.zipCode)
                     .customerPhone(customerInfo.phone != null && !customerInfo.phone.isBlank() ? customerInfo.phone : null)
-                    .alreadyImported(duplicateCheck.alreadyImported)
-                    .duplicateWarning(duplicateCheck.warning)
+                    .alreadyImported(duplicateCheck.isAlreadyImported())
+                    .duplicateWarning(duplicateCheck.getWarning())
                     .items(items)
                     .installments(installments)
                     .build();
@@ -1827,14 +1828,14 @@ public class StockNfeService {
      * Verifica se a NF-e já foi importada anteriormente no sistema (seja via XML ou via PDF),
      * tanto no módulo Financeiro (invoices) quanto no Estoque (stock_movements e stock_items).
      */
-    private DuplicateCheck checkAlreadyImported(String nNf, String accessKey, String supplierCnpj, String supplierName, UUID companyId) {
+    private StockNfeDuplicateCheck checkAlreadyImported(String nNf, String accessKey, String supplierCnpj, String supplierName, UUID companyId) {
         String cleanAccessKey = (accessKey != null) ? accessKey.replaceAll("\\D", "") : "";
         String cleanNf = (nNf != null) ? nNf.replaceAll("\\D", "").replaceFirst("^0+(?!$)", "") : "";
         String cleanCnpj = (supplierCnpj != null) ? supplierCnpj.replaceAll("\\D", "") : "";
         String cleanSuppName = (supplierName != null) ? removeAccents(supplierName.trim().toUpperCase()) : "";
 
         if (cleanAccessKey.isEmpty() && cleanNf.isEmpty()) {
-            return new DuplicateCheck(false, null);
+            return new StockNfeDuplicateCheck(false, null);
         }
 
         boolean foundInFinance = false;
@@ -1950,10 +1951,10 @@ public class StockNfeService {
                     nNf, supplierDisplay, modules, matchDetail);
 
             log.warn("Detecção de duplicidade de NF-e: {}", warning);
-            return new DuplicateCheck(true, warning);
+            return new StockNfeDuplicateCheck(true, warning);
         }
 
-        return new DuplicateCheck(false, null);
+        return new StockNfeDuplicateCheck(false, null);
     }
 
     private boolean isSupplierMatching(String entitySupplier, String targetCnpj, String targetName) {
@@ -1971,16 +1972,6 @@ public class StockNfeService {
             }
         }
         return false;
-    }
-
-    private static final class DuplicateCheck {
-        final boolean alreadyImported;
-        final String warning;
-
-        DuplicateCheck(boolean alreadyImported, String warning) {
-            this.alreadyImported = alreadyImported;
-            this.warning = warning;
-        }
     }
 
     private static final class SupplierInfo {
@@ -2041,15 +2032,15 @@ public class StockNfeService {
         Unit fallbackUnit = resolveFallbackUnit(companyId);
 
         // Verificar se a nota fiscal já foi importada anteriormente (bloqueia duplicação acidental)
-        DuplicateCheck duplicate = checkAlreadyImported(
+        StockNfeDuplicateCheck duplicate = checkAlreadyImported(
                 request.getInvoiceNumber(),
                 request.getAccessKey(),
                 request.getSupplierCnpj(),
                 request.getSupplierName(),
                 companyId);
-        if (duplicate.alreadyImported && !request.isForceImport()) {
-            log.warn("Tentativa de importar NF-e já existente: {}", duplicate.warning);
-            throw new BusinessException(duplicate.warning + " A importação foi bloqueada para proteger o saldo de estoque contra alterações e duplicações indevidas.");
+        if (duplicate.isAlreadyImported() && !request.isForceImport()) {
+            log.warn("Tentativa de importar NF-e já existente: {}", duplicate.getWarning());
+            throw new BusinessException(duplicate.getWarning() + " A importação foi bloqueada para proteger o saldo de estoque contra alterações e duplicações indevidas.");
         }
 
         // Usuário gerenciado pelo JPA

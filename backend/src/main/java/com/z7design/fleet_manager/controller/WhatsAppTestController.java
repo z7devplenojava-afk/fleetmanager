@@ -1,6 +1,9 @@
 package com.z7design.fleet_manager.controller;
 
 import com.z7design.fleet_manager.service.EvolutionApiService;
+import com.z7design.fleet_manager.service.whatsapp.WhatsAppProviderRouter;
+import com.z7design.fleet_manager.service.whatsapp.WhatsAppSendResult;
+import com.z7design.fleet_manager.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -8,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/whatsapp")
@@ -16,6 +20,7 @@ import java.util.Map;
 public class WhatsAppTestController {
     
     private final EvolutionApiService evolutionApiService;
+    private final WhatsAppProviderRouter providerRouter;
     
     @PostMapping("/test")
     public ResponseEntity<Map<String, Object>> testConnection() {
@@ -65,22 +70,31 @@ public class WhatsAppTestController {
                 ? request.getMensagem()
                 : "âœ… Teste FluxBus - WhatsApp conectado e funcionando!";
             
-            log.info("ðŸ“± Enviando mensagem de teste via Evolution REST para: {} - Mensagem: {}", 
+            log.info("ðŸ“± Enviando mensagem de teste via provedor configurado para: {} - Mensagem: {}", 
                 request.getTelefone(), mensagem);
             
-            // Enviar mensagem via Evolution REST Service
-            boolean success = evolutionApiService.sendTextMessage(request.getTelefone(), mensagem);
+            // Enviar mensagem pelo provedor configurado da empresa (AstraCalls ou Evolution)
+            WhatsAppProviderRouter.ResolvedProvider provider = providerRouter.resolve(TenantContext.get());
+            WhatsAppSendResult sendResult = provider.provider().sendText(
+                    provider.sessionId(),
+                    request.getTelefone(),
+                    mensagem,
+                    "test-" + UUID.randomUUID());
+            boolean success = sendResult.success();
             
             Map<String, Object> result = new HashMap<>();
             result.put("sucesso", success);
             result.put("telefone", request.getTelefone());
+            result.put("provedor", provider.providerId());
             result.put("timestamp", java.time.LocalDateTime.now().toString());
             
             if (success) {
                 result.put("message", "Mensagem de teste enviada com sucesso");
                 log.info("âœ… Mensagem de teste enviada com sucesso para: {}", request.getTelefone());
             } else {
-                String errorMsg = evolutionApiService.getLastErrorMessage();
+                String errorMsg = sendResult.errorMessage() != null
+                        ? sendResult.errorMessage()
+                        : evolutionApiService.getLastErrorMessage();
                 result.put("message", errorMsg != null ? errorMsg : "Erro ao enviar mensagem de teste");
                 log.error("âŒ Falha ao enviar mensagem de teste para: {}. Erro: {}", 
                     request.getTelefone(), errorMsg);
