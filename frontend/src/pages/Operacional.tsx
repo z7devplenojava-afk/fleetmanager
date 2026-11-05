@@ -72,7 +72,6 @@ import dailyLogService, { DailyLog } from '@/services/dailyLogService';
 import DailyLogAuditModal from '@/components/operacional/DailyLogAuditModal';
 import SstCompliancePanel from '@/components/operacional/SstCompliancePanel';
 import ModuloDespesasPanel from '@/components/financeiro/ModuloDespesasPanel';
-import { ShieldCheck } from 'lucide-react';
 import { scheduleService, Schedule, CreateScheduleDTO, UpdateScheduleDTO, ScheduleStatus } from '@/services/scheduleService';
 
 // Interface para o formulário de escala
