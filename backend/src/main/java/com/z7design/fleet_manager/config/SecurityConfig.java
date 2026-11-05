@@ -111,6 +111,8 @@ public class SecurityConfig {
                                                 }).permitAll()
                                                       .requestMatchers("/ws/**").permitAll()
                                                 .requestMatchers("/ws").permitAll()
+                                                .requestMatchers("/api/email/**").authenticated()
+                                                .requestMatchers("/email/**").authenticated()
                                                 .requestMatchers("/api/email/test").authenticated()
                                                 .requestMatchers("/api/email/config").authenticated()
                                                 // Endpoints pÃƒÂºblicos do portal (vagas, etc)

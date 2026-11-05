@@ -375,7 +375,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         isDriver: response.data.user?.isDriver,
       });
 
-      const effectiveUserRole = isDriver ? 'MOTORISTA' : userRole;
+      const isNonDriverProfile = ['SUPER_ADMIN', 'FLEX_ADMIN', 'COMPANY_ADMIN', 'ADMIN', 'GESTOR_OPERACIONAL', 'OPERACIONAL', 'TRAFFIC_MANAGER', 'RH', 'DEPARTAMENTO_PESSOAL', 'FINANCEIRO', 'COMERCIAL'].includes(userRole);
+      const effectiveUserRole = (isDriver && !isNonDriverProfile) ? 'MOTORISTA' : userRole;
 
       const userData: User = {
         id: response.data.user?.id || '',
@@ -602,8 +603,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           isDriver: response.data.isDriver ?? userData.isDriver,
         });
 
-        // Se for motorista e não for perfil administrativo privilegiado, garante a role MOTORISTA
-        const isSuperOrAdmin = ['SUPER_ADMIN', 'FLEX_ADMIN', 'COMPANY_ADMIN', 'ADMIN'].includes(primaryRole);
+        // Se for motorista e não for perfil administrativo ou operacional, garante a role MOTORISTA
+        const isSuperOrAdmin = ['SUPER_ADMIN', 'FLEX_ADMIN', 'COMPANY_ADMIN', 'ADMIN', 'GESTOR_OPERACIONAL', 'OPERACIONAL', 'TRAFFIC_MANAGER', 'RH', 'DEPARTAMENTO_PESSOAL', 'FINANCEIRO', 'COMERCIAL'].includes(primaryRole);
         if (isDriver && !isSuperOrAdmin) {
           primaryRole = 'MOTORISTA';
         }

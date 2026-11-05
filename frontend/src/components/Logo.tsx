@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { getApiUrl } from '@/config/environment';
 import { Building2 } from 'lucide-react';
-import { companyService } from '@/services/companyService';
 
 interface LogoProps {
   size?: 'sm' | 'md' | 'lg' | 'xl';
@@ -24,9 +22,8 @@ const Logo: React.FC<LogoProps> = ({
   alt: propAlt,
   forceDefault = false
 }) => {
-  const { empresa, user, setEmpresa } = useAuth();
+  const { empresa, user } = useAuth();
   const [imgError, setImgError] = useState(false);
-  const [fetchedCompany, setFetchedCompany] = useState<any | null>(null);
 
   const heightClasses = {
     sm: 'h-8 md:h-9',
@@ -35,38 +32,10 @@ const Logo: React.FC<LogoProps> = ({
     xl: 'h-16 sm:h-20 md:h-24'
   };
 
-  // Se o usuário tem companyId mas empresa não tem logoUrl no estado, busca dados da empresa
-  const companyId = (user as any)?.companyId || (user as any)?.company?.id;
-  useEffect(() => {
-    if (!forceDefault && companyId && (!empresa?.logoUrl || !empresa?.nome)) {
-      companyService.getCompanyById(companyId)
-        .then((comp) => {
-          if (comp) {
-            setFetchedCompany(comp);
-            if (setEmpresa && (!empresa || !empresa.logoUrl)) {
-              setEmpresa({
-                id: comp.id || companyId,
-                nome: comp.name || comp.nome || '',
-                logoUrl: comp.logoUrl,
-                temaCor: comp.temaCor,
-                branchName: comp.branchName,
-                unitName: comp.unitName,
-                enabledFeatures: comp.enabledFeatures || []
-              });
-            }
-          }
-        })
-        .catch(() => {
-          // silenciar
-        });
-    }
-  }, [companyId, empresa?.logoUrl, forceDefault, setEmpresa]);
-
-  // Determinar fonte da imagem
+  // Determinar fonte da imagem sem mutação de estado global
   const rawCompanyLogo = !forceDefault
     ? propSrc ||
       empresa?.logoUrl ||
-      fetchedCompany?.logoUrl ||
       (user as any)?.company?.logoUrl ||
       (user as any)?.empresa?.logoUrl ||
       (user as any)?.companyLogo ||
@@ -77,14 +46,12 @@ const Logo: React.FC<LogoProps> = ({
   const companyName =
     propAlt ||
     empresa?.nome ||
-    fetchedCompany?.name ||
     (user as any)?.company?.name ||
     (user as any)?.companyName ||
     null;
 
   const companySigla =
     empresa?.sigla ||
-    fetchedCompany?.sigla ||
     (user as any)?.company?.sigla ||
     (companyName ? companyName.slice(0, 3).toUpperCase() : '');
 

@@ -52,6 +52,7 @@ const PontoEletronico: React.FC = () => {
   const { user, refreshUser } = useAuth();
   const [resolvedEmployeeId, setResolvedEmployeeId] = useState<string | null>(user?.employeeId || null);
   const activeEmployeeId = user?.employeeId || resolvedEmployeeId;
+  const attemptedResolutionRef = useRef<string | null>(null);
   const [showVincularModal, setShowVincularModal] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [registrosHoje, setRegistrosHoje] = useState<TimeRecord[]>([]);
@@ -213,7 +214,9 @@ const PontoEletronico: React.FC = () => {
       return;
     }
 
-    if (!user) return;
+    if (!user?.id) return;
+    if (attemptedResolutionRef.current === user.id) return;
+    attemptedResolutionRef.current = user.id;
 
     let isMounted = true;
     const resolveEmployee = async () => {
@@ -267,7 +270,7 @@ const PontoEletronico: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [user]);
+  }, [user?.id, user?.employeeId, user?.username, user?.email, user?.name]);
 
   // Buscar registros do dia ao montar ou quando o employeeId for resolvido
   useEffect(() => {

@@ -48,6 +48,48 @@ services:
       - fluxbus_ci
     restart: unless-stopped
 
+  # ========================================
+  # ASTRACALLS (WhatsApp / whatsmeow)
+  # Banco dedicado: 1 database por sessao
+  # ========================================
+  astracalls-db:
+    image: postgres:16-alpine
+    container_name: astracalls-db-ci
+    environment:
+      POSTGRES_DB: ${WACALLS_DB_NAME:-wacalls_main}
+      POSTGRES_USER: ${WACALLS_DB_USER:-wacalls}
+      POSTGRES_PASSWORD: ${WACALLS_DB_PASSWORD:-wacalls}
+    volumes:
+      - astracalls_ci_data:/var/lib/postgresql/data
+    networks:
+      - fluxbus_ci
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${WACALLS_DB_USER:-wacalls} -d ${WACALLS_DB_NAME:-wacalls_main}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  astracalls:
+    image: astraonline/wacalls:develop
+    container_name: astracalls-ci
+    depends_on:
+      astracalls-db:
+        condition: service_healthy
+    environment:
+      - WACALLS_API_KEY=${ASTRACALLS_API_KEY:-fluxbus_ci_key}
+      - WACALLS_PG_URL=postgres://${WACALLS_DB_USER:-wacalls}:${WACALLS_DB_PASSWORD:-wacalls}@astracalls-db-ci:5432/${WACALLS_DB_NAME:-wacalls_main}?sslmode=disable
+      - WACALLS_PG_NAMESPACE=wacalls
+      - WACALLS_MAX_CALLS=8
+    # O CMD da imagem passa "-db" (SQLite, removido no fork atual);
+    # sobrescrevemos com as flags suportadas pelo binario.
+    command: ["-addr", ":8080", "-static", "/app/client/dist"]
+    expose:
+      - 8080
+    networks:
+      - fluxbus_ci
+    restart: unless-stopped
+
   backend:
     image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/fluxbus-backend:ci
     container_name: backend-ci
@@ -56,8 +98,13 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      astracalls:
+        condition: service_started
     environment:
       - SPRING_PROFILES_ACTIVE=ci
+      - ASTRACALLS_API_ENABLED=true
+      - ASTRACALLS_API_URL=http://astracalls-ci:8080
+      - ASTRACALLS_API_KEY=${ASTRACALLS_API_KEY:-fluxbus_ci_key}
       - DB_URL=jdbc:postgresql://postgres-ci:5432/${DB_NAME:-fluxbus_ci}
       - DB_USERNAME=${DB_USER:-fluxbus}
       - DB_PASSWORD=${DB_PASSWORD:-fluxbus123}
@@ -93,6 +140,7 @@ volumes:
   redis_ci_data:
   whatsapp_ci_data:
   whatsapp_ci_cache:
+  astracalls_ci_data:
 
 networks:
   fluxbus_ci:

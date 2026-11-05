@@ -15,11 +15,13 @@ import {
   XCircle,
   Download,
   Edit,
-  Users
+  Users,
+  Printer
 } from 'lucide-react';
 import { ContaAReceber } from './ContasAReceberFormModal';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { RentalInvoicePdfService } from '@/services/rentalInvoicePdfService';
 
 interface ContasAReceberViewModalProps {
   isOpen: boolean;
@@ -364,7 +366,39 @@ export const ContasAReceberViewModal: React.FC<ContasAReceberViewModalProps> = (
 
           {/* Ações */}
           <div className="flex flex-wrap justify-between items-center gap-3 pt-6 border-t border-gray-600">
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  RentalInvoicePdfService.openPrintPreview({
+                    id: conta.id,
+                    number: conta.faturaLocacaoNumber || conta.numeroFatura || conta.numeroDocumento || conta.id.slice(0, 6).toUpperCase(),
+                    clientName: conta.cliente,
+                    contractNumber: conta.pedidoNumber || conta.contrato || 'Contrato Padrão',
+                    issueDate: conta.dataVencimento || new Date().toISOString(),
+                    dueDate: conta.dataVencimento,
+                    amount: conta.valor,
+                    netAmount: conta.valor,
+                    status: (conta.status === 'RECEBIDO' || conta.status === 'PAGO') ? 'PAID' : (conta.status === 'VENCIDO' ? 'OVERDUE' : 'PENDING'),
+                    items: [
+                      {
+                        id: 'item-1',
+                        description: conta.descricao || 'LOCAÇÃO DE VEÍCULO SEM CESSÃO DE MÃO DE OBRA',
+                        plate: conta.placasVeiculos || undefined,
+                        model: 'Ônibus Rodoviário / Executivo',
+                        amount: conta.valor,
+                      }
+                    ],
+                    notes: conta.observacoes,
+                    paymentMethod: 'TRANSFERÊNCIA BANCÁRIA / PIX',
+                    bankName: conta.dadosBancarios || undefined,
+                  });
+                }}
+                className="bg-amber-600 hover:bg-amber-700 text-white border-amber-500 flex items-center gap-2"
+              >
+                <Printer size={16} /> Imprimir Fatura (Padrão OS)
+              </Button>
+
               <Button
                 variant="outline"
                 onClick={async () => {

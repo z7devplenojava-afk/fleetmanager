@@ -9,9 +9,50 @@ export const isDriverUser = (user?: {
   isDriver?: boolean;
 } | null): boolean => {
   if (!user) return false;
-  if (user.isDriver) return true;
 
   const role = (user.role || '').toUpperCase().replace(/^ROLE_/, '').trim();
+
+  // Papéis administrativos, operacionais, gestores, fiscais e RH NUNCA devem ser tratados como motoristas
+  const nonDriverRoles = [
+    'SUPER_ADMIN',
+    'FLEX_ADMIN',
+    'ADMIN',
+    'COMPANY_ADMIN',
+    'GESTOR_OPERACIONAL',
+    'OPERACIONAL',
+    'TRAFFIC_MANAGER',
+    'GESTOR_TRAFEGO',
+    'GERENTE_OPERACIONAL',
+    'GERENTE',
+    'COORDENADOR',
+    'RH',
+    'DEPARTAMENTO_PESSOAL',
+    'FINANCEIRO',
+    'COMERCIAL',
+    'DIRETORIA',
+    'DIRETOR',
+    'MECANICO',
+    'ENCARREGADO',
+    'FISCAL',
+    'ASSISTENTE'
+  ];
+
+  if (nonDriverRoles.includes(role)) {
+    return false;
+  }
+
+  if (Array.isArray(user.roles) && user.roles.length > 0) {
+    const hasAdminOrManager = user.roles.some((r) => {
+      const name = typeof r === 'string' ? r : r?.name;
+      const normalized = (name || '').toUpperCase().replace(/^ROLE_/, '').trim();
+      return nonDriverRoles.includes(normalized);
+    });
+    if (hasAdminOrManager) {
+      return false;
+    }
+  }
+
+  // Verifica explicitamente se o papel principal é motorista
   if (role === 'MOTORISTA' || role === 'DRIVER') return true;
 
   if (Array.isArray(user.roles)) {
@@ -34,6 +75,19 @@ export const isDriverUser = (user?: {
     ''
   ).toLowerCase();
 
+  // Se o cargo contiver termos de gestão, operacional ou administrativo, não é motorista
+  if (
+    position.includes('gestor') ||
+    position.includes('gerente') ||
+    position.includes('coordenador') ||
+    position.includes('analista') ||
+    position.includes('assistente') ||
+    position.includes('administrativo') ||
+    position.includes('operacional')
+  ) {
+    return false;
+  }
+
   if (
     position.includes('motorista') ||
     position.includes('condutor') ||
@@ -41,6 +95,8 @@ export const isDriverUser = (user?: {
   ) {
     return true;
   }
+
+  if (user.isDriver === true) return true;
 
   const username = (anyUser?.username || '').toLowerCase();
   const email = (anyUser?.email || '').toLowerCase();

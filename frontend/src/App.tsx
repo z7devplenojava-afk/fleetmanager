@@ -315,9 +315,16 @@ function App() {
     let cleanupTimer: any = null;
 
     const cleanupStuckBodyStyles = () => {
-      if (isCleaning) return;
+      // Se nem pointer-events nem overflow estiverem bloqueando o body, não faz nada
+      const hasStuckStyle = document.body.style.pointerEvents === 'none' || document.body.style.overflow === 'hidden';
+      if (!hasStuckStyle || isCleaning) return;
+
       clearTimeout(cleanupTimer);
       cleanupTimer = setTimeout(() => {
+        if (isCleaning) return;
+        const currentStuck = document.body.style.pointerEvents === 'none' || document.body.style.overflow === 'hidden';
+        if (!currentStuck) return;
+
         isCleaning = true;
         try {
           const hasOpenDialog = document.querySelector('[role="dialog"], [role="alertdialog"], [data-state="open"]');
@@ -330,9 +337,9 @@ function App() {
             }
           }
         } finally {
-          setTimeout(() => { isCleaning = false; }, 50);
+          setTimeout(() => { isCleaning = false; }, 100);
         }
-      }, 150);
+      }, 200);
     };
 
     const bodyObserver = new MutationObserver(() => {
@@ -341,7 +348,7 @@ function App() {
 
     bodyObserver.observe(document.body, {
       attributes: true,
-      attributeFilter: ['style', 'class']
+      attributeFilter: ['style']
     });
 
     window.addEventListener('popstate', cleanupStuckBodyStyles);
