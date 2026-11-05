@@ -34,7 +34,11 @@ import {
   ChevronsUpDown,
   Download,
   Trash2,
-  Loader2
+  Loader2,
+  FileText,
+  Building,
+  Truck,
+  ShieldCheck
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { StockMovement, MovementType, MovementReason, MovementTypeLabels, MovementReasonLabels } from '@/types/stock';
@@ -133,6 +137,55 @@ const StockMovementsTable: React.FC<StockMovementsTableProps> = ({
     return type === MovementType.ENTRADA ? 
       <TrendingUp className="h-4 w-4 text-green-500" /> : 
       <TrendingDown className="h-4 w-4 text-red-500" />;
+  };
+
+  const parseMovementDetails = (movement: StockMovement) => {
+    const notes = movement.notes || '';
+
+    // NF-e e Fornecedor
+    let nfNumber = movement.documentNumber;
+    if (!nfNumber || nfNumber === 'S/N') {
+      const nfMatch = notes.match(/NF(?:-e)?(?:\s*nº|\s*:\s*|\s+)(\w+)/i);
+      if (nfMatch) nfNumber = nfMatch[1];
+    }
+
+    let supplier = movement.supplier;
+    if (!supplier) {
+      const suppMatch = notes.match(/Fornecedor:\s*([^|]+)/i);
+      if (suppMatch) supplier = suppMatch[1].trim();
+    }
+
+    // OS e Veículo
+    let osRef = '';
+    const osMatch = notes.match(/OS\s*(?:#|Ref:)\s*([^\s|]+)/i);
+    if (osMatch) {
+      osRef = osMatch[1];
+    } else if (movement.documentNumber && (movement.documentNumber.startsWith('OS-') || movement.documentNumber.startsWith('REQ-'))) {
+      osRef = movement.documentNumber;
+    }
+
+    let vehiclePlate = '';
+    const plateMatch = notes.match(/Ve[íi]culo:\s*([^\s|]+)/i);
+    if (plateMatch) vehiclePlate = plateMatch[1];
+
+    // Autorizado por
+    let authorizedBy = '';
+    const authMatch = notes.match(/Autorizado por:\s*([^|]+)/i);
+    if (authMatch) authorizedBy = authMatch[1].trim();
+
+    // Requisição
+    let reqNumber = '';
+    const reqMatch = notes.match(/Requisi[çc][ãa]o\s*#([^\s|]+)/i);
+    if (reqMatch) reqNumber = reqMatch[1];
+
+    return {
+      nfNumber,
+      supplier,
+      osRef,
+      vehiclePlate,
+      authorizedBy,
+      reqNumber
+    };
   };
 
   const handleSort = (key: SortKey) => {
@@ -285,20 +338,28 @@ const StockMovementsTable: React.FC<StockMovementsTableProps> = ({
         return;
       }
 
-      const dadosExportacao = itemsToExport.map(item => ({
-        'Data': item.movementDate ? format(new Date(item.movementDate), 'dd/MM/yyyy', { locale: ptBR }) : '',
-        'Hora': item.movementDate ? format(new Date(item.movementDate), 'HH:mm', { locale: ptBR }) : '',
-        'Item': item.stockItemName || '',
-        'Código': item.stockItemCode || '',
-        'Tipo': item.movementType === MovementType.ENTRADA ? 'Entrada' : 'Saída',
-        'Motivo': MovementReasonLabels[item.reason] || item.reason || '',
-        'Quantidade': item.quantity,
-        'Estoque Anterior': item.previousQuantity,
-        'Estoque Novo': item.newQuantity,
-        'Funcionário': item.employeeName || '',
-        'Usuário': item.userName || '',
-        'Documento': item.documentNumber || ''
-      }));
+      const dadosExportacao = itemsToExport.map(item => {
+        const det = parseMovementDetails(item);
+        return {
+          'Data': item.movementDate ? format(new Date(item.movementDate), 'dd/MM/yyyy', { locale: ptBR }) : '',
+          'Hora': item.movementDate ? format(new Date(item.movementDate), 'HH:mm', { locale: ptBR }) : '',
+          'Item': item.stockItemName || '',
+          'Código': item.stockItemCode || '',
+          'Tipo': item.movementType === MovementType.ENTRADA ? 'Entrada' : 'Saída',
+          'Motivo': MovementReasonLabels[item.reason] || item.reason || '',
+          'NF-e': det.nfNumber || item.documentNumber || '',
+          'Fornecedor': det.supplier || '',
+          'OS Vinculada': det.osRef || '',
+          'Veículo': det.vehiclePlate || '',
+          'Quantidade': item.quantity,
+          'Estoque Anterior': item.previousQuantity,
+          'Estoque Novo': item.newQuantity,
+          'Solicitante': item.employeeName || '',
+          'Autorizado Por': det.authorizedBy || '',
+          'Entregue / Lançado Por': item.userName || '',
+          'Observações': item.notes || ''
+        };
+      });
 
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.json_to_sheet(dadosExportacao);
@@ -309,13 +370,18 @@ const StockMovementsTable: React.FC<StockMovementsTableProps> = ({
         { wch: 30 }, // Item
         { wch: 16 }, // Código
         { wch: 10 }, // Tipo
-        { wch: 24 }, // Motivo
+        { wch: 22 }, // Motivo
+        { wch: 16 }, // NF-e
+        { wch: 26 }, // Fornecedor
+        { wch: 16 }, // OS
+        { wch: 12 }, // Veículo
         { wch: 10 }, // Quantidade
         { wch: 14 }, // Estoque Anterior
         { wch: 12 }, // Estoque Novo
-        { wch: 22 }, // Funcionário
+        { wch: 22 }, // Solicitante
+        { wch: 22 }, // Autorizado Por
         { wch: 20 }, // Usuário
-        { wch: 16 }  // Documento
+        { wch: 35 }  // Observações
       ];
 
       XLSX.utils.book_append_sheet(wb, ws, 'Movimentações');
@@ -549,106 +615,176 @@ const StockMovementsTable: React.FC<StockMovementsTableProps> = ({
                   <SortableHead columnKey="movementDate">Data/Hora</SortableHead>
                   <SortableHead columnKey="stockItemName">Item</SortableHead>
                   <SortableHead columnKey="movementType">Tipo</SortableHead>
-                  <SortableHead columnKey="reason">Motivo</SortableHead>
+                  <TableHead className="text-seguranca-lightgray">Documento / Origem / OS</TableHead>
                   <SortableHead columnKey="quantity">Quantidade</SortableHead>
-                  <SortableHead columnKey="employeeName">Funcionário</SortableHead>
-                  <SortableHead columnKey="userName">Usuário</SortableHead>
+                  <SortableHead columnKey="employeeName">Solicitante / Autorização</SortableHead>
+                  <SortableHead columnKey="userName">Responsável / Usuário</SortableHead>
                   <TableHead className="text-seguranca-lightgray">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredMovements.map((movement) => (
-                  <TableRow key={movement.id} className={`border-gray-600 hover:bg-seguranca-black/50 ${selectedItems.has(movement.id) ? 'bg-seguranca-black/30' : ''}`}>
-                    <TableCell className="w-10 text-center">
-                      <Checkbox
-                        checked={selectedItems.has(movement.id)}
-                        onCheckedChange={(checked) => handleSelectItem(movement.id, checked as boolean)}
-                        aria-label={`Selecionar movimentação de ${movement.stockItemName}`}
-                        className="border-gray-500 data-[state=checked]:bg-seguranca-yellow data-[state=checked]:border-seguranca-yellow"
-                      />
-                    </TableCell>
-                    
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-gray-400" />
-                        <div>
-                          <p className="text-seguranca-lightgray font-medium">
-                            {format(new Date(movement.movementDate), 'dd/MM/yyyy', { locale: ptBR })}
+                {filteredMovements.map((movement) => {
+                  const details = parseMovementDetails(movement);
+                  const isEntrada = movement.movementType === MovementType.ENTRADA;
+
+                  return (
+                    <TableRow key={movement.id} className={`border-gray-600 hover:bg-seguranca-black/50 ${selectedItems.has(movement.id) ? 'bg-seguranca-black/30' : ''}`}>
+                      <TableCell className="w-10 text-center">
+                        <Checkbox
+                          checked={selectedItems.has(movement.id)}
+                          onCheckedChange={(checked) => handleSelectItem(movement.id, checked as boolean)}
+                          aria-label={`Selecionar movimentação de ${movement.stockItemName}`}
+                          className="border-gray-500 data-[state=checked]:bg-seguranca-yellow data-[state=checked]:border-seguranca-yellow"
+                        />
+                      </TableCell>
+                      
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4 text-gray-400" />
+                          <div>
+                            <p className="text-seguranca-lightgray font-medium">
+                              {format(new Date(movement.movementDate), 'dd/MM/yyyy', { locale: ptBR })}
+                            </p>
+                            <p className="text-xs text-gray-400">
+                              {format(new Date(movement.movementDate), 'HH:mm', { locale: ptBR })}
+                            </p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Package className="h-4 w-4 text-gray-400 shrink-0" />
+                          <div>
+                            <p className="font-medium text-seguranca-lightgray">{movement.stockItemName}</p>
+                            <p className="text-xs text-gray-400">{movement.stockItemCode}</p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {getMovementIcon(movement.movementType)}
+                          {getMovementBadge(movement)}
+                        </div>
+                      </TableCell>
+                      
+                      {/* Documento / Origem / OS */}
+                      <TableCell>
+                        {isEntrada ? (
+                          <div className="space-y-1">
+                            <Badge variant="outline" className="border-emerald-600/50 bg-emerald-500/10 text-emerald-300 font-semibold text-xs flex items-center gap-1 w-fit">
+                              <FileText className="h-3 w-3" />
+                              {details.nfNumber ? `NF-e nº ${details.nfNumber}` : (movement.documentNumber || 'NF-e S/N')}
+                            </Badge>
+                            {details.supplier && (
+                              <p className="text-xs text-gray-300 flex items-center gap-1 truncate max-w-[200px]" title={details.supplier}>
+                                <Building className="h-3 w-3 text-gray-400 shrink-0" />
+                                {details.supplier}
+                              </p>
+                            )}
+                            {(movement.totalCost || movement.unitCost) && (
+                              <p className="text-[11px] text-gray-400">
+                                R$ {(movement.totalCost || movement.unitCost)?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="space-y-1">
+                            <Badge variant="outline" className="border-blue-600/50 bg-blue-500/10 text-blue-300 font-semibold text-xs flex items-center gap-1 w-fit">
+                              {MovementReasonLabels[movement.reason] || 'Saída / OS'}
+                            </Badge>
+                            <div className="flex flex-wrap gap-1 items-center">
+                              {details.osRef && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                                  🔧 OS #{details.osRef}
+                                </span>
+                              )}
+                              {details.vehiclePlate && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-sky-500/20 text-sky-300 border border-sky-500/40">
+                                  <Truck className="h-2.5 w-2.5" /> {details.vehiclePlate}
+                                </span>
+                              )}
+                              {details.reqNumber && !details.osRef && (
+                                <span className="text-[10px] text-gray-400">
+                                  Req #{details.reqNumber}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </TableCell>
+                      
+                      <TableCell>
+                        <div className="text-center">
+                          <p className={`font-bold ${
+                            movement.movementType === MovementType.ENTRADA ? 'text-green-500' : 'text-red-500'
+                          }`}>
+                            {movement.movementType === MovementType.ENTRADA ? '+' : '-'}{movement.quantity}
                           </p>
                           <p className="text-xs text-gray-400">
-                            {format(new Date(movement.movementDate), 'HH:mm', { locale: ptBR })}
+                            {movement.previousQuantity} → {movement.newQuantity}
                           </p>
                         </div>
-                      </div>
-                    </TableCell>
-                    
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Package className="h-4 w-4 text-gray-400" />
-                        <div>
-                          <p className="font-medium text-seguranca-lightgray">{movement.stockItemName}</p>
-                          <p className="text-xs text-gray-400">{movement.stockItemCode}</p>
+                      </TableCell>
+                      
+                      {/* Solicitante / Autorização / Fornecedor */}
+                      <TableCell>
+                        {isEntrada ? (
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-1.5 text-xs text-gray-300">
+                              <Building className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                              <span className="truncate max-w-[150px] font-medium" title={details.supplier || 'Fornecedor da NF-e'}>
+                                {details.supplier || 'Fornecedor da NF-e'}
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-gray-400 block">Entrada Estoque</span>
+                          </div>
+                        ) : (
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1.5 text-seguranca-lightgray text-xs font-medium">
+                              <User className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                              <span className="truncate max-w-[140px]">{movement.employeeName || 'Solicitante OS'}</span>
+                            </div>
+                            {details.authorizedBy && (
+                              <div className="flex items-center gap-1 text-[10px] text-amber-300/90 font-medium bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/30 w-fit">
+                                <ShieldCheck className="h-3 w-3 text-amber-400 shrink-0" />
+                                <span className="truncate max-w-[130px]" title={details.authorizedBy}>Aut: {details.authorizedBy}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </TableCell>
+                      
+                      {/* Responsável / Usuário */}
+                      <TableCell>
+                        <div className="text-xs text-gray-300">
+                          <span className="text-[10px] text-gray-400 block">
+                            {isEntrada ? 'Lançado por:' : 'Entregue por:'}
+                          </span>
+                          <span className="font-semibold text-white">
+                            {movement.userName || (isEntrada ? 'Almoxarifado / NF-e' : 'Almoxarifado')}
+                          </span>
                         </div>
-                      </div>
-                    </TableCell>
-                    
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {getMovementIcon(movement.movementType)}
-                        {getMovementBadge(movement)}
-                      </div>
-                    </TableCell>
-                    
-                    <TableCell>
-                      <Badge variant="outline" className="border-gray-600 text-gray-300">
-                        {MovementReasonLabels[movement.reason]}
-                      </Badge>
-                    </TableCell>
-                    
-                    <TableCell>
-                      <div className="text-center">
-                        <p className={`font-bold ${
-                          movement.movementType === MovementType.ENTRADA ? 'text-green-500' : 'text-red-500'
-                        }`}>
-                          {movement.movementType === MovementType.ENTRADA ? '+' : '-'}{movement.quantity}
-                        </p>
-                        <p className="text-xs text-gray-400">
-                          {movement.previousQuantity} → {movement.newQuantity}
-                        </p>
-                      </div>
-                    </TableCell>
-                    
-                    <TableCell>
-                      {movement.employeeName ? (
+                      </TableCell>
+                      
+                      <TableCell>
                         <div className="flex items-center gap-2">
-                          <User className="h-4 w-4 text-gray-400" />
-                          <span className="text-seguranca-lightgray">{movement.employeeName}</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleBulkDelete([movement.id])}
+                            disabled={deleting}
+                            className="text-red-500 hover:bg-seguranca-black"
+                            title="Excluir movimentação"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
-                      ) : (
-                        <span className="text-gray-400">-</span>
-                      )}
-                    </TableCell>
-                    
-                    <TableCell>
-                      <span className="text-seguranca-lightgray">{movement.userName || '-'}</span>
-                    </TableCell>
-                    
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleBulkDelete([movement.id])}
-                          disabled={deleting}
-                          className="text-red-500 hover:bg-seguranca-black"
-                          title="Excluir movimentação"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}

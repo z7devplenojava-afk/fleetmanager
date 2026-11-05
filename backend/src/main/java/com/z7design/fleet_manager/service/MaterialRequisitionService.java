@@ -434,8 +434,11 @@ public class MaterialRequisitionService {
             if (req.getVehicle() != null && req.getVehicle().getPlate() != null) {
                 plateDesc = " | Veículo: " + req.getVehicle().getPlate();
             }
+            String authDesc = (dto != null && dto.getAuthorizedByName() != null && !dto.getAuthorizedByName().trim().isEmpty())
+                    ? " | Autorizado por: " + dto.getAuthorizedByName().trim()
+                    : (req.getManagerApprovalName() != null ? " | Autorizado por: " + req.getManagerApprovalName() : "");
 
-            movement.setNotes("Baixa automática por entrega de Requisição #" + req.getRequisitionNumber() + woDesc + plateDesc + (notes != null ? " | Obs: " + notes : ""));
+            movement.setNotes("Baixa automática por entrega de Requisição #" + req.getRequisitionNumber() + woDesc + plateDesc + authDesc + (notes != null ? " | Obs: " + notes : ""));
             stockMovementRepository.save(movement);
         }
 

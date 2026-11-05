@@ -58,48 +58,20 @@ export const messageService = {
     try {
       const response = await api.get('/api/v1/messages/received', {
         headers: getAuthHeaders(),
-        params: { page, size, sort: 'createdAt,desc' }
+        params: { page, size, sort: 'createdAt,desc' },
+        validateStatus: (status) => status < 600
       });
+
+      if (response.status >= 400) {
+        return { messages: [], totalPages: 0, hasNext: false };
+      }
 
       // Usar o adaptador para converter a resposta do backend
       return adaptPaginatedResponse(response.data);
     } catch (error) {
-      console.warn('[MessageService] Backend indisponível, usando dados de demonstração');
-      // Retornar dados de demonstração para mostrar como funcionaria
-      const demoMessages: SystemMessage[] = [
-        {
-          id: 'demo-1',
-          title: 'Bem-vindo ao Sistema de Mensagens',
-          content: 'Este é um exemplo de como as mensagens aparecerão quando o backend estiver funcionando. O sistema permite enviar mensagens individuais, para grupos ou globais.',
-          type: 'GLOBAL',
-          priority: 'NORMAL',
-          status: 'UNREAD',
-          sender: {
-            id: 'demo-sender',
-            name: 'Sistema Secure Guard',
-            email: 'sistema@secureguard.com'
-          },
-          createdAt: new Date().toISOString()
-        },
-        {
-          id: 'demo-2',
-          title: 'Mensagem de Alta Prioridade',
-          content: 'Esta é uma mensagem de exemplo com alta prioridade. Observe como ela é destacada visualmente.',
-          type: 'INDIVIDUAL',
-          priority: 'HIGH',
-          status: 'UNREAD',
-          sender: {
-            id: 'demo-sender-2',
-            name: 'Administrador',
-            email: 'admin@secureguard.com'
-          },
-          createdAt: new Date(Date.now() - 3600000).toISOString() // 1 hora atrás
-        }
-      ];
-
       return {
-        messages: demoMessages,
-        totalPages: 1,
+        messages: [],
+        totalPages: 0,
         hasNext: false
       };
     }
@@ -188,27 +160,15 @@ export const messageService = {
     try {
       const response = await api.get('/api/v1/messages/unread/count', {
         headers: getAuthHeaders(),
-        validateStatus: (status) => status < 500, // Não lançar erro para 401/403, apenas para 500+
-        maxRedirects: 0 // Desabilitar redirecionamentos automáticos para evitar loops
+        validateStatus: (status) => status < 600, // Não lançar erro para 4xx ou 5xx
+        maxRedirects: 0
       });
-      return response.data || 0;
-    } catch (error: any) {
-      // Evitar loops de redirecionamento - retornar 0 silenciosamente
-      if (error?.response?.status === 401 || error?.response?.status === 403) {
-        console.warn('[MessageService] Usuário sem permissão ou não autenticado, retornando zero');
+      if (response.status >= 400) {
         return 0;
       }
-      if (error?.code === 'ERR_TOO_MANY_REDIRECTS' || error?.message?.includes('redirect')) {
-        console.warn('[MessageService] Loop de redirecionamento detectado, retornando zero');
-        console.warn('[MessageService] Isso pode indicar problema na configuração do Traefik/nginx no servidor CI');
-        return 0;
-      }
-      if (error?.response?.status === 500) {
-        console.warn('[MessageService] Backend retornou erro 500, retornando zero');
-        return 0;
-      }
-      console.warn('[MessageService] Erro ao buscar contagem de mensagens:', error?.message || error);
-      return 0; // Sempre retornar 0 em caso de erro para evitar quebrar o frontend
+      return typeof response.data === 'number' ? response.data : (Number(response.data) || 0);
+    } catch {
+      return 0;
     }
   },
 

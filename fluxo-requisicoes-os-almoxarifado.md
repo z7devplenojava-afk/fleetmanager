@@ -65,3 +65,4 @@ Implementar o ciclo operacional completo entre a **Ordem de Serviço (OS)**, **A
 3. Na OS com peças sem estoque, o botão notifica o almoxarifado e imediatamente muda para estado notificado, impedindo duplicação.
 4. No Almoxarifado, itens de diferentes OSs podem ser agrupados em uma única cotação.
 5. Ao confirmar entrega, o campo "Autorizado por" pesquisa e seleciona funcionários dinamicamente.
+

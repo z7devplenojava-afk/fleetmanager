@@ -42,7 +42,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
-import fleetWorkOrderService, { FleetWorkOrder, WorkOrderStatus, getOrderResponsibleDisplay } from '@/services/fleetWorkOrderService';
+import fleetWorkOrderService, { FleetWorkOrder, WorkOrderStatus, WorkOrderItemType, getOrderResponsibleDisplay } from '@/services/fleetWorkOrderService';
 import { materialRequisitionService, MaterialRequisition } from '@/services/materialRequisitionService';
 import FleetWorkOrderForm from '@/components/frota/FleetWorkOrderForm';
 import { FleetWorkOrderViewModal } from '@/components/frota/FleetWorkOrderViewModal';
@@ -110,18 +110,37 @@ export const StockWorkOrdersTab: React.FC<StockWorkOrdersTabProps> = ({ onGoToRe
     loadData();
   }, []);
 
-  // Mapeia requisições associadas a cada OS
+  // Mapeia requisições associadas a cada OS (por ID e por Número da OS normalizado)
   const requisitionsByWorkOrderId = useMemo(() => {
     const map = new Map<string, MaterialRequisition[]>();
     requisitions.forEach(req => {
       if (req.workOrderId) {
-        const list = map.get(req.workOrderId) || [];
-        list.push(req);
-        map.set(req.workOrderId, list);
+        const keyId = String(req.workOrderId).trim().toLowerCase();
+        const list = map.get(keyId) || [];
+        if (!list.some(r => r.id === req.id)) list.push(req);
+        map.set(keyId, list);
+      }
+      if (req.workOrderNumber) {
+        const keyNum = String(req.workOrderNumber).trim().toLowerCase();
+        const list = map.get(keyNum) || [];
+        if (!list.some(r => r.id === req.id)) list.push(req);
+        map.set(keyNum, list);
       }
     });
     return map;
   }, [requisitions]);
+
+  const getOrderRequisitions = (order: FleetWorkOrder): MaterialRequisition[] => {
+    const byId = requisitionsByWorkOrderId.get(String(order.id).trim().toLowerCase()) || [];
+    const byNum = order.osNumber ? (requisitionsByWorkOrderId.get(String(order.osNumber).trim().toLowerCase()) || []) : [];
+    const list = [...byId];
+    byNum.forEach(r => {
+      if (!list.some(existing => existing.id === r.id)) {
+        list.push(r);
+      }
+    });
+    return list;
+  };
 
   // Estatísticas do Topo
   const stats = useMemo(() => {
@@ -252,20 +271,53 @@ export const StockWorkOrdersTab: React.FC<StockWorkOrdersTabProps> = ({ onGoToRe
     }
   };
 
+  const formatTempoParado = (dateStr?: string) => {
+    if (!dateStr) return 'Recente';
+    try {
+      const start = new Date(dateStr).getTime();
+      const now = Date.now();
+      const diffMs = Math.max(0, now - start);
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffDays = Math.floor(diffHours / 24);
+
+      if (diffDays >= 1) {
+        const remainingHours = diffHours % 24;
+        return `${diffDays}d${remainingHours > 0 ? ` ${remainingHours}h` : ''}`;
+      }
+      if (diffHours >= 1) {
+        return `${diffHours}h`;
+      }
+      const diffMins = Math.floor(diffMs / (1000 * 60));
+      return `${Math.max(1, diffMins)}m`;
+    } catch {
+      return 'Recente';
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'OPEN':
-        return <Badge className="bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">Aberta</Badge>;
+        return <Badge className="bg-yellow-500/20 text-yellow-300 border border-yellow-500/40 text-xs font-semibold">📋 Aberta</Badge>;
+      case 'PENDING_APPROVAL':
+        return <Badge className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-semibold">⏳ Aguardando Aprovação</Badge>;
+      case 'APPROVED':
+        return <Badge className="bg-sky-500/20 text-sky-300 border border-sky-500/40 text-xs font-semibold">✓ Aprovada</Badge>;
       case 'IN_PROGRESS':
-        return <Badge className="bg-blue-500/20 text-blue-400 border border-blue-500/30">Em Execução</Badge>;
+        return <Badge className="bg-blue-500/20 text-blue-300 border border-blue-500/40 text-xs font-semibold">⚡ Em Execução</Badge>;
       case 'WAITING_PARTS':
-        return <Badge className="bg-orange-500/20 text-orange-400 border border-orange-500/30">Aguardando Peças</Badge>;
+        return <Badge className="bg-orange-500/20 text-orange-300 border border-orange-500/40 text-xs font-semibold">🛒 Aguardando Peças</Badge>;
+      case 'WAITING_QUOTES':
+        return <Badge className="bg-purple-500/20 text-purple-300 border border-purple-500/40 text-xs font-semibold">📊 Em Cotação</Badge>;
       case 'COMPLETED':
-        return <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Concluída</Badge>;
+        return <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-semibold">✓ Concluída</Badge>;
+      case 'CLOSED':
+        return <Badge className="bg-slate-500/20 text-slate-300 border border-slate-500/40 text-xs font-semibold">Encerrada</Badge>;
+      case 'DRAFT':
+        return <Badge className="bg-gray-500/20 text-gray-300 border border-gray-500/40 text-xs">📝 Rascunho</Badge>;
       case 'CANCELLED':
-        return <Badge className="bg-red-500/20 text-red-400 border border-red-500/30">Cancelada</Badge>;
+        return <Badge className="bg-red-500/20 text-red-300 border border-red-500/40 text-xs font-semibold">✕ Cancelada</Badge>;
       default:
-        return <Badge variant="outline">{status}</Badge>;
+        return <Badge variant="outline" className="text-gray-300 border-gray-600">{status}</Badge>;
     }
   };
 
@@ -436,9 +488,15 @@ export const StockWorkOrdersTab: React.FC<StockWorkOrdersTabProps> = ({ onGoToRe
                 </thead>
                 <tbody className="divide-y divide-gray-800">
                   {filteredWorkOrders.map(order => {
-                    const orderReqs = requisitionsByWorkOrderId.get(order.id) || [];
+                    const orderReqs = getOrderRequisitions(order);
                     const hasWaitingQuotes = orderReqs.some(r => r.status === 'WAITING_QUOTES');
                     const hasReservedStock = orderReqs.some(r => r.status === 'RESERVED_STOCK' || r.status === 'AVAILABLE_FOR_INSTALLATION');
+                    const allDeliveredOrAvailable = orderReqs.length > 0 && orderReqs.every(r => r.status === 'INSTALLED_COMPLETED' || r.status === 'AVAILABLE_FOR_INSTALLATION');
+                    const isWaitingParts = order.status === 'WAITING_PARTS' || hasWaitingQuotes || orderReqs.some(r => r.status === 'QUOTES_RECEIVED' || r.status === 'OC_GENERATED' || r.status === 'WAITING_DELIVERY');
+                    const isCompleted = order.status === 'COMPLETED' || order.status === 'CLOSED';
+
+                    // Materiais cadastrados na própria OS caso ainda não tenha requisição do almoxarifado
+                    const orderMaterials = (order.items || []).filter(item => item.type === 'MATERIAL' || !item.type || (item.type as string) === 'PART');
 
                     return (
                       <tr 
@@ -467,17 +525,42 @@ export const StockWorkOrdersTab: React.FC<StockWorkOrdersTabProps> = ({ onGoToRe
                           </div>
                         </td>
 
-                        {/* Tipo Manutenção */}
+                        {/* Tipo Manutenção e Tempo Parado */}
                         <td className="py-3 px-4">
                           <span className="text-xs font-semibold px-2 py-0.5 rounded bg-gray-700/60 text-gray-300">
                             {order.maintenanceType === 'PREVENTIVE' ? 'Preventiva' :
                              order.maintenanceType === 'CORRECTIVE' ? 'Corretiva' :
                              order.maintenanceType === 'PREDICTIVE' ? 'Preditiva' : 'Manutenção'}
                           </span>
-                          <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
-                            <Clock size={12} />
-                            {order.plannedDate ? new Date(order.plannedDate).toLocaleDateString('pt-BR') : 'Sem data'}
-                          </p>
+                          
+                          {/* Exibição Inteligente de Tempo Parado e Peças */}
+                          {isCompleted ? (
+                            <div className="mt-1 flex items-center gap-1 text-[11px] text-gray-400">
+                              <CheckCircle size={12} className="text-emerald-400" />
+                              <span>Concluída</span>
+                            </div>
+                          ) : allDeliveredOrAvailable ? (
+                            <div className="mt-1">
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                                <CheckCircle size={10} /> Peça Liberada / Entregue
+                              </span>
+                            </div>
+                          ) : isWaitingParts ? (
+                            <div className="mt-1 space-y-0.5">
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                                <Clock size={10} className="animate-spin text-amber-400" />
+                                Parado há {formatTempoParado(order.stopDate ? `${order.stopDate} ${order.stopTime || ''}` : (order.startDate || order.createdAt || order.plannedDate))}
+                              </span>
+                              <p className="text-[10px] text-amber-400/90 font-medium">
+                                Aguardando entrega de peça pelo Almoxarifado
+                              </p>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
+                              <Clock size={12} />
+                              {order.plannedDate ? new Date(order.plannedDate).toLocaleDateString('pt-BR') : 'Sem data'}
+                            </p>
+                          )}
                         </td>
 
                         {/* Mecânico e Garagem */}
@@ -505,15 +588,13 @@ export const StockWorkOrdersTab: React.FC<StockWorkOrdersTabProps> = ({ onGoToRe
 
                         {/* Requisições de Peças & Cotações */}
                         <td className="py-3 px-4" onClick={e => e.stopPropagation()}>
-                          {orderReqs.length === 0 ? (
-                            <span className="text-xs text-gray-500 italic">Nenhum material requisitado</span>
-                          ) : (
+                          {orderReqs.length > 0 ? (
                             <div className="space-y-1.5">
                               {orderReqs.map(req => (
                                 <div key={req.id} className="flex items-center justify-between gap-2 p-1.5 rounded bg-seguranca-black/60 border border-gray-700 text-xs">
                                   <div className="truncate max-w-[200px]">
                                     <span className="font-semibold text-white">{req.itemName}</span>
-                                    <span className="text-gray-400 ml-1">({req.quantity} {req.unit})</span>
+                                    <span className="text-gray-400 ml-1">({req.quantity} {req.unit || 'un'})</span>
                                   </div>
                                   <div>
                                     {req.status === 'WAITING_QUOTES' && (
@@ -531,6 +612,11 @@ export const StockWorkOrdersTab: React.FC<StockWorkOrdersTabProps> = ({ onGoToRe
                                         Em Estoque ✓
                                       </Badge>
                                     )}
+                                    {req.status === 'INSTALLED_COMPLETED' && (
+                                      <Badge className="bg-emerald-600/30 text-emerald-200 border border-emerald-500/50 text-[10px] whitespace-nowrap">
+                                        ✓ Entregue / Instalada
+                                      </Badge>
+                                    )}
                                     {(req.status === 'OC_GENERATED' || req.status === 'WAITING_DELIVERY') && (
                                       <Badge className="bg-purple-500/20 text-purple-300 border border-purple-500/40 text-[10px] whitespace-nowrap">
                                         OC Emitida
@@ -540,6 +626,33 @@ export const StockWorkOrdersTab: React.FC<StockWorkOrdersTabProps> = ({ onGoToRe
                                 </div>
                               ))}
                             </div>
+                          ) : orderMaterials.length > 0 ? (
+                            <div className="space-y-1.5">
+                              {orderMaterials.map((mat, idx) => {
+                                const hasStock = mat.inStock !== undefined && mat.inStock >= (mat.quantity || 1);
+                                return (
+                                  <div key={mat.id || idx} className="flex items-center justify-between gap-2 p-1.5 rounded bg-seguranca-black/60 border border-gray-700 text-xs">
+                                    <div className="truncate max-w-[200px]">
+                                      <span className="font-semibold text-white">{mat.description}</span>
+                                      <span className="text-gray-400 ml-1">({mat.quantity} un)</span>
+                                    </div>
+                                    <div>
+                                      {hasStock ? (
+                                        <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] whitespace-nowrap">
+                                          Em Estoque ✓
+                                        </Badge>
+                                      ) : (
+                                        <Badge className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] whitespace-nowrap">
+                                          Sem Saldo · Notificar
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-gray-500 italic">Nenhum material cadastrado</span>
                           )}
                         </td>
 
