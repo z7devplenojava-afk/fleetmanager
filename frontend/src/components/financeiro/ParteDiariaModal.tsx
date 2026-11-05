@@ -28,7 +28,8 @@ import {
   ArrowLeft,
   X,
   Check,
-  AlertTriangle
+  AlertTriangle,
+  RotateCcw
 } from 'lucide-react';
 import { clientService, Client } from '@/services/clientService';
 import { fleetService, DEFAULT_FLEET_VEHICLES } from '@/services/fleetService';
@@ -189,22 +190,19 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
     startKm: number | string;
     endKm: number | string;
   }>({
-    startTime: '14:30',
-    endTime: '15:50',
-    description: 'Ibirité FM2C',
-    startKm: 403834,
-    endKm: 403869
+    startTime: '06:00',
+    endTime: '07:00',
+    description: '',
+    startKm: 0,
+    endKm: 0
   });
 
   // Atividades do dia
-  const [activities, setActivities] = useState<ParteDiariaAtividade[]>([
-    { startTime: '14:30', endTime: '15:50', description: 'Ibirité FM2C', startKm: 403834, endKm: 403869, activityType: 'REGULAR' },
-    { startTime: '16:00', endTime: '17:47', description: 'FM2C Ibirité', startKm: 403969, endKm: 404017, activityType: 'REGULAR' }
-  ]);
+  const [activities, setActivities] = useState<ParteDiariaAtividade[]>([]);
 
   // Hodômetro e KM
-  const [startKm, setStartKm] = useState<number>(403834);
-  const [endKm, setEndKm] = useState<number>(404017);
+  const [startKm, setStartKm] = useState<number>(0);
+  const [endKm, setEndKm] = useState<number>(0);
   const [disregardedKm, setDisregardedKm] = useState<number>(0);
   const [disregardReason, setDisregardReason] = useState<string>('');
   const [notes, setNotes] = useState<string>('Operação realizada com sucesso conforme parte diária física.');
@@ -291,56 +289,83 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
         setNotes(parteDiariaToEdit.notes || 'Operação realizada com sucesso conforme parte diária física.');
         if (parteDiariaToEdit.atividades && parteDiariaToEdit.atividades.length > 0) {
           setActivities(parteDiariaToEdit.atividades);
-        }
-      } else if (initialClientId || initialClientName) {
-        const targetClientId = initialClientId || '';
-        const targetClientName = initialClientName || '';
-        setSelectedClientId(targetClientId);
-        if (targetClientName) {
-          setClientName(targetClientName);
         } else {
-          const cli = clientList.find((c: any) => c.id === targetClientId);
-          if (cli) setClientName(cli.name);
-        }
-
-        if (initialContractNumber) {
-          setContractNumber(initialContractNumber);
-        } else if (targetClientName) {
-          setContractNumber(`CT-${targetClientName.substring(0, 6).toUpperCase()}`);
-        }
-
-        if (initialObraName) {
-          setObraName(initialObraName);
-        } else {
-          const relatedObras = workPostList.filter((wp: any) => 
-            wp.clientId === targetClientId || (wp.clientName && wp.clientName.toLowerCase().includes(targetClientName.toLowerCase()))
-          );
-          if (relatedObras.length > 0) {
-            setObraName(relatedObras[0].name);
-          }
-        }
-
-        if (initialVehiclePlate) {
-          setVehiclePlate(initialVehiclePlate);
-          const foundV = vehicleList.find((v: any) => 
-            (v.placa || v.plate || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase() === 
-            initialVehiclePlate.replace(/[^A-Za-z0-9]/g, '').toUpperCase()
-          );
-          if (foundV) {
-            setSelectedVehicleId(foundV.id);
-            setVehicleType(detectVehicleType(foundV));
-          }
+          setActivities([]);
         }
       } else {
-        if (clientList.length > 0) {
-          setSelectedClientId(clientList[0].id);
-          setClientName(clientList[0].name);
+        // Nova Parte Diária limpa
+        setDocNumber(String(Math.floor(10000 + Math.random() * 90000)));
+        setDocDate(new Date().toISOString().split('T')[0]);
+        setActivities([]);
+        setDisregardedKm(0);
+        setDisregardReason('');
+        setNotes('Operação realizada com sucesso conforme parte diária física.');
+
+        let initialMileage = 0;
+        if (initialClientId || initialClientName) {
+          const targetClientId = initialClientId || '';
+          const targetClientName = initialClientName || '';
+          setSelectedClientId(targetClientId);
+          if (targetClientName) {
+            setClientName(targetClientName);
+          } else {
+            const cli = clientList.find((c: any) => c.id === targetClientId);
+            if (cli) setClientName(cli.name);
+          }
+
+          if (initialContractNumber) {
+            setContractNumber(initialContractNumber);
+          } else if (targetClientName) {
+            setContractNumber(`CT-${targetClientName.substring(0, 6).toUpperCase()}`);
+          }
+
+          if (initialObraName) {
+            setObraName(initialObraName);
+          } else {
+            const relatedObras = workPostList.filter((wp: any) => 
+              wp.clientId === targetClientId || (wp.clientName && wp.clientName.toLowerCase().includes(targetClientName.toLowerCase()))
+            );
+            if (relatedObras.length > 0) {
+              setObraName(relatedObras[0].name);
+            }
+          }
+
+          if (initialVehiclePlate) {
+            setVehiclePlate(initialVehiclePlate);
+            const foundV = vehicleList.find((v: any) => 
+              (v.placa || v.plate || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase() === 
+              initialVehiclePlate.replace(/[^A-Za-z0-9]/g, '').toUpperCase()
+            );
+            if (foundV) {
+              setSelectedVehicleId(foundV.id);
+              setVehicleType(detectVehicleType(foundV));
+              if (foundV.currentMileage != null && Number(foundV.currentMileage) > 0) {
+                initialMileage = Number(foundV.currentMileage);
+              }
+            }
+          }
+        } else {
+          if (clientList.length > 0) {
+            setSelectedClientId(clientList[0].id);
+            setClientName(clientList[0].name);
+          }
+          if (vehicleList.length > 0) {
+            setSelectedVehicleId(vehicleList[0].id);
+            setVehiclePlate(vehicleList[0].placa || vehicleList[0].plate || '');
+            setVehicleType(detectVehicleType(vehicleList[0]));
+            if (vehicleList[0].currentMileage != null && Number(vehicleList[0].currentMileage) > 0) {
+              initialMileage = Number(vehicleList[0].currentMileage);
+            }
+          }
         }
-        if (vehicleList.length > 0) {
-          setSelectedVehicleId(vehicleList[0].id);
-          setVehiclePlate(vehicleList[0].placa || vehicleList[0].plate || '');
-          setVehicleType(detectVehicleType(vehicleList[0]));
-        }
+
+        setStartKm(initialMileage);
+        setEndKm(initialMileage);
+        setNewActivity(prev => ({
+          ...prev,
+          startKm: initialMileage,
+          endKm: initialMileage
+        }));
       }
 
       if (initialDriverName) {
@@ -570,10 +595,10 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
 
     setActivities(prev => {
       const next = [...prev, activityToAdd];
-      if (next.length === 1 || startKm === 0) {
-        setStartKm(startNum);
+      if (next.length > 0) {
+        setStartKm(parseFloat(String(next[0].startKm)) || 0);
+        setEndKm(parseFloat(String(next[next.length - 1].endKm)) || 0);
       }
-      setEndKm(endNum);
       return next;
     });
 
@@ -592,19 +617,52 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
   };
 
   const handleRemoveActivity = (index: number) => {
-    setActivities(activities.filter((_, i) => i !== index));
+    setActivities(prev => {
+      const next = prev.filter((_, i) => i !== index);
+      if (next.length > 0) {
+        setStartKm(parseFloat(String(next[0].startKm)) || 0);
+        setEndKm(parseFloat(String(next[next.length - 1].endKm)) || 0);
+      }
+      return next;
+    });
   };
 
   const handleActivityChange = (index: number, field: keyof ParteDiariaAtividade, value: any) => {
-    const updated = [...activities];
-    updated[index] = { ...updated[index], [field]: value };
-    setActivities(updated);
+    setActivities(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      if (updated.length > 0) {
+        if (index === 0 && field === 'startKm') {
+          setStartKm(parseFloat(String(value)) || 0);
+        }
+        if (index === updated.length - 1 && field === 'endKm') {
+          setEndKm(parseFloat(String(value)) || 0);
+        }
+      }
+      return updated;
+    });
+  };
 
-    if (index === 0 && field === 'startKm') {
-      setStartKm(parseFloat(String(value)) || 0);
-    }
-    if (index === updated.length - 1 && field === 'endKm') {
-      setEndKm(parseFloat(String(value)) || 0);
+  const handleSyncFromActivities = (showToast = true) => {
+    if (activities.length > 0) {
+      const firstKm = parseFloat(String(activities[0].startKm)) || 0;
+      const lastKm = parseFloat(String(activities[activities.length - 1].endKm)) || 0;
+      setStartKm(firstKm);
+      setEndKm(lastKm);
+      if (showToast) {
+        toast({
+          title: '✅ Sincronizado com Trajetos',
+          description: `KM Inicial (${firstKm}) e KM Final (${lastKm}) obtidos dos ${activities.length} trajetos.`
+        });
+      }
+    } else {
+      if (showToast) {
+        toast({
+          title: 'Sem trajetos',
+          description: 'Nenhum trajeto foi lançado na Aba 2 para sincronizar.',
+          variant: 'destructive'
+        });
+      }
     }
   };
 
@@ -634,8 +692,18 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
     });
   };
 
-  const drivenKm = Math.max(0, Number(((endKm || 0) - (startKm || 0)).toFixed(2)));
+  const tripsTotalKm = React.useMemo(() => {
+    return activities.reduce((sum, act) => {
+      const s = parseFloat(String(act.startKm)) || 0;
+      const e = parseFloat(String(act.endKm)) || 0;
+      return sum + Math.max(0, Number((e - s).toFixed(2)));
+    }, 0);
+  }, [activities]);
+
+  const odometerDiff = Math.max(0, Number(((endKm || 0) - (startKm || 0)).toFixed(2)));
+  const drivenKm = odometerDiff > 0 ? odometerDiff : tripsTotalKm;
   const consideredKm = Math.max(0, Number((drivenKm - (disregardedKm || 0)).toFixed(2)));
+  const displacementDiff = Math.max(0, Number((odometerDiff - tripsTotalKm).toFixed(2)));
 
   const combinedMotoristas = [
     ...motoristasFuncionarios.map(m => ({ id: m.id, name: m.name, sub: `Funcionário — ${m.cargo}` })),
@@ -1103,7 +1171,7 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                 <div className="bg-slate-950/80 p-1.5 rounded-lg border border-slate-800/80 min-w-0 overflow-hidden">
                   <span className="text-[9px] text-slate-400 block font-medium">KM Rodado do Dia</span>
                   <span className="font-black text-emerald-400 font-mono text-[12px] block">
-                    {consideredKm} km
+                    {consideredKm > 0 ? `${consideredKm} km` : tripsTotalKm > 0 ? `${tripsTotalKm} km` : '0 km'}
                   </span>
                 </div>
               </div>
@@ -1144,7 +1212,15 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
 
               <button
                 type="button"
-                onClick={() => setCurrentStep('totais')}
+                onClick={() => {
+                  if (activities.length > 0) {
+                    const firstKm = parseFloat(String(activities[0].startKm)) || 0;
+                    const lastKm = parseFloat(String(activities[activities.length - 1].endKm)) || 0;
+                    setStartKm(firstKm);
+                    setEndKm(lastKm);
+                  }
+                  setCurrentStep('totais');
+                }}
                 className={`min-w-0 py-2 px-1 rounded-xl text-[10px] sm:text-xs font-bold transition-all border flex items-center justify-center gap-1 sm:gap-1.5 ${
                   currentStep === 'totais'
                     ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md ring-1 ring-amber-400/50'
@@ -1672,7 +1748,15 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
 
                   <Button
                     type="button"
-                    onClick={() => setCurrentStep('totais')}
+                    onClick={() => {
+                      if (activities.length > 0) {
+                        const firstKm = parseFloat(String(activities[0].startKm)) || 0;
+                        const lastKm = parseFloat(String(activities[activities.length - 1].endKm)) || 0;
+                        setStartKm(firstKm);
+                        setEndKm(lastKm);
+                      }
+                      setCurrentStep('totais');
+                    }}
                     className="h-11 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs px-2 rounded-xl shadow-lg shadow-amber-500/20 flex items-center justify-center gap-1.5 min-w-0"
                   >
                     <span className="truncate">Conferir & Salvar</span>
@@ -1682,40 +1766,184 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
               </div>
             )}
 
-            {/* ETAPA 3: HODÔMETRO, CONFERÊNCIA E FINALIZAÇÃO */}
+            {/* ETAPA 3: HODÔMETRO, CONFERÊNCIA E FINALIZAÇÃO BASEADA NAS OUTRAS ABAS */}
             {currentStep === 'totais' && (
               <div className="space-y-4 animate-in fade-in-50 duration-200">
-                {/* Mostrador Gigante de Totais */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl text-center">
-                    <span className="text-xs text-slate-400 font-semibold block uppercase tracking-wider">
-                      KM Total Percorrido (Hodômetro)
+                {/* 1. CARDS GIGANTES DE TOTAIS */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <div className="bg-slate-900 border border-slate-800 p-3.5 rounded-2xl text-center">
+                    <span className="text-[11px] text-slate-400 font-semibold block uppercase tracking-wider">
+                      KM Trajetos (Aba 2)
                     </span>
-                    <div className="text-2xl sm:text-3xl font-black font-mono text-sky-400 mt-1">
-                      {drivenKm} km
+                    <div className="text-2xl sm:text-3xl font-black font-mono text-amber-400 mt-1">
+                      {tripsTotalKm.toFixed(1)} km
                     </div>
                     <span className="text-[10px] text-slate-500 font-mono mt-0.5 block">
-                      {endKm} km fim - {startKm} km início
+                      {activities.length} trajeto(s) lançado(s)
                     </span>
                   </div>
 
-                  <div className="bg-emerald-950/40 border border-emerald-500/40 p-4 rounded-2xl text-center">
-                    <span className="text-xs text-emerald-400 font-semibold block uppercase tracking-wider">
-                      KM Considerado para Cobrança
+                  <div className="bg-slate-900 border border-slate-800 p-3.5 rounded-2xl text-center">
+                    <span className="text-[11px] text-slate-400 font-semibold block uppercase tracking-wider">
+                      Hodômetro Geral
+                    </span>
+                    <div className="text-2xl sm:text-3xl font-black font-mono text-sky-400 mt-1">
+                      {odometerDiff.toFixed(1)} km
+                    </div>
+                    <span className="text-[10px] text-slate-500 font-mono mt-0.5 block truncate">
+                      {endKm} fim - {startKm} início
+                    </span>
+                  </div>
+
+                  <div className="bg-emerald-950/40 border border-emerald-500/40 p-3.5 rounded-2xl text-center sm:col-span-1 col-span-1">
+                    <span className="text-[11px] text-emerald-400 font-semibold block uppercase tracking-wider">
+                      KM Faturável (Cobrança)
                     </span>
                     <div className="text-2xl sm:text-3xl font-black font-mono text-emerald-400 mt-1">
-                      {consideredKm} km
+                      {consideredKm.toFixed(1)} km
                     </div>
                     <span className="text-[10px] text-emerald-400/70 font-mono mt-0.5 block">
-                      Total válido após eventuais abatimentos
+                      Após abatimentos ({disregardedKm} km)
                     </span>
                   </div>
                 </div>
 
-                {/* Hodômetro Inicial e Final */}
+                {/* ALERTA DE INCONSISTÊNCIA SE KM FIM < KM INÍCIO */}
+                {endKm > 0 && startKm > 0 && endKm < startKm && (
+                  <div className="bg-rose-500/15 border border-rose-500/50 rounded-xl p-3 flex items-start sm:items-center gap-2.5 text-rose-300 text-xs">
+                    <AlertTriangle className="h-5 w-5 text-rose-400 shrink-0 mt-0.5 sm:mt-0" />
+                    <div>
+                      <strong className="text-rose-200 block text-xs sm:text-sm">Atenção: KM Final menor que o KM Inicial!</strong>
+                      O KM Fim ({endKm}) não pode ser inferior ao KM Início ({startKm}). Verifique os valores digitados ou sincronize com os trajetos.
+                    </div>
+                  </div>
+                )}
+
+                {/* 2. CARD DETALHADO: RESUMO DOS LANÇAMENTOS DAS OUTRAS ABAS */}
+                <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-2.5">
+                    <div>
+                      <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-wider">
+                        <Clock className="h-4 w-4" /> Consolidação dos Trajetos Lançados (Aba 2)
+                      </div>
+                      <span className="text-[11px] text-slate-400 block mt-0.5">
+                        Estes trajetos alimentam o hodômetro de início e término desta ficha
+                      </span>
+                    </div>
+
+                    {activities.length > 0 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleSyncFromActivities(true)}
+                        className="border-amber-500/40 text-amber-300 hover:bg-amber-500/10 text-xs h-8 px-2.5 rounded-lg flex items-center gap-1.5 self-start sm:self-auto"
+                      >
+                        <RotateCcw className="h-3.5 w-3.5" />
+                        <span>Sincronizar Hodômetro com Trajetos</span>
+                      </Button>
+                    )}
+                  </div>
+
+                  {activities.length === 0 ? (
+                    <div className="bg-slate-950/60 border border-dashed border-slate-800 rounded-xl p-4 text-center space-y-2">
+                      <p className="text-xs text-slate-400">
+                        Nenhum trajeto lançado na Aba 2. O cálculo da parte diária dependerá da leitura manual do hodômetro.
+                      </p>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => setCurrentStep('atividades')}
+                        className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs h-8 px-3 rounded-lg"
+                      >
+                        + Ir para Aba 2 e Lançar Trajetos
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                        {activities.map((act, idx) => {
+                          const dist = Math.max(0, Number(((Number(act.endKm) || 0) - (Number(act.startKm) || 0)).toFixed(1)));
+                          return (
+                            <div
+                              key={idx}
+                              className="bg-slate-950/80 border border-slate-800/80 rounded-xl p-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-xs"
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="w-5 h-5 rounded bg-amber-500/10 text-amber-400 font-bold text-[10px] flex items-center justify-center shrink-0">
+                                  #{idx + 1}
+                                </span>
+                                <Badge className="bg-slate-800 text-amber-300 border-slate-700 font-mono text-[10px] py-0 px-1 shrink-0">
+                                  {act.startTime} - {act.endTime}
+                                </Badge>
+                                <span className="text-white font-medium truncate" title={act.description}>
+                                  {act.description}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-2 font-mono text-[11px] shrink-0 self-end sm:self-auto">
+                                <span className="text-slate-400">
+                                  {act.startKm} ➔ {act.endKm}
+                                </span>
+                                <span className="bg-emerald-950 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded font-bold text-[10px]">
+                                  +{dist} km
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-800/60 font-mono">
+                        <span className="text-slate-400 text-[11px]">
+                          1º Trajeto: <strong className="text-amber-300">{activities[0]?.startKm} km</strong> | Último: <strong className="text-emerald-300">{activities[activities.length - 1]?.endKm} km</strong>
+                        </span>
+                        <span className="text-amber-300 font-bold">
+                          Soma dos Trajetos: {tripsTotalKm.toFixed(1)} km
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* SUGESTÃO DE ABATIMENTO CASO HODÔMETRO SEJA MAIOR QUE OS TRAJETOS */}
+                {displacementDiff > 0 && activities.length > 0 && (
+                  <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 animate-in fade-in-50">
+                    <div className="text-xs text-amber-300">
+                      <span className="font-bold block text-amber-200">
+                        💡 Diferença de Deslocamento detectada: {displacementDiff} km
+                      </span>
+                      O hodômetro geral ({odometerDiff} km) é maior que os trajetos faturáveis ({tripsTotalKm} km), provavelmente por deslocamento de garagem.
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => {
+                        setDisregardedKm(displacementDiff);
+                        setDisregardReason('Deslocamento de garagem / sem passageiros');
+                        toast({
+                          title: 'Abatimento Aplicado!',
+                          description: `${displacementDiff} km definidos como abatimento de garagem.`
+                        });
+                      }}
+                      className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs h-8 px-3 rounded-lg shrink-0 w-full sm:w-auto"
+                    >
+                      + Aplicar {displacementDiff} km como Abatimento
+                    </Button>
+                  </div>
+                )}
+
+                {/* 3. LEITURA DO HODÔMETRO GERAL */}
                 <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 sm:p-5 space-y-3">
-                  <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-wider">
-                    <Gauge className="h-4 w-4" /> Leitura do Hodômetro Geral
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-wider">
+                      <Gauge className="h-4 w-4" /> Leitura do Hodômetro Geral do Veículo
+                    </div>
+                    {activities.length > 0 && (
+                      <span className="text-[10px] text-slate-400">
+                        Preenchido pelos trajetos da Aba 2
+                      </span>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1747,7 +1975,7 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                   </div>
                 </div>
 
-                {/* KM Desconsiderado (Opcional) */}
+                {/* 4. ABATIMENTO DE KM (OPCIONAL) */}
                 <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 sm:p-5 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-slate-300 font-semibold uppercase tracking-wider">
