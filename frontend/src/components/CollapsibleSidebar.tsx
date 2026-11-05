@@ -1838,6 +1838,10 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
         const isExternalClient = userRoles.length > 0 && userRoles.every(r => r === 'CLIENTE' || r === 'CLIENT_USER');
         return !isExternalClient;
       }
+      // A Gestão de E-mails deve ser liberada para todos os ROLES
+      if (item.id === 'email-module') {
+        return true;
+      }
       return allowedItemIds.has(item.id);
     });
   }, [allowedItemIds, userRoles]);
