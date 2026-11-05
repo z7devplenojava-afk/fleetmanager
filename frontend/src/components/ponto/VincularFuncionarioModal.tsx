@@ -533,3 +533,4 @@ export const VincularFuncionarioModal: React.FC<VincularFuncionarioModalProps> =
     </Dialog>
   );
 };
+

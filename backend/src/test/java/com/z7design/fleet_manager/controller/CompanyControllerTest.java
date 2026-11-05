@@ -263,7 +263,7 @@ class CompanyControllerTest {
     void testGetCompanyById_ShouldReturnCompany() {
         when(companyService.getCompanyById(companyId)).thenReturn(sampleDTO);
 
-        ResponseEntity<CompanyDTO> response = controller.getCompanyById(companyId);
+        ResponseEntity<CompanyDTO> response = controller.getCompanyById(companyId, null);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         CompanyDTO body = response.getBody();
@@ -277,7 +277,7 @@ class CompanyControllerTest {
         when(companyService.getCompanyById(companyId))
                 .thenThrow(new ResourceNotFoundException("Empresa não encontrada"));
 
-        ResponseEntity<CompanyDTO> response = controller.getCompanyById(companyId);
+        ResponseEntity<CompanyDTO> response = controller.getCompanyById(companyId, null);
 
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
         assertNull(response.getBody());
@@ -288,7 +288,7 @@ class CompanyControllerTest {
         when(companyService.getCompanyById(companyId))
                 .thenThrow(new RuntimeException("DB error"));
 
-        ResponseEntity<CompanyDTO> response = controller.getCompanyById(companyId);
+        ResponseEntity<CompanyDTO> response = controller.getCompanyById(companyId, null);
 
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
         assertNull(response.getBody());

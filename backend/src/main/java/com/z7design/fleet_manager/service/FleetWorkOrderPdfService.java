@@ -101,6 +101,162 @@ public class FleetWorkOrderPdfService {
         }
     }
 
+    /**
+     * Gera uma cópia da OS segura para envio ao motorista.
+     *
+     * <p>A versão do motorista não inclui cliente/obra, custos, itens
+     * financeiros, assinaturas internas nem observações administrativas.</p>
+     */
+    @Transactional(readOnly = true)
+    public byte[] generateDriverPdf(UUID workOrderId) {
+        FleetWorkOrder order = repository.findById(workOrderId)
+                .orElseThrow(() -> new ResourceNotFoundException("FleetWorkOrder not found: " + workOrderId));
+
+        try {
+            if (order.getChecklistItems() != null) {
+                order.getChecklistItems().size();
+            }
+        } catch (Exception e) {
+            log.warn("Aviso ao inicializar checklist da OS {}: {}", workOrderId, e.getMessage());
+        }
+
+        Map<String, Object> data = buildDriverDataMap(order);
+
+        try {
+            Context context = new Context();
+            context.setVariables(data);
+            String html = templateEngine.process("fleet-work-order-driver", context);
+
+            try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+                ITextRenderer renderer = new ITextRenderer();
+                renderer.setDocumentFromString(html);
+                renderer.layout();
+                renderer.createPDF(outputStream);
+                byte[] pdfBytes = outputStream.toByteArray();
+                log.info("PDF (motorista) da OS {} gerado com sucesso: {} bytes",
+                        order.getOsNumber(), pdfBytes.length);
+                return pdfBytes;
+            }
+        } catch (Exception e) {
+            log.error("Erro ao gerar PDF (motorista) da OS {}: {}", workOrderId, e.getMessage(), e);
+            throw new RuntimeException("Erro ao gerar resumo da Ordem de Serviço: " + e.getMessage(), e);
+        }
+    }
+
+    private Map<String, Object> buildDriverDataMap(FleetWorkOrder order) {
+        Map<String, Object> data = new HashMap<>();
+
+        String osNumber = order.getOsNumber() != null ? order.getOsNumber()
+                : "#" + (order.getId() != null ? order.getId().toString().split("-")[0] : "");
+
+        data.put("osNumber", osNumber);
+        data.put("maintenanceType",
+                order.getMaintenanceType() != null ? order.getMaintenanceType().name() : "CORRETIVA");
+        data.put("status", formatStatus(order.getStatus()));
+        data.put("dataEmissao", LocalDate.now().format(DATE_FMT));
+        data.put("dataGeracao", LocalDateTime.now().format(DATETIME_FMT));
+
+        data.put("vehiclePlate", order.getVehicle() != null ? order.getVehicle().getPlate() : null);
+        data.put("vehicleBrand", order.getVehicle() != null ? order.getVehicle().getBrand() : null);
+        data.put("vehicleModel", order.getVehicle() != null ? order.getVehicle().getModel() : null);
+
+        data.put("completionDate", order.getCompletionDate() != null
+                ? order.getCompletionDate().format(DATETIME_FMT) : null);
+        data.put("exitDate", order.getExitDate() != null ? order.getExitDate().format(DATE_FMT) : null);
+        data.put("exitTime", order.getExitTime());
+        data.put("odometerIn", order.getOdometerIn() != null ? formatKm(order.getOdometerIn()) : null);
+        data.put("odometerOut", order.getOdometerOut() != null ? formatKm(order.getOdometerOut()) : null);
+        data.put("executionStartDate", order.getExecutionStartDate() != null
+                ? order.getExecutionStartDate().format(DATETIME_FMT) : null);
+        data.put("executionEndDate", order.getExecutionEndDate() != null
+                ? order.getExecutionEndDate().format(DATETIME_FMT) : null);
+        data.put("tempoExecucao", formatExecutionDuration(order.getExecutionDurationMinutes()));
+
+        data.put("maintenancePerformed", order.getMaintenancePerformed());
+
+        // Local de retirada (garagem/unidade), sem obra/cliente
+        String localRetirada = null;
+        try {
+            if (order.getGarage() != null) {
+                localRetirada = joinLocation(order.getGarage().getName(), order.getGarage().getAddress());
+            } else if (order.getVehicle() != null && order.getVehicle().getGarage() != null) {
+                localRetirada = joinLocation(
+                        order.getVehicle().getGarage().getName(),
+                        order.getVehicle().getGarage().getAddress());
+            }
+        } catch (Exception e) {
+            log.warn("Aviso ao resolver local de retirada da OS {}: {}", order.getId(), e.getMessage());
+        }
+        data.put("localRetirada", localRetirada);
+
+        // Checklist efetivamente respondido (sem itens mestres "OK" automáticos)
+        List<Map<String, Object>> checklistData = new ArrayList<>();
+        try {
+            if (order.getChecklistItems() != null) {
+                for (com.z7design.fleet_manager.model.FleetWorkOrderChecklist cItem : order.getChecklistItems()) {
+                    if (cItem == null) {
+                        continue;
+                    }
+                    Map<String, Object> cMap = new HashMap<>();
+                    if (cItem.getChecklistItem() != null) {
+                        cMap.put("itemDescricao", cItem.getChecklistItem().getDescricao() != null
+                                ? cItem.getChecklistItem().getDescricao() : "");
+                        cMap.put("categoria", cItem.getChecklistItem().getCategoria() != null
+                                ? cItem.getChecklistItem().getCategoria() : "GERAL");
+                    } else {
+                        cMap.put("itemDescricao", "");
+                        cMap.put("categoria", "GERAL");
+                    }
+                    cMap.put("situacao", cItem.getSituacao() != null ? cItem.getSituacao().name() : "OK");
+                    cMap.put("observacao", cItem.getObservacao());
+                    cMap.put("reparoRealizado", cItem.getReparoRealizado());
+                    checklistData.add(cMap);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Aviso ao mapear checklist do PDF do motorista da OS {}: {}", order.getId(), e.getMessage());
+        }
+        data.put("checklistItems", checklistData);
+
+        List<Map<String, Object>> checklistCol1 = new ArrayList<>();
+        List<Map<String, Object>> checklistCol2 = new ArrayList<>();
+        if (!checklistData.isEmpty()) {
+            int mid = (checklistData.size() + 1) / 2;
+            checklistCol1 = new ArrayList<>(checklistData.subList(0, mid));
+            checklistCol2 = new ArrayList<>(checklistData.subList(mid, checklistData.size()));
+        }
+        data.put("checklistCol1", checklistCol1);
+        data.put("checklistCol2", checklistCol2);
+
+        // Cabeçalho da empresa (nome/logo), sem CNPJ/endereço administrativo
+        Company company = null;
+        try {
+            company = resolveCompany(order);
+            if (company != null) {
+                data.put("companyName", company.getName());
+                data.put("companyLogo", loadLogoAsDataUri(company.getLogoUrl()));
+            }
+        } catch (Exception e) {
+            log.warn("Aviso ao resolver empresa para PDF do motorista da OS {}: {}", order.getId(), e.getMessage());
+        }
+
+        return data;
+    }
+
+    private String joinLocation(String name, String address) {
+        StringBuilder location = new StringBuilder();
+        if (name != null && !name.isBlank()) {
+            location.append(name.trim());
+        }
+        if (address != null && !address.isBlank()) {
+            if (!location.isEmpty()) {
+                location.append(" — ");
+            }
+            location.append(address.trim());
+        }
+        return location.isEmpty() ? null : location.toString();
+    }
+
     private Map<String, Object> buildDataMap(FleetWorkOrder order) {
         Map<String, Object> data = new HashMap<>();
 

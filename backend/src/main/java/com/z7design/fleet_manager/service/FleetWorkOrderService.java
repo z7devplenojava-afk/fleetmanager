@@ -6,6 +6,7 @@ import com.z7design.fleet_manager.dto.PurchaseRequestDTO;
 import com.z7design.fleet_manager.dto.PurchaseRequestItemDTO;
 import com.z7design.fleet_manager.dto.VehicleMaintenanceRankingDTO;
 import com.z7design.fleet_manager.dto.WorkOrderItemDTO;
+import com.z7design.fleet_manager.event.WorkOrderCompletedEvent;
 import com.z7design.fleet_manager.model.FleetWorkOrder;
 import com.z7design.fleet_manager.model.FleetWorkOrderHistory;
 import com.z7design.fleet_manager.model.MaintenancePlan;
@@ -33,6 +34,7 @@ import com.z7design.fleet_manager.repository.InvoiceRepository;
 import com.z7design.fleet_manager.exception.ResourceNotFoundException;
 import com.z7design.fleet_manager.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -76,6 +78,7 @@ public class FleetWorkOrderService {
     private final FleetWorkOrderExecutionHistoryRepository executionHistoryRepository;
     private final com.z7design.fleet_manager.repository.UserRepository userRepository;
     private final DriverRepository driverRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     private boolean isUserDriver(com.z7design.fleet_manager.model.User user) {
         if (user == null || user.getRoles() == null) return false;
@@ -657,6 +660,9 @@ public class FleetWorkOrderService {
             entity.setStatus(dto.getStatus());
         }
 
+        boolean completedNow = dto.getStatus() == FleetWorkOrder.WorkOrderStatus.COMPLETED
+                && oldStatus != FleetWorkOrder.WorkOrderStatus.COMPLETED;
+
         // Ao concluir (1ª vez), sincroniza o veículo e marca o plano como executado
         if (dto.getStatus() == FleetWorkOrder.WorkOrderStatus.COMPLETED
                 && oldStatus != FleetWorkOrder.WorkOrderStatus.COMPLETED) {
@@ -675,6 +681,10 @@ public class FleetWorkOrderService {
 
         addHistory(saved.getId(), "UPDATED", "OS atualizada pelo usuário.",
                 dto.getMechanicName(), null, null);
+
+        if (completedNow) {
+            eventPublisher.publishEvent(new WorkOrderCompletedEvent(saved.getId(), saved.getCompanyId()));
+        }
 
         return toDTO(saved);
     }
@@ -720,6 +730,11 @@ public class FleetWorkOrderService {
         addHistory(saved.getId(), "STATUS_CHANGE",
                 "Status alterado de " + oldStatus.name() + " para " + newStatus.name(),
                 null, oldStatus.name(), newStatus.name());
+
+        if (newStatus == FleetWorkOrder.WorkOrderStatus.COMPLETED
+                && oldStatus != FleetWorkOrder.WorkOrderStatus.COMPLETED) {
+            eventPublisher.publishEvent(new WorkOrderCompletedEvent(saved.getId(), saved.getCompanyId()));
+        }
 
         return toDTO(saved);
     }

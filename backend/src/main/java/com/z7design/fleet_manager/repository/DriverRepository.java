@@ -22,6 +22,8 @@ public interface DriverRepository extends JpaRepository<Driver, UUID> {
 
     java.util.List<Driver> findByNameContainingIgnoreCase(String name);
 
+    java.util.List<Driver> findByNameIgnoreCase(String name);
+
     @org.springframework.data.jpa.repository.Query(value = "SELECT * FROM drivers WHERE company_id = :companyId AND REGEXP_REPLACE(COALESCE(cpf, ''), '[^0-9]', '', 'g') = :cpf LIMIT 1", nativeQuery = true)
     Optional<Driver> findByCleanCpfAndCompanyId(@org.springframework.data.repository.query.Param("cpf") String cpf, @org.springframework.data.repository.query.Param("companyId") UUID companyId);
 }

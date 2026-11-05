@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Resumo da Ordem de Serviço</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 12mm 12mm 12mm 12mm;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 9px;
+      margin: 0;
+      color: #222;
+      line-height: 1.35;
+    }
+
+    .header-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 10px;
+      border-bottom: 2px solid #2e7d32;
+    }
+
+    .header-left {
+      width: 58%;
+      vertical-align: middle;
+      text-align: left;
+      padding-bottom: 5px;
+    }
+
+    .header-right {
+      width: 42%;
+      vertical-align: middle;
+      text-align: right;
+      padding-bottom: 5px;
+    }
+
+    .brand-logo {
+      height: 36px;
+      max-height: 36px;
+      max-width: 170px;
+      width: auto;
+      margin-bottom: 3px;
+      display: block;
+    }
+
+    .brand-name {
+      font-size: 12px;
+      font-weight: bold;
+      text-transform: uppercase;
+      color: #222;
+      letter-spacing: 0.3px;
+    }
+
+    .doc-title {
+      font-size: 14px;
+      font-weight: bold;
+      color: #2e7d32;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 3px;
+    }
+
+    .type-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      font-size: 9px;
+      font-weight: bold;
+      color: #fff;
+      background-color: #2e7d32;
+      border-radius: 3px;
+      text-transform: uppercase;
+    }
+
+    .numero-os-badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: bold;
+      color: #2e7d32;
+      background-color: #f1f8e9;
+      border: 1px solid #2e7d32;
+      padding: 2px 8px;
+      border-radius: 3px;
+      margin-top: 4px;
+    }
+
+    .secao {
+      margin-bottom: 9px;
+      page-break-inside: avoid;
+    }
+
+    .secao-titulo {
+      background-color: #f5f5f5;
+      padding: 4px 8px;
+      font-weight: bold;
+      font-size: 10px;
+      border-left: 3px solid #2e7d32;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      color: #2e7d32;
+    }
+
+    table.info-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 4px;
+    }
+
+    table.info-table td {
+      padding: 4px 6px;
+      border: 1px solid #ddd;
+      background-color: #fafafa;
+      vertical-align: middle;
+    }
+
+    table.info-table td.label {
+      font-weight: bold;
+      font-size: 8px;
+      text-transform: uppercase;
+      color: #666;
+      width: 20%;
+    }
+
+    table.info-table td.valor {
+      font-size: 9px;
+      color: #222;
+      width: 30%;
+    }
+
+    .descricao-box {
+      border: 1px solid #ddd;
+      background-color: #fafafa;
+      padding: 7px 9px;
+      font-size: 9px;
+      white-space: pre-wrap;
+      line-height: 1.4;
+    }
+
+    .destaque-box {
+      border: 1px solid #2e7d32;
+      background-color: #f1f8e9;
+      padding: 7px 9px;
+      font-size: 9.5px;
+      margin-bottom: 4px;
+    }
+
+    table.checklist-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    table.checklist-table th {
+      background-color: #333;
+      color: #fff;
+      padding: 3px 4px;
+      font-size: 7.5px;
+      text-transform: uppercase;
+      text-align: left;
+    }
+
+    table.checklist-table td {
+      padding: 2.5px 4px;
+      border-bottom: 1px solid #e0e0e0;
+      font-size: 7.5px;
+      line-height: 1.2;
+      vertical-align: top;
+    }
+
+    .item-obs {
+      color: #666;
+      font-size: 7px;
+      margin-top: 1px;
+    }
+
+    .badge-ok {
+      color: #2e7d32;
+      font-weight: bold;
+    }
+
+    .badge-nok {
+      color: #c62828;
+      font-weight: bold;
+    }
+
+    .badge-trocar {
+      color: #ef6c00;
+      font-weight: bold;
+    }
+
+    .badge-na {
+      color: #777;
+      font-weight: bold;
+    }
+
+    .footer {
+      margin-top: 14px;
+      padding-top: 6px;
+      border-top: 1px solid #ccc;
+      font-size: 7px;
+      color: #666;
+      text-align: center;
+      page-break-inside: avoid;
+    }
+  </style>
+</head>
+<body>
+
+<table class="header-table">
+  <tr>
+    <td class="header-left">
+      <img class="brand-logo" th:if="${companyLogo != null and companyLogo != ''}"
+           th:src="${companyLogo}" alt="Logo da Empresa"/>
+      <div class="brand-name" th:if="${companyName != null and companyName != ''}"
+           th:text="${companyName}">EMPRESA</div>
+    </td>
+    <td class="header-right">
+      <div class="doc-title">Resumo da Ordem de Serviço</div>
+      <span class="type-badge" th:text="${maintenanceType}">CORRETIVA</span>
+      <div class="numero-os-badge" th:if="${osNumber != null and osNumber != ''}">
+        OS Nº <span th:text="${osNumber}">0000</span>
+      </div>
+      <div style="font-size: 8px; color: #666; margin-top: 4px;">
+        Emitido em <span th:text="${dataEmissao}">--</span>
+      </div>
+    </td>
+  </tr>
+</table>
+
+<div class="secao">
+  <div class="secao-titulo">Veículo</div>
+  <table class="info-table">
+    <tr>
+      <td class="label">Placa</td>
+      <td class="valor" th:text="${vehiclePlate} ?: '—'">—</td>
+      <td class="label">Marca / Modelo</td>
+      <td class="valor">
+        <span th:text="${vehicleBrand} ?: '—'">—</span>
+        <span th:if="${vehicleModel != null and vehicleModel != ''}" th:text="' / ' + ${vehicleModel}"></span>
+      </td>
+    </tr>
+    <tr>
+      <td class="label">Situação</td>
+      <td class="valor" th:text="${status} ?: '—'">—</td>
+      <td class="label">Conclusão</td>
+      <td class="valor" th:text="${completionDate} ?: '—'">—</td>
+    </tr>
+    <tr>
+      <td class="label">Saída</td>
+      <td class="valor">
+        <span th:text="${exitDate} ?: '—'">—</span>
+        <span th:if="${exitTime != null and exitTime != ''}" th:text="' às ' + ${exitTime}"></span>
+      </td>
+      <td class="label">Odômetro</td>
+      <td class="valor">
+        <span th:text="${odometerIn} ?: '—'">—</span>
+        <span th:if="${odometerOut != null and odometerOut != ''}" th:text="' a ' + ${odometerOut}"></span>
+      </td>
+    </tr>
+    <tr>
+      <td class="label">Início da execução</td>
+      <td class="valor" th:text="${executionStartDate} ?: '—'">—</td>
+      <td class="label">Término da execução</td>
+      <td class="valor" th:text="${executionEndDate} ?: '—'">—</td>
+    </tr>
+    <tr>
+      <td class="label">Tempo de execução</td>
+      <td class="valor" th:text="${tempoExecucao} ?: 'Não apurado'">—</td>
+      <td class="label">Retirada</td>
+      <td class="valor" th:text="${localRetirada} ?: '—'">—</td>
+    </tr>
+  </table>
+</div>
+
+<div class="secao" th:if="${maintenancePerformed != null and maintenancePerformed != ''}">
+  <div class="secao-titulo">Serviço realizado</div>
+  <div class="descricao-box" th:text="${maintenancePerformed}">—</div>
+</div>
+
+<div class="secao" th:if="${not #lists.isEmpty(checklistItems)}">
+  <div class="secao-titulo">Checklist</div>
+  <table class="checklist-table">
+    <tr>
+      <th style="width: 50%;">Item verificado</th>
+      <th style="width: 50%;">Item verificado</th>
+    </tr>
+    <tr th:each="i : ${#numbers.sequence(0, #lists.size(checklistCol1) - 1)}"
+        th:if="${i < #lists.size(checklistCol1)}">
+      <td>
+        <div>
+          <span th:text="${checklistCol1[i].itemDescricao}">Item</span>
+          <span class="badge-ok" th:if="${checklistCol1[i].situacao == 'OK'}">[OK]</span>
+          <span class="badge-nok" th:if="${checklistCol1[i].situacao == 'NAO_OK'}">[NÃO OK]</span>
+          <span class="badge-trocar" th:if="${checklistCol1[i].situacao == 'TROCAR'}">[TROCAR]</span>
+          <span class="badge-na" th:if="${checklistCol1[i].situacao == 'NAO_APLICA'}">[N/A]</span>
+        </div>
+        <div class="item-obs" th:if="${checklistCol1[i].observacao != null and checklistCol1[i].observacao != ''}"
+             th:text="'Obs: ' + ${checklistCol1[i].observacao}"></div>
+        <div class="item-obs" th:if="${checklistCol1[i].reparoRealizado != null and checklistCol1[i].reparoRealizado != ''}"
+             th:text="'Reparo: ' + ${checklistCol1[i].reparoRealizado}"></div>
+      </td>
+      <td th:if="${i < #lists.size(checklistCol2)}">
+        <div>
+          <span th:text="${checklistCol2[i].itemDescricao}">Item</span>
+          <span class="badge-ok" th:if="${checklistCol2[i].situacao == 'OK'}">[OK]</span>
+          <span class="badge-nok" th:if="${checklistCol2[i].situacao == 'NAO_OK'}">[NÃO OK]</span>
+          <span class="badge-trocar" th:if="${checklistCol2[i].situacao == 'TROCAR'}">[TROCAR]</span>
+          <span class="badge-na" th:if="${checklistCol2[i].situacao == 'NAO_APLICA'}">[N/A]</span>
+        </div>
+        <div class="item-obs" th:if="${checklistCol2[i].observacao != null and checklistCol2[i].observacao != ''}"
+             th:text="'Obs: ' + ${checklistCol2[i].observacao}"></div>
+        <div class="item-obs" th:if="${checklistCol2[i].reparoRealizado != null and checklistCol2[i].reparoRealizado != ''}"
+             th:text="'Reparo: ' + ${checklistCol2[i].reparoRealizado}"></div>
+      </td>
+      <td th:if="${i >= #lists.size(checklistCol2)}"></td>
+    </tr>
+  </table>
+</div>
+
+<div class="footer">
+  Documento gerado pelo sistema em <span th:text="${dataGeracao}">--</span>.
+  Cópia do motorista — não contém informações financeiras, comerciais ou assinaturas internas.
+</div>
+
+</body>
+</html>

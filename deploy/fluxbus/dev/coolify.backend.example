@@ -37,6 +37,14 @@ WHATSAPP_INSTANCE_KEY=fluxbus_dev
 # Evolution API — chave OBRIGATORIA (sem valor padrao). Regenere no painel apos o vazamento.
 EVOLUTION_API_KEY=COLE_AQUI_A_CHAVE_DA_EVOLUTION_API
 
+# AstraCalls (opcional) — notificacoes automaticas de OS concluida.
+# Sem URL/chave/sessao o sistema usa a Evolution como fallback.
+ASTRACALLS_API_ENABLED=false
+ASTRACALLS_API_URL=http://<HOST_ASTRACALLS>:8090
+ASTRACALLS_API_KEY=
+ASTRACALLS_SESSION_ID=
+WHATSAPP_NOTIFICATIONS_PROVIDER=astracalls
+
 RECAPTCHA_SECRET_KEY=
 N8N_ENABLED=false
 
