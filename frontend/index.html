@@ -2,6 +2,33 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
+    <!-- Supressão antecipada de ruídos de extensões do navegador (ex: Chrome extensions que fecham canal de mensagens assíncronas) -->
+    <script>
+      (function() {
+        function shouldSuppress(msg) {
+          if (!msg) return false;
+          var str = typeof msg === 'string' ? msg : (msg.message || String(msg));
+          return str.indexOf('message channel closed before a response was received') !== -1 ||
+                 str.indexOf('asynchronous response by returning true') !== -1 ||
+                 str.indexOf('A listener indicated an asynchronous response') !== -1;
+        }
+        window.addEventListener('unhandledrejection', function(event) {
+          var reason = event && (event.reason || event.message);
+          if (shouldSuppress(reason)) {
+            if (event.preventDefault) event.preventDefault();
+            if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+          }
+        }, true);
+        window.addEventListener('error', function(event) {
+          var message = event && (event.message || (event.error && event.error.message));
+          if (shouldSuppress(message)) {
+            if (event.preventDefault) event.preventDefault();
+            if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+            return true;
+          }
+        }, true);
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />

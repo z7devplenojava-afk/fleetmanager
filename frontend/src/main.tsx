@@ -65,7 +65,8 @@ window.addEventListener("unhandledrejection", (event) => {
 
   if (
     str.includes("message channel closed before a response was received") ||
-    str.includes("asynchronous response by returning true")
+    str.includes("asynchronous response by returning true") ||
+    str.includes("A listener indicated an asynchronous response")
   ) {
     event.preventDefault();
   }
