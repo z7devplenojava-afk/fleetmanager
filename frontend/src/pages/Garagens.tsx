@@ -12,7 +12,7 @@ import {
   MapPin, Building2, Users, Pencil, AlertTriangle, Gauge,
   ArrowLeftRight, History, ArrowRight, QrCode, Camera,
   LogIn, LogOut, Clock, Wrench, ShieldCheck, CheckCircle2,
-  RefreshCw, Filter, Smartphone, ExternalLink, Calendar, Sparkles
+  RefreshCw, Filter, Smartphone, ExternalLink, Calendar, Sparkles, Info
 } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
@@ -172,6 +172,9 @@ export const Garagens: React.FC = () => {
   const [cepLoading, setCepLoading] = useState(false);
   const [garageGeo, setGarageGeo] = useState<{ lat: number; lng: number } | null>(null);
   const [geoLoading, setGeoLoading] = useState(false);
+  const [isUniqueCityCep, setIsUniqueCityCep] = useState(false);
+  const logradouroInputRef = useRef<HTMLInputElement>(null);
+  const geocodeDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
   // Confirmação de exclusão/desativação
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -610,11 +613,23 @@ export const Garagens: React.FC = () => {
 
   // Cadastro/Edição de Garagem
   /** Atualiza campos do endereço e mantém `form.address` (texto salvo no backend) em sincronia. */
-  const updateAddress = (patch: Partial<GarageAddress>): GarageAddress => {
+  const updateAddress = (patch: Partial<GarageAddress>, triggerGeocode = false): GarageAddress => {
     const next: GarageAddress = { ...addrRef.current, ...patch };
     addrRef.current = next;
     setAddr(next);
     setForm(prev => ({ ...prev, address: composeGarageAddress(next) }));
+
+    if (triggerGeocode) {
+      if (geocodeDebounceRef.current) {
+        clearTimeout(geocodeDebounceRef.current);
+      }
+      geocodeDebounceRef.current = setTimeout(() => {
+        if (next.cidade && (next.logradouro || next.cep)) {
+          void geocodeAddress(next);
+        }
+      }, 700);
+    }
+
     return next;
   };
 
@@ -636,19 +651,25 @@ export const Garagens: React.FC = () => {
     return null;
   };
 
-  /** Localiza o endereço (a partir do CEP) e atualiza o mapa com o pino da garagem. */
+  /** Localiza o endereço (a partir do CEP, Rua e Número) e atualiza o mapa com o pino da garagem. */
   const geocodeAddress = async (address: GarageAddress) => {
     const cepDigits = (address.cep || '').replace(/\D/g, '');
-    if (cepDigits.length !== 8) {
-      setGarageGeo(null);
-      return;
-    }
     setGeoLoading(true);
     try {
       let coords: { lat: number; lng: number } | null = null;
 
-      // 1) Busca estruturada: rua + cidade + estado (mais precisa)
+      // 1) Busca estruturada completa: Rua + Número + Cidade + Estado (alta precisão)
       if (address.logradouro && address.cidade) {
+        const streetQuery = [address.logradouro, address.numero].filter(Boolean).join(', ');
+        const params = new URLSearchParams();
+        params.set('street', streetQuery);
+        params.set('city', address.cidade);
+        if (address.uf) params.set('state', address.uf);
+        coords = await nominatimSearch(params);
+      }
+
+      // 2) Busca apenas Rua + Cidade + Estado
+      if (!coords && address.logradouro && address.cidade) {
         const params = new URLSearchParams();
         params.set('street', address.logradouro);
         params.set('city', address.cidade);
@@ -656,25 +677,34 @@ export const Garagens: React.FC = () => {
         coords = await nominatimSearch(params);
       }
 
-      // 2) Fallback: localizar pelo CEP
-      if (!coords) {
+      // 3) Fallback: localizar pelo CEP
+      if (!coords && cepDigits.length === 8) {
         const params = new URLSearchParams();
         params.set('postalcode', cepDigits);
         coords = await nominatimSearch(params);
       }
 
-      // 3) Fallback: endereço completo em texto livre
-      if (!coords) {
+      // 4) Fallback: Bairro + Cidade + Estado
+      if (!coords && address.cidade) {
+        const queryParts = [address.bairro, address.cidade, address.uf, 'Brasil'].filter(Boolean).join(', ');
         const params = new URLSearchParams();
-        params.set('q', composeGarageAddress(address));
+        params.set('q', queryParts);
+        coords = await nominatimSearch(params);
+      }
+
+      // 5) Fallback final: apenas Cidade + Estado
+      if (!coords && address.cidade) {
+        const params = new URLSearchParams();
+        params.set('city', address.cidade);
+        if (address.uf) params.set('state', address.uf);
         coords = await nominatimSearch(params);
       }
 
       setGarageGeo(coords);
       if (!coords) {
         toast({
-          title: 'Localização não encontrada',
-          description: 'Não foi possível identificar o CEP no mapa.',
+          title: 'Localização aproximada não identificada',
+          description: 'Não foi possível posicionar o endereço no mapa automaticamente.',
         });
       }
     } finally {
@@ -682,30 +712,88 @@ export const Garagens: React.FC = () => {
     }
   };
 
-  /** Consulta o ViaCEP, preenche os campos do endereço e atualiza o mapa. */
-  const lookupCep = async (digits: string) => {
-    setCepLoading(true);
+  /** Busca CEP com fallback redundante: 1) ViaCEP -> 2) BrasilAPI */
+  const fetchCepData = async (digits: string): Promise<{ logradouro?: string; bairro?: string; localidade?: string; uf?: string } | null> => {
+    // 1. Tentar ViaCEP
     try {
       const response = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
       const data = await response.json();
-      if (data.erro) {
+      if (data && !data.erro) {
+        return {
+          logradouro: data.logradouro || '',
+          bairro: data.bairro || '',
+          localidade: data.localidade || '',
+          uf: data.uf || '',
+        };
+      }
+    } catch (e) {
+      console.warn('ViaCEP falhou, consultando BrasilAPI fallback...', e);
+    }
+
+    // 2. Fallback BrasilAPI
+    try {
+      const response = await fetch(`https://brasilapi.com.br/api/cep/v2/${digits}`);
+      const data = await response.json();
+      if (data && (data.city || data.state)) {
+        return {
+          logradouro: data.street || '',
+          bairro: data.neighborhood || '',
+          localidade: data.city || '',
+          uf: data.state || '',
+        };
+      }
+    } catch (e) {
+      console.warn('BrasilAPI fallback falhou...', e);
+    }
+
+    return null;
+  };
+
+  /** Consulta o CEP, preenche todos os campos do endereço e atualiza o mapa. */
+  const lookupCep = async (digits: string) => {
+    setCepLoading(true);
+    try {
+      const data = await fetchCepData(digits);
+      if (!data) {
         toast({ title: 'CEP não encontrado', description: 'Verifique o CEP digitado.', variant: 'destructive' });
+        setIsUniqueCityCep(false);
         return;
       }
+
+      // Identifica se é CEP único de município (como Moeda/MG 35470-000 onde não há logradouro nos Correios)
+      const isGeneral = !data.logradouro && !!data.localidade;
+      setIsUniqueCityCep(isGeneral);
+
       // Usa o estado mais recente (preserva edições feitas durante a consulta)
       const base = addrRef.current;
+      const resolvedBairro = data.bairro || (isGeneral ? 'Centro' : base.bairro);
+
       const next: GarageAddress = {
         ...base,
         cep: formatCep(digits),
         logradouro: data.logradouro || base.logradouro,
-        bairro: data.bairro || base.bairro,
+        bairro: resolvedBairro,
         cidade: data.localidade || base.cidade,
         uf: data.uf || base.uf,
       };
+
       addrRef.current = next;
       setAddr(next);
       setForm(prev => ({ ...prev, address: composeGarageAddress(next) }));
-      toast({ title: 'CEP encontrado', description: 'Endereço preenchido automaticamente.' });
+
+      if (isGeneral) {
+        toast({
+          title: 'CEP Municipal Identificado',
+          description: `${data.localidade}/${data.uf} possui CEP geral. Preenchemos Cidade, UF e Bairro (Centro). Por favor, informe a Rua e o Número.`,
+        });
+        // Foca automaticamente no campo de Rua / Avenida para o usuário
+        setTimeout(() => {
+          logradouroInputRef.current?.focus();
+        }, 150);
+      } else {
+        toast({ title: 'CEP encontrado', description: 'Endereço completo preenchido automaticamente.' });
+      }
+
       await geocodeAddress(next);
     } catch (err) {
       console.error('Erro ao buscar CEP:', err);
@@ -721,25 +809,31 @@ export const Garagens: React.FC = () => {
     updateAddress({ cep: formatCep(raw) });
     if (digits.length !== 8) {
       setGarageGeo(null);
+      setIsUniqueCityCep(false);
       return;
     }
     void lookupCep(digits);
   };
 
   const openCreateGarage = () => {
+    if (geocodeDebounceRef.current) clearTimeout(geocodeDebounceRef.current);
     setEditingId(null);
     addrRef.current = { ...EMPTY_GARAGE_ADDRESS };
     setAddr({ ...EMPTY_GARAGE_ADDRESS });
     setGarageGeo(null);
+    setIsUniqueCityCep(false);
     setForm({ name: '', address: '', responsibleEmployeeId: '', responsibleName: '', responsiblePhone: '', capacity: undefined, notes: '' });
     setDialogOpen(true);
   };
 
   const openEditGarage = (garage: Garage) => {
+    if (geocodeDebounceRef.current) clearTimeout(geocodeDebounceRef.current);
     setEditingId(garage.id);
     const parsedAddress = parseGarageAddress(garage.address);
     addrRef.current = parsedAddress;
     setAddr(parsedAddress);
+    setGarageGeo(null);
+    setIsUniqueCityCep(false);
     setGarageGeo(null);
     setForm({
       name: garage.name || '',
@@ -1861,13 +1955,14 @@ export const Garagens: React.FC = () => {
                   </div>
                   <Input
                     value={addr.numero}
-                    onChange={e => updateAddress({ numero: e.target.value })}
+                    onChange={e => updateAddress({ numero: e.target.value }, true)}
                     className="bg-seguranca-black border-gray-700 text-white"
                     placeholder="Número"
                   />
                   <Input
+                    ref={logradouroInputRef}
                     value={addr.logradouro}
-                    onChange={e => updateAddress({ logradouro: e.target.value })}
+                    onChange={e => updateAddress({ logradouro: e.target.value }, true)}
                     className="col-span-2 bg-seguranca-black border-gray-700 text-white"
                     placeholder="Rua / Avenida"
                   />
@@ -1879,24 +1974,38 @@ export const Garagens: React.FC = () => {
                   />
                   <Input
                     value={addr.bairro}
-                    onChange={e => updateAddress({ bairro: e.target.value })}
+                    onChange={e => updateAddress({ bairro: e.target.value }, true)}
                     className="bg-seguranca-black border-gray-700 text-white"
                     placeholder="Bairro"
                   />
                   <Input
                     value={addr.cidade}
-                    onChange={e => updateAddress({ cidade: e.target.value })}
+                    onChange={e => updateAddress({ cidade: e.target.value }, true)}
                     className="bg-seguranca-black border-gray-700 text-white"
                     placeholder="Cidade"
                   />
                   <Input
                     value={addr.uf}
-                    onChange={e => updateAddress({ uf: e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 2) })}
+                    onChange={e => updateAddress({ uf: e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 2) }, true)}
                     className="bg-seguranca-black border-gray-700 text-white uppercase"
                     placeholder="UF"
                     maxLength={2}
                   />
                 </div>
+
+                {isUniqueCityCep && (
+                  <div className="mt-2 flex items-start gap-2 p-2.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs">
+                    <Info size={15} className="shrink-0 text-amber-400 mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-amber-200">
+                        CEP Geral do Município ({addr.cidade}/{addr.uf})
+                      </p>
+                      <p className="text-[11px] text-amber-300/90 mt-0.5">
+                        Definimos o bairro automaticamente como <strong>Centro</strong>. Complete o nome da Rua / Avenida e o Número para posicionar o pino com precisão.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {geoLoading && (

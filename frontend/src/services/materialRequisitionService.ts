@@ -207,7 +207,7 @@ export const materialRequisitionService = {
         try {
           const response = await api.get(`/api/material-requisitions/by-work-order/${workOrderId}`, silentErrorLog());
           if (Array.isArray(response.data)) return response.data;
-        } catch (_) {}
+        } catch (_) { }
         try {
           const fallback = await api.get(`/api/material-requisitions?workOrderId=${workOrderId}`, silentErrorLog());
           return Array.isArray(fallback.data) ? fallback.data : [];

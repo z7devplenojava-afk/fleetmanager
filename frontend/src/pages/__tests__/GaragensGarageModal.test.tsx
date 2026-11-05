@@ -78,6 +78,16 @@ describe('Cadastro de Garagem (modal)', () => {
     jest.clearAllMocks();
     global.fetch = jest.fn(async (input: RequestInfo | URL): Promise<Response> => {
       const href = String(input);
+      if (href.includes('viacep.com.br/ws/35470000')) {
+        return {
+          json: async () => ({
+            logradouro: '',
+            bairro: '',
+            localidade: 'Moeda',
+            uf: 'MG',
+          }),
+        } as unknown as Response;
+      }
       if (href.includes('viacep.com.br')) {
         return {
           json: async () => ({
@@ -172,5 +182,25 @@ describe('Cadastro de Garagem (modal)', () => {
         })
       )
     );
+  });
+
+  it('preenche bairro Centro e alerta quando for CEP geral de município único (ex.: Moeda/MG)', async () => {
+    render(<Garagens />);
+    await openGarageModal();
+
+    const cepInput = screen.getByPlaceholderText('CEP (00000-000)');
+    fireEvent.change(cepInput, { target: { value: '35470000' } });
+
+    await waitFor(() => expect(cepInput).toHaveValue('35470-000'));
+
+    // Cidade, UF e Bairro preenchidos automaticamente como Centro
+    await waitFor(() =>
+      expect(screen.getByPlaceholderText('Cidade')).toHaveValue('Moeda')
+    );
+    expect(screen.getByPlaceholderText('UF')).toHaveValue('MG');
+    expect(screen.getByPlaceholderText('Bairro')).toHaveValue('Centro');
+
+    // Mensagem de CEP Geral do Município visível na tela
+    expect(screen.getByText(/CEP Geral do Município \(Moeda\/MG\)/)).toBeInTheDocument();
   });
 });
