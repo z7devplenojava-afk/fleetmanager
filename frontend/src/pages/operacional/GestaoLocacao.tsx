@@ -1629,6 +1629,13 @@ export const GestaoLocacao: React.FC = () => {
                   <Pencil className="w-4 h-4 mr-2" /> Editar
                 </Button>
                 <Button
+                  variant="outline"
+                  onClick={() => RentalInvoicePdfService.openPrintPreview(viewInvoice)}
+                  className="border-zinc-700 bg-zinc-900 text-zinc-200 hover:text-white"
+                >
+                  <Printer className="w-4 h-4 mr-2 text-zinc-300" /> Imprimir / Visualizar
+                </Button>
+                <Button
                   onClick={() => handleGeneratePdf(viewInvoice)}
                   className="bg-amber-600 hover:bg-amber-500 text-white"
                 >

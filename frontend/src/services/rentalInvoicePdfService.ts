@@ -1,6 +1,8 @@
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { RentalInvoice } from './rentalInvoiceService';
+import { getActiveCompanyInfo } from '@/utils/exportUtils';
+import { getApiUrl } from '@/config/environment';
 
 export interface RentalInvoiceCompany {
   name?: string;
@@ -11,6 +13,7 @@ export interface RentalInvoiceCompany {
   zipCode?: string;
   phone?: string;
   email?: string;
+  logoUrl?: string;
 }
 
 export interface RentalInvoicePdfOptions {
@@ -21,18 +24,18 @@ export interface RentalInvoicePdfOptions {
 const DEFAULT_COMPANY: Required<Pick<RentalInvoiceCompany, 'name' | 'cnpj' | 'address' | 'city' | 'state' | 'zipCode'>> = {
   name: 'VIAÇÃO SÃO SILVESTRE LTDA',
   cnpj: '71.055.644/0001-25',
-  address: 'RUA DOS ESPORTES, 45, CENTRO',
+  address: 'Rua Pelegrino de Paula Ferreira, 77 - CENTRO',
   city: 'MOEDA',
   state: 'MG',
   zipCode: '35.470-000',
 };
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  PENDING: { label: 'Pendente', color: '#ffffff', bg: '#f59e0b' },
-  PAID: { label: 'Paga / Liquidada', color: '#ffffff', bg: '#10b981' },
-  OVERDUE: { label: 'Vencida', color: '#ffffff', bg: '#ef4444' },
-  CANCELLED: { label: 'Cancelada', color: '#ffffff', bg: '#6b7280' },
-  PARTIAL: { label: 'Parcialmente Paga', color: '#ffffff', bg: '#3b82f6' },
+  PENDING: { label: 'Pendente', color: '#b45309', bg: '#fef3c7' },
+  PAID: { label: 'Paga / Liquidada', color: '#15803d', bg: '#dcfce7' },
+  OVERDUE: { label: 'Vencida', color: '#b91c1c', bg: '#fee2e2' },
+  CANCELLED: { label: 'Cancelada', color: '#4b5563', bg: '#f3f4f6' },
+  PARTIAL: { label: 'Parcialmente Paga', color: '#1d4ed8', bg: '#dbeafe' },
 };
 
 export class RentalInvoicePdfService {
@@ -44,7 +47,7 @@ export class RentalInvoicePdfService {
   }
 
   private static formatDate(dateString?: string): string {
-    if (!dateString) return '-';
+    if (!dateString) return '—';
     try {
       const clean = dateString.substring(0, 10);
       const parts = clean.split('-');
@@ -57,22 +60,37 @@ export class RentalInvoicePdfService {
     }
   }
 
-  private static createHTML(invoice: RentalInvoice, options: RentalInvoicePdfOptions): string {
+  /**
+   * Constrói o HTML oficial da Fatura de Locação seguindo 100% o padrão visual da Ordem de Serviço (OS) FluxBus.
+   */
+  public static createHTML(invoice: RentalInvoice, options: RentalInvoicePdfOptions = {}): string {
+    const activeInfo = getActiveCompanyInfo();
+
     const company = {
-      name: options.company?.name || DEFAULT_COMPANY.name,
-      cnpj: options.company?.cnpj || DEFAULT_COMPANY.cnpj,
+      name: options.company?.name || activeInfo.nome || DEFAULT_COMPANY.name,
+      cnpj: options.company?.cnpj || activeInfo.cnpj || DEFAULT_COMPANY.cnpj,
       address: options.company?.address || DEFAULT_COMPANY.address,
       city: options.company?.city || DEFAULT_COMPANY.city,
       state: options.company?.state || DEFAULT_COMPANY.state,
       zipCode: options.company?.zipCode || DEFAULT_COMPANY.zipCode,
       phone: options.company?.phone || '(31) 3574-1234',
       email: options.company?.email || 'contato@viacaosaosilvestre.com.br',
+      logoUrl: options.company?.logoUrl || activeInfo.logoUrl || '',
     };
+
+    let logoSrc = '';
+    if (company.logoUrl) {
+      logoSrc = company.logoUrl.startsWith('http') || company.logoUrl.startsWith('data:')
+        ? company.logoUrl
+        : `${getApiUrl().replace('/api', '')}${company.logoUrl}`;
+    }
+
+    const companyDetails = `CNPJ: ${company.cnpj} • ${company.address} - ${company.city}/${company.state} - CEP: ${company.zipCode} • Tel: ${company.phone}`;
 
     const statusInfo = STATUS_CONFIG[invoice.status] || {
       label: invoice.status || 'PENDENTE',
-      color: '#ffffff',
-      bg: '#f59e0b',
+      color: '#b45309',
+      bg: '#fef3c7',
     };
 
     const items = invoice.items && invoice.items.length > 0 ? invoice.items : [
@@ -84,520 +102,567 @@ export class RentalInvoicePdfService {
       }
     ];
 
-    const generatedAt = new Date().toLocaleString('pt-BR');
+    const dataEmissao = this.formatDate(invoice.issueDate || new Date().toISOString());
+    const dataVencimento = this.formatDate(invoice.dueDate);
+    const periodoInicio = this.formatDate(invoice.periodStart);
+    const periodoFim = this.formatDate(invoice.periodEnd);
+    const periodoExtenso = (periodoInicio !== '—' && periodoFim !== '—')
+      ? `${periodoInicio} A ${periodoFim}`
+      : 'CONFORME CONTRATO';
+
+    const subtotal = invoice.totalAmount || invoice.netAmount || 0;
+    const desconto = invoice.discount || 0;
+    const totalLiquido = invoice.netAmount || (subtotal - desconto);
+
+    const generatedAt = new Date().toLocaleDateString('pt-BR');
+    const generatedHour = new Date().toLocaleTimeString('pt-BR');
     const generatedBy = options.generatedBy || 'FluxBus Sistema Integrado';
 
-    return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <style>
-          * {
-            box-sizing: border-box;
-          }
-          body {
-            font-family: 'Arial', sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #ffffff;
-            color: #111827;
-            line-height: 1.4;
-            font-size: 12px;
-          }
-          .container {
-            max-width: 800px;
-            margin: 0 auto;
-            background-color: white;
-            padding: 24px;
-            border: 1px solid #e5e7eb;
-          }
-          /* Header da Empresa */
-          .header {
-            text-align: center;
-            margin-bottom: 24px;
-            border-bottom: 2px solid #111827;
-            padding-bottom: 16px;
-          }
-          .company-name {
-            font-size: 19px;
-            font-weight: 800;
-            color: #111827;
-            letter-spacing: -0.5px;
-            margin-bottom: 4px;
-            text-transform: uppercase;
-          }
-          .company-details {
-            font-size: 10.5px;
-            color: #4b5563;
-            line-height: 1.4;
-          }
+    const clientAddressFormatted = [
+      invoice.clientAddress,
+      invoice.clientCity,
+      invoice.clientState,
+      invoice.clientZipCode ? `CEP ${invoice.clientZipCode}` : null
+    ].filter(Boolean).join(' - ') || '—';
 
-          /* Header do Documento / Fatura */
-          .order-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            background-color: #f9fafb;
-            padding: 16px 20px;
-            border-radius: 8px;
-            border: 1px solid #f3f4f6;
-          }
-          .order-title {
-            font-size: 12px;
-            font-weight: 700;
-            color: #6b7280;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-          }
-          .order-number {
-            font-size: 22px;
-            font-weight: 800;
-            color: #111827;
-            margin-top: 2px;
-          }
-          .order-subtitle {
-            font-size: 10px;
-            color: #9ca3af;
-          }
-          .order-status {
-            padding: 8px 18px;
-            border-radius: 20px;
-            font-weight: 700;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-          }
+    return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Fatura de Locação Nº ${invoice.number}</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 8mm 10mm 8mm 10mm;
+    }
 
-          /* Grid de Informações */
-          .info-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-            margin-bottom: 20px;
-          }
-          .info-section {
-            background-color: #f9fafb;
-            padding: 14px 16px;
-            border-radius: 8px;
-            border: 1px solid #f3f4f6;
-          }
-          .client-section {
-            border-left: 4px solid #2563eb;
-          }
-          .invoice-section {
-            border-left: 4px solid #f59e0b;
-          }
-          .bank-section {
-            border-left: 4px solid #10b981;
-          }
-          .info-title {
-            font-weight: 700;
-            margin-bottom: 10px;
-            color: #111827;
-            font-size: 13px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-          }
-          .info-row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 5px;
-            font-size: 11px;
-            border-bottom: 1px dashed #f3f4f6;
-            padding-bottom: 3px;
-          }
-          .info-row:last-child {
-            border-bottom: none;
-            margin-bottom: 0;
-            padding-bottom: 0;
-          }
-          .info-label {
-            font-weight: 600;
-            color: #6b7280;
-          }
-          .info-value {
-            color: #111827;
-            font-weight: 500;
-            text-align: right;
-            max-width: 65%;
-            word-break: break-word;
-          }
+    * {
+      box-sizing: border-box;
+    }
 
-          /* Tabela de Itens */
-          .items-section {
-            margin-bottom: 20px;
-          }
-          .section-title {
-            font-weight: 700;
-            margin-bottom: 10px;
-            color: #111827;
-            font-size: 13px;
-            border-bottom: 1px solid #e5e7eb;
-            padding-bottom: 6px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-          }
-          .section-subtitle {
-            font-size: 10px;
-            font-weight: 400;
-            color: #6b7280;
-          }
-          .items-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 10px;
-            font-size: 11px;
-          }
-          .items-table th {
-            background-color: #f3f4f6;
-            padding: 9px 12px;
-            text-align: left;
-            font-weight: 700;
-            border: 1px solid #e5e7eb;
-            color: #374151;
-            font-size: 10.5px;
-            text-transform: uppercase;
-          }
-          .items-table td {
-            padding: 10px 12px;
-            border: 1px solid #e5e7eb;
-            vertical-align: middle;
-          }
-          .plate-badge {
-            display: inline-block;
-            background-color: #eff6ff;
-            color: #1d4ed8;
-            font-family: 'Courier New', monospace;
-            font-weight: 700;
-            padding: 2px 7px;
-            border-radius: 4px;
-            border: 1px solid #bfdbfe;
-            margin-right: 6px;
-            font-size: 11px;
-          }
-          .text-right {
-            text-align: right;
-          }
-          .text-center {
-            text-align: center;
-          }
+    body { 
+      font-family: Arial, sans-serif; 
+      font-size: 8.5px; 
+      margin: 0;
+      padding: 10px;
+      color: #222;
+      line-height: 1.25;
+      background-color: #fff;
+    }
+    
+    .header-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 5px;
+      border-bottom: 2px solid #d32f2f;
+      padding-bottom: 4px;
+    }
+    
+    .header-left {
+      width: 55%;
+      vertical-align: middle;
+      text-align: left;
+    }
+    
+    .header-right {
+      width: 45%;
+      vertical-align: middle;
+      text-align: right;
+    }
 
-          /* Seção de Resumo Financeiro */
-          .costs-section {
-            margin-bottom: 20px;
-            background-color: #f9fafb;
-            padding: 16px;
-            border-radius: 8px;
-            border: 1px solid #f3f4f6;
-          }
-          .costs-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1.3fr;
-            gap: 14px;
-            align-items: center;
-          }
-          .cost-item {
-            text-align: center;
-            padding: 8px;
-          }
-          .cost-label {
-            font-size: 10.5px;
-            color: #6b7280;
-            font-weight: 600;
-            margin-bottom: 4px;
-            text-transform: uppercase;
-          }
-          .cost-value {
-            font-size: 16px;
-            font-weight: 700;
-            color: #111827;
-            font-family: 'Courier New', monospace;
-          }
-          .total-cost {
-            background-color: #1f2937;
-            color: white;
-            padding: 14px;
-            border-radius: 8px;
-            text-align: center;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-          }
-          .total-cost .cost-label {
-            color: #d1d5db;
-            font-size: 10px;
-            letter-spacing: 0.5px;
-          }
-          .total-cost .cost-value {
-            color: #34d399;
-            font-size: 20px;
-            font-weight: 800;
-          }
+    .brand-logo {
+      height: 36px;
+      max-height: 36px;
+      max-width: 170px;
+      width: auto;
+      margin-bottom: 3px;
+      display: block;
+      object-fit: contain;
+    }
 
-          /* Observações */
-          .notes-section {
-            margin-bottom: 20px;
-            background-color: #fffbeb;
-            padding: 12px 14px;
-            border-radius: 8px;
-            border-left: 4px solid #f59e0b;
-            border-top: 1px solid #fef3c7;
-            border-right: 1px solid #fef3c7;
-            border-bottom: 1px solid #fef3c7;
-          }
-          .notes-title {
-            font-weight: 700;
-            margin-bottom: 4px;
-            color: #92400e;
-            font-size: 11px;
-            text-transform: uppercase;
-          }
-          .notes-content {
-            font-size: 10.5px;
-            color: #78350f;
-            line-height: 1.4;
-          }
+    .logo-placeholder {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1.5px solid #d32f2f;
+      border-radius: 4px;
+      padding: 3px 8px;
+      font-weight: 900;
+      color: #d32f2f;
+      font-size: 11px;
+      letter-spacing: 0.5px;
+      margin-bottom: 3px;
+      text-transform: uppercase;
+    }
+    
+    .brand-name {
+      font-size: 10.5px;
+      font-weight: bold;
+      text-transform: uppercase;
+      color: #222;
+      letter-spacing: 0.3px;
+      line-height: 1.2;
+    }
+    
+    .brand-details {
+      font-size: 7.5px;
+      color: #555;
+      margin-top: 1px;
+      line-height: 1.25;
+    }
 
-          /* Canhoto / Recibo */
-          .receipt-declaration {
-            margin-top: 30px;
-            font-size: 9.5px;
-            color: #4b5563;
-            text-align: center;
-            border-top: 1px dashed #d1d5db;
-            padding-top: 12px;
-            margin-bottom: 30px;
-            text-transform: uppercase;
-            letter-spacing: 0.2px;
-          }
-          .signatures-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 40px;
-            margin-bottom: 20px;
-          }
-          .signature-box {
-            text-align: center;
-          }
-          .signature-line {
-            border-top: 1px solid #6b7280;
-            margin-bottom: 5px;
-          }
-          .signature-label {
-            font-size: 10px;
-            font-weight: 700;
-            color: #374151;
-            text-transform: uppercase;
-          }
+    .doc-title {
+      font-size: 12.5px;
+      font-weight: bold;
+      color: #d32f2f;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 2px;
+      line-height: 1.2;
+    }
+    
+    .type-badge {
+      display: inline-block;
+      padding: 1.5px 8px;
+      font-size: 8px;
+      font-weight: bold;
+      color: #fff;
+      background-color: #d32f2f;
+      border-radius: 3px;
+      text-transform: uppercase;
+    }
+    
+    .numero-os-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: bold;
+      color: #d32f2f;
+      background-color: #fdf2f2;
+      border: 1px solid #d32f2f;
+      padding: 1px 7px;
+      border-radius: 3px;
+      margin-top: 3px;
+      font-family: monospace;
+    }
+    
+    .data-emissao-compact {
+      font-size: 8px;
+      color: #666;
+      margin-top: 2px;
+    }
 
-          /* Rodapé */
-          .footer {
-            margin-top: 20px;
-            padding-top: 12px;
-            border-top: 1px solid #e5e7eb;
-            font-size: 9.5px;
-            color: #9ca3af;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <!-- Cabeçalho da Empresa -->
-          <div class="header">
-            <div class="company-name">${company.name}</div>
-            <div class="company-details">
-              CNPJ: ${company.cnpj} · ${company.address} - ${company.city}/${company.state} - CEP: ${company.zipCode}<br>
-              Telefone: ${company.phone} · E-mail: ${company.email}
-            </div>
-          </div>
+    .local-manutencao-bar {
+      background-color: #f1f8e9;
+      border: 1px solid #c8e6c9;
+      border-left: 4px solid #2e7d32;
+      padding: 3px 6px;
+      font-size: 8px;
+      color: #1b5e20;
+      margin-top: 4px;
+      margin-bottom: 5px;
+      border-radius: 2px;
+      text-transform: uppercase;
+      font-weight: bold;
+    }
 
-          <!-- Cabeçalho da Fatura -->
-          <div class="order-header">
-            <div>
-              <div class="order-title">Fatura de Locação de Veículos</div>
-              <div class="order-number">Nº ${invoice.number}</div>
-              <div class="order-subtitle">Locação de veículos sem cessão de mão de obra</div>
-            </div>
-            <div class="order-status" style="background-color: ${statusInfo.bg}; color: ${statusInfo.color};">
-              ${statusInfo.label}
-            </div>
-          </div>
+    .secao { 
+      margin-bottom: 6px;
+      page-break-inside: avoid;
+    }
+    
+    .secao-titulo {
+      background-color: #f5f5f5;
+      padding: 2.5px 6px;
+      font-weight: bold;
+      font-size: 8.5px;
+      border-left: 3.5px solid #d32f2f;
+      margin-bottom: 3px;
+      text-transform: uppercase;
+      color: #d32f2f;
+    }
+    
+    table.info-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 4px;
+    }
+    
+    table.info-table td {
+      padding: 2.5px 5px;
+      border: 1px solid #ddd;
+      background-color: #fafafa;
+      vertical-align: middle;
+    }
+    
+    table.info-table td.label {
+      font-weight: bold;
+      font-size: 7.5px;
+      text-transform: uppercase;
+      color: #555;
+      background-color: #f0f0f0;
+      width: 22%;
+    }
+    
+    table.info-table td.valor {
+      font-size: 8.5px;
+      color: #111;
+      width: 28%;
+      font-weight: 500;
+    }
 
-          <!-- Informações em Grid (Mesmo layout e faixas da OS) -->
-          <div class="info-grid">
-            <!-- Informações do Cliente -->
-            <div class="info-section client-section">
-              <div class="info-title">Destinatário / Cliente</div>
-              <div class="info-row">
-                <span class="info-label">Razão Social:</span>
-                <span class="info-value"><strong>${invoice.clientName || 'Não informado'}</strong></span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">CNPJ / CPF:</span>
-                <span class="info-value font-mono">${invoice.clientCnpj || '-'}</span>
-              </div>
-              ${invoice.clientIe ? `
-              <div class="info-row">
-                <span class="info-label">Inscrição Estadual:</span>
-                <span class="info-value font-mono">${invoice.clientIe}</span>
-              </div>` : ''}
-              <div class="info-row">
-                <span class="info-label">Endereço:</span>
-                <span class="info-value">${invoice.clientAddress || '-'}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Município / UF:</span>
-                <span class="info-value">${invoice.clientCity ? `${invoice.clientCity}/${invoice.clientState || ''}` : '-'}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">CEP:</span>
-                <span class="info-value">${invoice.clientZipCode || '-'}</span>
-              </div>
-            </div>
+    table.itens-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 4px;
+    }
+    
+    table.itens-table th {
+      background-color: #333;
+      color: #fff;
+      padding: 3px 5px;
+      font-size: 7.5px;
+      text-transform: uppercase;
+      text-align: left;
+    }
+    
+    table.itens-table th.num { width: 5%; text-align: center; }
+    table.itens-table th.placa { width: 14%; text-align: center; }
+    table.itens-table th.valor { width: 18%; text-align: right; }
+    
+    table.itens-table td {
+      padding: 2.5px 5px;
+      border-bottom: 1px solid #ddd;
+      font-size: 7.5px;
+    }
+    
+    table.itens-table td.num { text-align: center; }
+    table.itens-table td.placa { text-align: center; }
+    table.itens-table td.valor { text-align: right; font-weight: bold; font-family: monospace; }
+    
+    table.itens-table tr.alternate td {
+      background-color: #f8f8f8;
+    }
 
-            <!-- Informações da Fatura & Contrato -->
-            <div class="info-section invoice-section">
-              <div class="info-title">Dados da Fatura & Contrato</div>
-              <div class="info-row">
-                <span class="info-label">Data de Emissão:</span>
-                <span class="info-value"><strong>${this.formatDate(invoice.issueDate)}</strong></span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Período da Locação:</span>
-                <span class="info-value">${this.formatDate(invoice.periodStart)} a ${this.formatDate(invoice.periodEnd)}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Data de Vencimento:</span>
-                <span class="info-value" style="color: #b91c1c; font-weight: 700;">${this.formatDate(invoice.dueDate)}</span>
-              </div>
-              ${invoice.receiptDate ? `
-              <div class="info-row">
-                <span class="info-label">Data de Liquidação:</span>
-                <span class="info-value" style="color: #15803d; font-weight: 700;">${this.formatDate(invoice.receiptDate)}</span>
-              </div>` : ''}
-              <div class="info-row">
-                <span class="info-label">Contrato / Pedido:</span>
-                <span class="info-value"><strong>${invoice.contractNumber || 'Contrato Padrão'}</strong></span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Nota Fiscal Vinculada:</span>
-                <span class="info-value">${invoice.nfseNumber ? `NFS-e Nº ${invoice.nfseNumber}` : 'Não vinculada'}</span>
-              </div>
-            </div>
-          </div>
+    .plate-badge {
+      display: inline-block;
+      font-family: monospace;
+      font-weight: bold;
+      background-color: #eff6ff;
+      border: 1px solid #bfdbfe;
+      padding: 1px 4px;
+      border-radius: 2px;
+      color: #1d4ed8;
+      font-size: 7.5px;
+    }
 
-          <!-- Tabela de Itens / Veículos Locados -->
-          <div class="items-section">
-            <div class="section-title">
-              <span>Veículos e Serviços de Locação (${items.length} ${items.length === 1 ? 'item' : 'itens'})</span>
-              <span class="section-subtitle">Locação operacional sem condutor</span>
-            </div>
-            <table class="items-table">
-              <thead>
-                <tr>
-                  <th class="text-center" style="width: 45px;">Item</th>
-                  <th>Descrição dos Serviços / Veículos</th>
-                  <th class="text-right" style="width: 140px;">Valor (R$)</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${items.map((item, idx) => `
-                  <tr>
-                    <td class="text-center" style="font-weight: 700; color: #6b7280;">${idx + 1}</td>
-                    <td>
-                      <div>
-                        ${item.plate ? `<span class="plate-badge">${item.plate}</span>` : ''}
-                        <strong>${item.model || 'Veículo Operacional'}</strong>
-                      </div>
-                      <div style="font-size: 10px; color: #6b7280; margin-top: 3px;">
-                        ${item.description || 'LOCAÇÃO DE VEÍCULO SEM CESSÃO DE MÃO DE OBRA'}
-                      </div>
-                    </td>
-                    <td class="text-right" style="font-family: 'Courier New', monospace; font-weight: 700; font-size: 12px;">
-                      ${this.formatCurrency(item.amount)}
-                    </td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
+    .resumo {
+      width: 45%;
+      margin-left: auto;
+      margin-bottom: 6px;
+    }
+    
+    .resumo table { width: 100%; border-collapse: collapse; }
+    .resumo td { padding: 1.5px 4px; font-size: 8px; }
+    .resumo td.label { text-align: right; color: #555; }
+    .resumo td.valor { text-align: right; font-weight: bold; }
+    .resumo tr.total td {
+      border-top: 1.5px solid #333;
+      font-size: 9.5px;
+      font-weight: bold;
+      color: #d32f2f;
+      padding-top: 2px;
+    }
 
-          <!-- Resumo de Valores (Mesmo card escuro em destaque da OS) -->
-          <div class="costs-section">
-            <div class="costs-grid">
-              <div class="cost-item">
-                <div class="cost-label">Subtotal da Locação</div>
-                <div class="cost-value">${this.formatCurrency(invoice.totalAmount)}</div>
-              </div>
-              <div class="cost-item">
-                <div class="cost-label">Descontos / Retenções</div>
-                <div class="cost-value" style="color: ${invoice.discount ? '#dc2626' : '#111827'};">
-                  ${invoice.discount ? `- ${this.formatCurrency(invoice.discount)}` : 'R$ 0,00'}
-                </div>
-              </div>
-              <div class="cost-item total-cost">
-                <div class="cost-label">Total Líquido a Receber</div>
-                <div class="cost-value">${this.formatCurrency(invoice.netAmount)}</div>
-              </div>
-            </div>
-          </div>
+    .observacoes-box {
+      margin: 3px 0;
+      padding: 5px 8px;
+      background-color: #fffde7;
+      border: 1px solid #fbc02d;
+      border-left: 3.5px solid #fbc02d;
+      font-size: 8px;
+      color: #444;
+      line-height: 1.35;
+      border-radius: 2px;
+    }
 
-          <!-- Dados Bancários -->
-          <div class="info-section bank-section" style="margin-bottom: 18px;">
-            <div class="info-title">Dados Bancários para Liquidação</div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 11px;">
-              <div>
-                <span class="info-label">Instituição:</span> <strong>${invoice.bankName || 'BANCO DO BRASIL S.A.'}</strong><br>
-                <span class="info-label">Agência:</span> ${invoice.bankAgency || '—'} · <span class="info-label">Conta Corrente:</span> ${invoice.bankAccount || '—'}
-              </div>
-              <div>
-                <span class="info-label">Forma de Pagamento:</span> <strong>${invoice.paymentMethod || 'TRANSFERÊNCIA BANCÁRIA'}</strong><br>
-                <span class="info-label">Vencimento Impreterível:</span> <span style="color: #b91c1c; font-weight: 700;">${this.formatDate(invoice.dueDate)}</span>
-              </div>
-            </div>
-          </div>
+    .conclusao-box {
+      background-color: #f5f5f5;
+      border: 1px solid #333;
+      padding: 4px;
+      text-align: center;
+      font-weight: bold;
+      font-size: 8px;
+      text-transform: uppercase;
+      margin-top: 8px;
+    }
 
-          <!-- Observações & Legislação -->
-          <div class="notes-section">
-            <div class="notes-title">Observações e Fundamentação Legal</div>
-            <div class="notes-content">
-              Operação de locação de bens móveis sem condutor, tributada nos termos da <strong>Lei Complementar nº 116/2003</strong> e em estrita consonância com a <strong>Súmula Vinculante nº 31 do STF</strong> (Não incidência de ISS sobre locação pura de bens móveis).
-              ${invoice.notes ? `<br><br><strong>Instruções do Faturamento:</strong> ${invoice.notes}` : ''}
-            </div>
-          </div>
+    .conclusao-sub {
+      color: #2e7d32;
+      font-size: 8.5px;
+      font-weight: 800;
+      margin-top: 2px;
+    }
 
-          <!-- Canhoto / Recibo de Entrega -->
-          <div class="receipt-declaration">
-            RECEBI(EMOS) DE <strong>${company.name}</strong> AS LOCAÇÕES CONSTANTES DESTA FATURA INDICADAS ACIMA, EM PERFEITAS CONDIÇÕES.
-          </div>
+    .assinatura-table {
+      width: 100%;
+      border-collapse: collapse;
+      page-break-inside: avoid;
+      border: 1px solid #333;
+      border-top: none;
+    }
+    
+    .assinatura-table td {
+      text-align: center;
+      padding: 12px 10px 6px 10px;
+      vertical-align: top;
+      width: 50%;
+    }
+    
+    .linha-assinatura {
+      border-top: 1.2px solid #333;
+      margin-bottom: 3px;
+      padding-top: 4px;
+    }
+    
+    .assinatura-nome {
+      font-weight: bold;
+      font-size: 8.5px;
+      color: #222;
+      text-transform: uppercase;
+    }
+    
+    .assinatura-info {
+      font-size: 7.5px;
+      color: #666;
+      margin-top: 1px;
+      text-transform: uppercase;
+    }
 
-          <!-- Assinaturas (Mesmo padrão da OS) -->
-          <div class="signatures-grid">
-            <div class="signature-box">
-              <div class="signature-line"></div>
-              <div class="signature-label">Data do Recebimento</div>
-            </div>
-            <div class="signature-box">
-              <div class="signature-line"></div>
-              <div class="signature-label">Identificação e Assinatura do Recebedor</div>
-            </div>
-          </div>
+    .footer {
+      margin-top: 8px;
+      text-align: center;
+      font-size: 7px;
+      color: #999;
+      border-top: 1px solid #eee;
+      padding-top: 3px;
+    }
 
-          <!-- Rodapé -->
-          <div class="footer">
-            <span>FluxBus Gestão Integrada de Frotas · Locação Operacional</span>
-            <span>Documento emitido em: ${generatedAt} · Operador: ${generatedBy}</span>
-          </div>
+    @media print {
+      body {
+        padding: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── CABEÇALHO PADRÃO OFICIAL OS ── -->
+  <table class="header-table">
+    <tr>
+      <td class="header-left">
+        ${logoSrc ? `<img src="${logoSrc}" class="brand-logo" alt="Logo" onerror="this.style.display='none'"/>` : `<div class="logo-placeholder">VIAÇÃO SÃO SILVESTRE</div>`}
+        <div class="brand-name">${company.name}</div>
+        <div class="brand-details">${companyDetails}</div>
+      </td>
+      <td class="header-right">
+        <div class="doc-title">FATURA DE LOCAÇÃO — VEÍCULOS</div>
+        <div style="margin: 2px 0;">
+          <span class="type-badge">LOCAÇÃO DE BENS MÓVEIS (SEM CONDUTOR)</span>
         </div>
-      </body>
-      </html>
-    `;
+        <div class="numero-os-badge">FATURA Nº ${invoice.number}</div>
+        <div class="data-emissao-compact"><b>Data de Emissão:</b> ${dataEmissao}</div>
+      </td>
+    </tr>
+  </table>
+
+  <!-- ── SUB-BARRA VERDE DE COMPETÊNCIA & CLIENTE ── -->
+  <div class="local-manutencao-bar">
+    <b>LOCAÇÃO DE BENS MÓVEIS SEM CESSÃO DE MÃO DE OBRA &bull; PERÍODO:</b> <span>${periodoExtenso} &mdash; CLIENTE: ${(invoice.clientName || 'CLIENTE').toUpperCase()}</span>
+  </div>
+
+  <!-- ── SEÇÃO 1: IDENTIFICAÇÃO DO CLIENTE & DADOS DO CONTRATO ── -->
+  <div class="secao">
+    <div class="secao-titulo">IDENTIFICAÇÃO DO CLIENTE & DADOS DO CONTRATO</div>
+    <table class="info-table">
+      <tr>
+        <td class="label">RAZÃO SOCIAL / CLIENTE:</td>
+        <td class="valor"><strong>${invoice.clientName || 'Não informado'}</strong></td>
+        <td class="label">CNPJ / CPF:</td>
+        <td class="valor"><strong>${invoice.clientCnpj || '—'}</strong></td>
+      </tr>
+      <tr>
+        <td class="label">ENDEREÇO COMPLETO:</td>
+        <td class="valor">${clientAddressFormatted}</td>
+        <td class="label">MUNICÍPIO / UF:</td>
+        <td class="valor">${[invoice.clientCity, invoice.clientState].filter(Boolean).join(' / ') || '—'}</td>
+      </tr>
+      <tr>
+        <td class="label">CONTRATO / PEDIDO:</td>
+        <td class="valor"><strong>${invoice.contractNumber || 'Contrato Padrão de Locação'}</strong></td>
+        <td class="label">NOTA FISCAL VINCULADA:</td>
+        <td class="valor">${invoice.nfeNumber ? `NFS-e Nº ${invoice.nfeNumber}` : `NFS-e Nº ${invoice.number}`}</td>
+      </tr>
+      <tr>
+        <td class="label">INSCRIÇÃO ESTADUAL:</td>
+        <td class="valor">${invoice.clientIe || 'ISENTO'}</td>
+        <td class="label">STATUS DA FATURA:</td>
+        <td class="valor">
+          <span style="display: inline-block; padding: 1px 6px; border-radius: 3px; font-weight: bold; font-size: 7.5px; background-color: ${statusInfo.bg}; color: ${statusInfo.color};">
+            ${statusInfo.label.toUpperCase()}
+          </span>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- ── SEÇÃO 2: DADOS DA FATURA & LIQUIDAÇÃO FINANCEIRA ── -->
+  <div class="secao">
+    <div class="secao-titulo">DADOS DA FATURA & CONDIÇÕES DE LIQUIDAÇÃO</div>
+    <table class="info-table">
+      <tr>
+        <td class="label">NÚMERO DA FATURA:</td>
+        <td class="valor"><strong>FATURA Nº ${invoice.number}</strong></td>
+        <td class="label">DATA DE EMISSÃO:</td>
+        <td class="valor">${dataEmissao}</td>
+      </tr>
+      <tr>
+        <td class="label">PERÍODO DA LOCAÇÃO:</td>
+        <td class="valor">${periodoExtenso}</td>
+        <td class="label">DATA DE VENCIMENTO:</td>
+        <td class="valor"><strong style="color: #d32f2f; font-size: 9px;">${dataVencimento}</strong></td>
+      </tr>
+      <tr>
+        <td class="label">FORMA DE PAGAMENTO:</td>
+        <td class="valor">${invoice.paymentMethod || 'TRANSFERÊNCIA BANCÁRIA / PIX'}</td>
+        <td class="label">INSTITUIÇÃO BANCÁRIA:</td>
+        <td class="valor"><strong>${invoice.bankName || 'BANCO DO BRASIL'}</strong></td>
+      </tr>
+      <tr>
+        <td class="label">AGÊNCIA / CONTA:</td>
+        <td class="valor">Agência: ${invoice.bankAgency || '—'} &bull; Conta: ${invoice.bankAccount || '—'}</td>
+        <td class="label">CHAVE PIX / FAVORECIDO:</td>
+        <td class="valor">${company.cnpj} (${company.name})</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- ── SEÇÃO 3: VEÍCULOS E SERVIÇOS DE LOCAÇÃO (ITENS) ── -->
+  <div class="secao">
+    <div class="secao-titulo">VEÍCULOS E SERVIÇOS DE LOCAÇÃO (${items.length} ${items.length === 1 ? 'ITEM' : 'ITENS'})</div>
+    <table class="itens-table">
+      <thead>
+        <tr>
+          <th class="num">#</th>
+          <th class="placa">Placa</th>
+          <th style="width: 25%;">Marca / Modelo</th>
+          <th>Descrição dos Serviços / Veículos</th>
+          <th class="valor">Valor Total (R$)</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${items.map((item, idx) => `
+          <tr class="${idx % 2 === 1 ? 'alternate' : ''}">
+            <td class="num">${idx + 1}</td>
+            <td class="placa">
+              ${item.plate ? `<span class="plate-badge">${item.plate}</span>` : '—'}
+            </td>
+            <td><strong>${item.model || 'Ônibus Rodoviário / Urbano'}</strong></td>
+            <td>${item.description || 'LOCAÇÃO DE VEÍCULO SEM CESSÃO DE MÃO DE OBRA'}</td>
+            <td class="valor">${this.formatCurrency(item.amount)}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── SEÇÃO 4: RESUMO DE VALORES DA FATURA (PADRÃO RESUMO DE CUSTOS OS) ── -->
+  <div class="secao">
+    <div class="resumo">
+      <table>
+        <tr>
+          <td class="label">SUBTOTAL DA LOCAÇÃO:</td>
+          <td class="valor">${this.formatCurrency(subtotal)}</td>
+        </tr>
+        <tr>
+          <td class="label">DESCONTOS / RETENÇÕES:</td>
+          <td class="valor">${this.formatCurrency(desconto)}</td>
+        </tr>
+        <tr class="total">
+          <td class="label">TOTAL LÍQUIDO A RECEBER:</td>
+          <td class="valor">${this.formatCurrency(totalLiquido)}</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── SEÇÃO 5: OBSERVAÇÕES E FUNDAMENTAÇÃO LEGAL ── -->
+  <div class="secao">
+    <div class="secao-titulo">OBSERVAÇÕES E FUNDAMENTAÇÃO LEGAL</div>
+    <div class="observacoes-box">
+      <strong>Fundamentação Tributária:</strong> Operação de locação de bens móveis sem condutor, tributada nos termos da <strong>Lei Complementar nº 116/2003</strong> e em estrita consonância com a <strong>Súmula Vinculante nº 31 do STF</strong> (Não incidência de ISS sobre locação pura de bens móveis).
+      ${invoice.notes ? `<div style="margin-top: 3px;"><strong>Observações Complementares:</strong> ${invoice.notes}</div>` : ''}
+    </div>
+  </div>
+
+  <!-- ── SEÇÃO 6: DECLARAÇÃO DE ACEITE E ASSINATURAS (MODELO OFICIAL OS) ── -->
+  <div class="secao" style="margin-top: 8px; page-break-inside: avoid;">
+    <div class="conclusao-box">
+      DECLARO QUE OS VEÍCULOS E SERVIÇOS FORAM DISPONIBILIZADOS E UTILIZADOS CONFORME O CONTRATO DE LOCAÇÃO: <br/>
+      <span class="conclusao-sub">EQUIPAMENTOS ENTREGUES EM CONDIÇÕES OPERACIONAIS PLENAS.</span>
+    </div>
+    <table class="assinatura-table">
+      <tr>
+        <td style="border-right: 1px solid #333;">
+          <div class="linha-assinatura">
+            <div class="assinatura-nome">${company.name}</div>
+            <div class="assinatura-info">LOCADOR / GESTÃO FINANCEIRA E OPERACIONAL</div>
+            <div class="assinatura-info">Data: _____ / _____ / _________</div>
+          </div>
+        </td>
+        <td>
+          <div class="linha-assinatura">
+            <div class="assinatura-nome">${invoice.clientName || 'LOCATÁRIO / CLIENTE'}</div>
+            <div class="assinatura-info">LOCATÁRIO / REPRESENTANTE LEGAL</div>
+            <div class="assinatura-info">Data: _____ / _____ / _________</div>
+          </div>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- ── RODAPÉ OFICIAL ── -->
+  <div class="footer">
+    <p style="margin: 0;">Documento gerado pelo sistema FluxBus em ${generatedAt} às ${generatedHour} &bull; Operador: ${generatedBy}</p>
+    <p style="margin: 2px 0 0 0;">Este documento formaliza e certifica a locação de veículos sem cessão de mão de obra e possui plena validade contratual.</p>
+  </div>
+
+</body>
+</html>`;
+  }
+
+  /**
+   * Retorna o Blob do HTML oficial para visualização em iframe ou modal.
+   */
+  public static createHTMLBlob(invoice: RentalInvoice, options: RentalInvoicePdfOptions = {}): Blob {
+    const html = this.createHTML(invoice, options);
+    return new Blob([html], { type: 'text/html;charset=utf-8' });
+  }
+
+  /**
+   * Abre a janela de visualização e impressão direta.
+   */
+  public static openPrintPreview(invoice: RentalInvoice, options: RentalInvoicePdfOptions = {}): void {
+    const html = this.createHTML(invoice, options);
+    const win = window.open('', '_blank', 'width=900,height=800');
+    if (win) {
+      win.document.open();
+      win.document.write(html);
+      win.document.close();
+      win.onload = () => {
+        win.focus();
+        win.print();
+      };
+    }
   }
 
   /**

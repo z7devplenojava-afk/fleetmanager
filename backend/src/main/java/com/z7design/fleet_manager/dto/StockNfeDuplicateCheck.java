@@ -13,3 +13,4 @@ public class StockNfeDuplicateCheck {
     private boolean alreadyImported;
     private String warning;
 }
+

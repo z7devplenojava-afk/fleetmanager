@@ -222,6 +222,20 @@ export function generateCleaningDocumentHTML(
       margin-top: 3px;
     }
 
+    .local-manutencao-bar {
+      background-color: #f1f8e9;
+      border: 1px solid #c8e6c9;
+      border-left: 4px solid #2e7d32;
+      padding: 3px 6px;
+      font-size: 8px;
+      color: #1b5e20;
+      margin-top: 4px;
+      margin-bottom: 5px;
+      border-radius: 2px;
+      text-transform: uppercase;
+      font-weight: bold;
+    }
+
     .secao { 
       margin-bottom: 6px;
       page-break-inside: avoid;
@@ -386,23 +400,43 @@ export function generateCleaningDocumentHTML(
       background-color: #f9f9f9;
     }
 
+    .conclusao-box {
+      background-color: #f5f5f5;
+      border: 1px solid #333;
+      padding: 4px;
+      text-align: center;
+      font-weight: bold;
+      font-size: 8px;
+      text-transform: uppercase;
+      margin-top: 8px;
+    }
+
+    .conclusao-sub {
+      color: #2e7d32;
+      font-size: 8.5px;
+      font-weight: 800;
+      margin-top: 2px;
+    }
+
     .assinaturas-table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 14px;
       page-break-inside: avoid;
+      border: 1px solid #333;
+      border-top: none;
     }
 
     .assinaturas-table td {
       width: 50%;
-      padding: 0 15px;
+      padding: 12px 10px 6px 10px;
       text-align: center;
       vertical-align: top;
     }
 
     .linha-assinatura {
-      border-top: 1px solid #444;
+      border-top: 1.2px solid #333;
       margin-bottom: 3px;
+      padding-top: 4px;
     }
 
     .cargo-assinatura {
@@ -456,6 +490,11 @@ export function generateCleaningDocumentHTML(
       </td>
     </tr>
   </table>
+
+  <!-- ── SUB-BARRA VERDE DE GARAGEM E LOCALIZAÇÃO ── -->
+  <div class="local-manutencao-bar">
+    <b>HIGIENIZAÇÃO E SANITIZAÇÃO REALIZADA EM:</b> <span>${(order.vehicleGarageName || 'GARAGEM CENTRAL').toUpperCase()} &mdash; PÁTIO OPERACIONAL</span>
+  </div>
 
   <!-- ── SEÇÃO 1: IDENTIFICAÇÃO E DADOS DE PARADA ── -->
   <div class="secao">
@@ -601,24 +640,35 @@ export function generateCleaningDocumentHTML(
     </table>
   </div>
 
-  <!-- ── SEÇÃO 6: ASSINATURAS E RESPONSABILIDADES ── -->
-  <table class="assinaturas-table">
-    <tr>
-      <td>
-        <div class="linha-assinatura"></div>
-        <div class="nome-assinatura">${order.driverName || order.requestedByName || 'Operador de Higienização'}</div>
-        <div class="cargo-assinatura">Responsável pela Execução / Lavador</div>
-      </td>
-      <td>
-        <div class="linha-assinatura"></div>
-        <div class="nome-assinatura">${order.qualityInspectedBy || 'Gestor de Frota / Qualidade'}</div>
-        <div class="cargo-assinatura">Inspetor de Qualidade & Liberação de Pátio</div>
-      </td>
-    </tr>
-  </table>
+  <!-- ── SEÇÃO 6: DECLARAÇÃO DE LIBERAÇÃO E ASSINATURAS (PADRÃO OFICIAL OS) ── -->
+  <div class="secao" style="margin-top: 8px; page-break-inside: avoid;">
+    <div class="conclusao-box">
+      DECLARO QUE O VEÍCULO FOI INSPECIONADO POR MIM COM SEGUINTE CONCLUSÃO: <br/>
+      <span class="conclusao-sub">EQUIPAMENTO LIBERADO, SEM RESTRIÇÃO OPERATIVA OU DE SEGURANÇA.</span>
+    </div>
+    <table class="assinaturas-table">
+      <tr>
+        <td style="border-right: 1px solid #333;">
+          <div class="linha-assinatura">
+            <div class="nome-assinatura">${order.driverName || order.requestedByName || 'GERENTE DE MANUTENÇÃO / OPERAÇÕES'}</div>
+            <div class="cargo-assinatura">RESPONSÁVEL PELA EXECUÇÃO / LAVADOR</div>
+            <div class="cargo-assinatura" style="margin-top: 2px;">Data: _____ / _____ / _________</div>
+          </div>
+        </td>
+        <td>
+          <div class="linha-assinatura">
+            <div class="nome-assinatura">${order.qualityInspectedBy || 'INSPETOR DE QUALIDADE & LIBERAÇÃO'}</div>
+            <div class="cargo-assinatura">RESPONSÁVEL TÉCNICO / HIGIENIZAÇÃO</div>
+            <div class="cargo-assinatura" style="margin-top: 2px;">Data: _____ / _____ / _________</div>
+          </div>
+        </td>
+      </tr>
+    </table>
+  </div>
 
-  <div class="footer-note">
-    Documento emitido eletronicamente pelo Sistema FlexBus Fleet Management em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}.
+  <div class="footer-note" style="margin-top: 8px; text-align: center; font-size: 7px; color: #999; border-top: 1px solid #eee; padding-top: 3px;">
+    <p style="margin: 0;">Documento gerado pelo sistema FluxBus em ${dataEmissao} às ${new Date().toLocaleTimeString('pt-BR')}</p>
+    <p style="margin: 2px 0 0 0;">Este documento autoriza e certifica a execução dos serviços de higienização descritos acima.</p>
   </div>
 
 </body>
