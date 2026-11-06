@@ -71,7 +71,9 @@ services:
     restart: unless-stopped
 
   astracalls:
-    image: astraonline/wacalls:develop
+    # Imagem buildada pelo workflow CI a partir do fonte atual do AstraCalls
+    # (corrige o erro WhatsApp reason="405" / Client Outdated da imagem publicada).
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/fluxbus-astracalls:ci
     container_name: astracalls-ci
     depends_on:
       astracalls-db:

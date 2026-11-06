@@ -227,7 +227,15 @@ const WhatsAppConnection: React.FC = () => {
   const astraLogout = async () => {
     try {
       setAstraLoading(true);
-      await api.post('/whatsapp/astracalls/logout');
+      const response = await api.post('/whatsapp/astracalls/logout');
+      if (response.data?.success === false) {
+        toast({
+          title: "⚠️ Erro ao desconectar",
+          description: response.data.error || "Erro ao desconectar no AstraCalls",
+          variant: "destructive",
+        });
+        return;
+      }
       toast({
         title: "✅ Desconectado",
         description: "A conta foi desconectada (a sessão continua cadastrada).",

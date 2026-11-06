@@ -130,16 +130,29 @@ public class AstraCallsSessionService {
      *
      * <p>Garante o SSE aberto antes, pois o QR so chega por esse canal.</p>
      */
+    @Transactional
     public void requestPairing(UUID companyId) {
         eventStreamService.ensureConnected();
-        apiService.requestPairing(resolveSessionId(companyId));
+        apiService.requestPairing(ensureSessionId(companyId));
     }
 
     /**
      * Gera o codigo de pareamento (8 caracteres) da sessao da empresa.
      */
+    @Transactional
     public String requestPairCode(UUID companyId, String phone) {
-        return apiService.requestPairCode(resolveSessionId(companyId), phone);
+        return apiService.requestPairCode(ensureSessionId(companyId), phone);
+    }
+
+    private String ensureSessionId(UUID companyId) {
+        String sessionId = resolveSessionId(companyId);
+        if (hasText(sessionId)) {
+            return sessionId;
+        }
+        if (companyId != null) {
+            return createSession(companyId, "FleetManager");
+        }
+        return sessionId;
     }
 
     /**

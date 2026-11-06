@@ -35,7 +35,10 @@ services:
   # ASTRACALLS - API WhatsApp (whatsmeow)
   # ==========================================
   astracalls:
-    image: astraonline/wacalls:develop
+    # Imagem buildada localmente a partir de https://github.com/AstraOnlineWeb/AstraCalls
+    # (fonte atual com whatsmeow de nov/2026). Necessario para corrigir o erro
+    # WhatsApp reason="405" (Client Outdated) que a imagem publicada apresentava.
+    image: fluxbus/astracalls:local
     container_name: fluxbus-local-astracalls
     hostname: astracalls
     environment:

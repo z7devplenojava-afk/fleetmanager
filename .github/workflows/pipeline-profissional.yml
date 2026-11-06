@@ -139,6 +139,25 @@ jobs:
             VITE_ENVIRONMENT=ci
           tags: ghcr.io/${{ steps.repo_owner.outputs.owner }}/fluxbus-frontend:ci
 
+      # ----------------------------------------------------
+      # ASTRACALLS (WhatsApp / whatsmeow) - fonte externa
+      # Build a partir do fonte atual do AstraCalls para corrigir o erro
+      # WhatsApp reason="405" (Client Outdated) da imagem publicada.
+      # ----------------------------------------------------
+      - name: 📥 Clone AstraCalls (fonte atual)
+        run: |
+          git clone --depth 1 https://github.com/AstraOnlineWeb/AstraCalls.git .astracalls-src
+
+      - name: 🐳 Build e Push AstraCalls (CI)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./.astracalls-src
+          push: true
+          build-args: |
+            BUILD_VERSION=ci
+            BUILD_REV=${{ github.sha }}
+          tags: ghcr.io/${{ steps.repo_owner.outputs.owner }}/fluxbus-astracalls:ci
+
       - name: 🚀 Trigger Coolify (CI)
         env:
           COOLIFY_WEBHOOK_CI: ${{ secrets.COOLIFY_WEBHOOK_CI }}

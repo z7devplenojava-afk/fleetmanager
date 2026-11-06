@@ -7,7 +7,6 @@ import com.z7design.fleet_manager.service.whatsapp.CompanyWhatsAppConfigService;
 import com.z7design.fleet_manager.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -19,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -55,8 +55,7 @@ public class AstraCallsWhatsAppController {
             return ResponseEntity.ok(Map.of("sessions", sessionService.listSessions()));
         } catch (AstraCallsException e) {
             log.warn("Erro ao listar sessoes AstraCalls: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
-                    .body(Map.of("error", e.getMessage()));
+            return ResponseEntity.ok(Map.of("sessions", List.of(), "error", e.getMessage()));
         }
     }
 
@@ -64,8 +63,7 @@ public class AstraCallsWhatsAppController {
     public ResponseEntity<?> createSession(@RequestBody(required = false) Map<String, Object> body) {
         UUID companyId = currentCompanyId();
         if (companyId == null) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("success", false, "error", "Empresa nao identificada para a requisicao."));
+            return ResponseEntity.ok(Map.of("success", false, "error", "Empresa nao identificada para a requisicao."));
         }
 
         String name = body != null && body.get("name") != null ? String.valueOf(body.get("name")) : null;
@@ -74,11 +72,9 @@ public class AstraCallsWhatsAppController {
             return ResponseEntity.ok(Map.of("success", true, "sessionId", sessionId));
         } catch (AstraCallsException e) {
             log.warn("Erro ao criar sessao AstraCalls: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
-                    .body(Map.of("success", false, "error", e.getMessage()));
+            return ResponseEntity.ok(Map.of("success", false, "error", e.getMessage()));
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("success", false, "error", e.getMessage()));
+            return ResponseEntity.ok(Map.of("success", false, "error", e.getMessage()));
         }
     }
 
@@ -90,8 +86,7 @@ public class AstraCallsWhatsAppController {
                     "message", "Pareamento por QR Code iniciado. Acompanhe o QR no AstraCalls."));
         } catch (AstraCallsException e) {
             log.warn("Erro ao iniciar pareamento AstraCalls: {}", e.getMessage());
-            return ResponseEntity.badRequest()
-                    .body(Map.of("success", false, "error", e.getMessage()));
+            return ResponseEntity.ok(Map.of("success", false, "error", e.getMessage()));
         }
     }
 
@@ -99,8 +94,7 @@ public class AstraCallsWhatsAppController {
     public ResponseEntity<?> pairCode(@RequestBody(required = false) Map<String, Object> body) {
         String phone = body != null && body.get("phone") != null ? String.valueOf(body.get("phone")) : null;
         if (phone == null || phone.isBlank()) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("success", false, "error", "Informe o numero do WhatsApp (com DDD e DDI)."));
+            return ResponseEntity.ok(Map.of("success", false, "error", "Informe o numero do WhatsApp (com DDD e DDI)."));
         }
 
         try {
@@ -108,8 +102,7 @@ public class AstraCallsWhatsAppController {
             return ResponseEntity.ok(Map.of("success", true, "code", code));
         } catch (AstraCallsException e) {
             log.warn("Erro ao gerar codigo de pareamento AstraCalls: {}", e.getMessage());
-            return ResponseEntity.badRequest()
-                    .body(Map.of("success", false, "error", e.getMessage()));
+            return ResponseEntity.ok(Map.of("success", false, "error", e.getMessage()));
         }
     }
 
@@ -120,8 +113,7 @@ public class AstraCallsWhatsAppController {
             return ResponseEntity.ok(Map.of("success", true));
         } catch (AstraCallsException e) {
             log.warn("Erro ao desconectar sessao AstraCalls: {}", e.getMessage());
-            return ResponseEntity.badRequest()
-                    .body(Map.of("success", false, "error", e.getMessage()));
+            return ResponseEntity.ok(Map.of("success", false, "error", e.getMessage()));
         }
     }
 
@@ -129,16 +121,14 @@ public class AstraCallsWhatsAppController {
     public ResponseEntity<?> deleteSession() {
         UUID companyId = currentCompanyId();
         if (companyId == null) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("success", false, "error", "Empresa nao identificada para a requisicao."));
+            return ResponseEntity.ok(Map.of("success", false, "error", "Empresa nao identificada para a requisicao."));
         }
         try {
             sessionService.deleteSession(companyId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (AstraCallsException e) {
             log.warn("Erro ao remover sessao AstraCalls: {}", e.getMessage());
-            return ResponseEntity.badRequest()
-                    .body(Map.of("success", false, "error", e.getMessage()));
+            return ResponseEntity.ok(Map.of("success", false, "error", e.getMessage()));
         }
     }
 

@@ -15,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
@@ -119,7 +120,7 @@ public class AstraCallsApiService {
                 }
             }
             return result;
-        } catch (HttpClientErrorException e) {
+        } catch (HttpStatusCodeException e) {
             throw new AstraCallsException("AstraCalls recusou a listagem de sessoes (HTTP "
                     + e.getStatusCode().value() + "): " + safeBody(e.getResponseBodyAsString()));
         } catch (ResourceAccessException e) {
@@ -149,11 +150,17 @@ public class AstraCallsApiService {
 
             JsonNode root = objectMapper.readTree(response.getBody() == null ? "{}" : response.getBody());
             JsonNode id = root.get("id");
+            if (id == null || id.isNull()) {
+                id = root.get("sessionId");
+            }
+            if ((id == null || id.isNull()) && root.hasNonNull("session")) {
+                id = root.get("session").get("id");
+            }
             if (id == null || id.isNull() || id.asText().isBlank()) {
                 throw new AstraCallsException("AstraCalls nao retornou o id da sessao criada.");
             }
             return id.asText();
-        } catch (HttpClientErrorException e) {
+        } catch (HttpStatusCodeException e) {
             throw new AstraCallsException("AstraCalls recusou a criacao da sessao (HTTP "
                     + e.getStatusCode().value() + "): " + safeBody(e.getResponseBodyAsString()));
         } catch (ResourceAccessException e) {
@@ -178,7 +185,7 @@ public class AstraCallsApiService {
                     HttpMethod.POST,
                     new HttpEntity<>(buildHeaders()),
                     String.class);
-        } catch (HttpClientErrorException e) {
+        } catch (HttpStatusCodeException e) {
             throw new AstraCallsException("AstraCalls recusou o pareamento (HTTP "
                     + e.getStatusCode().value() + "): " + safeBody(e.getResponseBodyAsString()));
         } catch (ResourceAccessException e) {
@@ -216,7 +223,7 @@ public class AstraCallsApiService {
                 throw new AstraCallsException("AstraCalls nao retornou o codigo de pareamento.");
             }
             return code.asText();
-        } catch (HttpClientErrorException e) {
+        } catch (HttpStatusCodeException e) {
             throw new AstraCallsException("AstraCalls recusou o pareamento por codigo (HTTP "
                     + e.getStatusCode().value() + "): " + safeBody(e.getResponseBodyAsString()));
         } catch (ResourceAccessException e) {
@@ -241,7 +248,7 @@ public class AstraCallsApiService {
                     HttpMethod.POST,
                     new HttpEntity<>(buildHeaders()),
                     String.class);
-        } catch (HttpClientErrorException e) {
+        } catch (HttpStatusCodeException e) {
             throw new AstraCallsException("AstraCalls recusou o logout (HTTP "
                     + e.getStatusCode().value() + "): " + safeBody(e.getResponseBodyAsString()));
         } catch (ResourceAccessException e) {
@@ -264,7 +271,7 @@ public class AstraCallsApiService {
                     HttpMethod.DELETE,
                     new HttpEntity<>(buildHeaders()),
                     String.class);
-        } catch (HttpClientErrorException e) {
+        } catch (HttpStatusCodeException e) {
             throw new AstraCallsException("AstraCalls recusou a remocao da sessao (HTTP "
                     + e.getStatusCode().value() + "): " + safeBody(e.getResponseBodyAsString()));
         } catch (ResourceAccessException e) {
