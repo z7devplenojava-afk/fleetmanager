@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Navbar from '@/components/Navbar';
 import { useAuth } from '@/contexts/AuthContext';
 import { StandardLayout } from '@/components/StandardLayout';
+import OperationalOverviewCards from '@/components/operacional/OperationalOverviewCards';
 import { PermissionDebug } from '@/components/PermissionDebug';
 import { DashboardCard, DashboardGrid } from '@/components/DashboardCard';
 import { Button } from '@/components/ui/button';
@@ -434,6 +435,23 @@ const Index: React.FC = () => {
 
         <TabsContent value="overview" className="mt-6">
           {renderStatsCards()}
+
+          {/* Painel Operacional unificado ao dashboard de boas-vindas */}
+          <section className="mb-8 space-y-4">
+            <div className="flex items-center gap-2.5">
+              <div className="p-1.5 rounded-lg bg-primary/10 border border-primary/20 text-primary">
+                <Truck className="h-4 w-4" />
+              </div>
+              <div>
+                <h2 className="text-base sm:text-lg font-black text-foreground tracking-tight">Painel Operacional</h2>
+                <p className="text-xs text-muted-foreground">
+                  Frota, serviços, escalas, contratos e faturamento em um só lugar
+                </p>
+              </div>
+            </div>
+            <OperationalOverviewCards onSelectTab={(tab) => navigate(`/operacional?tab=${tab}`)} />
+          </section>
+
           {renderNotifications()}
         </TabsContent>
 

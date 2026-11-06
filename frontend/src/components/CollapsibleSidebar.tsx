@@ -176,7 +176,6 @@ const fiscalMenuItems = [
 
 // Módulo Operacional - Correspondente às abas da página
 const operacionalMenuItems = [
-  { icon: BarChart3, text: 'Dashboard', to: '/operacional?tab=dashboard', id: 'operacional-dashboard' },
   { icon: DollarSign, text: 'Despesas Operacionais', to: '/operacional/despesas', id: 'operacional-despesas' },
   { icon: ClipboardList, text: 'Serviços', to: '/operacional?tab=servicos', id: 'operacional-servicos' },
   { icon: Shield, text: 'Equipamentos', to: '/operacional?tab=equipamentos', id: 'operacional-equipamentos' },
