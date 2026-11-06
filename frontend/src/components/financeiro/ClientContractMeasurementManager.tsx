@@ -738,6 +738,8 @@ export const ClientContractMeasurementManager: React.FC = () => {
   const [routes, setRoutes] = useState<Route[]>([]);
   const [servicesList, setServicesList] = useState<ServiceItem[]>([]);
   const [isCustomPlate, setIsCustomPlate] = useState(false);
+  const [isCustomServiceText, setIsCustomServiceText] = useState(false);
+  const [isCustomRouteText, setIsCustomRouteText] = useState(false);
   const [isNewRouteModalOpen, setIsNewRouteModalOpen] = useState(false);
   const [savingRoute, setSavingRoute] = useState(false);
   const [newRouteForm, setNewRouteForm] = useState({ name: '', originAddress: '', destinationAddress: '', distanceKm: 0 });
@@ -902,6 +904,9 @@ export const ClientContractMeasurementManager: React.FC = () => {
 
   const handleOpenAddVehicle = () => {
     setSelectedVehicleItem(null);
+    setIsCustomPlate(false);
+    setIsCustomServiceText(false);
+    setIsCustomRouteText(false);
     const firstFleet = fleetVehicles[0];
     const modelLabel = firstFleet ? [firstFleet.brand, firstFleet.model].filter(Boolean).join(' ') : 'Ônibus / Micro-ônibus';
     setVehicleForm({
@@ -919,6 +924,9 @@ export const ClientContractMeasurementManager: React.FC = () => {
 
   const handleOpenEditVehicle = (item: LeasedVehicleItem) => {
     setSelectedVehicleItem(item);
+    setIsCustomPlate(false);
+    setIsCustomServiceText(false);
+    setIsCustomRouteText(false);
     setVehicleForm({
       plate: item.plate,
       vehicleModel: item.vehicleModel || '',
@@ -4084,238 +4092,441 @@ export const ClientContractMeasurementManager: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* MODAL: Adicionar / Editar Veículo Locado (Contrato somente do veículo pronto para locação) */}
+      {/* MODAL: Adicionar / Editar Veículo Locado (Layout Clean, Inteligente e Responsivo Mobile/Desktop) */}
       <Dialog open={isVehicleModalOpen} onOpenChange={setIsVehicleModalOpen}>
-        <DialogContent className="bg-zinc-950 border-zinc-800 text-white max-w-xl max-h-[92vh] overflow-y-auto rounded-2xl p-6 shadow-2xl">
-          <DialogHeader className="space-y-1 pb-1">
-            <DialogTitle className="flex items-center gap-2.5 text-amber-500 font-bold text-lg">
-              <Bus className="w-5 h-5 text-amber-500" />
-              <span>{selectedVehicleItem ? 'Editar Veículo Locado ao Cliente' : 'Locar Veículo ao Contrato do Cliente'}</span>
-            </DialogTitle>
-            <DialogDescription className="text-zinc-400 text-xs">
-              Contrato somente de locação do veículo: a <strong>{defaultProviderCompany}</strong> (ou outra empresa locadora) é responsável por fornecer o veículo revisado e pronto para locação para <strong>{currentClient.clientName}</strong>.
-            </DialogDescription>
-          </DialogHeader>
-
-          <form onSubmit={handleSaveVehicle} className="space-y-4 py-2">
-            {/* Linha 1: Placa do Veículo & Modelo/Tipo */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs text-zinc-300 font-semibold">
-                    Placa do Veículo Locado:
-                  </Label>
-                  <button
-                    type="button"
-                    onClick={() => setIsCustomPlate(!isCustomPlate)}
-                    className="text-[11px] text-amber-400 hover:text-amber-300 font-medium underline-offset-2 hover:underline"
-                  >
-                    {isCustomPlate ? '← Buscar na Frota' : 'Digitar Placa'}
-                  </button>
+        <DialogContent className="w-[95vw] sm:max-w-2xl max-h-[92dvh] bg-zinc-950 border border-zinc-800/90 text-white rounded-2xl p-0 overflow-hidden shadow-2xl flex flex-col [&>button]:hidden">
+          {/* Cabeçalho Fixo com Identificação Inteligente do Contrato */}
+          <div className="bg-gradient-to-r from-zinc-900 via-zinc-900/95 to-zinc-950 border-b border-zinc-800/80 px-4 sm:px-6 py-4 flex items-start justify-between gap-3 shrink-0">
+            <div className="flex items-start gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0 mt-0.5 shadow-inner">
+                <Bus className="w-5 h-5 text-amber-400" />
+              </div>
+              <div className="min-w-0 space-y-1">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <DialogTitle className="text-base sm:text-lg font-extrabold text-white tracking-tight">
+                    {selectedVehicleItem ? 'Editar Veículo Alocado ao Contrato' : 'Alocar Novo Veículo ao Contrato'}
+                  </DialogTitle>
+                  <Badge className="bg-amber-500/15 text-amber-300 border-amber-500/30 text-[10px] font-mono px-2 py-0">
+                    {currentClient.contractNumber}
+                  </Badge>
                 </div>
-                {isCustomPlate ? (
-                  <Input
-                    value={vehicleForm.plate}
-                    onChange={(e) => setVehicleForm({ ...vehicleForm, plate: e.target.value.toUpperCase() })}
-                    placeholder="Ex: QRE-1A23"
-                    className="bg-zinc-900 border-zinc-700 text-blue-400 font-mono font-bold text-sm h-10"
-                    required
-                  />
-                ) : (
-                  <SearchableSelect
-                    value={vehicleForm.plate}
-                    fallbackLabel={vehicleForm.plate}
-                    onChange={(val, opt) => {
-                      const extractedModel = opt?.label?.split('—')[1]?.trim() || opt?.badge || prevModel(vehicleForm.vehicleModel);
-                      function prevModel(m: string) { return m || 'Ônibus / Micro-ônibus'; }
-                      setVehicleForm(prev => ({
-                        ...prev,
-                        plate: val,
-                        vehicleModel: extractedModel,
-                        description:
-                          prev.description ||
-                          `LOCAÇÃO DE VEÍCULO ${extractedModel.toUpperCase()} — FORNECIMENTO DO VEÍCULO PRONTO PARA LOCAÇÃO (SOMENTE VEÍCULO)`
-                      }));
-                    }}
-                    options={vehicleOptions}
-                    placeholder="Buscar veículo na tabela de veículos..."
-                    searchPlaceholder="Digite placa ou modelo (ex: QRE-1A23)..."
-                    emptyText="Nenhum veículo encontrado na tabela de veículos."
-                    maxVisibleOptions={50}
-                  />
-                )}
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs text-zinc-300 font-semibold">
-                  Modelo / Tipo do Veículo:
-                </Label>
-                <Input
-                  value={vehicleForm.vehicleModel}
-                  onChange={(e) => setVehicleForm({ ...vehicleForm, vehicleModel: e.target.value })}
-                  placeholder="Ex: Ônibus Rodoviário 46L / Micro-ônibus"
-                  className="bg-zinc-900 border-zinc-700 text-zinc-100 text-xs h-10"
-                />
+                <DialogDescription className="text-zinc-400 text-xs leading-relaxed truncate sm:whitespace-normal">
+                  Cliente: <strong className="text-zinc-200">{currentClient.clientName}</strong> · Fornecimento pela <strong className="text-amber-300">{vehicleForm.providerCompany || defaultProviderCompany}</strong>
+                </DialogDescription>
               </div>
             </div>
+            <button
+              type="button"
+              onClick={() => setIsVehicleModalOpen(false)}
+              className="w-8 h-8 rounded-xl bg-zinc-800/80 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 flex items-center justify-center transition-all shrink-0"
+              aria-label="Fechar"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
 
-            {/* Linha 1.5: Empresa Responsável por Fornecer o Veículo Pronto para Locação & Dias Locados */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs text-zinc-300 font-semibold">
-                  Empresa Fornecedora do Veículo (Locadora):
-                </Label>
-                <Input
-                  value={vehicleForm.providerCompany}
-                  onChange={(e) => setVehicleForm({ ...vehicleForm, providerCompany: e.target.value.toUpperCase() })}
-                  placeholder="Ex: VIAÇÃO SÃO SILVESTRE LTDA"
-                  className="bg-zinc-900 border-zinc-700 text-amber-300 font-semibold text-xs h-10"
-                  required
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs text-zinc-300 font-semibold">
-                  Dias Locados no Período:
-                </Label>
-                <Input
-                  type="number"
-                  value={vehicleForm.workingDays}
-                  onChange={(e) => setVehicleForm({ ...vehicleForm, workingDays: parseInt(e.target.value) || 30 })}
-                  className="bg-zinc-900 border-zinc-700 text-zinc-100 font-mono text-sm h-10"
-                  placeholder="30"
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Linha 2: Descrição do Contrato de Locação do Veículo */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs text-zinc-300 font-semibold">
-                  Descrição da Locação (Somente Veículo Pronto p/ Locação):
-                </Label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNewServiceForm({ name: '', category: 'LOCACAO_VEICULOS', description: '' });
-                    setIsNewServiceModalOpen(true);
-                  }}
-                  className="text-[11px] text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-1 transition-colors"
-                >
-                  <Plus className="w-3 h-3" /> Cadastrar Novo Tipo de Locação
-                </button>
-              </div>
-
-              <SearchableSelect
-                value={vehicleForm.description}
-                fallbackLabel={vehicleForm.description}
-                onChange={(val) => setVehicleForm(prev => ({ ...prev, description: val }))}
-                options={serviceOptions}
-                placeholder="Selecione na tabela de locações/serviços cadastrados..."
-                searchPlaceholder="Pesquisar descrição cadastrada..."
-                emptyText="Nenhuma descrição encontrada. Preencha abaixo ou clique em Cadastrar."
-                maxVisibleOptions={30}
-              />
-
-              <Input
-                value={vehicleForm.description}
-                onChange={(e) => setVehicleForm({ ...vehicleForm, description: e.target.value })}
-                placeholder="Ex: LOCAÇÃO DE VEÍCULO PRONTO PARA OPERAÇÃO (SOMENTE VEÍCULO)"
-                className="bg-zinc-900 border-zinc-800 text-zinc-200 text-xs h-9 mt-1"
-                required
-              />
-            </div>
-
-            {/* Linha 3: Local / Unidade de Disponibilização do Veículo */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs text-zinc-300 font-semibold">
-                  Unidade / Local de Disponibilização do Veículo ao Cliente:
-                </Label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNewRouteForm({ name: '', originAddress: '', destinationAddress: '', distanceKm: 0 });
-                    setIsNewRouteModalOpen(true);
-                  }}
-                  className="text-[11px] text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1 transition-colors"
-                >
-                  <Plus className="w-3 h-3" /> Cadastrar Nova Unidade / Rota
-                </button>
-              </div>
-
-              <SearchableSelect
-                value={vehicleForm.route}
-                fallbackLabel={vehicleForm.route}
-                onChange={(val) => setVehicleForm(prev => ({ ...prev, route: val }))}
-                options={routeOptions}
-                placeholder="Buscar unidade/local na base cadastrada..."
-                searchPlaceholder="Pesquisar unidade ou local de entrega..."
-                emptyText="Nenhum local encontrado. Digite abaixo."
-                maxVisibleOptions={30}
-              />
-
-              <Input
-                value={vehicleForm.route}
-                onChange={(e) => setVehicleForm({ ...vehicleForm, route: e.target.value })}
-                placeholder="Ex: DISPONIBILIZADO NA UNIDADE OPERACIONAL DO CLIENTE"
-                className="bg-zinc-900 border-zinc-800 text-zinc-200 text-xs h-9 mt-1"
-              />
-            </div>
-
-            {/* Linha 4: Valor Mensal de Locação do Veículo (Decimal 15,9) & Condição de Fornecimento */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs text-zinc-300 font-semibold">
-                    Valor Mensal da Locação (R$):
-                  </Label>
-                  <span className="text-[10px] text-emerald-400 font-mono font-medium">
-                    Decimal 15,9
+          {/* Corpo Rolável com Seções Organizadas e Sem Estouro Horizontal */}
+          <form onSubmit={handleSaveVehicle} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+            <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-4 min-w-0 overscroll-contain">
+              {/* SEÇÃO 1: Veículo & Período de Alocação */}
+              <div className="bg-zinc-900/50 border border-zinc-800/80 rounded-xl p-3.5 sm:p-4 space-y-3.5 min-w-0">
+                <div className="flex items-center justify-between gap-2 border-b border-zinc-800/70 pb-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                    <Car className="w-3.5 h-3.5" /> 1. Identificação do Veículo & Período
+                  </span>
+                  <span className="text-[10px] text-zinc-500 font-mono hidden sm:inline">
+                    {currentClient.periodStart} a {currentClient.periodEnd}
                   </span>
                 </div>
-                <Input
-                  type="number"
-                  step="any"
-                  value={vehicleForm.monthlyRate}
-                  onChange={(e) => setVehicleForm({ ...vehicleForm, monthlyRate: parseFloat(e.target.value) || 0 })}
-                  className="bg-zinc-900 border-zinc-700 text-emerald-400 font-mono font-bold text-sm h-10"
-                  placeholder="30000"
-                  required
-                />
+
+                {/* Placa do Veículo + Dias Rodados no Período */}
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3.5 min-w-0">
+                  <div className="sm:col-span-7 space-y-1.5 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label className="text-xs text-zinc-200 font-semibold">
+                        Placa do Veículo *
+                      </Label>
+                      <button
+                        type="button"
+                        onClick={() => setIsCustomPlate(!isCustomPlate)}
+                        className="text-[11px] text-amber-400 hover:text-amber-300 font-semibold px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/20 transition-colors shrink-0"
+                      >
+                        {isCustomPlate ? '← Buscar na Frota' : 'Digitar Placa'}
+                      </button>
+                    </div>
+
+                    {isCustomPlate ? (
+                      <Input
+                        value={vehicleForm.plate}
+                        onChange={(e) => setVehicleForm({ ...vehicleForm, plate: e.target.value.toUpperCase() })}
+                        placeholder="Ex: RUR-7A78 ou QRE-1A23"
+                        className="bg-zinc-950 border-zinc-700 text-blue-400 font-mono font-bold text-sm h-10 rounded-xl"
+                        required
+                      />
+                    ) : (
+                      <div className="min-w-0 w-full">
+                        <SearchableSelect
+                          value={vehicleForm.plate}
+                          fallbackLabel={vehicleForm.plate}
+                          onChange={(val, opt) => {
+                            const extractedModel =
+                              opt?.label?.split('—')[1]?.trim() ||
+                              opt?.badge ||
+                              vehicleForm.vehicleModel ||
+                              'Ônibus / Micro-ônibus';
+                            setVehicleForm(prev => ({
+                              ...prev,
+                              plate: val,
+                              vehicleModel: extractedModel,
+                              description:
+                                prev.description ||
+                                `LOCAÇÃO DE VEÍCULO ${extractedModel.toUpperCase()} — FORNECIMENTO DO VEÍCULO PRONTO PARA LOCAÇÃO (SOMENTE VEÍCULO)`
+                            }));
+                          }}
+                          options={vehicleOptions}
+                          placeholder="Selecionar veículo da frota..."
+                          searchPlaceholder="Buscar por placa ou modelo..."
+                          emptyText="Nenhum veículo encontrado. Use 'Digitar Placa'."
+                          maxVisibleOptions={50}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="sm:col-span-5 space-y-1.5 min-w-0">
+                    <div className="flex items-center justify-between gap-1">
+                      <Label className="text-xs text-zinc-200 font-semibold">
+                        Dias no Período *
+                      </Label>
+                      <div className="flex items-center gap-1">
+                        {[15, 22, 26, 30].map(d => (
+                          <button
+                            key={d}
+                            type="button"
+                            onClick={() => setVehicleForm(prev => ({ ...prev, workingDays: d }))}
+                            className={`text-[10px] font-mono px-1.5 py-0.5 rounded transition-all ${
+                              Number(vehicleForm.workingDays) === d
+                                ? 'bg-amber-500 text-zinc-950 font-bold'
+                                : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
+                            }`}
+                          >
+                            {d}d
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={31}
+                      value={vehicleForm.workingDays}
+                      onChange={(e) => setVehicleForm({ ...vehicleForm, workingDays: parseInt(e.target.value) || 30 })}
+                      className="bg-zinc-950 border-zinc-700 text-zinc-100 font-mono font-bold text-sm h-10 rounded-xl"
+                      placeholder="30"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Modelo / Tipo do Veículo + Empresa Fornecedora */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 min-w-0 pt-1">
+                  <div className="space-y-1.5 min-w-0">
+                    <Label className="text-xs text-zinc-300 font-semibold">
+                      Modelo / Categoria do Veículo
+                    </Label>
+                    <Input
+                      value={vehicleForm.vehicleModel}
+                      onChange={(e) => setVehicleForm({ ...vehicleForm, vehicleModel: e.target.value })}
+                      placeholder="Ex: Ônibus Rodoviário 46L / Micro-ônibus"
+                      className="bg-zinc-950 border-zinc-700 text-zinc-100 text-xs h-10 rounded-xl"
+                    />
+                    <div className="flex flex-wrap gap-1 pt-0.5">
+                      {['Ônibus Rodoviário 46L', 'Micro-ônibus 28L', 'Van Executiva', 'Veículo Leve'].map(preset => (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => setVehicleForm(prev => ({ ...prev, vehicleModel: preset }))}
+                          className="text-[10px] px-2 py-0.5 rounded-md bg-zinc-950 border border-zinc-800 text-zinc-400 hover:text-amber-300 hover:border-amber-500/40 transition-colors"
+                        >
+                          {preset}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5 min-w-0">
+                    <Label className="text-xs text-zinc-300 font-semibold">
+                      Empresa Fornecedora (Locadora) *
+                    </Label>
+                    <Input
+                      value={vehicleForm.providerCompany}
+                      onChange={(e) => setVehicleForm({ ...vehicleForm, providerCompany: e.target.value.toUpperCase() })}
+                      placeholder="Ex: VIAÇÃO SÃO SILVESTRE LTDA"
+                      className="bg-zinc-950 border-zinc-700 text-amber-300 font-semibold text-xs h-10 rounded-xl"
+                      required
+                    />
+                    <p className="text-[10px] text-zinc-500 truncate">
+                      Responsável por disponibilizar o veículo revisado e pronto.
+                    </p>
+                  </div>
+                </div>
               </div>
 
-              <div className="space-y-1.5">
-                <Label className="text-xs text-zinc-300 font-semibold">
-                  Condição de Fornecimento:
-                </Label>
-                <Input
-                  value={vehicleForm.observations}
-                  onChange={(e) => setVehicleForm({ ...vehicleForm, observations: e.target.value })}
-                  placeholder="Ex: SOMENTE VEÍCULO PRONTO P/ LOCAÇÃO"
-                  className="bg-zinc-900 border-zinc-700 text-zinc-100 text-xs h-10"
-                />
+              {/* SEÇÃO 2: Escopo do Serviço & Trajeto / Local */}
+              <div className="bg-zinc-900/50 border border-zinc-800/80 rounded-xl p-3.5 sm:p-4 space-y-3.5 min-w-0">
+                <div className="flex items-center justify-between gap-2 border-b border-zinc-800/70 pb-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-blue-400 flex items-center gap-1.5">
+                    <Navigation className="w-3.5 h-3.5" /> 2. Serviço Contratado & Itinerário / Local
+                  </span>
+                </div>
+
+                {/* Descrição do Serviço / Locação (Sem duplicidade de campos) */}
+                <div className="space-y-1.5 min-w-0">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <Label className="text-xs text-zinc-200 font-semibold">
+                      Descrição do Serviço / Locação *
+                    </Label>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setIsCustomServiceText(!isCustomServiceText)}
+                        className="text-[11px] text-zinc-300 hover:text-white font-medium px-2 py-0.5 rounded-md bg-zinc-800/90 border border-zinc-700 transition-colors"
+                      >
+                        {isCustomServiceText ? 'Selecionar da Lista' : 'Editar Texto'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNewServiceForm({ name: '', category: 'LOCACAO_VEICULOS', description: '' });
+                          setIsNewServiceModalOpen(true);
+                        }}
+                        className="text-[11px] text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/20 transition-colors"
+                      >
+                        <Plus className="w-3 h-3" /> Novo Serviço
+                      </button>
+                    </div>
+                  </div>
+
+                  {isCustomServiceText ? (
+                    <Input
+                      value={vehicleForm.description}
+                      onChange={(e) => setVehicleForm({ ...vehicleForm, description: e.target.value })}
+                      placeholder="Digite a descrição personalizada do serviço ou locação..."
+                      className="bg-zinc-950 border-zinc-700 text-zinc-100 text-xs h-10 rounded-xl"
+                      required
+                    />
+                  ) : (
+                    <div className="min-w-0 w-full">
+                      <SearchableSelect
+                        value={vehicleForm.description}
+                        fallbackLabel={vehicleForm.description}
+                        onChange={(val) => setVehicleForm(prev => ({ ...prev, description: val }))}
+                        options={serviceOptions}
+                        placeholder="Selecione o serviço ou tipo de locação..."
+                        searchPlaceholder="Pesquisar serviço cadastrado..."
+                        emptyText="Nenhum serviço encontrado. Clique em 'Editar Texto' ou '+ Novo Serviço'."
+                        maxVisibleOptions={30}
+                      />
+                    </div>
+                  )}
+
+                  {/* Sugestões Inteligentes de Preenchimento Rápido */}
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    <span className="text-[10px] text-zinc-500 font-medium">Sugestões:</span>
+                    {[
+                      'LOCAÇÃO DE VEÍCULO PRONTO PARA OPERAÇÃO (SOMENTE VEÍCULO)',
+                      'PRESTAÇÃO DE SERVIÇO DE TRANSPORTE DE PASSAGEIROS',
+                      'LOCAÇÃO MENSAL DE ÔNIBUS SEM MOTORISTA',
+                    ].map(suggestion => (
+                      <button
+                        key={suggestion}
+                        type="button"
+                        onClick={() => setVehicleForm(prev => ({ ...prev, description: suggestion }))}
+                        className={`text-[10px] px-2 py-0.5 rounded-md border transition-all truncate max-w-full ${
+                          vehicleForm.description === suggestion
+                            ? 'bg-amber-500/15 border-amber-500/40 text-amber-300 font-semibold'
+                            : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+                        }`}
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Itinerário / Trajeto / Local de Disponibilização (Sem duplicidade de campos) */}
+                <div className="space-y-1.5 min-w-0 pt-1">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <Label className="text-xs text-zinc-200 font-semibold">
+                      Itinerário / Trajeto ou Unidade de Disponibilização
+                    </Label>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setIsCustomRouteText(!isCustomRouteText)}
+                        className="text-[11px] text-zinc-300 hover:text-white font-medium px-2 py-0.5 rounded-md bg-zinc-800/90 border border-zinc-700 transition-colors"
+                      >
+                        {isCustomRouteText ? 'Selecionar da Lista' : 'Editar Texto'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNewRouteForm({ name: '', originAddress: '', destinationAddress: '', distanceKm: 0 });
+                          setIsNewRouteModalOpen(true);
+                        }}
+                        className="text-[11px] text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 transition-colors"
+                      >
+                        <Plus className="w-3 h-3" /> Nova Rota
+                      </button>
+                    </div>
+                  </div>
+
+                  {isCustomRouteText ? (
+                    <Input
+                      value={vehicleForm.route}
+                      onChange={(e) => setVehicleForm({ ...vehicleForm, route: e.target.value })}
+                      placeholder="Ex: DISPONIBILIZADO NA UNIDADE OPERACIONAL DO CLIENTE"
+                      className="bg-zinc-950 border-zinc-700 text-zinc-100 text-xs h-10 rounded-xl"
+                    />
+                  ) : (
+                    <div className="min-w-0 w-full">
+                      <SearchableSelect
+                        value={vehicleForm.route}
+                        fallbackLabel={vehicleForm.route}
+                        onChange={(val) => setVehicleForm(prev => ({ ...prev, route: val }))}
+                        options={routeOptions}
+                        placeholder="Selecione a rota, obra ou local de entrega..."
+                        searchPlaceholder="Pesquisar rota, KMZ ou unidade..."
+                        emptyText="Nenhuma rota encontrada. Clique em 'Editar Texto' ou '+ Nova Rota'."
+                        maxVisibleOptions={30}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* SEÇÃO 3: Condições Financeiras & Cálculo Inteligente em Tempo Real */}
+              <div className="bg-zinc-900/50 border border-zinc-800/80 rounded-xl p-3.5 sm:p-4 space-y-3.5 min-w-0">
+                <div className="flex items-center justify-between gap-2 border-b border-zinc-800/70 pb-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                    <DollarSign className="w-3.5 h-3.5" /> 3. Condições Financeiras & Operacionais
+                  </span>
+                  <span className="text-[10px] text-emerald-400 font-mono bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded">
+                    Precisão Decimal 15,9
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 min-w-0">
+                  <div className="space-y-1.5 min-w-0">
+                    <Label className="text-xs text-zinc-200 font-semibold">
+                      Valor Mensal Contratado (R$) *
+                    </Label>
+                    <Input
+                      type="number"
+                      step="any"
+                      value={vehicleForm.monthlyRate}
+                      onChange={(e) => setVehicleForm({ ...vehicleForm, monthlyRate: parseFloat(e.target.value) || 0 })}
+                      className="bg-zinc-950 border-zinc-700 text-emerald-400 font-mono font-bold text-sm h-10 rounded-xl"
+                      placeholder="30000"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 min-w-0">
+                    <Label className="text-xs text-zinc-200 font-semibold">
+                      Observações Operacionais / Condição
+                    </Label>
+                    <Input
+                      value={vehicleForm.observations}
+                      onChange={(e) => setVehicleForm({ ...vehicleForm, observations: e.target.value })}
+                      placeholder="Ex: SOMENTE VEÍCULO PRONTO P/ LOCAÇÃO"
+                      className="bg-zinc-950 border-zinc-700 text-zinc-100 text-xs h-10 rounded-xl"
+                    />
+                    <div className="flex flex-wrap gap-1 pt-0.5">
+                      {[
+                        'SOMENTE VEÍCULO PRONTO P/ LOCAÇÃO',
+                        '01 MOTORISTA',
+                        '02 MOTORISTAS',
+                        'RESERVA TÉCNICA',
+                      ].map(obsPreset => (
+                        <button
+                          key={obsPreset}
+                          type="button"
+                          onClick={() => setVehicleForm(prev => ({ ...prev, observations: obsPreset }))}
+                          className={`text-[10px] px-2 py-0.5 rounded-md border transition-colors ${
+                            vehicleForm.observations === obsPreset
+                              ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300 font-semibold'
+                              : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                          }`}
+                        >
+                          {obsPreset}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Painel Inteligente de Simulação do Período em Tempo Real */}
+                {(() => {
+                  const monthlyVal = Number(vehicleForm.monthlyRate) || 0;
+                  const daysVal = Math.max(1, Number(vehicleForm.workingDays) || 30);
+                  const dailyVal = monthlyVal / daysVal;
+                  return (
+                    <div className="bg-gradient-to-r from-zinc-950 via-zinc-900 to-zinc-950 border border-zinc-800 rounded-xl p-3 grid grid-cols-3 gap-2 sm:gap-3 text-center">
+                      <div className="bg-zinc-900/60 rounded-lg p-2 border border-zinc-800/80 min-w-0">
+                        <span className="text-[10px] text-zinc-400 uppercase font-semibold block truncate">
+                          Valor Mensal Base
+                        </span>
+                        <strong className="text-xs sm:text-sm font-mono text-zinc-100 truncate block mt-0.5">
+                          R$ {monthlyVal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </strong>
+                      </div>
+                      <div className="bg-zinc-900/60 rounded-lg p-2 border border-zinc-800/80 min-w-0">
+                        <span className="text-[10px] text-amber-400 uppercase font-semibold block truncate">
+                          Diária ({daysVal}d)
+                        </span>
+                        <strong className="text-xs sm:text-sm font-mono text-amber-300 truncate block mt-0.5">
+                          R$ {dailyVal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </strong>
+                      </div>
+                      <div className="bg-emerald-950/30 rounded-lg p-2 border border-emerald-500/30 min-w-0">
+                        <span className="text-[10px] text-emerald-400 uppercase font-bold block truncate">
+                          Total Período
+                        </span>
+                        <strong className="text-xs sm:text-sm font-mono text-emerald-300 truncate block mt-0.5">
+                          R$ {monthlyVal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </strong>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 
-            {/* Rodapé com botões Cancelar e Alocar Veículo */}
-            <DialogFooter className="gap-2 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsVehicleModalOpen(false)}
-                className="border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white px-5"
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="submit"
-                className="bg-amber-600 hover:bg-amber-500 text-white font-bold px-6 shadow-md shadow-amber-600/30"
-              >
-                {selectedVehicleItem ? 'Salvar Alterações' : 'Alocar Veículo'}
-              </Button>
-            </DialogFooter>
+            {/* Rodapé Fixo Responsivo (Botões largos no mobile, alinhados à direita no desktop) */}
+            <div className="bg-zinc-900/95 border-t border-zinc-800/80 px-4 sm:px-6 py-3.5 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2.5 shrink-0">
+              <span className="text-[11px] text-zinc-400 hidden sm:inline-flex items-center gap-1.5">
+                <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                Placa: <strong className="text-blue-400 font-mono">{vehicleForm.plate || '—'}</strong> · {vehicleForm.workingDays || 30} dias
+              </span>
+              <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsVehicleModalOpen(false)}
+                  className="w-full sm:w-auto border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white h-10 px-5 rounded-xl font-medium"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  className="w-full sm:w-auto bg-amber-500 hover:bg-amber-400 text-zinc-950 font-extrabold h-10 px-6 rounded-xl shadow-lg shadow-amber-500/20"
+                >
+                  <Bus className="w-4 h-4 mr-1.5 shrink-0" />
+                  {selectedVehicleItem ? 'Salvar Alterações' : 'Alocar Veículo ao Contrato'}
+                </Button>
+              </div>
+            </div>
           </form>
         </DialogContent>
       </Dialog>

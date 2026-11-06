@@ -166,7 +166,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   );
 
   return (
-    <div ref={containerRef} className={cn('relative w-full', className)}>
+    <div ref={containerRef} className={cn('relative w-full min-w-0 max-w-full', className)}>
       <button
         type="button"
         disabled={disabled}
@@ -178,7 +178,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
           }
         }}
         className={cn(
-          'w-full rounded-md border transition-all flex items-center justify-between gap-2 text-left',
+          'w-full min-w-0 max-w-full overflow-hidden rounded-md border transition-all flex items-center justify-between gap-2 text-left',
           size === 'lg'
             ? 'min-h-[50px] sm:min-h-[48px] px-3.5 py-2.5 text-sm sm:text-base'
             : 'min-h-[38px] px-3 py-1.5 text-xs sm:text-sm',
@@ -187,9 +187,9 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
           disabled && 'opacity-50 cursor-not-allowed'
         )}
       >
-        <div className="flex items-center gap-2 flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-1 min-w-0 overflow-hidden">
           {selectedOption ? (
-            <div className="flex items-center gap-2 truncate">
+            <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
               <span className={cn('font-bold text-white truncate', size === 'lg' ? 'text-base sm:text-lg' : 'text-xs sm:text-sm')}>
                 {selectedOption.label}
               </span>
@@ -199,18 +199,18 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
                 </Badge>
               )}
               {selectedOption.subtitle && (
-                <span className={cn('text-gray-400 truncate max-w-[130px] sm:max-w-xs', size === 'lg' ? 'text-xs sm:text-sm' : 'text-xs')}>
+                <span className={cn('text-gray-400 truncate min-w-0 shrink hidden sm:inline', size === 'lg' ? 'text-xs sm:text-sm' : 'text-xs')}>
                   ({selectedOption.subtitle})
                 </span>
               )}
             </div>
           ) : fallbackLabel ? (
-            <div className="flex items-center gap-2 truncate">
+            <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
               <span className={cn('font-bold text-white truncate', size === 'lg' ? 'text-base sm:text-lg' : 'text-xs sm:text-sm')}>
                 {fallbackLabel}
               </span>
               <Badge className="text-[10px] px-1.5 py-0 h-4 shrink-0 font-mono bg-emerald-950/70 text-emerald-300 border border-emerald-700/60">
-                Salvo na OS
+                Selecionado
               </Badge>
             </div>
           ) : (
