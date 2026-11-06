@@ -104,6 +104,8 @@ export interface Schedule {
   delayMinutes?: number;
   delayReason?: string;
   delayReportedAt?: string;
+  accepted?: boolean;
+  acceptedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -147,6 +149,8 @@ export type UpdateScheduleDTO = Partial<CreateScheduleDTO>;
 
 const OVERLAY_STORAGE_KEY = 'fleet_schedule_execution_overlay_v1';
 const LOCAL_PONTO_SCHEDULES_KEY = 'fleet_driver_ponto_schedules_v1';
+const ACCEPTED_SCHEDULES_KEY = 'fluxbus_accepted_schedules_v1';
+const FAST_MY_SCHEDULES_CACHE_KEY = 'fluxbus_fast_my_schedules_v1';
 
 interface ScheduleOverlayData {
   employeeId?: string;
@@ -188,9 +192,42 @@ interface ScheduleOverlayData {
   delayMinutes?: number;
   delayReason?: string;
   delayReportedAt?: string;
+  accepted?: boolean;
+  acceptedAt?: string;
   status?: ScheduleStatus;
   observations?: string;
   deleted?: boolean;
+}
+
+export function getAcceptedScheduleMap(): Record<string, string> {
+  try {
+    const raw = localStorage.getItem(ACCEPTED_SCHEDULES_KEY);
+    if (!raw) return {};
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
+}
+
+export function isScheduleAccepted(schedule?: Partial<Schedule> | null): boolean {
+  if (!schedule) return false;
+  if (schedule.accepted) return true;
+  if (
+    schedule.status === 'CONFIRMED' ||
+    schedule.status === 'IN_PROGRESS' ||
+    schedule.status === 'COMPLETED' ||
+    schedule.initialKm != null ||
+    schedule.pointRegisteredAt != null
+  ) {
+    return true;
+  }
+  if (schedule.id) {
+    const acceptedMap = getAcceptedScheduleMap();
+    if (acceptedMap[schedule.id]) return true;
+    const ovMap = getExecutionOverlayMap();
+    if (ovMap[schedule.id]?.accepted) return true;
+  }
+  return false;
 }
 
 export function resolveScheduleRecurrence(schedule?: Partial<Schedule> | null): ScheduleRecurrence {
@@ -776,9 +813,21 @@ function applyOverlayToSchedule(schedule: Schedule): Schedule {
   if (!schedule || !schedule.id) return schedule;
   const map = getExecutionOverlayMap();
   const ov = map[schedule.id];
+  const acceptedMap = getAcceptedScheduleMap();
+  const acceptedAtFromMap = acceptedMap[schedule.id];
   if (!ov) {
+    const isAcc = Boolean(
+      acceptedAtFromMap ||
+        schedule.accepted ||
+        schedule.status === 'CONFIRMED' ||
+        schedule.status === 'IN_PROGRESS' ||
+        schedule.status === 'COMPLETED'
+    );
     return {
       ...schedule,
+      accepted: isAcc,
+      acceptedAt: schedule.acceptedAt || acceptedAtFromMap,
+      status: isAcc && schedule.status === 'PENDING' ? 'CONFIRMED' : schedule.status,
       scheduleRecurrence: resolveScheduleRecurrence(schedule),
     };
   }
@@ -883,7 +932,22 @@ function applyOverlayToSchedule(schedule: Schedule): Schedule {
     delayMinutes: ov.delayMinutes ?? schedule.delayMinutes,
     delayReason: ov.delayReason || schedule.delayReason,
     delayReportedAt: ov.delayReportedAt || schedule.delayReportedAt,
-    status: ov.status || schedule.status,
+    accepted: Boolean(
+      ov.accepted ||
+        acceptedAtFromMap ||
+        schedule.accepted ||
+        ov.status === 'CONFIRMED' ||
+        ov.status === 'IN_PROGRESS' ||
+        ov.status === 'COMPLETED' ||
+        schedule.status === 'CONFIRMED' ||
+        schedule.status === 'IN_PROGRESS' ||
+        schedule.status === 'COMPLETED'
+    ),
+    acceptedAt: ov.acceptedAt || acceptedAtFromMap || schedule.acceptedAt,
+    status:
+      (ov.accepted || acceptedAtFromMap) && (ov.status || schedule.status) === 'PENDING'
+        ? 'CONFIRMED'
+        : ov.status || schedule.status,
     observations: ov.observations !== undefined ? ov.observations : schedule.observations,
   };
 
@@ -2512,8 +2576,91 @@ export const scheduleService = {
   },
 
   /**
-   * Escalas do usuário autenticado (portal do motorista), com fallback inteligente por nome/ID
-   * para garantir que o motorista (ex: Fernando Silva Santos) sempre veja suas escalas.
+   * Retorna instantaneamente (0ms) as escalas em cache local para carregamento de alta performance.
+   */
+  getCachedMySchedules(): Schedule[] {
+    try {
+      const raw = localStorage.getItem(FAST_MY_SCHEDULES_CACHE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map(applyOverlayToSchedule);
+        }
+      }
+      const localPonto = getLocalPontoSchedules();
+      if (localPonto.length > 0) {
+        return localPonto.map(applyOverlayToSchedule);
+      }
+    } catch {
+      // ignore
+    }
+    return [];
+  },
+
+  /**
+   * Verifica se uma escala já foi aceita pelo motorista.
+   */
+  isScheduleAccepted(schedule?: Partial<Schedule> | null): boolean {
+    return isScheduleAccepted(schedule);
+  },
+
+  /**
+   * Aceita uma escala de trabalho no Portal do Motorista, habilitando o botão de Gestão de Viagens.
+   */
+  async acceptSchedule(id: string, scheduleSnapshot?: Partial<Schedule>): Promise<Schedule> {
+    const nowIso = new Date().toISOString();
+    try {
+      const map = getAcceptedScheduleMap();
+      map[id] = nowIso;
+      localStorage.setItem(ACCEPTED_SCHEDULES_KEY, JSON.stringify(map));
+    } catch {
+      // ignore
+    }
+
+    const currentStatus = scheduleSnapshot?.status;
+    const nextStatus: ScheduleStatus =
+      currentStatus === 'IN_PROGRESS' || currentStatus === 'COMPLETED' ? currentStatus : 'CONFIRMED';
+
+    saveExecutionOverlay(id, {
+      accepted: true,
+      acceptedAt: nowIso,
+      status: nextStatus,
+    });
+
+    // Atualiza também o cache rápido imediatamente
+    try {
+      const cached = this.getCachedMySchedules();
+      if (cached.length > 0) {
+        const updatedCache = cached.map((item) =>
+          item.id === id ? applyOverlayToSchedule({ ...item, accepted: true, acceptedAt: nowIso, status: nextStatus }) : item
+        );
+        localStorage.setItem(FAST_MY_SCHEDULES_CACHE_KEY, JSON.stringify(updatedCache));
+      }
+    } catch {
+      // ignore
+    }
+
+    if (!id.startsWith('ponto-local-') && !id.startsWith('escala-local-')) {
+      api
+        .patch(`/api/schedules/${id}/status`, { status: nextStatus }, { silentErrorLog: true } as any)
+        .catch(() => {
+          api.put(`/api/schedules/${id}`, { status: nextStatus }, { silentErrorLog: true } as any).catch(() => {});
+        });
+    }
+
+    emitDriverRecordsUpdated({ force: true });
+    return applyOverlayToSchedule({
+      ...(scheduleSnapshot as Schedule),
+      id,
+      accepted: true,
+      acceptedAt: nowIso,
+      status: nextStatus,
+    });
+  },
+
+  /**
+   * Escalas do usuário autenticado (portal do motorista), com carregamento paralelo de alta performance
+   * e fallback inteligente por nome/ID para garantir que o motorista sempre veja suas escalas sem lentidão.
    */
   async findMySchedules(filters?: {
     startDate?: string;
@@ -2530,84 +2677,80 @@ export const scheduleService = {
 
     const mergedMap = new Map<string, Schedule>();
 
-    // 1. Consulta direta /api/schedules/me
-    try {
-      const response = await api.get('/api/schedules/me', {
+    // Dispara as 3 fontes em paralelo (alta performance, sem bloqueio sequencial)
+    const [meResult, allResult, escalasResult] = await Promise.allSettled([
+      api.get('/api/schedules/me', {
         params: {
           startDate: filters?.startDate,
           endDate: filters?.endDate,
         },
         silentErrorLog: true,
-      } as any);
-      if (Array.isArray(response.data)) {
-        for (const item of response.data) {
-          if (item && item.id) {
-            mergedMap.set(item.id, applyOverlayToSchedule(item));
-          }
+      } as any),
+      this.findAll(),
+      escalaService.list(),
+    ]);
+
+    // 1. Resultado de /api/schedules/me
+    if (meResult.status === 'fulfilled' && Array.isArray(meResult.value?.data)) {
+      for (const item of meResult.value.data) {
+        if (item && item.id) {
+          mergedMap.set(item.id, applyOverlayToSchedule(item));
         }
       }
-    } catch {
-      // Continua para os fallbacks inteligentes
     }
 
-    // 2. Consulta geral em /api/schedules com correspondência resiliente de motorista
-    try {
-      const allSchedules = await this.findAll().catch(() => []);
+    // 2. Resultado de /api/schedules (geral com correspondência resiliente de motorista)
+    if (allResult.status === 'fulfilled' && Array.isArray(allResult.value)) {
+      const allSchedules = allResult.value;
+      for (const s of allSchedules) {
+        if (!s || !s.id) continue;
 
-      if (Array.isArray(allSchedules)) {
-        for (const s of allSchedules) {
-          if (!s || !s.id) continue;
+        const empId = s.employee?.id ? String(s.employee.id) : (s.employeeId ? String(s.employeeId) : '');
+        const empName = s.employee?.name || (s as any).employeeName || (s as any).driverName;
+        const obs = s.observations || '';
+        const client = s.clientName || '';
 
-          const empId = s.employee?.id ? String(s.employee.id) : (s.employeeId ? String(s.employeeId) : '');
-          const empName = s.employee?.name || s.employeeName || (s as any).driverName;
-          const obs = s.observations || '';
-          const client = s.clientName || '';
+        const matchesById =
+          (targetEmpId && empId === targetEmpId) ||
+          (targetUserId && empId === targetUserId);
 
-          const matchesById =
-            (targetEmpId && empId === targetEmpId) ||
-            (targetUserId && empId === targetUserId);
+        const matchesByName =
+          isDriverNameMatch(targetName, empName) ||
+          isDriverNameMatch(targetName, obs) ||
+          isDriverNameMatch(targetName, client);
 
-          const matchesByName =
-            isDriverNameMatch(targetName, empName) ||
-            isDriverNameMatch(targetName, obs) ||
-            isDriverNameMatch(targetName, client);
+        if (!matchesById && !matchesByName) continue;
 
-          if (!matchesById && !matchesByName) continue;
+        const isDateRangeQuery = !!(filters?.startDate && filters?.endDate && filters.startDate !== filters.endDate);
+        const sDateStr = s.scheduleDate ? s.scheduleDate.substring(0, 10) : '';
 
-          const isDateRangeQuery = !!(filters?.startDate && filters?.endDate && filters.startDate !== filters.endDate);
-          const sDateStr = s.scheduleDate ? s.scheduleDate.substring(0, 10) : '';
-
-          if (isDateRangeQuery) {
-            // Se for consulta de período (ex: mês do motorista), inclui todas as escalas no intervalo ou com recorrência ativa
-            if (sDateStr && (sDateStr < filters!.startDate! || sDateStr > filters!.endDate!)) {
-              const rec = resolveScheduleRecurrence(s);
-              if (rec === 'SINGLE_DAY') continue;
-            }
-          } else if (targetDateStr && !isScheduleActiveForDate(s, targetDateStr)) {
-            // Se não bate a data de hoje, mas é do mesmo motorista e foi criada nos últimos 20 dias, mantém como disponível
-            if (sDateStr && filters?.startDate && sDateStr < filters.startDate) {
-              const diffDays = Math.abs(
-                (new Date(targetDateStr).getTime() - new Date(sDateStr).getTime()) / (1000 * 60 * 60 * 24)
-              );
-              if (diffDays > 20) continue;
-            }
+        if (isDateRangeQuery) {
+          if (sDateStr && (sDateStr < filters!.startDate! || sDateStr > filters!.endDate!)) {
+            const rec = resolveScheduleRecurrence(s);
+            if (rec === 'SINGLE_DAY') continue;
           }
-
-          if (!mergedMap.has(s.id)) {
-            mergedMap.set(s.id, applyOverlayToSchedule(s));
+        } else if (targetDateStr && !isScheduleActiveForDate(s, targetDateStr)) {
+          if (sDateStr && filters?.startDate && sDateStr < filters.startDate) {
+            const diffDays = Math.abs(
+              (new Date(targetDateStr).getTime() - new Date(sDateStr).getTime()) / (1000 * 60 * 60 * 24)
+            );
+            if (diffDays > 20) continue;
           }
         }
+
+        if (!mergedMap.has(s.id)) {
+          mergedMap.set(s.id, applyOverlayToSchedule(s));
+        }
       }
-    } catch {
-      // continua
     }
 
-    // 3. Consulta escalas de Fretamento (/api/escalas)
+    // 3. Resultado de /api/escalas (Fretamento)
     try {
       const isDateRange = !!(filters?.startDate && filters?.endDate && filters.startDate !== filters.endDate);
-      let escalasList = await escalaService.list();
+      let escalasList =
+        escalasResult.status === 'fulfilled' && Array.isArray(escalasResult.value) ? escalasResult.value : [];
       if (!Array.isArray(escalasList) || escalasList.length === 0) {
-        escalasList = await escalaService.list(isDateRange ? undefined : targetDateStr);
+        escalasList = await escalaService.list(isDateRange ? undefined : targetDateStr).catch(() => []);
       }
 
       if (Array.isArray(escalasList)) {
@@ -2703,12 +2846,22 @@ export const scheduleService = {
       // ignora
     }
 
-    // 6. Ordenar por horário de início
-    return Array.from(mergedMap.values()).sort((a, b) => {
+    // 6. Ordenar por horário de início e salvar cache de alta performance
+    const finalSchedules = Array.from(mergedMap.values()).sort((a, b) => {
       const timeA = resolveScheduleStartTime(a);
       const timeB = resolveScheduleStartTime(b);
       return timeA.localeCompare(timeB);
     });
+
+    if (finalSchedules.length > 0) {
+      try {
+        localStorage.setItem(FAST_MY_SCHEDULES_CACHE_KEY, JSON.stringify(finalSchedules.slice(0, 80)));
+      } catch {
+        // ignore
+      }
+    }
+
+    return finalSchedules;
   },
 
   /**

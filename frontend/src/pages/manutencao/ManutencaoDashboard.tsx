@@ -20,9 +20,10 @@ import {
     MoreHorizontal,
     Eye,
     Gauge,
-    DollarSign
+    DollarSign,
+    FileCheck
 } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -65,6 +66,7 @@ const ManutencaoDashboard: React.FC = () => {
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
     const [searchParams, setSearchParams] = useSearchParams();
+    const navigate = useNavigate();
     const tabParam = searchParams.get('tab');
     const [view, setView] = useState<'os' | 'tco' | 'despesas'>(
         tabParam === 'despesas' ? 'despesas' : tabParam === 'tco' ? 'tco' : 'os'
@@ -180,6 +182,15 @@ const ManutencaoDashboard: React.FC = () => {
                     Painel TCO (Substituição)
                 </Button>
                 <Button
+                    variant="outline"
+                    onClick={() => navigate('/manutencao/laudos')}
+                    size="sm"
+                    className="h-9 border-blue-500/40 text-blue-300 hover:bg-blue-500/10"
+                >
+                    <FileCheck className="h-4 w-4 mr-2 text-blue-400" />
+                    Laudos de Inspeção
+                </Button>
+                <Button
                     variant={view === 'despesas' ? 'default' : 'outline'}
                     onClick={() => {
                         setView('despesas');
@@ -258,6 +269,14 @@ const ManutencaoDashboard: React.FC = () => {
                         >
                             <RefreshCw size={18} className={`mr-2 ${recordsLoading ? 'animate-spin' : ''}`} />
                             Atualizar
+                        </Button>
+                        <Button
+                            variant="outline"
+                            onClick={() => navigate('/manutencao/laudos')}
+                            className="flex-1 md:flex-none border-blue-500/60 text-blue-400 hover:bg-blue-950/40 font-semibold"
+                        >
+                            <FileCheck size={18} className="mr-2 text-blue-400" />
+                            Laudos de Inspeção
                         </Button>
                         <Button
                             onClick={() => { setSelectedOrder(undefined); setIsFormModalOpen(true); }}

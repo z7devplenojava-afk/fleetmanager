@@ -43,21 +43,43 @@ import api from '@/lib/axios';
 import { employeeService } from '@/services/employeeService';
 import { isDriverUser } from '@/utils/roleRouting';
 import { UniversalQrScannerModal } from '@/components/common/UniversalQrScannerModal';
-import { DriverPontoOperacionalSection } from '@/components/driver/DriverPontoOperacionalSection';
 import { scheduleService, emitDriverRecordsUpdated } from '@/services/scheduleService';
 import { VincularFuncionarioModal } from '@/components/ponto/VincularFuncionarioModal';
 
 const PontoEletronico: React.FC = () => {
   const { toast } = useToast();
   const { user, refreshUser } = useAuth();
-  const [resolvedEmployeeId, setResolvedEmployeeId] = useState<string | null>(user?.employeeId || null);
+  const [resolvedEmployeeId, setResolvedEmployeeId] = useState<string | null>(() => {
+    if (user?.employeeId) return user.employeeId;
+    try {
+      const cached = localStorage.getItem('fluxbus:today-time-records');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed?.employeeId) return parsed.employeeId;
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  });
   const activeEmployeeId = user?.employeeId || resolvedEmployeeId;
   const attemptedResolutionRef = useRef<string | null>(null);
   const [showVincularModal, setShowVincularModal] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [registrosHoje, setRegistrosHoje] = useState<TimeRecord[]>([]);
+  const [registrosHoje, setRegistrosHoje] = useState<TimeRecord[]>(() => {
+    try {
+      const cached = localStorage.getItem('fluxbus:today-time-records');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed?.records)) return parsed.records;
+      }
+    } catch {
+      // ignore
+    }
+    return [];
+  });
   const [loading, setLoading] = useState(false);
-  const [loadingRecords, setLoadingRecords] = useState(true);
+  const [loadingRecords, setLoadingRecords] = useState(false);
   const [proximoRegistro, setProximoRegistro] = useState<'ENTRADA' | 'SAIDA_ALMOCO' | 'RETORNO_ALMOCO' | 'SAIDA'>('ENTRADA');
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [qrCodeData, setQrCodeData] = useState<string>('');
@@ -294,7 +316,9 @@ const PontoEletronico: React.FC = () => {
     if (!targetId) return;
     
     try {
-      setLoadingRecords(true);
+      if (registrosHoje.length === 0) {
+        setLoadingRecords(true);
+      }
       const response = await timeRecordService.getTodayRecords(targetId);
       const records = Array.isArray(response)
         ? response
@@ -318,7 +342,6 @@ const PontoEletronico: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Erro ao carregar registros:', error);
-      setRegistrosHoje([]);
     } finally {
       setLoadingRecords(false);
     }
@@ -1014,21 +1037,25 @@ const PontoEletronico: React.FC = () => {
         color: 'bg-rose-600 hover:bg-rose-500 shadow-rose-950/40 text-white'
       },
       SAIDA_ALMOCO: {
-        label: 'Saída para Almoço',
+        label: 'Saída para Almoço (Início Intervalo)',
         icon: Coffee,
         color: 'bg-amber-600 hover:bg-amber-500 shadow-amber-950/40 text-white'
       },
       RETORNO_ALMOCO: {
-        label: 'Retorno do Almoço',
+        label: 'Retorno do Almoço (Fim Intervalo)',
         icon: Coffee,
         color: 'bg-blue-600 hover:bg-blue-500 shadow-blue-950/40 text-white'
       }
     };
 
     const { label, icon: Icon, color } = config[proximoRegistro];
+    const hasEntrada = registrosHoje.some(r => r.recordType === 'ENTRADA');
+    const hasSaidaAlmoco = registrosHoje.some(r => r.recordType === 'SAIDA_ALMOCO');
+    const hasRetornoAlmoco = registrosHoje.some(r => r.recordType === 'RETORNO_ALMOCO');
+    const hasSaida = registrosHoje.some(r => r.recordType === 'SAIDA');
 
     return (
-      <div className="space-y-3 w-full">
+      <div className="space-y-4 w-full">
         {qrCodeData && (
           <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center justify-center gap-2">
             <CheckCircle className="h-4 w-4 text-emerald-400" />
@@ -1038,7 +1065,7 @@ const PontoEletronico: React.FC = () => {
           </div>
         )}
         
-        {/* Layout Mobile First: Em celular empilha sem espremer; em desktop fica lado a lado */}
+        {/* Layout Mobile First: Botão Principal de Próximo Ponto + Leitor QR */}
         <div className="flex flex-col sm:flex-row items-stretch gap-3 w-full">
           <Button
             onClick={openQRScanner}
@@ -1068,6 +1095,94 @@ const PontoEletronico: React.FC = () => {
             )}
           </Button>
         </div>
+
+        {/* Botões diretos para Entrada, Intervalo de Almoço (Saída/Retorno) e Saída */}
+        <div className="pt-2 border-t border-white/10">
+          <p className="text-[11px] uppercase tracking-wider text-seguranca-gray font-bold mb-2.5">
+            Marcações de Ponto Eletrônico (Entrada • Intervalo de Almoço • Saída)
+          </p>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={loading}
+              onClick={() => registrarPonto('ENTRADA')}
+              className={`h-12 justify-start px-3 rounded-xl border transition-all ${
+                hasEntrada
+                  ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                  : 'bg-zinc-900/70 border-emerald-500/30 hover:bg-emerald-500/15 text-emerald-400'
+              }`}
+            >
+              <LogIn className="h-4 w-4 mr-2 shrink-0" />
+              <div className="text-left min-w-0">
+                <div className="text-xs font-bold truncate">1. Entrada</div>
+                <div className="text-[10px] opacity-75 truncate">
+                  {hasEntrada ? 'Registrado ✓' : 'Início de Jornada'}
+                </div>
+              </div>
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              disabled={loading}
+              onClick={() => registrarPonto('SAIDA_ALMOCO')}
+              className={`h-12 justify-start px-3 rounded-xl border transition-all ${
+                hasSaidaAlmoco
+                  ? 'bg-amber-500/15 border-amber-500/40 text-amber-300'
+                  : 'bg-zinc-900/70 border-amber-500/30 hover:bg-amber-500/15 text-amber-400'
+              }`}
+            >
+              <Coffee className="h-4 w-4 mr-2 shrink-0" />
+              <div className="text-left min-w-0">
+                <div className="text-xs font-bold truncate">2. Início Almoço</div>
+                <div className="text-[10px] opacity-75 truncate">
+                  {hasSaidaAlmoco ? 'Registrado ✓' : 'Intervalo Almoço'}
+                </div>
+              </div>
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              disabled={loading}
+              onClick={() => registrarPonto('RETORNO_ALMOCO')}
+              className={`h-12 justify-start px-3 rounded-xl border transition-all ${
+                hasRetornoAlmoco
+                  ? 'bg-blue-500/15 border-blue-500/40 text-blue-300'
+                  : 'bg-zinc-900/70 border-blue-500/30 hover:bg-blue-500/15 text-blue-400'
+              }`}
+            >
+              <Coffee className="h-4 w-4 mr-2 shrink-0" />
+              <div className="text-left min-w-0">
+                <div className="text-xs font-bold truncate">3. Fim Almoço</div>
+                <div className="text-[10px] opacity-75 truncate">
+                  {hasRetornoAlmoco ? 'Registrado ✓' : 'Retorno Intervalo'}
+                </div>
+              </div>
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              disabled={loading}
+              onClick={() => registrarPonto('SAIDA')}
+              className={`h-12 justify-start px-3 rounded-xl border transition-all ${
+                hasSaida
+                  ? 'bg-rose-500/15 border-rose-500/40 text-rose-300'
+                  : 'bg-zinc-900/70 border-rose-500/30 hover:bg-rose-500/15 text-rose-400'
+              }`}
+            >
+              <LogOut className="h-4 w-4 mr-2 shrink-0" />
+              <div className="text-left min-w-0">
+                <div className="text-xs font-bold truncate">4. Saída</div>
+                <div className="text-[10px] opacity-75 truncate">
+                  {hasSaida ? 'Registrado ✓' : 'Encerrar Jornada'}
+                </div>
+              </div>
+            </Button>
+          </div>
+        </div>
       </div>
     );
   };
@@ -1089,11 +1204,9 @@ const PontoEletronico: React.FC = () => {
               )}
             </div>
             <p className="text-xs sm:text-sm text-seguranca-gray mt-0.5">
-              {isMotorista 
-                ? 'Registre sua jornada da viagem e consulte sua folha de ponto oficial'
-                : isRHOrAdmin
-                ? 'Gestão, visualização e conferência de registros de ponto'
-                : 'Registre suas marcações de ponto diárias e consulte seu espelho de ponto'}
+              {isRHOrAdmin
+                ? 'Gestão, visualização e conferência de registros de ponto eletrônico'
+                : 'Registre exclusivamente sua Entrada, Intervalo de Almoço e Saída diária'}
             </p>
           </div>
 
@@ -1125,23 +1238,12 @@ const PontoEletronico: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Card Principal de Bater Ponto (Exibido apenas quando NÃO for motorista; para motorista o botão oficial é o botão verde do Ponto Operacional abaixo) */}
-        {!isPortalMotorista && (
-          <Card className="bg-gradient-to-b from-seguranca-darkgray/90 to-seguranca-black/80 border-seguranca-yellow/25 shadow-xl">
-            <CardContent className="p-3.5 sm:p-6">
-              {getProximoRegistroButton()}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Exclusivo Portal do Motorista: Registro de Ponto da Viagem (Horário Inicial/Final, Cliente, Percurso, KM Inicial/Final, Passageiros, Fotos no Celular e Botão Checklist/Pneus) */}
-        {isPortalMotorista && (
-          <DriverPontoOperacionalSection
-            employeeId={activeEmployeeId || user?.id}
-            employeeName={user?.name || 'Motorista'}
-            onTriggerOfficialPoint={handleTriggerOfficialPoint}
-          />
-        )}
+        {/* Card Principal de Bater Ponto Eletrônico (Entrada, Intervalo de Almoço e Saída) */}
+        <Card className="bg-gradient-to-b from-seguranca-darkgray/90 to-seguranca-black/80 border-seguranca-yellow/25 shadow-xl">
+          <CardContent className="p-3.5 sm:p-6">
+            {getProximoRegistroButton()}
+          </CardContent>
+        </Card>
 
         {/* Histórico de Registros do Dia (Com permissões de Edição para RH/DPE e Solicitação de Ajuste para Motorista) */}
         <Card className="bg-seguranca-darkgray/50 border-seguranca-gray/20 shadow-md">

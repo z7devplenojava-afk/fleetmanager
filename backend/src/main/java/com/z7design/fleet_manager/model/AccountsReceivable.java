@@ -101,7 +101,7 @@ public class AccountsReceivable implements TenantAware {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "payment_method", nullable = false)
-    private PaymentMethod paymentMethod = PaymentMethod.BANK_SLIP;
+    private PaymentMethod paymentMethod = PaymentMethod.BOLETO;
 
     @Column(name = "overdue_days")
     private Integer overdueDays = 0;

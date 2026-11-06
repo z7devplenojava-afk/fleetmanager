@@ -124,6 +124,7 @@ const GestaoLimpezaVeiculos = lazy(() => import('@/pages/manutencao/GestaoLimpez
 const Garagens = lazy(() => import('@/pages/Garagens'));
 const Lavajato = lazy(() => import('@/pages/manutencao/Lavajato'));
 const GestaoCertificacoesCFME = lazy(() => import('@/pages/manutencao/GestaoCertificacoesCFME'));
+const GestaoLaudosInspecao = lazy(() => import('@/pages/manutencao/GestaoLaudosInspecao'));
 const TransportOperationalDashboardPage = lazy(() => import('@/pages/fretamento/TransportOperationalDashboardPage'));
 const TrafficManagementDashboard = lazy(() => import('@/pages/fretamento/TrafficManagementDashboard'));
 const RoutesAndPoints = lazy(() => import('@/pages/fretamento/RoutesAndPoints'));
@@ -1015,6 +1016,14 @@ function App() {
                           </Suspense>
                         </ProtectedRoute>
                       } />
+                      <Route path="/manutencao/laudos" element={
+                        <ProtectedRoute requiredPermissions={['EQUIPMENTS_READ']}>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <GestaoLaudosInspecao />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/manutencao/laudos-inspecao" element={<Navigate to="/manutencao/laudos" replace />} />
                       <Route path="/gestao-trafego/painel-operacional" element={
                         <ProtectedRoute>
                           <Suspense fallback={<LoadingSpinner />}>
@@ -1736,7 +1745,7 @@ function App() {
                         </ProtectedRoute>
                       } />
                       <Route path="/meus-holerites" element={
-                        <ProtectedRoute requiredPermissions={['PAYSLIPS_READ']}>
+                        <ProtectedRoute>
                           <Suspense fallback={<LoadingSpinner />}>
                             <MeusHolerites />
                           </Suspense>

@@ -734,8 +734,8 @@ public class AccountsReceivableService {
                         if (val.compareTo(BigDecimal.ZERO) <= 0 && mb.getItems() != null) {
                             val = mb.getItems().stream()
                                     .map(item -> {
-                                        if (item.getTotalPrice() != null && item.getTotalPrice().compareTo(BigDecimal.ZERO) > 0) {
-                                            return item.getTotalPrice();
+                                        if (item.getTotalValue() != null && item.getTotalValue().compareTo(BigDecimal.ZERO) > 0) {
+                                            return item.getTotalValue();
                                         }
                                         BigDecimal qty = item.getQuantity() != null ? item.getQuantity() : BigDecimal.ONE;
                                         BigDecimal unit = item.getUnitPrice() != null ? item.getUnitPrice() : BigDecimal.ZERO;
@@ -766,7 +766,7 @@ public class AccountsReceivableService {
                         ar.setNetAmount(val);
                         ar.setCategory(com.z7design.fleet_manager.model.enums.ReceivableCategory.MEASUREMENT);
                         if (ar.getPaymentMethod() == null) {
-                            ar.setPaymentMethod(com.z7design.fleet_manager.model.enums.PaymentMethod.BANK_SLIP);
+                            ar.setPaymentMethod(com.z7design.fleet_manager.model.enums.PaymentMethod.BOLETO);
                         }
                         if (ar.getStatus() == null) {
                             ar.setStatus(ReceivableStatus.PENDING);
@@ -801,7 +801,7 @@ public class AccountsReceivableService {
                             ar.setGrossAmount(charter.getValue());
                             ar.setNetAmount(charter.getValue());
                             ar.setCategory(com.z7design.fleet_manager.model.enums.ReceivableCategory.CHARTER_TOURISM);
-                            ar.setPaymentMethod(com.z7design.fleet_manager.model.enums.PaymentMethod.BANK_SLIP);
+                            ar.setPaymentMethod(com.z7design.fleet_manager.model.enums.PaymentMethod.BOLETO);
                             ar.setStatus(ReceivableStatus.PENDING);
                             ar.setIssueDate(charter.getStartDate() != null ? charter.getStartDate() : LocalDate.now());
                             ar.setDueDate(charter.getEndDate() != null ? charter.getEndDate() : LocalDate.now().plusDays(30));

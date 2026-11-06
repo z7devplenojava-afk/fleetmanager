@@ -51,11 +51,20 @@ public class VehicleInspection implements TenantAware {
     @Column(name = "current_mileage")
     private Integer currentMileage;
 
+    @Column(name = "horimeter_hours")
+    private String horimeterHours;
+
+    @Column(name = "execution_team")
+    private String executionTeam;
+
     @Column(name = "requester_name")
     private String requesterName;
 
     @Column(name = "driver_name")
     private String driverName;
+
+    @Column(name = "problem_description", columnDefinition = "TEXT")
+    private String problemDescription;
 
     @Column(name = "anomalies_problem", columnDefinition = "TEXT")
     private String anomaliesProblem;
@@ -68,6 +77,9 @@ public class VehicleInspection implements TenantAware {
 
     @Column(name = "parts_used", columnDefinition = "TEXT")
     private String partsUsed;
+
+    @Column(name = "parts_replaced", columnDefinition = "TEXT")
+    private String partsReplaced;
 
     @Column(name = "technical_parameters", columnDefinition = "TEXT")
     private String technicalParameters;
@@ -95,6 +107,12 @@ public class VehicleInspection implements TenantAware {
 
     @Column(name = "definitive_release_condition", columnDefinition = "TEXT")
     private String definitiveReleaseCondition;
+
+    @Column(name = "manager_name")
+    private String managerName;
+
+    @Column(name = "engineer_name")
+    private String engineerName;
 
     @Column(name = "inspector_name")
     private String inspectorName;
