@@ -1,3 +1,5 @@
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import {
   ClientContractMock,
@@ -6,6 +8,7 @@ import {
   ContractDeductionItem,
 } from '../data/measurementContractMockData';
 import { ParteDiaria } from '../types/measurement';
+import { resolveCompanyLogoUrl } from '../utils/logoUtils';
 
 export interface GenerateMeasurementPdfOptions {
   client: ClientContractMock;
@@ -22,6 +25,7 @@ export interface GenerateMeasurementPdfOptions {
   };
   invoiceOverride?: {
     nfNumber?: string;
+    series?: string;
     nfIssueDate?: string;
     nfDueDate?: string;
     retentionISS?: number;
@@ -37,13 +41,18 @@ export interface GenerateMeasurementPdfOptions {
     providerCnpj?: string;
     bankDetails?: string;
   };
+  companyName?: string;
+  companyCnpj?: string;
+  companyLogoUrl?: string | null;
   statusLabel?: string;
   elaboratedBy?: string;
   validatedBy?: string;
 }
 
-const formatCurrency = (val: number): string =>
-  val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const formatCurrency = (val?: number | null): string => {
+  const num = Number(val ?? 0);
+  return `R$ ${num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
 
 const formatDateBR = (dateStr?: string): string => {
   if (!dateStr) return '-';
@@ -53,18 +62,142 @@ const formatDateBR = (dateStr?: string): string => {
   return dateStr;
 };
 
+/**
+ * Gera um selo institucional em alta resolução (PNG Base64) caso a empresa
+ * não possua imagem externa cadastrada ou o carregamento falhe por CORS.
+ */
+function generateInstitutionalLogoBadgeBase64(companyName: string): string {
+  const canvas = document.createElement('canvas');
+  canvas.width = 160;
+  canvas.height = 160;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return '';
+
+  // Fundo arredondado estilo brasão corporativo (vermelho institucional + borda dourada)
+  const r = 32;
+  ctx.beginPath();
+  ctx.moveTo(r, 6);
+  ctx.lineTo(154 - r, 6);
+  ctx.quadraticCurveTo(154, 6, 154, 6 + r);
+  ctx.lineTo(154, 154 - r);
+  ctx.quadraticCurveTo(154, 154, 154 - r, 154);
+  ctx.lineTo(6 + r, 154);
+  ctx.quadraticCurveTo(6, 154, 6, 154 - r);
+  ctx.lineTo(6, 6 + r);
+  ctx.quadraticCurveTo(6, 6, 6 + r, 6);
+  ctx.closePath();
+
+  const grad = ctx.createLinearGradient(0, 0, 160, 160);
+  grad.addColorStop(0, '#dc2626');
+  grad.addColorStop(1, '#991b1b');
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  ctx.lineWidth = 6;
+  ctx.strokeStyle = '#eab308';
+  ctx.stroke();
+
+  // Iniciais da empresa (ex: "VIA" para Viação São Silvestre)
+  const clean = (companyName || 'VIAÇÃO SÃO SILVESTRE').trim().toUpperCase();
+  const initials = clean.startsWith('VIA')
+    ? 'VIA'
+    : clean
+        .split(/\s+/)
+        .filter((w) => w.length > 2)
+        .slice(0, 3)
+        .map((w) => w[0])
+        .join('') || 'VSS';
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 52px Arial, Helvetica, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(initials, 80, 74);
+
+  // Subtítulo institucional no selo
+  ctx.fillStyle = '#fef08a';
+  ctx.font = 'bold 16px Arial, Helvetica, sans-serif';
+  ctx.fillText(' SÃO SILVESTRE ', 80, 118);
+
+  return canvas.toDataURL('image/png');
+}
+
+/**
+ * Carrega a logo da empresa logada (ou URL informada) em Base64 PNG para o jsPDF.
+ */
+async function loadCompanyLogoBase64(
+  explicitLogoUrl?: string | null,
+  companyName = 'VIAÇÃO SÃO SILVESTRE LTDA'
+): Promise<string> {
+  let candidateUrl = explicitLogoUrl || null;
+
+  if (!candidateUrl) {
+    try {
+      const rawEmpresa = localStorage.getItem('empresa') || localStorage.getItem('company');
+      if (rawEmpresa) {
+        const parsed = JSON.parse(rawEmpresa);
+        candidateUrl = parsed?.logoUrl || parsed?.logo || parsed?.logo_url || null;
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  const resolvedUrl = resolveCompanyLogoUrl(candidateUrl);
+
+  if (resolvedUrl) {
+    try {
+      const dataUrl = await new Promise<string | null>((resolve) => {
+        const img = new Image();
+        img.crossOrigin = 'Anonymous';
+        const timer = window.setTimeout(() => resolve(null), 2500);
+        img.onload = () => {
+          window.clearTimeout(timer);
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth || 160;
+            canvas.height = img.naturalHeight || 160;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+              resolve(null);
+              return;
+            }
+            ctx.drawImage(img, 0, 0);
+            resolve(canvas.toDataURL('image/png'));
+          } catch {
+            resolve(null);
+          }
+        };
+        img.onerror = () => {
+          window.clearTimeout(timer);
+          resolve(null);
+        };
+        img.src = resolvedUrl;
+      });
+
+      if (dataUrl) return dataUrl;
+    } catch {
+      // fallback to badge
+    }
+  }
+
+  return generateInstitutionalLogoBadgeBase64(companyName);
+}
+
 export class ContractMeasurementPdfService {
   /**
-   * Gera e abre a janela de impressão/PDF formatada da Medição Completa por Contrato de Cliente
-   * Contém: Cabeçalho, Resumo Financeiro, Veículos Locados, Partes Diárias Lançadas,
-   * Viagens Extras, KM Excedente, Débitos/Descontos e Dados da NFS-e.
+   * Gera e faz o download do PDF oficial da Medição Financeira:
+   * - Página 1: Folha Oficial de Medição Mensal (layout executivo fiel aprovado pelo usuário + Logo da Empresa no cabeçalho)
+   * - Página 2+: Detalhamento Analítico Completo dos Lançamentos que geraram a Medição
+   *   (Veículos Alocados, Partes Diárias Lançadas e Turnos, Viagens Extras, Apuração de KM Excedente,
+   *    Deduções/Descontos e Demonstrativo de Faturamento / NFS-e / Contas a Receber).
    */
-  static generateMeasurementPDF(options: GenerateMeasurementPdfOptions): void {
+  static async generateMeasurementPDF(options: GenerateMeasurementPdfOptions): Promise<void> {
     const {
       client,
-      extraTrips,
-      excessKmItems,
-      deductions,
+      extraTrips = [],
+      excessKmItems = [],
+      deductions = [],
       partesDiarias = [],
       totals,
       invoiceOverride,
@@ -72,524 +205,919 @@ export class ContractMeasurementPdfService {
       elaboratedBy = 'Setor de Medições / Operacional',
       validatedBy = 'Diretoria / Faturamento',
     } = options;
+
     const inv = { ...client.invoice, ...invoiceOverride };
 
-    const printWindow = window.open('', '_blank', 'width=1180,height=860');
-    if (!printWindow) {
-      alert('Permita pop-ups no navegador para visualizar e salvar o PDF da medição.');
-      return;
+    // Dados da empresa emitente/locadora
+    let savedCompanyName = options.companyName || inv.providerCompany || 'VIAÇÃO SÃO SILVESTRE LTDA / FLUXBUS';
+    let savedCompanyCnpj = options.companyCnpj || inv.providerCnpj || '33.592.510/0001-54';
+    try {
+      const rawEmpresa = localStorage.getItem('empresa') || localStorage.getItem('company');
+      if (rawEmpresa) {
+        const parsed = JSON.parse(rawEmpresa);
+        if (parsed?.name && !options.companyName) {
+          savedCompanyName = `${parsed.name.toUpperCase()} / FLUXBUS`;
+        }
+        if (parsed?.cnpj && !options.companyCnpj) {
+          savedCompanyCnpj = parsed.cnpj;
+        }
+      }
+    } catch {
+      // ignore
     }
 
-    const leasedRows =
-      client.leasedVehicles.length > 0
-        ? client.leasedVehicles
-            .map(
-              (v, idx) => `
-          <tr>
-            <td class="center">${idx + 1}</td>
-            <td class="mono bold">${v.plate}</td>
-            <td>${v.description}</td>
-            <td>${v.route || '-'}</td>
-            <td class="center">${v.workingDays}d / ${v.stoppedDays || 0}d</td>
-            <td class="right mono">${formatCurrency(v.dailyRate || 0)}</td>
-            <td class="right mono bold">${formatCurrency(v.periodValue || 0)}</td>
-          </tr>
-        `
-            )
-            .join('')
-        : `<tr><td colspan="7" class="empty">Nenhum veículo fixo locado registrado neste período.</td></tr>`;
+    const logoBase64 = await loadCompanyLogoBase64(options.companyLogoUrl, savedCompanyName);
 
-    const partesDiariasRows =
-      partesDiarias.length > 0
-        ? partesDiarias
-            .map((pd, idx) => {
-              const tripsSummary =
-                pd.trips && pd.trips.length > 0
-                  ? pd.trips
-                      .map(
-                        (t) =>
-                          `${t.startTime || ''}-${t.endTime || ''}: ${t.itinerary || t.activityCode || ''}`
-                      )
-                      .join(' | ')
-                  : pd.notes || 'Operação contratual normal';
-              const statusMap: Record<string, string> = {
-                APPROVED: 'APROVADA',
-                PENDING: 'EM ANÁLISE',
-                REJECTED: 'GLOSADA',
-              };
-              return `
-          <tr>
-            <td class="center">${idx + 1}</td>
-            <td class="mono bold">#${pd.number}</td>
-            <td class="center mono">${formatDateBR(pd.date)}</td>
-            <td class="mono bold">${pd.vehiclePlate}${pd.vehicleModel ? ` (${pd.vehicleModel})` : ''}</td>
-            <td>${pd.driverName || '-'}</td>
-            <td class="center mono">${pd.startTime || '-'} às ${pd.endTime || '-'}</td>
-            <td class="right mono">${(pd.kmInitial || 0).toLocaleString('pt-BR')} → ${(pd.kmFinal || 0).toLocaleString('pt-BR')}</td>
-            <td class="right mono">${(pd.kmDriven || 0).toLocaleString('pt-BR')} km</td>
-            <td class="right mono bold">${(pd.kmConsidered ?? pd.kmDriven ?? 0).toLocaleString('pt-BR')} km</td>
-            <td>${tripsSummary}</td>
-            <td class="center bold">${statusMap[pd.status] || pd.status || 'APROVADA'}</td>
-          </tr>
-        `;
-            })
-            .join('')
-        : `<tr><td colspan="11" class="empty">Nenhuma parte diária vinculada ao período.</td></tr>`;
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+    });
 
-    const totalKmDrivenPartes = partesDiarias.reduce((acc, pd) => acc + (pd.kmDriven || 0), 0);
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 14;
+    const emissionTimestamp = `${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit',
+    })}`;
+
+    const drawHeaderOnCurrentPage = (subtitleText: string) => {
+      // Faixa superior azul-marinho escuro (slate-900)
+      doc.setFillColor(15, 23, 42);
+      doc.rect(0, 0, pageWidth, 28, 'F');
+
+      // Linha dourada/âmbar (yellow-500)
+      doc.setFillColor(234, 179, 8);
+      doc.rect(0, 28, pageWidth, 1.5, 'F');
+
+      // Logo da Empresa no canto superior esquerdo do cabeçalho
+      let textLeftX = margin;
+      if (logoBase64) {
+        try {
+          doc.setFillColor(255, 255, 255);
+          doc.roundedRect(margin, 4.2, 19.6, 19.6, 2.5, 2.5, 'F');
+          doc.addImage(logoBase64, 'PNG', margin + 0.6, 4.8, 18.4, 18.4);
+          textLeftX = margin + 23;
+        } catch {
+          textLeftX = margin;
+        }
+      }
+
+      // Nome da Empresa
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12.5);
+      doc.text(savedCompanyName.toUpperCase(), textLeftX, 11);
+
+      // CNPJ e Subtítulo
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.2);
+      doc.setTextColor(203, 213, 225);
+      doc.text(
+        `CNPJ: ${savedCompanyCnpj}  |  Gestão Integrada de Frotas & Fretamento Corporativo`,
+        textLeftX,
+        17.5
+      );
+      doc.text(subtitleText, textLeftX, 23.5);
+
+      // Número da Medição e Emissão à direita
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.setTextColor(253, 224, 71); // yellow-300
+      doc.text(`MEDIÇÃO Nº ${client.measurementNumber}`, pageWidth - margin, 13.5, {
+        align: 'right',
+      });
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(226, 232, 240);
+      doc.text(`Emissão: ${emissionTimestamp}`, pageWidth - margin, 21.5, { align: 'right' });
+    };
+
+    // =========================================================================
+    // PÁGINA 1: FOLHA OFICIAL DE MEDIÇÃO MENSAL (RESUMO EXECUTIVO & FATURAMENTO)
+    // =========================================================================
+    drawHeaderOnCurrentPage('FOLHA OFICIAL DE MEDIÇÃO MENSAL DE SERVIÇOS DE TRANSPORTE');
+
+    let currentY = 36;
+
+    // Quadro de Identificação do Contrato / Cliente
+    doc.setFillColor(248, 250, 252);
+    doc.setDrawColor(203, 213, 225);
+    doc.roundedRect(margin, currentY, pageWidth - margin * 2, 22, 2, 2, 'FD');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(15, 23, 42);
+    doc.text(`CLIENTE / CONTRATANTE: ${(client.clientName || '').toUpperCase()}`, margin + 4, currentY + 6);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(71, 85, 105);
+    doc.text(`CNPJ: ${client.cnpj || '-'}`, margin + 4, currentY + 12);
+    doc.text(`Contrato Nº: ${client.contractNumber || '-'}`, margin + 70, currentY + 12);
+    doc.text(
+      `Período de Apuração: ${formatDateBR(client.periodStart)} até ${formatDateBR(client.periodEnd)}`,
+      margin + 4,
+      currentY + 18
+    );
+    doc.text(`Vencimento Fatura: ${formatDateBR(inv.nfDueDate || client.dueDate)}`, margin + 115, currentY + 18);
+
+    currentY += 27;
+
+    // Totais Consolidados da Medição
+    const totalLeased = Number(totals?.leasedTotal ?? 0);
+    const totalExtras = Number(totals?.extraTripsTotal ?? 0);
+    const totalExcessKm = Number(totals?.excessKmTotal ?? 0);
+    const totalDeductions = Number(totals?.deductionsTotal ?? 0);
+    const totalLiquidoMedicao = Number(
+      totals?.grandTotal ?? totalLeased + totalExtras + totalExcessKm - totalDeductions
+    );
+
+    // Resumo dos Totais (Card em 5 colunas)
+    doc.setFillColor(241, 245, 249);
+    doc.setDrawColor(203, 213, 225);
+    doc.roundedRect(margin, currentY, pageWidth - margin * 2, 16, 1.5, 1.5, 'FD');
+
+    const colWidth = (pageWidth - margin * 2) / 5;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(100, 116, 139);
+
+    doc.text('1. Veículos Locados', margin + 3, currentY + 5);
+    doc.text('2. Viagens Extras', margin + colWidth + 3, currentY + 5);
+    doc.text('3. KM Excedente', margin + colWidth * 2 + 3, currentY + 5);
+    doc.text('4. Deduções / Débitos', margin + colWidth * 3 + 3, currentY + 5);
+    doc.text('TOTAL LÍQUIDO MEDIÇÃO', margin + colWidth * 4 + 3, currentY + 5);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(30, 41, 59);
+
+    doc.text(formatCurrency(totalLeased), margin + 3, currentY + 12);
+    doc.text(formatCurrency(totalExtras), margin + colWidth + 3, currentY + 12);
+    doc.text(formatCurrency(totalExcessKm), margin + colWidth * 2 + 3, currentY + 12);
+    doc.setTextColor(220, 38, 38);
+    doc.text(
+      totalDeductions > 0 ? `-${formatCurrency(totalDeductions)}` : 'R$ 0,00',
+      margin + colWidth * 3 + 3,
+      currentY + 12
+    );
+
+    doc.setTextColor(22, 101, 52);
+    doc.setFontSize(9);
+    doc.text(formatCurrency(totalLiquidoMedicao), margin + colWidth * 4 + 3, currentY + 12);
+
+    currentY += 21;
+
+    // Seção 1 da Capa: Veículos Locados sob Contrato Fixo
+    const leasedList = client.leasedVehicles || [];
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9.5);
+    doc.setTextColor(15, 23, 42);
+    doc.text(`1. VEÍCULOS LOCADOS SOB CONTRATO FIXO (${leasedList.length})`, margin, currentY);
+    currentY += 3;
+
+    if (leasedList.length === 0) {
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(8);
+      doc.setTextColor(148, 163, 184);
+      doc.text('Nenhum veículo alocado para este cliente no período da medição.', margin, currentY + 4);
+      currentY += 10;
+    } else {
+      const leasedRows = leasedList.map((item, idx) => [
+        String(idx + 1),
+        `${item.description}\nTrajeto: ${item.route || '-'}${item.observations ? ` (${item.observations})` : ''}`,
+        item.plate,
+        formatCurrency(item.monthlyRate || item.periodValue),
+        `${item.workingDays} dias`,
+        formatCurrency(item.dailyRate),
+        formatCurrency(item.periodValue),
+      ]);
+
+      autoTable(doc, {
+        startY: currentY,
+        margin: { top: 34, left: margin, right: margin },
+        head: [['Item', 'Descrição do Serviço / Trajeto', 'Placa', 'Valor Mensal', 'Dias', 'Valor Diário', 'Total Período']],
+        body: leasedRows,
+        theme: 'grid',
+        headStyles: {
+          fillColor: [30, 41, 59],
+          textColor: [255, 255, 255],
+          fontSize: 7.5,
+          fontStyle: 'bold',
+          halign: 'left',
+        },
+        bodyStyles: {
+          fontSize: 7,
+          textColor: [51, 65, 85],
+          valign: 'top',
+          cellPadding: 2,
+        },
+        columnStyles: {
+          0: { cellWidth: 10, halign: 'center' },
+          1: { cellWidth: 70 },
+          2: { cellWidth: 20, fontStyle: 'bold', textColor: [29, 78, 216] },
+          3: { cellWidth: 22, halign: 'right' },
+          4: { cellWidth: 15, halign: 'center' },
+          5: { cellWidth: 22, halign: 'right' },
+          6: { cellWidth: 23, halign: 'right', fontStyle: 'bold', textColor: [22, 101, 52] },
+        },
+      });
+
+      // @ts-ignore
+      currentY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : currentY + 25) + 7;
+    }
+
+    // Quadro de Faturamento e Dados da NFS-e na Página 1
+    if (currentY > pageHeight - 65) {
+      doc.addPage();
+      drawHeaderOnCurrentPage('FOLHA OFICIAL DE MEDIÇÃO MENSAL DE SERVIÇOS DE TRANSPORTE');
+      currentY = 36;
+    }
+
+    const pisVal = Number(
+      invoiceOverride?.retentionPIS ??
+        (totalLiquidoMedicao > 0 ? Number((totalLiquidoMedicao * 0.0065).toFixed(2)) : 0)
+    );
+    const cofinsVal = Number(
+      invoiceOverride?.retentionCOFINS ??
+        (totalLiquidoMedicao > 0 ? Number((totalLiquidoMedicao * 0.03).toFixed(2)) : 0)
+    );
+    const csllVal = Number(
+      invoiceOverride?.retentionCSLL ??
+        (totalLiquidoMedicao > 0 ? Number((totalLiquidoMedicao * 0.01).toFixed(2)) : 0)
+    );
+    const valorLiquidoNF =
+      Number(inv.netValue || 0) > 0
+        ? Number(inv.netValue)
+        : Math.max(0, totalLiquidoMedicao - (pisVal + cofinsVal + csllVal));
+
+    doc.setFillColor(248, 250, 252);
+    doc.setDrawColor(203, 213, 225);
+    doc.roundedRect(margin, currentY, pageWidth - margin * 2, 28, 2, 2, 'FD');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(15, 23, 42);
+    doc.text('FATURAMENTO DA MEDIÇÃO & NOTA FISCAL DE SERVIÇO (NFS-e)', margin + 4, currentY + 6);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(71, 85, 105);
+
+    doc.text(
+      `NFS-e Nº: ${inv.nfNumber || 'A Emitir'}  |  Série: ${invoiceOverride?.series || '1'}`,
+      margin + 4,
+      currentY + 12
+    );
+    doc.text(`Emissão NF: ${formatDateBR(inv.nfIssueDate || client.periodEnd)}`, margin + 65, currentY + 12);
+    doc.text(`Vencimento: ${formatDateBR(inv.nfDueDate || client.dueDate)}`, margin + 120, currentY + 12);
+
+    doc.text(
+      `Retenções: PIS (0.65%): ${formatCurrency(pisVal)}  |  COFINS (3.00%): ${formatCurrency(cofinsVal)}  |  CSLL (1.00%): ${formatCurrency(csllVal)}`,
+      margin + 4,
+      currentY + 18
+    );
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(22, 101, 52);
+    doc.text(`VALOR LÍQUIDO A RECEBER: ${formatCurrency(valorLiquidoNF)}`, margin + 4, currentY + 24);
+
+    currentY += 34;
+
+    // Assinaturas da Página 1
+    if (currentY > pageHeight - 35) {
+      doc.addPage();
+      drawHeaderOnCurrentPage('FOLHA OFICIAL DE MEDIÇÃO MENSAL DE SERVIÇOS DE TRANSPORTE');
+      currentY = 40;
+    }
+
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(7);
+    doc.setTextColor(100, 116, 139);
+    doc.text(
+      'Atestamos que os serviços de transporte fretado constantes nesta medição foram prestados a contento e estão em conformidade com o contrato.',
+      margin,
+      currentY
+    );
+    currentY += 12;
+
+    const signWidth = (pageWidth - margin * 2 - 20) / 2;
+
+    doc.setDrawColor(148, 163, 184);
+    doc.line(margin, currentY, margin + signWidth, currentY);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(30, 41, 59);
+    doc.text((client.clientName || '').toUpperCase(), margin, currentY + 4);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(100, 116, 139);
+    doc.text('Fiscal do Contrato / Aprovador', margin, currentY + 8);
+
+    doc.line(margin + signWidth + 20, currentY, pageWidth - margin, currentY);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(30, 41, 59);
+    doc.text(savedCompanyName.toUpperCase(), margin + signWidth + 20, currentY + 4);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(100, 116, 139);
+    doc.text('Gerência de Tráfego & Fretamento', margin + signWidth + 20, currentY + 8);
+
+    // =========================================================================
+    // PÁGINA 2+: ANEXO ANALÍTICO — DETALHAMENTO DOS LANÇAMENTOS QUE GERARAM A MEDIÇÃO
+    // =========================================================================
+    doc.addPage();
+    drawHeaderOnCurrentPage('DETALHAMENTO ANALÍTICO DOS LANÇAMENTOS QUE GERARAM A MEDIÇÃO');
+
+    let detailY = 35;
+
+    // Faixa de Contexto Analítico no topo da Página 2
+    doc.setFillColor(241, 245, 249);
+    doc.setDrawColor(203, 213, 225);
+    doc.roundedRect(margin, detailY, pageWidth - margin * 2, 14, 1.5, 1.5, 'FD');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(15, 23, 42);
+    doc.text(
+      `MEMÓRIA DE CÁLCULO E LANÇAMENTOS ANALÍTICOS — MEDIÇÃO Nº ${client.measurementNumber} (${statusLabel})`,
+      margin + 3,
+      detailY + 5.2
+    );
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.2);
+    doc.setTextColor(71, 85, 105);
+    doc.text(
+      `Cliente: ${client.clientName} (${client.cnpj})  |  Contrato: ${client.contractNumber}  |  Período: ${formatDateBR(client.periodStart)} a ${formatDateBR(client.periodEnd)}`,
+      margin + 3,
+      detailY + 10.8
+    );
+
+    detailY += 18;
+
+    const ensureDetailSpace = (neededMm: number) => {
+      if (detailY + neededMm > pageHeight - 16) {
+        doc.addPage();
+        drawHeaderOnCurrentPage('DETALHAMENTO ANALÍTICO DOS LANÇAMENTOS QUE GERARAM A MEDIÇÃO');
+        detailY = 36;
+      }
+    };
+
+    // -------------------------------------------------------------------------
+    // SEÇÃO ANALÍTICA 1: MEMÓRIA DE CÁLCULO DOS VEÍCULOS LOCADOS SOB CONTRATO FIXO
+    // -------------------------------------------------------------------------
+    ensureDetailSpace(28);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.8);
+    doc.setTextColor(15, 23, 42);
+    doc.text(
+      `1. DETALHAMENTO DOS VEÍCULOS LOCADOS SOB CONTRATO FIXO (${leasedList.length} VEÍCULO(S))`,
+      margin,
+      detailY
+    );
+    detailY += 2.5;
+
+    const detailedLeasedRows =
+      leasedList.length > 0
+        ? leasedList.map((v, idx) => [
+            String(idx + 1),
+            v.plate,
+            v.description || 'Locação de Veículo sob Contrato Fixo',
+            v.route || '-',
+            `${formatDateBR(client.periodStart)} a ${formatDateBR(client.periodEnd)}`,
+            `${v.workingDays}d / ${v.stoppedDays || 0}d`,
+            formatCurrency(v.monthlyRate || v.periodValue),
+            formatCurrency(v.dailyRate),
+            formatCurrency(v.periodValue),
+          ])
+        : [
+            [
+              '-',
+              '-',
+              'Nenhum veículo fixo alocado para este cliente neste período.',
+              '-',
+              `${formatDateBR(client.periodStart)} a ${formatDateBR(client.periodEnd)}`,
+              '0d',
+              'R$ 0,00',
+              'R$ 0,00',
+              'R$ 0,00',
+            ],
+          ];
+
+    autoTable(doc, {
+      startY: detailY,
+      margin: { top: 34, left: margin, right: margin },
+      head: [
+        [
+          '#',
+          'Placa',
+          'Descrição do Serviço / Modalidade',
+          'Itinerário / Unidade',
+          'Período',
+          'Trab./Par.',
+          'Valor Mensal',
+          'Diária',
+          'Total Apurado',
+        ],
+      ],
+      body: detailedLeasedRows,
+      foot: [
+        [
+          '',
+          'SUBTOTAL',
+          `${leasedList.length} veículo(s) alocado(s) no contrato`,
+          '',
+          '',
+          `${leasedList.reduce((acc, v) => acc + Number(v.workingDays || 0), 0)}d`,
+          '',
+          '',
+          formatCurrency(totalLeased),
+        ],
+      ],
+      theme: 'grid',
+      headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontSize: 6.8, fontStyle: 'bold' },
+      bodyStyles: { fontSize: 6.5, textColor: [51, 65, 85], cellPadding: 1.6, valign: 'top' },
+      footStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontSize: 7, fontStyle: 'bold' },
+      columnStyles: {
+        0: { cellWidth: 7, halign: 'center' },
+        1: { cellWidth: 18, fontStyle: 'bold', textColor: [29, 78, 216] },
+        2: { cellWidth: 46 },
+        3: { cellWidth: 34 },
+        4: { cellWidth: 22, halign: 'center' },
+        5: { cellWidth: 13, halign: 'center' },
+        6: { cellWidth: 19, halign: 'right' },
+        7: { cellWidth: 16, halign: 'right' },
+        8: { cellWidth: 19, halign: 'right', fontStyle: 'bold', textColor: [22, 101, 52] },
+      },
+    });
+
+    // @ts-ignore
+    detailY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : detailY + 18) + 6;
+
+    // -------------------------------------------------------------------------
+    // SEÇÃO ANALÍTICA 2: DETALHAMENTO DAS PARTES DIÁRIAS LANÇADAS NO PERÍODO
+    // -------------------------------------------------------------------------
+    ensureDetailSpace(30);
+    const totalKmDrivenPartes = partesDiarias.reduce((acc, pd) => acc + Number(pd.kmDriven || 0), 0);
     const totalKmConsideredPartes = partesDiarias.reduce(
-      (acc, pd) => acc + (pd.kmConsidered ?? pd.kmDriven ?? 0),
+      (acc, pd) => acc + Number(pd.kmConsidered ?? pd.kmDriven ?? 0),
       0
     );
 
-    const extraTripsRows =
-      extraTrips.length > 0
-        ? extraTrips
-            .map(
-              (et, idx) => `
-          <tr>
-            <td class="center">${idx + 1}</td>
-            <td class="center mono">${formatDateBR(et.date)}</td>
-            <td class="mono bold">${et.plate}</td>
-            <td>${et.route}</td>
-            <td>${et.vehicleType || '-'}</td>
-            <td class="right mono bold">${formatCurrency(et.tripCost || 0)}</td>
-          </tr>
-        `
-            )
-            .join('')
-        : `<tr><td colspan="6" class="empty">Nenhuma viagem extra registrada no período.</td></tr>`;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.8);
+    doc.setTextColor(15, 23, 42);
+    doc.text(
+      `2. DETALHAMENTO DAS PARTES DIÁRIAS (BOLETINS OPERACIONAIS LANÇADOS) (${partesDiarias.length} BOLETIM(NS) — ${totalKmConsideredPartes.toLocaleString('pt-BR')} KM)`,
+      margin,
+      detailY
+    );
+    detailY += 2.5;
 
-    const excessKmRows =
+    const statusMap: Record<string, string> = {
+      APPROVED: 'VALIDADA',
+      VALIDADA: 'VALIDADA',
+      PENDING: 'EM ANÁLISE',
+      REJECTED: 'GLOSADA',
+    };
+
+    const partesRows =
+      partesDiarias.length > 0
+        ? partesDiarias.map((pd, idx) => {
+            const tripsSummary =
+              pd.trips && pd.trips.length > 0
+                ? pd.trips
+                    .map(
+                      (t) =>
+                        `[${t.startTime || ''}-${t.endTime || ''}] ${t.itinerary || t.activityCode || ''}${
+                          t.kmPerTrip ? ` (${t.kmPerTrip}km)` : ''
+                        }`
+                    )
+                    .join(' | ')
+                : pd.notes || 'Operação contratual regular';
+
+            return [
+              String(idx + 1),
+              `#${pd.number}`,
+              formatDateBR(pd.date),
+              `${pd.vehiclePlate}${pd.vehicleModel ? `\n(${pd.vehicleModel})` : ''}`,
+              pd.driverName || '-',
+              `${pd.startTime || '-'} às ${pd.endTime || '-'}`,
+              `${Number(pd.kmInitial || 0).toLocaleString('pt-BR')} -> ${Number(pd.kmFinal || 0).toLocaleString('pt-BR')}`,
+              `${Number(pd.kmDriven || 0).toLocaleString('pt-BR')} km`,
+              `${Number(pd.kmConsidered ?? pd.kmDriven ?? 0).toLocaleString('pt-BR')} km`,
+              tripsSummary,
+              statusMap[pd.status] || pd.status || 'VALIDADA',
+            ];
+          })
+        : [
+            [
+              '-',
+              '-',
+              '-',
+              leasedList[0]?.plate || '-',
+              '-',
+              '-',
+              '-',
+              '0 km',
+              '0 km',
+              'Nenhuma parte diária individual apontada no período (apuração por franquia mensal fixa de locação).',
+              'MENSAL',
+            ],
+          ];
+
+    autoTable(doc, {
+      startY: detailY,
+      margin: { top: 34, left: margin, right: margin },
+      head: [
+        [
+          '#',
+          'Boletim',
+          'Data',
+          'Placa / Veículo',
+          'Motorista',
+          'Jornada',
+          'Hodômetro',
+          'KM Rod.',
+          'KM Cons.',
+          'Turnos / Itinerários / Atividades Executadas',
+          'Status',
+        ],
+      ],
+      body: partesRows,
+      foot: [
+        [
+          '',
+          'TOTAL',
+          `${partesDiarias.length} bol.`,
+          '',
+          '',
+          '',
+          'TOTAL KM:',
+          `${totalKmDrivenPartes.toLocaleString('pt-BR')} km`,
+          `${totalKmConsideredPartes.toLocaleString('pt-BR')} km`,
+          'Apuração operacional consolidada das partes diárias do período',
+          'OK',
+        ],
+      ],
+      theme: 'grid',
+      headStyles: { fillColor: [180, 83, 9], textColor: [255, 255, 255], fontSize: 6.5, fontStyle: 'bold' },
+      bodyStyles: { fontSize: 6.2, textColor: [51, 65, 85], cellPadding: 1.5, valign: 'top' },
+      footStyles: { fillColor: [254, 243, 199], textColor: [120, 53, 15], fontSize: 6.5, fontStyle: 'bold' },
+      columnStyles: {
+        0: { cellWidth: 6, halign: 'center' },
+        1: { cellWidth: 13, fontStyle: 'bold' },
+        2: { cellWidth: 14, halign: 'center' },
+        3: { cellWidth: 21, fontStyle: 'bold', textColor: [29, 78, 216] },
+        4: { cellWidth: 23 },
+        5: { cellWidth: 16, halign: 'center' },
+        6: { cellWidth: 22, halign: 'right' },
+        7: { cellWidth: 13, halign: 'right' },
+        8: { cellWidth: 13, halign: 'right', fontStyle: 'bold' },
+        9: { cellWidth: 28 },
+        10: { cellWidth: 13, halign: 'center', fontStyle: 'bold' },
+      },
+    });
+
+    // @ts-ignore
+    detailY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : detailY + 18) + 6;
+
+    // -------------------------------------------------------------------------
+    // SEÇÃO ANALÍTICA 3: DETALHAMENTO DE VIAGENS EXTRAS & TURNOS ESPECIAIS
+    // -------------------------------------------------------------------------
+    ensureDetailSpace(26);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.8);
+    doc.setTextColor(15, 23, 42);
+    doc.text(
+      `3. DETALHAMENTO DE VIAGENS EXTRAS & TURNOS ESPECIAIS (${extraTrips.length} VIAGEM(NS))`,
+      margin,
+      detailY
+    );
+    detailY += 2.5;
+
+    const extraRows =
+      extraTrips.length > 0
+        ? extraTrips.map((et, idx) => [
+            String(idx + 1),
+            formatDateBR(et.date),
+            et.plate,
+            et.route,
+            et.vehicleType || 'Ônibus Rodoviário',
+            formatCurrency(et.tripCost),
+            formatCurrency(et.tripCost),
+          ])
+        : [
+            [
+              '-',
+              '-',
+              '-',
+              'Nenhuma viagem extra ou turno adicional faturado neste período.',
+              '-',
+              'R$ 0,00',
+              'R$ 0,00',
+            ],
+          ];
+
+    autoTable(doc, {
+      startY: detailY,
+      margin: { top: 34, left: margin, right: margin },
+      head: [['#', 'Data', 'Placa', 'Trajeto / Finalidade da Viagem Extra', 'Tipo de Veículo', 'Valor Unit.', 'Total']],
+      body: extraRows,
+      foot: [
+        [
+          '',
+          'SUBTOTAL',
+          `${extraTrips.length} viag.`,
+          'Total apurado em viagens extras e turnos adicionais no período',
+          '',
+          '',
+          formatCurrency(totalExtras),
+        ],
+      ],
+      theme: 'grid',
+      headStyles: { fillColor: [30, 58, 138], textColor: [255, 255, 255], fontSize: 6.8, fontStyle: 'bold' },
+      bodyStyles: { fontSize: 6.5, textColor: [51, 65, 85], cellPadding: 1.6 },
+      footStyles: { fillColor: [239, 246, 255], textColor: [30, 58, 138], fontSize: 6.8, fontStyle: 'bold' },
+      columnStyles: {
+        0: { cellWidth: 8, halign: 'center' },
+        1: { cellWidth: 18, halign: 'center' },
+        2: { cellWidth: 20, fontStyle: 'bold', textColor: [29, 78, 216] },
+        3: { cellWidth: 70 },
+        4: { cellWidth: 28 },
+        5: { cellWidth: 19, halign: 'right' },
+        6: { cellWidth: 19, halign: 'right', fontStyle: 'bold' },
+      },
+    });
+
+    // @ts-ignore
+    detailY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : detailY + 18) + 6;
+
+    // -------------------------------------------------------------------------
+    // SEÇÃO ANALÍTICA 4: APURAÇÃO DE QUILOMETRAGEM EXCEDENTE (HODÔMETRO X FRANQUIA)
+    // -------------------------------------------------------------------------
+    ensureDetailSpace(26);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.8);
+    doc.setTextColor(15, 23, 42);
+    doc.text(
+      `4. DETALHAMENTO DE QUILOMETRAGEM EXCEDENTE — APURAÇÃO DE HODÔMETRO (${excessKmItems.length} APURAÇÃO(ÕES))`,
+      margin,
+      detailY
+    );
+    detailY += 2.5;
+
+    const kmRows =
       excessKmItems.length > 0
-        ? excessKmItems
-            .map(
-              (ek, idx) => `
-          <tr>
-            <td class="center">${idx + 1}</td>
-            <td class="center bold">${ek.periodMonth || '-'}</td>
-            <td class="mono bold">${ek.plate}</td>
-            <td class="right mono">${(ek.franchiseKm || 0).toLocaleString('pt-BR')} km</td>
-            <td class="right mono">${(ek.totalKmDriven || 0).toLocaleString('pt-BR')} km</td>
-            <td class="right mono">${(ek.disregardedKm || 0).toLocaleString('pt-BR')} km</td>
-            <td class="right mono">${(ek.consideredKm || 0).toLocaleString('pt-BR')} km</td>
-            <td class="right mono bold">${(ek.excessKm || 0).toLocaleString('pt-BR')} km</td>
-            <td class="right mono">${formatCurrency(ek.excessKmRate || 0)}</td>
-            <td class="right mono bold">${formatCurrency(ek.totalValue || 0)}</td>
-          </tr>
-        `
-            )
-            .join('')
-        : `<tr><td colspan="10" class="empty">Nenhuma apuração de KM excedente registrada no período.</td></tr>`;
+        ? excessKmItems.map((ek, idx) => [
+            String(idx + 1),
+            ek.periodMonth || 'PERÍODO',
+            ek.plate,
+            `${Number(ek.franchiseKm || 0).toLocaleString('pt-BR')} km`,
+            `${Number(ek.totalKmDriven || 0).toLocaleString('pt-BR')} km`,
+            `${Number(ek.disregardedKm || 0).toLocaleString('pt-BR')} km`,
+            `${Number(ek.consideredKm || 0).toLocaleString('pt-BR')} km`,
+            `${Number(ek.excessKm || 0).toLocaleString('pt-BR')} km`,
+            formatCurrency(ek.excessKmRate),
+            formatCurrency(ek.totalValue),
+          ])
+        : [
+            [
+              '-',
+              '-',
+              '-',
+              '0 km',
+              '0 km',
+              '0 km',
+              '0 km',
+              '0 km',
+              'R$ 0,00',
+              'R$ 0,00',
+            ],
+          ];
+
+    autoTable(doc, {
+      startY: detailY,
+      margin: { top: 34, left: margin, right: margin },
+      head: [
+        [
+          '#',
+          'Mês/Ref.',
+          'Placa',
+          'Franquia (KM)',
+          'KM Rodado',
+          'KM Descons.',
+          'KM Consid.',
+          'KM Excedente',
+          'Tarifa KM',
+          'Total Exced.',
+        ],
+      ],
+      body: kmRows,
+      foot: [
+        [
+          '',
+          'SUBTOTAL',
+          '',
+          `${excessKmItems.reduce((a, b) => a + Number(b.franchiseKm || 0), 0).toLocaleString('pt-BR')} km`,
+          `${excessKmItems.reduce((a, b) => a + Number(b.totalKmDriven || 0), 0).toLocaleString('pt-BR')} km`,
+          `${excessKmItems.reduce((a, b) => a + Number(b.disregardedKm || 0), 0).toLocaleString('pt-BR')} km`,
+          `${excessKmItems.reduce((a, b) => a + Number(b.consideredKm || 0), 0).toLocaleString('pt-BR')} km`,
+          `${excessKmItems.reduce((a, b) => a + Number(b.excessKm || 0), 0).toLocaleString('pt-BR')} km`,
+          '',
+          formatCurrency(totalExcessKm),
+        ],
+      ],
+      theme: 'grid',
+      headStyles: { fillColor: [51, 65, 85], textColor: [255, 255, 255], fontSize: 6.5, fontStyle: 'bold' },
+      bodyStyles: { fontSize: 6.4, textColor: [51, 65, 85], cellPadding: 1.5 },
+      footStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontSize: 6.6, fontStyle: 'bold' },
+      columnStyles: {
+        0: { cellWidth: 7, halign: 'center' },
+        1: { cellWidth: 16, halign: 'center' },
+        2: { cellWidth: 18, fontStyle: 'bold', textColor: [29, 78, 216] },
+        3: { cellWidth: 20, halign: 'right' },
+        4: { cellWidth: 20, halign: 'right' },
+        5: { cellWidth: 20, halign: 'right' },
+        6: { cellWidth: 20, halign: 'right' },
+        7: { cellWidth: 21, halign: 'right', fontStyle: 'bold' },
+        8: { cellWidth: 19, halign: 'right' },
+        9: { cellWidth: 21, halign: 'right', fontStyle: 'bold' },
+      },
+    });
+
+    // @ts-ignore
+    detailY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : detailY + 18) + 6;
+
+    // -------------------------------------------------------------------------
+    // SEÇÃO ANALÍTICA 5: DEDUÇÕES, GLOSAS, SEGUROS & DESCONTOS CONTRATUAIS
+    // -------------------------------------------------------------------------
+    ensureDetailSpace(26);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.8);
+    doc.setTextColor(15, 23, 42);
+    doc.text(
+      `5. DETALHAMENTO DE DEDUÇÕES, GLOSAS, SEGUROS & REPASSES CONTRATUAIS (${deductions.length} LANÇAMENTO(S))`,
+      margin,
+      detailY
+    );
+    detailY += 2.5;
 
     const deductionRows =
       deductions.length > 0
-        ? deductions
-            .map(
-              (d, idx) => `
-          <tr>
-            <td class="center">${idx + 1}</td>
-            <td class="center mono">${formatDateBR(d.date)}</td>
-            <td class="mono bold">${d.plate || 'CONTRATO'}</td>
-            <td>${d.description}</td>
-            <td class="center">${d.type === 'CREDIT' ? 'CRÉDITO (+)' : 'DÉBITO (-)'}</td>
-            <td class="right mono bold ${d.type === 'CREDIT' ? 'green' : 'red'}">
-              ${d.type === 'CREDIT' ? '+' : '-'}${formatCurrency(d.value || 0)}
-            </td>
-          </tr>
-        `
-            )
-            .join('')
-        : `<tr><td colspan="6" class="empty">Nenhuma dedução ou desconto registrado no período.</td></tr>`;
+        ? deductions.map((d, idx) => [
+            String(idx + 1),
+            formatDateBR(d.date),
+            d.plate || 'CONTRATO',
+            d.description,
+            d.type === 'CREDIT' ? 'CRÉDITO (+)' : 'DÉBITO (-)',
+            d.type === 'CREDIT' ? `+${formatCurrency(d.value)}` : `-${formatCurrency(d.value)}`,
+          ])
+        : [
+            [
+              '-',
+              '-',
+              '-',
+              'Nenhuma dedução, glosa ou desconto contratual lançado neste período.',
+              '-',
+              'R$ 0,00',
+            ],
+          ];
 
-    const html = `
-      <!DOCTYPE html>
-      <html lang="pt-BR">
-      <head>
-        <meta charset="UTF-8" />
-        <title>Boletim de Medição #${client.measurementNumber} - ${client.clientName}</title>
-        <style>
-          @page { size: A4 landscape; margin: 10mm; }
-          * { box-sizing: border-box; font-family: 'Segoe UI', Arial, sans-serif; }
-          body { margin: 0; padding: 14px; color: #18181b; background: #fff; font-size: 10.5px; }
-          .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            border-bottom: 2px solid #f59e0b;
-            padding-bottom: 10px;
-            margin-bottom: 12px;
-          }
-          .brand h1 { margin: 0; font-size: 17px; color: #09090b; text-transform: uppercase; letter-spacing: 0.5px; }
-          .brand p { margin: 2px 0; color: #52525b; font-size: 10.5px; }
-          .doc-badge {
-            text-align: right;
-            background: #fef3c7;
-            border: 1px solid #f59e0b;
-            padding: 8px 12px;
-            border-radius: 8px;
-          }
-          .doc-badge h2 { margin: 0; font-size: 13px; color: #b45309; }
-          .doc-badge p { margin: 2px 0 0; font-size: 10px; color: #78350f; font-weight: 600; }
-          .status-pill {
-            display: inline-block;
-            margin-top: 4px;
-            padding: 2px 8px;
-            border-radius: 999px;
-            background: #059669;
-            color: #fff;
-            font-size: 9px;
-            font-weight: 700;
-            letter-spacing: 0.4px;
-          }
-          .client-box {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 8px;
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 9px 12px;
-            margin-bottom: 12px;
-          }
-          .client-box div span { display: block; font-size: 9px; text-transform: uppercase; color: #64748b; font-weight: 700; }
-          .client-box div strong { font-size: 11px; color: #0f172a; }
-          .summary-grid {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 8px;
-            margin-bottom: 14px;
-          }
-          .summary-card {
-            border: 1px solid #cbd5e1;
-            border-radius: 8px;
-            padding: 7px 10px;
-            background: #fff;
-          }
-          .summary-card.highlight {
-            background: #ecfdf5;
-            border-color: #10b981;
-          }
-          .summary-card span { display: block; font-size: 9px; text-transform: uppercase; color: #64748b; font-weight: 700; }
-          .summary-card strong { font-size: 13px; color: #0f172a; font-family: Consolas, monospace; }
-          .summary-card.highlight strong { color: #047857; font-size: 14px; }
-          h3 {
-            margin: 12px 0 5px;
-            font-size: 11px;
-            text-transform: uppercase;
-            color: #1e293b;
-            border-left: 3px solid #f59e0b;
-            padding-left: 7px;
-          }
-          table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
-          th, td { border: 1px solid #cbd5e1; padding: 4px 6px; font-size: 9.8px; }
-          th { background: #f1f5f9; color: #334155; text-transform: uppercase; font-size: 9px; text-align: left; }
-          .center { text-align: center; }
-          .right { text-align: right; }
-          .mono { font-family: Consolas, monospace; }
-          .bold { font-weight: 700; }
-          .red { color: #dc2626; }
-          .green { color: #059669; }
-          .empty { text-align: center; color: #94a3b8; font-style: italic; padding: 8px; }
-          .nf-box {
-            border: 1px solid #cbd5e1;
-            background: #f8fafc;
-            border-radius: 8px;
-            padding: 9px 12px;
-            margin-top: 8px;
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 8px;
-          }
-          .nf-box div span { display: block; font-size: 9px; color: #64748b; text-transform: uppercase; font-weight: 700; }
-          .nf-box div strong { font-size: 10.5px; color: #0f172a; }
-          .signatures {
-            margin-top: 26px;
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 24px;
-            text-align: center;
-          }
-          .sig-line {
-            border-top: 1px solid #334155;
-            padding-top: 5px;
-            font-size: 10px;
-            color: #334155;
-          }
-          .no-print {
-            margin-bottom: 12px;
-            display: flex;
-            justify-content: flex-end;
-            gap: 8px;
-          }
-          .btn {
-            background: #059669;
-            color: #fff;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 6px;
-            font-weight: 700;
-            cursor: pointer;
-            font-size: 12px;
-          }
-          @media print { .no-print { display: none !important; } }
-        </style>
-      </head>
-      <body>
-        <div class="no-print">
-          <button class="btn" onclick="window.print()">Imprimir / Salvar PDF</button>
-        </div>
+    autoTable(doc, {
+      startY: detailY,
+      margin: { top: 34, left: margin, right: margin },
+      head: [['#', 'Data', 'Placa / Ref.', 'Descrição do Lançamento', 'Natureza', 'Valor']],
+      body: deductionRows,
+      foot: [
+        [
+          '',
+          'SUBTOTAL',
+          '',
+          'Total de deduções / descontos aplicados ao fechamento da medição',
+          '',
+          totalDeductions > 0 ? `-${formatCurrency(totalDeductions)}` : 'R$ 0,00',
+        ],
+      ],
+      theme: 'grid',
+      headStyles: { fillColor: [153, 27, 27], textColor: [255, 255, 255], fontSize: 6.8, fontStyle: 'bold' },
+      bodyStyles: { fontSize: 6.5, textColor: [51, 65, 85], cellPadding: 1.6 },
+      footStyles: { fillColor: [254, 242, 242], textColor: [153, 27, 27], fontSize: 6.8, fontStyle: 'bold' },
+      columnStyles: {
+        0: { cellWidth: 8, halign: 'center' },
+        1: { cellWidth: 20, halign: 'center' },
+        2: { cellWidth: 22, fontStyle: 'bold' },
+        3: { cellWidth: 88 },
+        4: { cellWidth: 22, halign: 'center' },
+        5: { cellWidth: 22, halign: 'right', fontStyle: 'bold' },
+      },
+    });
 
-        <div class="header">
-          <div class="brand">
-            <h1>VIAÇÃO SÃO SILVESTRE LTDA</h1>
-            <p>Gestão Integrada de Frotas, Fretamento Contínuo & Medições Contratuais</p>
-            <p>Relatório Analítico Completo de Medição do Período (Frota, Partes Diárias, Viagens Extras e Faturamento)</p>
-          </div>
-          <div class="doc-badge">
-            <h2>BOLETIM DE MEDIÇÃO Nº ${client.measurementNumber}</h2>
-            <p>Contrato: ${client.contractNumber}</p>
-            <span class="status-pill">${statusLabel}</span>
-          </div>
-        </div>
+    // @ts-ignore
+    detailY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : detailY + 18) + 6;
 
-        <div class="client-box">
-          <div>
-            <span>Cliente / Contratante</span>
-            <strong>${client.clientName}</strong>
-          </div>
-          <div>
-            <span>CNPJ</span>
-            <strong class="mono">${client.cnpj}</strong>
-          </div>
-          <div>
-            <span>Período de Apuração</span>
-            <strong class="mono">${formatDateBR(client.periodStart)} a ${formatDateBR(client.periodEnd)}</strong>
-          </div>
-          <div>
-            <span>Vencimento Fatura / NF</span>
-            <strong class="mono">${formatDateBR(inv.nfDueDate || client.dueDate)}</strong>
-          </div>
-          <div>
-            <span>Partes Diárias / Extras</span>
-            <strong class="mono">${partesDiarias.length} boletim(ns) / ${extraTrips.length} viagem(ns)</strong>
-          </div>
-        </div>
+    // -------------------------------------------------------------------------
+    // SEÇÃO ANALÍTICA 6: ESPELHO DE FATURAMENTO, RETENÇÕES, CONTAS A RECEBER & DISCRIMINAÇÃO NFS-e
+    // -------------------------------------------------------------------------
+    ensureDetailSpace(42);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.8);
+    doc.setTextColor(15, 23, 42);
+    doc.text(
+      '6. DEMONSTRATIVO ANALÍTICO PARA FATURAMENTO, EMISSÃO DE NFS-e E CONTAS A RECEBER',
+      margin,
+      detailY
+    );
+    detailY += 2.5;
 
-        <div class="summary-grid">
-          <div class="summary-card">
-            <span>1. Veículos Locados (${client.leasedVehicles.length})</span>
-            <strong>${formatCurrency(totals.leasedTotal)}</strong>
-          </div>
-          <div class="summary-card">
-            <span>2. Viagens Extras (${extraTrips.length})</span>
-            <strong>${formatCurrency(totals.extraTripsTotal)}</strong>
-          </div>
-          <div class="summary-card">
-            <span>3. KM Excedente (${excessKmItems.length})</span>
-            <strong>${formatCurrency(totals.excessKmTotal)}</strong>
-          </div>
-          <div class="summary-card">
-            <span>4. Deduções / Descontos (${deductions.length})</span>
-            <strong class="red">-${formatCurrency(totals.deductionsTotal)}</strong>
-          </div>
-          <div class="summary-card highlight">
-            <span>5. Total Líquido Medição</span>
-            <strong>${formatCurrency(totals.grandTotal)}</strong>
-          </div>
-        </div>
+    const placasAlocadas = leasedList.map((v) => v.plate).filter(Boolean).join(', ') || 'FROTA';
+    const discriminacaoNFSe =
+      `FATURAMENTO REFERENTE À LOCAÇÃO DE VEÍCULOS E PRESTAÇÃO DE SERVIÇOS DE TRANSPORTE — CONTRATO Nº ${client.contractNumber} — MEDIÇÃO Nº ${client.measurementNumber} — PERÍODO: ${formatDateBR(client.periodStart)} A ${formatDateBR(client.periodEnd)}. ` +
+      `VEÍCULOS ALOCADOS (${leasedList.length}): ${
+        leasedList.map((v) => `[${v.plate} - ${v.description} - ${v.workingDays}d - ${formatCurrency(v.periodValue)}]`).join('; ') || 'N/A'
+      }. ` +
+      `PARTES DIÁRIAS APURADAS: ${partesDiarias.length} BOLETIM(NS) (${totalKmConsideredPartes.toLocaleString('pt-BR')} KM CONSIDERADOS). ` +
+      `VIAGENS EXTRAS: ${formatCurrency(totalExtras)} | KM EXCEDENTE: ${formatCurrency(totalExcessKm)} | DEDUÇÕES: -${formatCurrency(totalDeductions)}. ` +
+      `VALOR BRUTO DA FATURA: ${formatCurrency(totalLiquidoMedicao)} | RETENÇÕES (PIS/COFINS/CSLL): -${formatCurrency(pisVal + cofinsVal + csllVal)} | VALOR LÍQUIDO A RECEBER: ${formatCurrency(valorLiquidoNF)} — VENCIMENTO: ${formatDateBR(inv.nfDueDate || client.dueDate)}.`;
 
-        <h3>1. Veículos Locados sob Contrato Fixo (${client.leasedVehicles.length})</h3>
-        <table>
-          <thead>
-            <tr>
-              <th class="center" style="width: 32px">#</th>
-              <th style="width: 85px">Placa</th>
-              <th>Descrição do Veículo / Serviço</th>
-              <th>Rota / Alocação</th>
-              <th class="center" style="width: 85px">Trab. / Parado</th>
-              <th class="right" style="width: 105px">Diária (R$)</th>
-              <th class="right" style="width: 115px">Valor Período</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${leasedRows}
-          </tbody>
-        </table>
+    autoTable(doc, {
+      startY: detailY,
+      margin: { top: 34, left: margin, right: margin },
+      head: [
+        [
+          'Emitente / Locadora',
+          'Cliente / Tomador (Faturado)',
+          'Composição Bruta & Retenções',
+          'Contas a Receber (Financeiro)',
+        ],
+      ],
+      body: [
+        [
+          `${savedCompanyName}\nCNPJ: ${savedCompanyCnpj}\nCód. Serviço: 16.01 / 07.02\nFatura: FAT-LOC-${client.measurementNumber}/2026`,
+          `${client.clientName}\nCNPJ: ${client.cnpj}\nContrato: ${client.contractNumber}\nVeículos: ${placasAlocadas}`,
+          `Bruto Medição: ${formatCurrency(totalLiquidoMedicao)}\n(-) PIS (0,65%): ${formatCurrency(pisVal)}\n(-) COFINS (3,00%): ${formatCurrency(cofinsVal)}\n(-) CSLL (1,00%): ${formatCurrency(csllVal)}\n(-) ISS / INSS: ${formatCurrency(Number(inv.retentionISS || 0) + Number(inv.retentionINSS || 0))}`,
+          `LÍQUIDO A RECEBER: ${formatCurrency(valorLiquidoNF)}\nNFS-e Nº: ${inv.nfNumber || 'A EMITIR'}\nEmissão: ${formatDateBR(inv.nfIssueDate || client.periodEnd)}\nVencimento: ${formatDateBR(inv.nfDueDate || client.dueDate)}\nStatus: SINCRONIZADO NO FINANCEIRO`,
+        ],
+        [
+          {
+            content: `DISCRIMINAÇÃO DOS SERVIÇOS PARA CORPO DA NOTA FISCAL (NFS-e):\n${discriminacaoNFSe}`,
+            colSpan: 4,
+            styles: {
+              fillColor: [255, 251, 235],
+              textColor: [30, 41, 59],
+              fontSize: 6.5,
+              fontStyle: 'normal',
+            },
+          },
+        ],
+      ],
+      theme: 'grid',
+      headStyles: { fillColor: [22, 101, 52], textColor: [255, 255, 255], fontSize: 6.8, fontStyle: 'bold' },
+      bodyStyles: { fontSize: 6.5, textColor: [51, 65, 85], cellPadding: 2, valign: 'top' },
+      columnStyles: {
+        0: { cellWidth: 44 },
+        1: { cellWidth: 46 },
+        2: { cellWidth: 46 },
+        3: { cellWidth: 46, fontStyle: 'bold' },
+      },
+    });
 
-        <h3>2. Partes Diárias Lançadas no Período (${partesDiarias.length} boletins — KM Rodado: ${totalKmDrivenPartes.toLocaleString('pt-BR')} km | Considerado: ${totalKmConsideredPartes.toLocaleString('pt-BR')} km)</h3>
-        <table>
-          <thead>
-            <tr>
-              <th class="center" style="width: 28px">#</th>
-              <th style="width: 65px">Boletim</th>
-              <th class="center" style="width: 75px">Data</th>
-              <th style="width: 120px">Placa / Veículo</th>
-              <th style="width: 135px">Motorista</th>
-              <th class="center" style="width: 85px">Horário</th>
-              <th class="right" style="width: 110px">Hodômetro</th>
-              <th class="right" style="width: 75px">KM Rod.</th>
-              <th class="right" style="width: 75px">KM Cons.</th>
-              <th>Trajetos / Atividades Executadas</th>
-              <th class="center" style="width: 75px">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${partesDiariasRows}
-          </tbody>
-        </table>
+    // Garantir cabeçalho com logo e rodapé numerado em todas as páginas geradas
+    const totalPages = doc.getNumberOfPages();
+    for (let p = 1; p <= totalPages; p++) {
+      doc.setPage(p);
+      if (p > 1) {
+        drawHeaderOnCurrentPage('DETALHAMENTO ANALÍTICO DOS LANÇAMENTOS QUE GERARAM A MEDIÇÃO');
+      }
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(148, 163, 184);
+      doc.setDrawColor(226, 232, 240);
+      doc.line(margin, pageHeight - 8, pageWidth - margin, pageHeight - 8);
 
-        <h3>3. Viagens Extras & Turnos Adicionais (${extraTrips.length})</h3>
-        <table>
-          <thead>
-            <tr>
-              <th class="center" style="width: 32px">#</th>
-              <th class="center" style="width: 85px">Data</th>
-              <th style="width: 90px">Placa</th>
-              <th>Trajeto / Descrição da Viagem Extra</th>
-              <th style="width: 140px">Tipo de Veículo</th>
-              <th class="right" style="width: 115px">Valor (R$)</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${extraTripsRows}
-          </tbody>
-        </table>
+      doc.text(
+        `${savedCompanyName} • Módulo de Medição & Faturamento de Contratos (Medição Nº ${client.measurementNumber})`,
+        margin,
+        pageHeight - 4
+      );
+      doc.text(`Página ${p} de ${totalPages}`, pageWidth - margin, pageHeight - 4, {
+        align: 'right',
+      });
+    }
 
-        <h3>4. Apuração de Quilometragem Excedente (${excessKmItems.length})</h3>
-        <table>
-          <thead>
-            <tr>
-              <th class="center" style="width: 28px">#</th>
-              <th class="center" style="width: 80px">Mês/Ref.</th>
-              <th style="width: 85px">Placa</th>
-              <th class="right">Franquia</th>
-              <th class="right">KM Rodado</th>
-              <th class="right">Desconsid.</th>
-              <th class="right">Considerado</th>
-              <th class="right">KM Excedido</th>
-              <th class="right">R$ / KM</th>
-              <th class="right">Total Exc.</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${excessKmRows}
-          </tbody>
-        </table>
-
-        <h3>5. Deduções, Seguros & Descontos Contratuais (${deductions.length})</h3>
-        <table>
-          <thead>
-            <tr>
-              <th class="center" style="width: 32px">#</th>
-              <th class="center" style="width: 85px">Data</th>
-              <th style="width: 90px">Placa</th>
-              <th>Descrição do Lançamento</th>
-              <th class="center" style="width: 95px">Natureza</th>
-              <th class="right" style="width: 115px">Valor (R$)</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${deductionRows}
-          </tbody>
-        </table>
-
-        <h3>6. Espelho para Faturamento ao Cliente & Emissão da Nota Fiscal (NFS-e) / Fatura de Locação</h3>
-        <div class="nf-box" style="grid-template-columns: repeat(5, 1fr); margin-bottom: 8px;">
-          <div>
-            <span>Nº Fatura de Locação</span>
-            <strong class="mono">FAT-LOC-${client.measurementNumber}/2026</strong>
-          </div>
-          <div>
-            <span>Número da NFS-e</span>
-            <strong class="mono">${inv.nfNumber || 'A EMITIR PELO FATURAMENTO'}</strong>
-          </div>
-          <div>
-            <span>Emissão / Vencimento</span>
-            <strong class="mono">${formatDateBR(inv.nfIssueDate || client.periodEnd)} → ${formatDateBR(inv.nfDueDate || client.dueDate)}</strong>
-          </div>
-          <div>
-            <span>Valor Bruto da Fatura</span>
-            <strong class="mono">${formatCurrency(totals.grandTotal)}</strong>
-          </div>
-          <div>
-            <span>Valor Líquido a Receber (Financeiro)</span>
-            <strong class="mono green">${formatCurrency(inv.netValue || totals.grandTotal)}</strong>
-          </div>
-        </div>
-
-        <table style="margin-bottom: 10px;">
-          <thead>
-            <tr>
-              <th style="width: 24%">Emitente / Prestadora (Locadora)</th>
-              <th style="width: 26%">Tomador / Cliente (Faturado)</th>
-              <th style="width: 25%">Retenções Fiscais & Impostos</th>
-              <th style="width: 25%">Integração Contas a Receber / Bancário</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>
-                <strong>${invoiceOverride?.providerCompany || 'VIAÇÃO SÃO SILVESTRE LTDA'}</strong><br/>
-                CNPJ: <span class="mono">${invoiceOverride?.providerCnpj || '19.876.543/0001-10'}</span><br/>
-                Cód. Serviço / CNAE: <span class="mono">16.01 / 7711-0/00</span><br/>
-                Natureza: Locação de Veículos & Fretamento
-              </td>
-              <td>
-                <strong>${client.clientName}</strong><br/>
-                CNPJ: <span class="mono">${client.cnpj}</span><br/>
-                Contrato: <span class="mono">${client.contractNumber}</span><br/>
-                Competência: <span class="mono">${formatDateBR(client.periodStart)} a ${formatDateBR(client.periodEnd)}</span>
-              </td>
-              <td class="mono">
-                PIS (0,65%): ${formatCurrency(invoiceOverride?.retentionPIS || 0)}<br/>
-                COFINS (3,00%): ${formatCurrency(invoiceOverride?.retentionCOFINS || 0)}<br/>
-                CSLL (1,00%): ${formatCurrency(invoiceOverride?.retentionCSLL || 0)}<br/>
-                ISS / INSS / IR: ${formatCurrency((inv.retentionISS || 0) + (inv.retentionINSS || 0) + (inv.retentionIR || 0))}
-              </td>
-              <td>
-                <strong>Status Contas a Receber:</strong> DISPONÍVEL NO FINANCEIRO<br/>
-                <strong>Forma de Cobrança:</strong> Boleto / PIX / TED<br/>
-                <strong>Dados Bancários:</strong> ${invoiceOverride?.bankDetails || 'Banco Itaú (341) Ag. 3150 C/C 44890-2 · PIX CNPJ'}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-
-        <div style="border: 1px solid #cbd5e1; background: #fffbeb; border-radius: 8px; padding: 8px 12px; margin-bottom: 10px;">
-          <span style="display:block; font-size: 9px; font-weight: 700; text-transform: uppercase; color: #b45309; margin-bottom: 3px;">
-            Discriminação Sugerida dos Serviços para Emissão da Nota Fiscal (NFS-e) / Fatura de Locação de Veículos:
-          </span>
-          <div class="mono" style="font-size: 9.5px; color: #1e293b; line-height: 1.45;">
-            FATURAMENTO REFERENTE À LOCAÇÃO DE VEÍCULOS E PRESTAÇÃO DE SERVIÇOS DE TRANSPORTE — CONTRATO Nº ${client.contractNumber} — BOLETIM DE MEDIÇÃO Nº ${client.measurementNumber} — PERÍODO DE COMPETÊNCIA: ${formatDateBR(client.periodStart)} A ${formatDateBR(client.periodEnd)}.
-            VEÍCULOS ALOCADOS (${client.leasedVehicles.length}): ${
-              client.leasedVehicles.length > 0
-                ? client.leasedVehicles
-                    .map(
-                      (v) =>
-                        `[${v.plate} - ${v.description} - ${v.workingDays} DIAS - ${formatCurrency(v.periodValue || 0)}]`
-                    )
-                    .join('; ')
-                : 'N/A'
-            }.
-            PARTES DIÁRIAS APURADAS: ${partesDiarias.length} BOLETIM(NS) (${totalKmConsideredPartes.toLocaleString('pt-BR')} KM CONSIDERADOS).
-            VIAGENS EXTRAS: ${formatCurrency(totals.extraTripsTotal)} | KM EXCEDENTE: ${formatCurrency(totals.excessKmTotal)} | DEDUÇÕES: -${formatCurrency(totals.deductionsTotal)}.
-            VALOR BRUTO DA FATURA: ${formatCurrency(totals.grandTotal)} | VALOR LÍQUIDO A RECEBER: ${formatCurrency(inv.netValue || totals.grandTotal)} — VENCIMENTO: ${formatDateBR(inv.nfDueDate || client.dueDate)}.
-          </div>
-        </div>
-
-        <div class="signatures">
-          <div class="sig-line">Elaborado por: ${elaboratedBy}</div>
-          <div class="sig-line">Revisado / Liberado por: ${validatedBy}</div>
-          <div class="sig-line">De Acordo (${client.clientName})</div>
-        </div>
-      </body>
-      </html>
-    `;
-
-    printWindow.document.open();
-    printWindow.document.write(html);
-    printWindow.document.close();
+    const clientSlug = (client.clientName || 'cliente')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '_')
+      .substring(0, 20);
+    const filename = `medicao-${client.measurementNumber}-${clientSlug}.pdf`;
+    doc.save(filename);
   }
 
   /**
@@ -600,6 +1128,7 @@ export class ContractMeasurementPdfService {
    * 4. Viagens Extras
    * 5. KM Excedente
    * 6. Débitos e Descontos
+   * 7. Espelho de Faturamento & NFS-e
    */
   static generateMeasurementExcel(options: GenerateMeasurementPdfOptions): void {
     const {

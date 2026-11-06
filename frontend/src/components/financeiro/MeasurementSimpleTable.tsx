@@ -314,10 +314,10 @@ const MeasurementSimpleTable: React.FC<MeasurementSimpleTableProps> = ({
   // Funções de exportação
   const handleExportPDF = async (bulletin: MeasurementBulletin) => {
     try {
-      ContractMeasurementPdfService.generateMeasurementPDF(buildSimplePdfExcelPayload(bulletin));
+      await ContractMeasurementPdfService.generateMeasurementPDF(buildSimplePdfExcelPayload(bulletin));
       toast({
         title: "PDF p/ Faturamento & NF Gerado!",
-        description: `Espelho de medição e faturamento gerado com sucesso!`,
+        description: `Espelho de medição e faturamento baixado com logo e detalhamento completo dos lançamentos!`,
       });
     } catch (error) {
       console.error('❌ Erro ao gerar PDF:', error);

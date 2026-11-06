@@ -1126,6 +1126,31 @@ export const ClientContractMeasurementManager: React.FC = () => {
         deductionsTotal: 0,
         grandTotal: 0,
       },
+      invoiceOverride: {
+        nfNumber: med.invoice?.nfNumber || invoice.invoiceNumber || 'A EMITIR',
+        series: invoice.series || '1',
+        nfIssueDate: med.invoice?.nfIssueDate || invoice.issueDate || med.periodEnd,
+        nfDueDate: med.invoice?.nfDueDate || med.dueDate || med.periodEnd,
+        retentionISS: Number(
+          med.invoice?.retentionISS ??
+            ((Number(med.totals?.grandTotal || 0) * (invoice.issRatePercentage || 2.5)) / 100)
+        ),
+        retentionINSS: Number(med.invoice?.retentionINSS ?? invoice.inssRetention ?? 0),
+        retentionIR: Number(med.invoice?.retentionIR ?? 0),
+        retentionPIS: Number(med.invoice?.retentionPIS ?? invoice.pisRetention ?? 0),
+        retentionCOFINS: Number(med.invoice?.retentionCOFINS ?? invoice.cofinsRetention ?? 0),
+        retentionCSLL: Number(med.invoice?.retentionCSLL ?? invoice.csllRetention ?? 0),
+        netValue: Number(med.invoice?.netValue || med.totals?.grandTotal || 0),
+        verificationCode: med.invoice?.verificationCode || invoice.accessKey || '-',
+        observations:
+          med.invoice?.observations ||
+          `Fatura de Serviços de Alocação / Locação de Veículos — Medição #${med.measurementNumber} (${med.contractNumber})`,
+        providerCompany: defaultProviderCompany,
+        providerCnpj: (company as any)?.cnpj || '33.592.510/0001-54',
+      },
+      companyName: `${defaultProviderCompany} / FLUXBUS`,
+      companyCnpj: (company as any)?.cnpj || '33.592.510/0001-54',
+      companyLogoUrl: company?.logoUrl || null,
       statusLabel: statusLabelMap[med.status] || 'REVISADA / LIBERADA',
       elaboratedBy: med.elaboratedBy || 'José Ramos',
       validatedBy: med.validatedBy || 'Diretoria / Faturamento',
@@ -1160,6 +1185,10 @@ export const ClientContractMeasurementManager: React.FC = () => {
           nfDueDate: invoice.dueDate,
           verificationCode: invoice.accessKey,
           grossValue: totalGrossMeasurement,
+          retentionPIS: invoice.pisRetention,
+          retentionCOFINS: invoice.cofinsRetention,
+          retentionCSLL: invoice.csllRetention,
+          retentionINSS: invoice.inssRetention,
           netValue: totalGrossMeasurement - (invoice.pisRetention + invoice.cofinsRetention + invoice.csllRetention),
         },
         totals: {
@@ -1171,11 +1200,13 @@ export const ClientContractMeasurementManager: React.FC = () => {
         },
       };
 
-      ContractMeasurementPdfService.generateMeasurementPDF(buildPdfExcelOptionsFromMeasurement(currentSnapshot));
+      await ContractMeasurementPdfService.generateMeasurementPDF(
+        buildPdfExcelOptionsFromMeasurement(currentSnapshot)
+      );
 
       toast({
         title: 'PDF da Medição Gerado!',
-        description: `Boletim de medição Nº ${currentClient.measurementNumber} (${currentClient.clientName}) aberto para impressão/PDF com partes diárias e viagens extras.`,
+        description: `Boletim de medição Nº ${currentClient.measurementNumber} (${currentClient.clientName}) baixado com logo da empresa, folha resumo e detalhamento completo dos lançamentos.`,
       });
     } catch (error: any) {
       console.error('Erro ao gerar PDF da medição:', error);
@@ -1968,11 +1999,11 @@ export const ClientContractMeasurementManager: React.FC = () => {
     setMeasurementToDelete(null);
   };
 
-  const handleExportMeasurementItemPdf = (med: GeneratedContractMeasurement) => {
-    ContractMeasurementPdfService.generateMeasurementPDF(buildPdfExcelOptionsFromMeasurement(med));
+  const handleExportMeasurementItemPdf = async (med: GeneratedContractMeasurement) => {
+    await ContractMeasurementPdfService.generateMeasurementPDF(buildPdfExcelOptionsFromMeasurement(med));
     toast({
       title: 'PDF p/ Faturamento & Nota Fiscal Gerado!',
-      description: `Boletim Nº ${med.measurementNumber} (${med.clientName}) gerado com todas as informações para faturar ao cliente, emitir a NFS-e e espelho de alocação de veículos.`,
+      description: `Boletim Nº ${med.measurementNumber} (${med.clientName}) baixado com logo da empresa, folha resumo e detalhamento analítico de todos os lançamentos.`,
     });
   };
 

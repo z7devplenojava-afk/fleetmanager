@@ -417,7 +417,25 @@ export default function MeasurementCompleteTable({
       extraTrips: rawMed?.extraTrips || [],
       excessKmItems: rawMed?.excessKmItems || [],
       deductions: rawMed?.deductions || [],
-      partesDiarias: rawMed?.partesDiarias || [],
+      partesDiarias: (rawMed?.partesDiarias || []).map((pd: any) => ({
+        ...pd,
+        kmInitial: Number(pd.kmInitial ?? pd.startKm ?? 0),
+        kmFinal: Number(pd.kmFinal ?? pd.endKm ?? 0),
+        kmDriven: Number(pd.kmDriven ?? pd.drivenKm ?? 0),
+        kmConsidered: Number(pd.kmConsidered ?? pd.consideredKm ?? pd.kmDriven ?? pd.drivenKm ?? 0),
+        trips: Array.isArray(pd.trips)
+          ? pd.trips
+          : Array.isArray(pd.atividades)
+          ? pd.atividades.map((a: any, i: number) => ({
+              id: `tr-${i}`,
+              startTime: a.startTime || '',
+              endTime: a.endTime || '',
+              itinerary: a.description || '',
+              activityCode: a.activityType || 'REGULAR',
+              kmPerTrip: Math.max(0, Number(a.endKm || 0) - Number(a.startKm || 0)),
+            }))
+          : [],
+      })),
       totals: rawMed?.totals || {
         leasedTotal: totalVal,
         extraTripsTotal: 0,
@@ -434,10 +452,10 @@ export default function MeasurementCompleteTable({
   // Funções de exportação
   const handleExportPDF = async (bulletin: MeasurementBulletin) => {
     try {
-      ContractMeasurementPdfService.generateMeasurementPDF(buildLocalPdfExcelPayload(bulletin));
+      await ContractMeasurementPdfService.generateMeasurementPDF(buildLocalPdfExcelPayload(bulletin));
       toast({
         title: "PDF p/ Faturamento & NF Gerado!",
-        description: `Espelho de medição e faturamento (${bulletin.companyName || bulletin.clientName}) aberto para impressão/PDF.`,
+        description: `Espelho de medição e faturamento (${bulletin.companyName || bulletin.clientName}) baixado com detalhamento completo dos lançamentos.`,
       });
     } catch (error) {
       console.error('❌ Erro ao gerar PDF:', error);
