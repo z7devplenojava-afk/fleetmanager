@@ -52,6 +52,7 @@ import {
   Tv,
   Film,
   MessageCircle,
+  MessageSquare,
   Package,
   Layers,
   Headphones,
