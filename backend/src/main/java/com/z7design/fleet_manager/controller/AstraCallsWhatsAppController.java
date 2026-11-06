@@ -90,7 +90,7 @@ public class AstraCallsWhatsAppController {
                     "message", "Pareamento por QR Code iniciado. Acompanhe o QR no AstraCalls."));
         } catch (AstraCallsException e) {
             log.warn("Erro ao iniciar pareamento AstraCalls: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+            return ResponseEntity.badRequest()
                     .body(Map.of("success", false, "error", e.getMessage()));
         }
     }
@@ -108,7 +108,7 @@ public class AstraCallsWhatsAppController {
             return ResponseEntity.ok(Map.of("success", true, "code", code));
         } catch (AstraCallsException e) {
             log.warn("Erro ao gerar codigo de pareamento AstraCalls: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+            return ResponseEntity.badRequest()
                     .body(Map.of("success", false, "error", e.getMessage()));
         }
     }
@@ -120,7 +120,7 @@ public class AstraCallsWhatsAppController {
             return ResponseEntity.ok(Map.of("success", true));
         } catch (AstraCallsException e) {
             log.warn("Erro ao desconectar sessao AstraCalls: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+            return ResponseEntity.badRequest()
                     .body(Map.of("success", false, "error", e.getMessage()));
         }
     }
@@ -137,7 +137,7 @@ public class AstraCallsWhatsAppController {
             return ResponseEntity.ok(Map.of("success", true));
         } catch (AstraCallsException e) {
             log.warn("Erro ao remover sessao AstraCalls: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+            return ResponseEntity.badRequest()
                     .body(Map.of("success", false, "error", e.getMessage()));
         }
     }

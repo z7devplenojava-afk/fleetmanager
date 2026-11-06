@@ -163,21 +163,21 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
   const clienteSectionRef = useRef<HTMLDivElement>(null);
 
   // Dados do Cabeçalho da Parte Diária
-  const [docNumber, setDocNumber] = useState<string>('13102');
+  const [docNumber, setDocNumber] = useState<string>(() => String(Math.floor(10000 + Math.random() * 90000)));
   const [docDate, setDocDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [selectedClientId, setSelectedClientId] = useState<string>(initialClientId || '');
-  const [clientName, setClientName] = useState<string>(initialClientName || 'FM2C');
+  const [clientName, setClientName] = useState<string>(initialClientName || '');
   const [manualClientMode, setManualClientMode] = useState<boolean>(false);
-  const [contractNumber, setContractNumber] = useState<string>(initialContractNumber || 'CT-2025/FM2C');
+  const [contractNumber, setContractNumber] = useState<string>(initialContractNumber || '');
   const [manualContractMode, setManualContractMode] = useState<boolean>(false);
   const [clientContracts, setClientContracts] = useState<Array<{ id?: string; contractNumber: string; description?: string; obraName?: string }>>([]);
-  const [obraName, setObraName] = useState<string>(initialObraName || 'FM2C IBIRITÉ');
+  const [obraName, setObraName] = useState<string>(initialObraName || '');
   const [manualObraMode, setManualObraMode] = useState<boolean>(false);
   const [vehicleType, setVehicleType] = useState<string>('MICRO'); // CARRO, ÔNIBUS, MICRO, VAN
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>('');
-  const [vehiclePlate, setVehiclePlate] = useState<string>(initialVehiclePlate || 'QMR-2E82');
+  const [vehiclePlate, setVehiclePlate] = useState<string>(initialVehiclePlate || '');
   const [manualPlateMode, setManualPlateMode] = useState<boolean>(false);
-  const [driverName, setDriverName] = useState<string>(cleanDriverName(initialDriverName || 'Fernando Silva Santos'));
+  const [driverName, setDriverName] = useState<string>(cleanDriverName(initialDriverName || ''));
   const [selectedDriverId, setSelectedDriverId] = useState<string>(initialDriverId || '');
   const [manualDriverMode, setManualDriverMode] = useState<boolean>(false);
   const [dpSignature, setDpSignature] = useState<string>('José Mário Ramos (DP)');
@@ -516,19 +516,31 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
     setSelectedVehicleId(vId);
     const found = availableVehicles.find(v => v.id === vId || (v.placa || v.plate) === vId) || vehicles.find(v => v.id === vId);
     if (found) {
-      setVehiclePlate(found.placa || found.plate || '');
+      const p = found.placa || found.plate || '';
+      setVehiclePlate(p);
       setVehicleType(detectVehicleType(found));
 
-      if (found.currentMileage != null && Number(found.currentMileage) > 0) {
-        const vKm = Number(found.currentMileage);
+      const vKm = found.currentMileage != null && Number(found.currentMileage) > 0 
+        ? Number(found.currentMileage) 
+        : 0;
+
+      // Se ainda não foram adicionados trajetos, atualiza os KMs para o hodômetro deste veículo
+      if (activities.length === 0) {
+        setStartKm(vKm);
+        setEndKm(vKm);
         setNewActivity(prev => ({
           ...prev,
           startKm: vKm,
           endKm: vKm
         }));
-        if (startKm === 0 || startKm === 403834) {
-          setStartKm(vKm);
-          setEndKm(vKm);
+      } else {
+        // Se já existem trajetos lançados e o hodômetro é diferente, avisa o usuário
+        const firstKm = parseFloat(String(activities[0]?.startKm)) || 0;
+        if (vKm > 0 && Math.abs(firstKm - vKm) > 500) {
+          toast({
+            title: `Veículo ${p} Selecionado`,
+            description: `Hodômetro cadastrado: ${vKm.toLocaleString('pt-BR')} km. Você pode conferir e ajustar na Aba 3.`,
+          });
         }
       }
 
@@ -561,6 +573,14 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
     if (found) {
       setSelectedVehicleId(found.id);
       setVehicleType(detectVehicleType(found));
+      const vKm = found.currentMileage != null && Number(found.currentMileage) > 0 
+        ? Number(found.currentMileage) 
+        : 0;
+      if (activities.length === 0 && vKm > 0) {
+        setStartKm(vKm);
+        setEndKm(vKm);
+        setNewActivity(prev => ({ ...prev, startKm: vKm, endKm: vKm }));
+      }
     }
   };
 
@@ -593,21 +613,15 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
       activityType: 'REGULAR'
     };
 
-    setActivities(prev => {
-      const next = [...prev, activityToAdd];
-      if (next.length > 0) {
-        setStartKm(parseFloat(String(next[0].startKm)) || 0);
-        setEndKm(parseFloat(String(next[next.length - 1].endKm)) || 0);
-      }
-      return next;
-    });
+    setActivities(prev => [...prev, activityToAdd]);
 
+    // O próximo trajeto já herda automaticamente o KM de chegada deste trajeto!
     setNewActivity({
       startTime: newActivity.endTime,
       endTime: '',
       description: '',
-      startKm: endNum,
-      endKm: endNum
+      startKm: endNum > 0 ? endNum : startNum,
+      endKm: endNum > 0 ? endNum : startNum
     });
 
     toast({
@@ -617,31 +631,28 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
   };
 
   const handleRemoveActivity = (index: number) => {
-    setActivities(prev => {
-      const next = prev.filter((_, i) => i !== index);
-      if (next.length > 0) {
-        setStartKm(parseFloat(String(next[0].startKm)) || 0);
-        setEndKm(parseFloat(String(next[next.length - 1].endKm)) || 0);
-      }
-      return next;
-    });
+    setActivities(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleActivityChange = (index: number, field: keyof ParteDiariaAtividade, value: any) => {
     setActivities(prev => {
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: value };
-      if (updated.length > 0) {
-        if (index === 0 && field === 'startKm') {
-          setStartKm(parseFloat(String(value)) || 0);
-        }
-        if (index === updated.length - 1 && field === 'endKm') {
-          setEndKm(parseFloat(String(value)) || 0);
-        }
-      }
       return updated;
     });
   };
+
+  // Sincroniza hodômetro geral automaticamente sempre que as atividades da Aba 2 mudam
+  useEffect(() => {
+    if (activities.length > 0) {
+      const firstKm = parseFloat(String(activities[0].startKm)) || 0;
+      const lastKm = parseFloat(String(activities[activities.length - 1].endKm)) || 0;
+      if (firstKm > 0 || lastKm > 0) {
+        setStartKm(firstKm);
+        setEndKm(lastKm);
+      }
+    }
+  }, [activities]);
 
   const handleSyncFromActivities = (showToast = true) => {
     if (activities.length > 0) {
@@ -700,10 +711,59 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
     }, 0);
   }, [activities]);
 
-  const odometerDiff = Math.max(0, Number(((endKm || 0) - (startKm || 0)).toFixed(2)));
-  const drivenKm = odometerDiff > 0 ? odometerDiff : tripsTotalKm;
-  const consideredKm = Math.max(0, Number((drivenKm - (disregardedKm || 0)).toFixed(2)));
-  const displacementDiff = Math.max(0, Number((odometerDiff - tripsTotalKm).toFixed(2)));
+  const odometerDiff = React.useMemo(() => {
+    const diff = (endKm || 0) - (startKm || 0);
+    return Math.max(0, Number(diff.toFixed(2)));
+  }, [endKm, startKm]);
+
+  // Se o hodômetro geral estiver consistente (> 0), usa ele; senão usa a soma direta dos trajetos da Aba 2
+  const drivenKm = React.useMemo(() => {
+    if (odometerDiff > 0) return odometerDiff;
+    if (tripsTotalKm > 0) return tripsTotalKm;
+    return 0;
+  }, [odometerDiff, tripsTotalKm]);
+
+  const consideredKm = React.useMemo(() => {
+    return Math.max(0, Number((drivenKm - (disregardedKm || 0)).toFixed(2)));
+  }, [drivenKm, disregardedKm]);
+
+  const displacementDiff = React.useMemo(() => {
+    if (odometerDiff > tripsTotalKm) {
+      return Math.max(0, Number((odometerDiff - tripsTotalKm).toFixed(2)));
+    }
+    return 0;
+  }, [odometerDiff, tripsTotalKm]);
+
+  const operationSummary = React.useMemo(() => {
+    if (activities.length === 0) {
+      return {
+        startTime: '--:--',
+        endTime: '--:--',
+        duration: '0h',
+        totalTrips: 0
+      };
+    }
+    const startTime = activities[0].startTime || '--:--';
+    const endTime = activities[activities.length - 1].endTime || '--:--';
+
+    let duration = '--';
+    if (startTime.includes(':') && endTime.includes(':')) {
+      const [sh, sm] = startTime.split(':').map(Number);
+      const [eh, em] = endTime.split(':').map(Number);
+      let diffMin = (eh * 60 + em) - (sh * 60 + sm);
+      if (diffMin < 0) diffMin += 24 * 60;
+      const h = Math.floor(diffMin / 60);
+      const m = diffMin % 60;
+      duration = `${h}h${m > 0 ? ` ${m}m` : ''}`;
+    }
+
+    return {
+      startTime,
+      endTime,
+      duration,
+      totalTrips: activities.length
+    };
+  }, [activities]);
 
   const combinedMotoristas = [
     ...motoristasFuncionarios.map(m => ({ id: m.id, name: m.name, sub: `Funcionário — ${m.cargo}` })),
@@ -1542,7 +1602,7 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                       <Input
                         type="number"
                         step="any"
-                        placeholder="Ex: 403834"
+                        placeholder={startKm ? `Ex: ${startKm}` : 'KM Inicial'}
                         value={newActivity.startKm || ''}
                         onChange={(e) => setNewActivity(prev => ({ ...prev, startKm: parseFloat(e.target.value) || 0 }))}
                         className="bg-slate-950 border-slate-700 text-white font-mono font-bold text-center h-10 sm:h-11 text-xs sm:text-sm rounded-xl w-full"
@@ -1556,7 +1616,7 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                       <Input
                         type="number"
                         step="any"
-                        placeholder="Ex: 403869"
+                        placeholder={newActivity.startKm ? `Ex: ${Number(newActivity.startKm) + 20}` : 'KM Final'}
                         value={newActivity.endKm || ''}
                         onChange={(e) => setNewActivity(prev => ({ ...prev, endKm: parseFloat(e.target.value) || 0 }))}
                         className="bg-slate-950 border-slate-700 text-white font-mono font-bold text-center h-10 sm:h-11 text-xs sm:text-sm rounded-xl w-full"
@@ -1788,7 +1848,7 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                       Hodômetro Geral
                     </span>
                     <div className="text-2xl sm:text-3xl font-black font-mono text-sky-400 mt-1">
-                      {odometerDiff.toFixed(1)} km
+                      {odometerDiff > 0 ? `${odometerDiff.toFixed(1)} km` : tripsTotalKm > 0 ? `${tripsTotalKm.toFixed(1)} km` : '0.0 km'}
                     </div>
                     <span className="text-[10px] text-slate-500 font-mono mt-0.5 block truncate">
                       {endKm} fim - {startKm} início
@@ -1803,31 +1863,162 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                       {consideredKm.toFixed(1)} km
                     </div>
                     <span className="text-[10px] text-emerald-400/70 font-mono mt-0.5 block">
-                      Após abatimentos ({disregardedKm} km)
+                      {disregardedKm > 0 ? `Após ${disregardedKm} km abatidos` : '100% faturável'}
                     </span>
                   </div>
                 </div>
 
-                {/* ALERTA DE INCONSISTÊNCIA SE KM FIM < KM INÍCIO */}
+                {/* ALERTA INTELIGENTE COM CORREÇÃO EM 1 CLIQUE SE KM FIM < KM INÍCIO */}
                 {endKm > 0 && startKm > 0 && endKm < startKm && (
-                  <div className="bg-rose-500/15 border border-rose-500/50 rounded-xl p-3 flex items-start sm:items-center gap-2.5 text-rose-300 text-xs">
-                    <AlertTriangle className="h-5 w-5 text-rose-400 shrink-0 mt-0.5 sm:mt-0" />
-                    <div>
-                      <strong className="text-rose-200 block text-xs sm:text-sm">Atenção: KM Final menor que o KM Inicial!</strong>
-                      O KM Fim ({endKm}) não pode ser inferior ao KM Início ({startKm}). Verifique os valores digitados ou sincronize com os trajetos.
+                  <div className="bg-rose-500/15 border border-rose-500/50 rounded-2xl p-4 text-rose-300 text-xs space-y-3">
+                    <div className="flex items-start gap-2.5">
+                      <AlertTriangle className="h-5 w-5 text-rose-400 shrink-0 mt-0.5" />
+                      <div>
+                        <strong className="text-rose-200 block text-sm font-bold">
+                          Inconsistência de Hodômetro: KM Final ({endKm}) menor que KM Inicial ({startKm})
+                        </strong>
+                        <p className="text-rose-300 text-xs mt-0.5">
+                          Isso geralmente ocorre quando o veículo foi alterado ou o KM final foi digitado invertido. Escolha uma das correções rápidas abaixo:
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {tripsTotalKm > 0 && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => {
+                            setEndKm(startKm + tripsTotalKm);
+                            toast({
+                              title: 'Hodômetro Corrigido!',
+                              description: `KM Final ajustado para ${startKm + tripsTotalKm} (${startKm} + ${tripsTotalKm} km dos trajetos).`
+                            });
+                          }}
+                          className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs h-8 px-3 rounded-lg"
+                        >
+                          ⚡ Ajustar KM Fim pela Soma dos Trajetos ({startKm + tripsTotalKm} km)
+                        </Button>
+                      )}
+
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          const temp = startKm;
+                          setStartKm(endKm);
+                          setEndKm(temp);
+                          toast({
+                            title: 'Valores Invertidos!',
+                            description: `KM Início: ${endKm} km | KM Fim: ${temp} km.`
+                          });
+                        }}
+                        className="border-rose-400 text-rose-200 hover:bg-rose-500/20 text-xs h-8 px-3 rounded-lg"
+                      >
+                        🔄 Inverter Início e Fim
+                      </Button>
+
+                      {activities.length > 0 && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleSyncFromActivities(true)}
+                          className="border-slate-700 text-white hover:bg-slate-800 text-xs h-8 px-3 rounded-lg"
+                        >
+                          <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+                          Restaurar dos Trajetos da Aba 2
+                        </Button>
+                      )}
                     </div>
                   </div>
                 )}
 
-                {/* 2. CARD DETALHADO: RESUMO DOS LANÇAMENTOS DAS OUTRAS ABAS */}
+                {/* 2. CARD CONSOLIDAÇÃO OFICIAL: DADOS HERDADOS DAS OUTRAS ABAS */}
+                <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-amber-950/20 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-3.5 shadow-md">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
+                    <div>
+                      <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-wider">
+                        <CheckCircle2 className="h-4 w-4" /> Consolidação dos Lançamentos das Outras Abas
+                      </div>
+                      <span className="text-[11px] text-slate-400 block mt-0.5">
+                        Os valores de fechamento abaixo foram unificados com base na Aba 1 (Veículo) e Aba 2 (Trajetos)
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={jumpToVeiculo}
+                        className="text-[11px] text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 h-7 px-2"
+                      >
+                        ✎ Editar Aba 1
+                      </Button>
+                      <span className="text-slate-600">•</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setCurrentStep('atividades')}
+                        className="text-[11px] text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 h-7 px-2"
+                      >
+                        ✎ Editar Aba 2
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Grid de Dados Consolidados das Abas 1 e 2 */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+                    <div className="bg-slate-950/80 p-2.5 rounded-xl border border-slate-800/80 min-w-0">
+                      <span className="text-[10px] text-slate-400 font-semibold block uppercase">Veículo / Placa (Aba 1)</span>
+                      <span className="text-amber-300 font-bold text-sm font-mono truncate block mt-0.5">
+                        {vehiclePlate || 'Não selecionado'}
+                      </span>
+                      <span className="text-[10px] text-slate-400 block truncate">{vehicleType}</span>
+                    </div>
+
+                    <div className="bg-slate-950/80 p-2.5 rounded-xl border border-slate-800/80 min-w-0">
+                      <span className="text-[10px] text-slate-400 font-semibold block uppercase">Motorista (Aba 1)</span>
+                      <span className="text-white font-bold text-sm truncate block mt-0.5" title={driverName}>
+                        {driverName || 'Não informado'}
+                      </span>
+                      <span className="text-[10px] text-slate-400 block truncate">Condutor da Ficha</span>
+                    </div>
+
+                    <div className="bg-slate-950/80 p-2.5 rounded-xl border border-slate-800/80 min-w-0">
+                      <span className="text-[10px] text-slate-400 font-semibold block uppercase">Cliente & Obra (Aba 1)</span>
+                      <span className="text-sky-300 font-bold text-sm truncate block mt-0.5" title={clientName}>
+                        {clientName || 'Geral'}
+                      </span>
+                      <span className="text-[10px] text-slate-400 block truncate" title={obraName}>
+                        {obraName || 'Sem Obra'} • {contractNumber}
+                      </span>
+                    </div>
+
+                    <div className="bg-slate-950/80 p-2.5 rounded-xl border border-slate-800/80 min-w-0">
+                      <span className="text-[10px] text-slate-400 font-semibold block uppercase">Operação (Aba 2)</span>
+                      <span className="text-emerald-400 font-bold text-sm font-mono block mt-0.5">
+                        {operationSummary.startTime} às {operationSummary.endTime}
+                      </span>
+                      <span className="text-[10px] text-slate-400 block truncate">
+                        {operationSummary.duration} • {operationSummary.totalTrips} trajeto(s)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. EXTRATO DETALHADO DOS TRAJETOS DA ABA 2 */}
                 <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-3">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-2.5">
                     <div>
                       <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-wider">
-                        <Clock className="h-4 w-4" /> Consolidação dos Trajetos Lançados (Aba 2)
+                        <Clock className="h-4 w-4" /> Extrato dos Trajetos Percorridos (Aba 2)
                       </div>
                       <span className="text-[11px] text-slate-400 block mt-0.5">
-                        Estes trajetos alimentam o hodômetro de início e término desta ficha
+                        Estes trajetos alimentam e validam o hodômetro de fechamento
                       </span>
                     </div>
 
@@ -1846,9 +2037,9 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                   </div>
 
                   {activities.length === 0 ? (
-                    <div className="bg-slate-950/60 border border-dashed border-slate-800 rounded-xl p-4 text-center space-y-2">
+                    <div className="bg-slate-950/60 border border-dashed border-slate-800 rounded-xl p-5 text-center space-y-2">
                       <p className="text-xs text-slate-400">
-                        Nenhum trajeto lançado na Aba 2. O cálculo da parte diária dependerá da leitura manual do hodômetro.
+                        Nenhum trajeto lançado na Aba 2. O fechamento dependerá exclusivamente da leitura manual do hodômetro.
                       </p>
                       <Button
                         type="button"
@@ -1861,20 +2052,20 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                      <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
                         {activities.map((act, idx) => {
                           const dist = Math.max(0, Number(((Number(act.endKm) || 0) - (Number(act.startKm) || 0)).toFixed(1)));
                           return (
                             <div
                               key={idx}
-                              className="bg-slate-950/80 border border-slate-800/80 rounded-xl p-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-xs"
+                              className="bg-slate-950/80 border border-slate-800/80 rounded-xl p-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-xs hover:border-slate-700 transition-all"
                             >
                               <div className="flex items-center gap-2 min-w-0">
                                 <span className="w-5 h-5 rounded bg-amber-500/10 text-amber-400 font-bold text-[10px] flex items-center justify-center shrink-0">
                                   #{idx + 1}
                                 </span>
-                                <Badge className="bg-slate-800 text-amber-300 border-slate-700 font-mono text-[10px] py-0 px-1 shrink-0">
-                                  {act.startTime} - {act.endTime}
+                                <Badge className="bg-slate-800 text-amber-300 border-slate-700 font-mono text-[10px] py-0 px-1.5 shrink-0">
+                                  {act.startTime} ➔ {act.endTime}
                                 </Badge>
                                 <span className="text-white font-medium truncate" title={act.description}>
                                   {act.description}
@@ -1894,12 +2085,12 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                         })}
                       </div>
 
-                      <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-800/60 font-mono">
+                      <div className="flex flex-wrap items-center justify-between text-xs pt-2 border-t border-slate-800/80 font-mono gap-1">
                         <span className="text-slate-400 text-[11px]">
                           1º Trajeto: <strong className="text-amber-300">{activities[0]?.startKm} km</strong> | Último: <strong className="text-emerald-300">{activities[activities.length - 1]?.endKm} km</strong>
                         </span>
-                        <span className="text-amber-300 font-bold">
-                          Soma dos Trajetos: {tripsTotalKm.toFixed(1)} km
+                        <span className="text-amber-300 font-bold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30">
+                          Soma dos Trajetos da Aba 2: {tripsTotalKm.toFixed(1)} km
                         </span>
                       </div>
                     </div>
@@ -1908,12 +2099,12 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
 
                 {/* SUGESTÃO DE ABATIMENTO CASO HODÔMETRO SEJA MAIOR QUE OS TRAJETOS */}
                 {displacementDiff > 0 && activities.length > 0 && (
-                  <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 animate-in fade-in-50">
+                  <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 animate-in fade-in-50">
                     <div className="text-xs text-amber-300">
                       <span className="font-bold block text-amber-200">
-                        💡 Diferença de Deslocamento detectada: {displacementDiff} km
+                        💡 Deslocamento Adicional Detectado: {displacementDiff} km
                       </span>
-                      O hodômetro geral ({odometerDiff} km) é maior que os trajetos faturáveis ({tripsTotalKm} km), provavelmente por deslocamento de garagem.
+                      O hodômetro geral ({odometerDiff} km) é maior que a soma dos trajetos da Aba 2 ({tripsTotalKm} km), provavelmente por translado de garagem.
                     </div>
                     <Button
                       type="button"
@@ -1933,15 +2124,15 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                   </div>
                 )}
 
-                {/* 3. LEITURA DO HODÔMETRO GERAL */}
+                {/* 4. LEITURA DO HODÔMETRO GERAL */}
                 <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 sm:p-5 space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-wider">
                       <Gauge className="h-4 w-4" /> Leitura do Hodômetro Geral do Veículo
                     </div>
                     {activities.length > 0 && (
-                      <span className="text-[10px] text-slate-400">
-                        Preenchido pelos trajetos da Aba 2
+                      <span className="text-[10px] text-emerald-400 font-semibold">
+                        ✓ Sincronizado com os trajetos da Aba 2
                       </span>
                     )}
                   </div>
@@ -1975,7 +2166,7 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                   </div>
                 </div>
 
-                {/* 4. ABATIMENTO DE KM (OPCIONAL) */}
+                {/* 5. ABATIMENTO DE KM (OPCIONAL) */}
                 <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 sm:p-5 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-slate-300 font-semibold uppercase tracking-wider">

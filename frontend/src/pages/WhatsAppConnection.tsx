@@ -765,9 +765,13 @@ const AstraCallsSection: React.FC<AstraCallsSectionProps> = ({
             )}
 
             {!status?.configured && (
-              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 text-xs text-yellow-400">
-                AstraCalls não está configurado. Defina <code>ASTRACALLS_API_ENABLED</code>,{' '}
-                <code>ASTRACALLS_API_URL</code> e <code>ASTRACALLS_API_KEY</code> no ambiente.
+              <div className="bg-amber-500/15 border border-amber-500/40 rounded-xl p-3.5 text-xs text-amber-300 space-y-1.5">
+                <div className="font-bold flex items-center gap-1.5 text-amber-200">
+                  <AlertTriangle className="h-4 w-4" /> Provedor AstraCalls Não Configurado no Servidor
+                </div>
+                <p>
+                  A URL ou API Key do AstraCalls não foram configuradas neste ambiente. Para conectar o WhatsApp imediatamente, selecione o provedor <strong>Evolution API</strong> acima e escaneie o QR Code.
+                </p>
               </div>
             )}
 
