@@ -282,18 +282,18 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/user-terms-consent/**")
                                                 .hasAnyAuthority("SUPER_ADMIN", "ADMIN", "ROLE_SUPER_ADMIN",
                                                                 "ROLE_ADMIN", "ROLE_COMPANY_ADMIN", "ROLE_FLEX_ADMIN")
-                                                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/contracts/**").authenticated()
-                                                .requestMatchers("/api/contracts/**")
+                                                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/contracts", "/api/contracts/**").authenticated()
+                                                .requestMatchers("/api/contracts", "/api/contracts/**")
                                                 .hasAnyAuthority("CONTRACTS_READ", "CONTRACTS_WRITE",
                                                                 "CONTRACTS_CREATE", "CONTRACTS_DELETE",
                                                                 "ROLE_SUPER_ADMIN", "ROLE_ADMIN", "ROLE_COMPANY_ADMIN",
                                                                 "ROLE_FLEX_ADMIN", "ROLE_GESTOR", "ROLE_OPERACIONAL",
                                                                 "ROLE_GESTOR_OPERACIONAL", "OPERACIONAL", "GESTOR_OPERACIONAL",
                                                                 "ROLE_TRAFFIC_MANAGER")
-                                                .requestMatchers("/api/services/**", "/api/admin/services/**").authenticated()
-                                                .requestMatchers("/api/escala-trabalho/**", "/api/escalas/**", "/api/work-scales/**").authenticated()
-                                                .requestMatchers("/api/expenses/**", "/api/expense-classifications/**").authenticated()
-                                                .requestMatchers("/api/mobilization/**", "/api/operational-mobilization/**").authenticated()
+                                                .requestMatchers("/api/services", "/api/services/**", "/api/admin/services", "/api/admin/services/**").authenticated()
+                                                .requestMatchers("/api/escala-trabalho", "/api/escala-trabalho/**", "/api/escalas", "/api/escalas/**", "/api/work-scales", "/api/work-scales/**").authenticated()
+                                                .requestMatchers("/api/expenses", "/api/expenses/**", "/api/expense-classifications", "/api/expense-classifications/**").authenticated()
+                                                .requestMatchers("/api/mobilization", "/api/mobilization/**", "/api/operational-mobilization", "/api/operational-mobilization/**").authenticated()
                                                 // Endpoints de propostas - requerem permissÃƒÂµes especÃƒÂ­ficas
                                                 .requestMatchers("/api/proposals/**")
                                                 .hasAnyAuthority("PROPOSALS_READ", "PROPOSALS_WRITE",
@@ -404,7 +404,7 @@ public class SecurityConfig {
                                                 // Endpoints de mensagens - permitir para todos os roles principais,
                                                 // incluindo
                                                 // Departamento Pessoal
-                                                .requestMatchers("/api/v1/messages/**").authenticated()
+                                                .requestMatchers("/api/v1/messages", "/api/v1/messages/**").authenticated()
                                                 // Endpoints de suporte e atendimento - requerem permissÃƒÂµes
                                                 // especÃƒÂ­ficas
                                                 .requestMatchers("/api/v1/support/**").authenticated()
@@ -463,7 +463,7 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/measurements/*/excel").permitAll()
                                                 .requestMatchers("/api/measurements/bulk/pdf").permitAll()
                                                 .requestMatchers("/api/measurements/bulk/excel").permitAll()
-                                                .requestMatchers("/api/measurements/**").authenticated()
+                                                .requestMatchers("/api/measurements", "/api/measurements/**").authenticated()
                                                 .requestMatchers("/api/contract-retentions/**").authenticated()
                                                 // Endpoints de importação de NF-e (XML/PDF) para Estoque e Financeiro - qualquer usuário autenticado
                                                 .requestMatchers("/api/stock/nfe/**").authenticated()
@@ -517,7 +517,7 @@ public class SecurityConfig {
                                                                 "ROLE_GESTOR", "ROLE_RH", "ROLE_SST", "ROLE_SEGURANCA_DO_TRABALHO",
                                                                 "EMPLOYEES_READ", "EMPLOYEES_WRITE")
                                                 // Endpoints de folha de ponto (time-sheets) e registro de ponto - disponíveis para todos os funcionários autenticados
-                                                .requestMatchers("/api/time-sheets/**", "/api/time-records/**").authenticated()
+                                                .requestMatchers("/api/time-sheets", "/api/time-sheets/**", "/api/time-records", "/api/time-records/**").authenticated()
                                                 // Todo o resto requer autenticaÃƒÂ§ÃƒÂ£o
                                                 .anyRequest().authenticated())
                                 .authenticationProvider(authenticationProvider)
