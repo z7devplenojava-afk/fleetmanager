@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useMessageStore } from '@/stores/messageStore';
 import { messageService } from '@/services/messageService';
 import { useToast } from '@/hooks/use-toast';
@@ -7,6 +7,7 @@ export const useNotificationBell = () => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const lastUpdateRef = useRef<Date>(new Date());
 
   const {
     systemMessages,
@@ -18,24 +19,28 @@ export const useNotificationBell = () => {
   } = useMessageStore();
 
   // Carregar mensagens
-  const loadMessages = useCallback(async (page = 0, size = 20) => {
+  const loadMessages = useCallback(async (page = 0, size = 20, showToastOnError = true) => {
     try {
       setIsLoading(true);
       setStoreLoading(true);
       
       const result = await messageService.getSystemMessages(page, size);
       setSystemMessages(result.messages);
-      setLastUpdate(new Date());
+      const now = new Date();
+      setLastUpdate(now);
+      lastUpdateRef.current = now;
       
       return result;
     } catch (error: any) {
-      console.error('Erro ao carregar mensagens:', error);
-      toast({
-        title: "Erro",
-        description: error.message || "Erro ao carregar mensagens",
-        variant: "destructive"
-      });
-      throw error;
+      console.warn('Erro ao carregar mensagens:', error?.message || error);
+      if (showToastOnError) {
+        toast({
+          title: "Erro",
+          description: error.message || "Erro ao carregar mensagens",
+          variant: "destructive"
+        });
+      }
+      return { messages: [], total: 0, totalPages: 0 };
     } finally {
       setIsLoading(false);
       setStoreLoading(false);
@@ -130,20 +135,20 @@ export const useNotificationBell = () => {
       try {
         await loadUnreadCount();
         
-        // Se faz mais de 5 minutos desde a última atualização, recarregar mensagens
+        // Se faz mais de 5 minutos desde a última atualização, recarregar mensagens silenciosamente
         const now = new Date();
-        const diffInMinutes = (now.getTime() - lastUpdate.getTime()) / (1000 * 60);
+        const diffInMinutes = (now.getTime() - lastUpdateRef.current.getTime()) / (1000 * 60);
         
         if (diffInMinutes > 5) {
-          await loadMessages(0, 10); // Carregar apenas as 10 mais recentes
+          await loadMessages(0, 10, false); // Carregar apenas as 10 mais recentes sem alertar erro se backend estiver reiniciando
         }
       } catch (error) {
-        console.warn('Backend indisponível, tentando novamente em 2 minutos');
+        console.warn('Backend temporariamente indisponível no ciclo de notificações');
       }
-    }, 120000); // A cada 2 minutos quando há problemas
+    }, 120000); // A cada 2 minutos
 
     return () => clearInterval(updateInterval);
-  }, [lastUpdate, loadMessages, loadUnreadCount]);
+  }, [loadMessages, loadUnreadCount]);
 
   // Calcular contagem de não lidas a partir do store
   const unreadCount = systemMessages.filter(msg => msg.status === 'UNREAD').length;
