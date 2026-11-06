@@ -73,11 +73,14 @@ services:
       MAIL_SSL_ENABLE: true
       # JVM Memory Optimization (evita OOM Killer na VPS)
       JAVA_OPTS: "-Xms256m -Xmx768m -XX:+UseG1GC -XX:+UseStringDeduplication -Djava.security.egd=file:/dev/./urandom"
-      # WhatsApp Configuration (Evolution API)
+      # WhatsApp Configuration (Evolution API + AstraCalls)
       EVOLUTION_API_URL: http://evolution-api-prod:8080
       EVOLUTION_API_KEY: ${EVOLUTION_API_KEY_PROD:-CHANGE_THIS_EVOLUTION_API_KEY}
       EVOLUTION_API_INSTANCE: ${EVOLUTION_API_INSTANCE_PROD:-fluxbus_prod}
       EVOLUTION_API_ENABLED: "true"
+      ASTRACALLS_API_ENABLED: ${ASTRACALLS_API_ENABLED:-true}
+      ASTRACALLS_API_URL: ${ASTRACALLS_API_URL:-http://astracalls-prod:8080}
+      ASTRACALLS_API_KEY: ${ASTRACALLS_API_KEY_PROD:-fluxbus_prod_key}
     ports:
       - "8085:8083"
     depends_on:
@@ -85,6 +88,8 @@ services:
         condition: service_healthy
       redis-prod:
         condition: service_healthy
+      astracalls-prod:
+        condition: service_started
     networks:
       - fluxbus-prod-network
       - z7network
@@ -127,6 +132,49 @@ services:
     restart: unless-stopped
 
   # ========================================
+  # ASTRACALLS PROD (WhatsApp / whatsmeow)
+  # ========================================
+  astracalls-db-prod:
+    image: postgres:16-alpine
+    container_name: fluxbus-astracalls-db-prod
+    hostname: astracalls-db-prod
+    environment:
+      POSTGRES_DB: ${WACALLS_DB_NAME:-wacalls_main}
+      POSTGRES_USER: ${WACALLS_DB_USER:-wacalls}
+      POSTGRES_PASSWORD: ${WACALLS_DB_PASSWORD:-wacalls}
+    volumes:
+      - astracalls_data_prod:/var/lib/postgresql/data
+    networks:
+      - fluxbus-prod-network
+      - z7network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${WACALLS_DB_USER:-wacalls} -d ${WACALLS_DB_NAME:-wacalls_main}"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  astracalls-prod:
+    image: z7design/fluxbus-astracalls:prod
+    container_name: fluxbus-astracalls-prod
+    hostname: astracalls-prod
+    depends_on:
+      astracalls-db-prod:
+        condition: service_healthy
+    environment:
+      WACALLS_API_KEY: ${ASTRACALLS_API_KEY_PROD:-fluxbus_prod_key}
+      WACALLS_PG_URL: postgres://${WACALLS_DB_USER:-wacalls}:${WACALLS_DB_PASSWORD:-wacalls}@astracalls-db-prod:5432/${WACALLS_DB_NAME:-wacalls_main}?sslmode=disable
+      WACALLS_PG_NAMESPACE: wacalls
+      WACALLS_MAX_CALLS: "8"
+    command: ["-addr", ":8080", "-static", "/app/client/dist"]
+    expose:
+      - "8080"
+    networks:
+      - fluxbus-prod-network
+      - z7network
+    restart: unless-stopped
+
+  # ========================================
   # FRONTEND PROD
   # ========================================
   frontend-prod:
@@ -158,6 +206,8 @@ volumes:
   redis_data_prod:
     driver: local
   evolution_instances_prod:
+    driver: local
+  astracalls_data_prod:
     driver: local
 
 # ========================================

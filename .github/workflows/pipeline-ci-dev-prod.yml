@@ -129,6 +129,20 @@ jobs:
           push: true
           tags: z7design/fluxbus-whatsapp:ci
 
+      - name: "📥 Clone AstraCalls (fonte atual)"
+        run: |
+          git clone --depth 1 https://github.com/AstraOnlineWeb/AstraCalls.git .astracalls-src
+
+      - name: "🐳 Build & Push AstraCalls :ci"
+        uses: docker/build-push-action@v5
+        with:
+          context: ./.astracalls-src
+          push: true
+          build-args: |
+            BUILD_VERSION=ci
+            BUILD_REV=${{ github.sha }}
+          tags: z7design/fluxbus-astracalls:ci
+
   # ============================================================
   # JOB 2: DEPLOY CI
   # ============================================================
@@ -189,6 +203,9 @@ jobs:
             printf 'BAILEYS_INSTANCE_KEY=%s\n' "fluxbus_ci"
             printf 'EVOLUTION_API_KEY=%s\n'     "${{ secrets.EVOLUTION_API_KEY || 'fluxbus_ci_key' }}"
             printf 'EVOLUTION_API_URL=%s\n'     "http://whatsapp-service-ci:3333"
+            printf 'ASTRACALLS_API_ENABLED=true\n'
+            printf 'ASTRACALLS_API_URL=http://astracalls-ci:8080\n'
+            printf 'ASTRACALLS_API_KEY=%s\n'    "${{ secrets.ASTRACALLS_API_KEY || 'fluxbus_ci_key' }}"
           } > /tmp/ci.env
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" scp \
             -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
@@ -207,7 +224,7 @@ jobs:
               rm -rf /var/www/secured_guard 2>/dev/null || true
 
               # Remover containers orfaos de nomes fixos (conflito de container_name)
-              docker rm -f fluxbus-nginx-ci fluxbus-db-ci fluxbus-redis-ci fluxbus-backend-ci fluxbus-frontend-ci fluxbus-whatsapp-ci whatsapp-service-ci 2>/dev/null || true
+              docker rm -f fluxbus-nginx-ci fluxbus-db-ci fluxbus-redis-ci fluxbus-backend-ci fluxbus-frontend-ci fluxbus-whatsapp-ci whatsapp-service-ci fluxbus-astracalls-ci fluxbus-astracalls-db-ci 2>/dev/null || true
 
               # Derrubar stack legado antigo (compose renomeado em /var/www/fluxbus)
               if [ -f /var/www/fluxbus/docker-compose.yml ]; then
@@ -225,7 +242,8 @@ jobs:
               for i in 1 2 3; do
                 docker pull z7design/fluxbus-backend:ci && \
                 docker pull z7design/fluxbus-frontend:ci && \
-                docker pull z7design/fluxbus-whatsapp:ci && break || sleep 15
+                docker pull z7design/fluxbus-whatsapp:ci && \
+                docker pull z7design/fluxbus-astracalls:ci && break || sleep 15
               done
 
               # Iniciar banco antes do backend para remover registros de migracao
@@ -310,9 +328,10 @@ jobs:
       - name: "🐳 Re-tag CI -> DEV e push"
         run: |
           # Usar buildx imagetools para re-taggear sem precisar dar pull nas camadas (mais rapido e evita erros de daemon local)
-          docker buildx imagetools create z7design/fluxbus-backend:ci  --tag z7design/fluxbus-backend:dev
-          docker buildx imagetools create z7design/fluxbus-frontend:ci --tag z7design/fluxbus-frontend:dev
-          docker buildx imagetools create z7design/fluxbus-whatsapp:ci --tag z7design/fluxbus-whatsapp:dev
+          docker buildx imagetools create z7design/fluxbus-backend:ci    --tag z7design/fluxbus-backend:dev
+          docker buildx imagetools create z7design/fluxbus-frontend:ci   --tag z7design/fluxbus-frontend:dev
+          docker buildx imagetools create z7design/fluxbus-whatsapp:ci   --tag z7design/fluxbus-whatsapp:dev
+          docker buildx imagetools create z7design/fluxbus-astracalls:ci --tag z7design/fluxbus-astracalls:dev
 
       - name: "🔑 Instalar sshpass"
         run: sudo apt-get update -qq && sudo apt-get install -y -qq sshpass
@@ -332,6 +351,9 @@ jobs:
             printf 'MAIL_USERNAME=securedguard@z7design.com.br\n'
             printf 'MAIL_PASSWORD=%s\n'        "${{ secrets.MAIL_PASSWORD }}"
             printf 'MAIL_SSL_ENABLE=true\n'
+            printf 'ASTRACALLS_API_ENABLED=true\n'
+            printf 'ASTRACALLS_API_URL=http://astracalls-dev:8080\n'
+            printf 'ASTRACALLS_API_KEY=%s\n'    "${{ secrets.ASTRACALLS_API_KEY || 'fluxbus_dev_key' }}"
           } > /tmp/dev.env
 
           HOST="${{ secrets.VPS_HOST_DEV || secrets.VPS_HOST }}"
@@ -431,9 +453,10 @@ jobs:
 
       - name: "🐳 Re-tag CI -> PROD e push"
         run: |
-          docker buildx imagetools create z7design/fluxbus-backend:ci  --tag z7design/fluxbus-backend:prod
-          docker buildx imagetools create z7design/fluxbus-frontend:ci --tag z7design/fluxbus-frontend:prod
-          docker buildx imagetools create z7design/fluxbus-whatsapp:ci --tag z7design/fluxbus-whatsapp:prod
+          docker buildx imagetools create z7design/fluxbus-backend:ci    --tag z7design/fluxbus-backend:prod
+          docker buildx imagetools create z7design/fluxbus-frontend:ci   --tag z7design/fluxbus-frontend:prod
+          docker buildx imagetools create z7design/fluxbus-whatsapp:ci   --tag z7design/fluxbus-whatsapp:prod
+          docker buildx imagetools create z7design/fluxbus-astracalls:ci --tag z7design/fluxbus-astracalls:prod
 
       - name: "🔑 Instalar sshpass"
         run: sudo apt-get update -qq && sudo apt-get install -y -qq sshpass
@@ -455,6 +478,9 @@ jobs:
             printf 'MAIL_SSL_ENABLE=true\n'
             printf 'EVOLUTION_API_KEY_PROD=%s\n' "${{ secrets.EVOLUTION_API_KEY_PROD  }}"
             printf 'EVOLUTION_API_INSTANCE_PROD=fluxbus_prod\n'
+            printf 'ASTRACALLS_API_ENABLED=true\n'
+            printf 'ASTRACALLS_API_URL=http://astracalls-prod:8080\n'
+            printf 'ASTRACALLS_API_KEY_PROD=%s\n' "${{ secrets.ASTRACALLS_API_KEY_PROD || 'fluxbus_prod_key' }}"
           } > /tmp/prod.env
 
           HOST="${{ secrets.VPS_HOST_PROD || secrets.VPS_HOST }}"

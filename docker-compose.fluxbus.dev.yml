@@ -83,6 +83,10 @@ services:
       MAIL_USERNAME: ${MAIL_USERNAME:-securedguard@z7design.com.br}
       MAIL_PASSWORD: ${MAIL_PASSWORD:-CHANGE_THIS_MAIL_PASSWORD}
       MAIL_SSL_ENABLE: true
+      # WhatsApp AstraCalls Configuration
+      ASTRACALLS_API_ENABLED: ${ASTRACALLS_API_ENABLED:-true}
+      ASTRACALLS_API_URL: ${ASTRACALLS_API_URL:-http://astracalls-dev:8080}
+      ASTRACALLS_API_KEY: ${ASTRACALLS_API_KEY:-fluxbus_dev_key}
     ports:
       - "8084:8083"
     depends_on:
@@ -91,6 +95,8 @@ services:
       redis-dev:
         condition: service_healthy
       whatsapp-service-dev:
+        condition: service_started
+      astracalls-dev:
         condition: service_started
     networks:
       - fluxbus-dev-network
@@ -128,6 +134,49 @@ services:
     shm_size: 256mb
 
   # ========================================
+  # ASTRACALLS DEV (WhatsApp / whatsmeow)
+  # ========================================
+  astracalls-db-dev:
+    image: postgres:16-alpine
+    container_name: fluxbus-astracalls-db-dev
+    hostname: astracalls-db-dev
+    environment:
+      POSTGRES_DB: ${WACALLS_DB_NAME:-wacalls_main}
+      POSTGRES_USER: ${WACALLS_DB_USER:-wacalls}
+      POSTGRES_PASSWORD: ${WACALLS_DB_PASSWORD:-wacalls}
+    volumes:
+      - astracalls_data_dev:/var/lib/postgresql/data
+    networks:
+      - fluxbus-dev-network
+      - z7network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${WACALLS_DB_USER:-wacalls} -d ${WACALLS_DB_NAME:-wacalls_main}"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  astracalls-dev:
+    image: z7design/fluxbus-astracalls:dev
+    container_name: fluxbus-astracalls-dev
+    hostname: astracalls-dev
+    depends_on:
+      astracalls-db-dev:
+        condition: service_healthy
+    environment:
+      WACALLS_API_KEY: ${ASTRACALLS_API_KEY:-fluxbus_dev_key}
+      WACALLS_PG_URL: postgres://${WACALLS_DB_USER:-wacalls}:${WACALLS_DB_PASSWORD:-wacalls}@astracalls-db-dev:5432/${WACALLS_DB_NAME:-wacalls_main}?sslmode=disable
+      WACALLS_PG_NAMESPACE: wacalls
+      WACALLS_MAX_CALLS: "8"
+    command: ["-addr", ":8080", "-static", "/app/client/dist"]
+    expose:
+      - "8080"
+    networks:
+      - fluxbus-dev-network
+      - z7network
+    restart: unless-stopped
+
+  # ========================================
   # FRONTEND DEV
   # ========================================
   frontend-dev:
@@ -159,6 +208,8 @@ volumes:
   redis_data_dev:
     driver: local
   whatsapp_sessions_dev:
+    driver: local
+  astracalls_data_dev:
     driver: local
 
 # ========================================
