@@ -86,50 +86,62 @@ const Medicao: React.FC = () => {
   const loadDashboardData = async () => {
     try {
       setDashboardLoading(true);
-      const bulletins = await measurementService.getBulletins();
-      
-      // Verificar se bulletins é um array válido
-      if (!Array.isArray(bulletins)) {
-        console.warn('⚠️ measurementService.getBulletins() retornou dados inválidos:', bulletins);
-        setDashboardData({
-          totalBulletins: 0,
-          completeBulletins: 0,
-          simplifiedBulletins: 0,
-          pendingBulletins: 0,
-          validatedBulletins: 0,
-          totalValue: 0,
-          monthlyData: [],
-          statusDistribution: {} as Record<MeasurementStatus, number>,
-          hasData: false
-        });
-        return;
+      const apiBulletins = await measurementService.getBulletins().catch(() => []);
+      let localMeasurements: any[] = [];
+      try {
+        const raw = localStorage.getItem('fluxbus_generated_measurements_v1');
+        if (raw) {
+          localMeasurements = JSON.parse(raw);
+        }
+      } catch {
+        localMeasurements = [];
       }
-      
+
+      const apiList = Array.isArray(apiBulletins) ? apiBulletins : [];
+      const apiIds = new Set(apiList.map((b: any) => String(b.id)));
+      const mergedLocalAsBulletins = (Array.isArray(localMeasurements) ? localMeasurements : [])
+        .filter((lm: any) => !apiIds.has(String(lm.id)))
+        .map((lm: any) => ({
+          id: lm.id,
+          measurementNumber: lm.measurementNumber,
+          companyName: lm.clientName,
+          contractNumber: lm.contractNumber,
+          periodStart: lm.periodStart,
+          periodEnd: lm.periodEnd,
+          status: lm.status || 'IN_PROGRESS',
+          notes: 'Medição completa por contrato',
+          items: [
+            {
+              quantity: 1,
+              unitPrice: Number(lm.totals?.grandTotal || lm.invoice?.netValue || 0)
+            }
+          ]
+        }));
+
+      const bulletins = [...apiList, ...mergedLocalAsBulletins];
+
       // Calcular estatísticas com melhor diferenciação
       const totalBulletins = bulletins.length;
-      
+
       // Diferenciação mais precisa entre tipos de medição
       const completeBulletins = bulletins.filter(b => {
-        // Medição completa: múltiplos itens OU notas indicando "completa" OU valor alto
         const hasMultipleItems = b.items && b.items.length > 1;
-        const hasCompleteNote = b.notes?.toLowerCase().includes('completa') || b.notes?.toLowerCase().includes('detalhada');
-        const hasHighValue = b.items?.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0) > 10000;
+        const hasCompleteNote = b.notes?.toLowerCase().includes('completa') || b.notes?.toLowerCase().includes('detalhada') || b.notes?.toLowerCase().includes('contrato');
+        const hasHighValue = b.items?.reduce((sum: number, item: any) => sum + (Number(item.quantity || 1) * Number(item.unitPrice || item.totalPrice || 0)), 0) > 10000;
         return hasMultipleItems || hasCompleteNote || hasHighValue;
       }).length;
-      
-      const simplifiedBulletins = bulletins.filter(b => {
-        // Medição simplificada: item único OU notas indicando "simplificada" OU valor baixo
-        const hasSingleItem = b.items && b.items.length === 1;
-        const hasSimplifiedNote = b.notes?.toLowerCase().includes('simplificada') || b.notes?.toLowerCase().includes('rápida');
-        const hasLowValue = b.items?.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0) <= 10000;
-        return hasSingleItem || hasSimplifiedNote || hasLowValue;
-      }).length;
-      
-      const pendingBulletins = bulletins.filter(b => b.status === 'PENDING').length;
-      const validatedBulletins = bulletins.filter(b => b.status === 'VALIDATED').length;
-      
-      const totalValue = bulletins.reduce((sum, b) => {
-        const itemsValue = b.items?.reduce((itemSum, item) => itemSum + (item.quantity * item.unitPrice), 0) || 0;
+
+      const simplifiedBulletins = Math.max(0, totalBulletins - completeBulletins);
+
+      const pendingBulletins = bulletins.filter((b: any) =>
+        b.status === 'PENDING' || b.status === 'IN_PROGRESS' || b.status === 'OPEN'
+      ).length;
+      const validatedBulletins = bulletins.filter((b: any) =>
+        b.status === 'VALIDATED' || b.status === 'REVISADA' || b.status === 'LIBERADA'
+      ).length;
+
+      const totalValue = bulletins.reduce((sum: number, b: any) => {
+        const itemsValue = b.items?.reduce((itemSum: number, item: any) => itemSum + (Number(item.quantity || 1) * Number(item.unitPrice || item.totalPrice || 0)), 0) || 0;
         return sum + itemsValue;
       }, 0);
 
@@ -234,6 +246,15 @@ const Medicao: React.FC = () => {
 
   useEffect(() => {
     loadDashboardData();
+    const handleRefresh = () => {
+      loadDashboardData();
+    };
+    window.addEventListener('fluxbus:measurement-generated', handleRefresh);
+    window.addEventListener('fluxbus:measurements-updated', handleRefresh);
+    return () => {
+      window.removeEventListener('fluxbus:measurement-generated', handleRefresh);
+      window.removeEventListener('fluxbus:measurements-updated', handleRefresh);
+    };
   }, []);
 
   // Handlers para as ações da tabela

@@ -39,6 +39,7 @@ import {
   Gauge,
   Bus,
   FileUp,
+  FileSpreadsheet,
   Loader2,
   X
 } from 'lucide-react';
@@ -46,6 +47,7 @@ import { useToast } from '@/hooks/use-toast';
 import { parteDiariaService, ParteDiaria } from '@/services/parteDiariaService';
 import { contasAReceberService } from '@/services/contasAReceberService';
 import { clientService } from '@/services/clientService';
+import { measurementService } from '@/services/measurementService';
 import { ContractMeasurementPdfService } from '@/services/contractMeasurementPdfService';
 import { fleetService } from '@/services/fleetService';
 import { SearchableSelect, SearchableOption } from '@/components/frota/SearchableSelect';
@@ -74,6 +76,7 @@ import {
 
 export interface LeasedVehicleItem {
   id: string;
+  clientId?: string;
   itemNumber: number;
   description: string;
   route: string;
@@ -88,6 +91,7 @@ export interface LeasedVehicleItem {
 
 export interface ExtraTripItem {
   id: string;
+  clientId?: string;
   date: string;
   plate: string;
   route: string;
@@ -98,6 +102,7 @@ export interface ExtraTripItem {
 
 export interface ExcessKmItem {
   id: string;
+  clientId?: string;
   periodMonth: string;
   plate: string;
   franchiseKm: number;
@@ -111,11 +116,53 @@ export interface ExcessKmItem {
 
 export interface ContractDeductionItem {
   id: string;
+  clientId?: string;
   date: string;
   plate: string;
   description: string;
   type: 'DEBIT' | 'CREDIT';
   value: number;
+}
+
+export interface GeneratedContractMeasurement {
+  id: string;
+  measurementNumber: string | number;
+  clientId: string;
+  clientName: string;
+  cnpj: string;
+  contractNumber: string;
+  obraName?: string;
+  periodStart: string;
+  periodEnd: string;
+  dueDate: string;
+  status: 'IN_PROGRESS' | 'OPEN' | 'VALIDATED';
+  elaboratedBy: string;
+  validatedBy?: string;
+  createdAt: string;
+  leasedVehicles: any[];
+  partesDiarias: any[];
+  extraTrips: any[];
+  excessKmItems: any[];
+  deductions: any[];
+  invoice: {
+    nfNumber?: string;
+    nfIssueDate?: string;
+    nfDueDate?: string;
+    verificationCode?: string;
+    grossValue?: number;
+    retentionISS?: number;
+    retentionINSS?: number;
+    retentionIR?: number;
+    netValue?: number;
+    observations?: string;
+  };
+  totals: {
+    leasedTotal: number;
+    extraTripsTotal: number;
+    excessKmTotal: number;
+    deductionsTotal: number;
+    grandTotal: number;
+  };
 }
 
 export interface RevenueInvoiceData {
@@ -295,6 +342,7 @@ export const ClientContractMeasurementManager: React.FC = () => {
   const [leasedVehicles, setLeasedVehicles] = useState<LeasedVehicleItem[]>([
     {
       id: 'lv-1',
+      clientId: 'cli-01',
       itemNumber: 1,
       description: 'PRESTAÇÃO DE SERVIÇO COM ÔNIBUS RODOVIÁRIO, COM CESSÃO DE MÃO DE OBRA PARA TRANSPORTE DE FUNCIONÁRIOS.',
       route: 'PRAÇA DA ESTAÇÃO - BH/MG X MINA VALE MIGUELÃO - N. LIMA-MG',
@@ -308,6 +356,7 @@ export const ClientContractMeasurementManager: React.FC = () => {
     },
     {
       id: 'lv-2',
+      clientId: 'cli-01',
       itemNumber: 2,
       description: 'PRESTAÇÃO DE SERVIÇO COM MICRO ÔNIBUS RODOVIÁRIO, COM CESSÃO DE MÃO DE OBRA PARA TRANSPORTE DE FUNCIONÁRIOS.',
       route: 'RAPOSOS - NOVA LIMA/MG X MINA VALE MIGUELÃO - N. LIMA-MG',
@@ -318,6 +367,20 @@ export const ClientContractMeasurementManager: React.FC = () => {
       dailyRate: 1150.00,
       totalPeriod: 34500.00,
       observations: '02 MOTORISTAS'
+    },
+    {
+      id: 'lv-3',
+      clientId: 'cli-04',
+      itemNumber: 1,
+      description: 'LOCAÇÃO DE MICRO-ÔNIBUS COM MOTORISTA PARA TRANSPORTE DE TURNOS.',
+      route: 'IBIRITÉ X UNIDADE OPERACIONAL FMQC',
+      plate: 'QMR-2F82',
+      period: '01/12/2025 À 31/12/2025',
+      monthlyRate: 28500.00,
+      workingDays: 30,
+      dailyRate: 950.00,
+      totalPeriod: 28500.00,
+      observations: '01 MOTORISTA'
     }
   ]);
 
@@ -325,6 +388,7 @@ export const ClientContractMeasurementManager: React.FC = () => {
   const [extraTrips, setExtraTrips] = useState<ExtraTripItem[]>([
     {
       id: 'et-1',
+      clientId: 'cli-01',
       date: '2024-04-05',
       plate: 'RUR-7A78',
       route: 'Belo Horizonte X Ouro Preto (Turno Especial)',
@@ -338,6 +402,7 @@ export const ClientContractMeasurementManager: React.FC = () => {
   const [excessKmItems, setExcessKmItems] = useState<ExcessKmItem[]>([
     {
       id: 'ekm-1',
+      clientId: 'cli-01',
       periodMonth: 'ABRIL',
       plate: 'RUR-7A78',
       franchiseKm: 2000,
@@ -350,6 +415,7 @@ export const ClientContractMeasurementManager: React.FC = () => {
     },
     {
       id: 'ekm-2',
+      clientId: 'cli-01',
       periodMonth: 'ABRIL',
       plate: 'SHZ-3A40',
       franchiseKm: 2000,
@@ -366,6 +432,7 @@ export const ClientContractMeasurementManager: React.FC = () => {
   const [deductions, setDeductions] = useState<ContractDeductionItem[]>([
     {
       id: 'ded-1',
+      clientId: 'cli-01',
       date: '2024-04-01',
       plate: 'SHZ-3A40',
       description: 'APÓLICE SEGURO DE FROTA - MÊS ABRIL',
@@ -797,40 +864,858 @@ export const ClientContractMeasurementManager: React.FC = () => {
     toast({ title: 'Veículo Removido', description: `Veículo ${item.plate} foi desvinculado desta medição.` });
   };
 
-  // Handler: Gerar PDF Medição
+  // Helper para converter dados de uma medição para o formato do serviço de PDF e Excel
+  const buildPdfExcelOptionsFromMeasurement = (med: GeneratedContractMeasurement) => {
+    const clientPartes =
+      Array.isArray(med.partesDiarias) && med.partesDiarias.length > 0
+        ? med.partesDiarias
+        : partesDiariasMap[med.clientId] || [];
+
+    const normalizedPartes = clientPartes.map((pd: any) => ({
+      id: pd.id || `pd-${pd.number}`,
+      number: String(pd.number || '001'),
+      date: pd.date || med.periodStart,
+      clientId: pd.clientId || med.clientId,
+      clientName: pd.clientName || med.clientName,
+      vehiclePlate: pd.vehiclePlate || '-',
+      vehicleModel: pd.vehicleModel || '',
+      driverName: pd.driverName || '-',
+      driverRegistration: pd.driverRegistration || '',
+      startTime: pd.startTime || '06:00',
+      endTime: pd.endTime || '18:00',
+      kmInitial: Number(pd.kmInitial ?? pd.startKm ?? 0),
+      kmFinal: Number(pd.kmFinal ?? pd.endKm ?? 0),
+      kmDriven: Number(pd.kmDriven ?? pd.drivenKm ?? 0),
+      kmDisregarded: Number(pd.kmDisregarded ?? pd.disregardedKm ?? 0),
+      kmConsidered: Number(pd.kmConsidered ?? pd.consideredKm ?? pd.kmDriven ?? pd.drivenKm ?? 0),
+      status: pd.status === 'VALIDADA' || pd.status === 'APPROVED' ? 'APPROVED' : pd.status || 'APPROVED',
+      notes: pd.notes || '',
+      trips: Array.isArray(pd.trips)
+        ? pd.trips
+        : Array.isArray(pd.atividades)
+        ? pd.atividades.map((a: any, i: number) => ({
+            id: `tr-${i}`,
+            startTime: a.startTime || '',
+            endTime: a.endTime || '',
+            itinerary: a.description || '',
+            activityCode: a.activityType || 'REGULAR',
+            kmPerTrip: Math.max(0, Number(a.endKm || 0) - Number(a.startKm || 0)),
+          }))
+        : [],
+    }));
+
+    const statusLabelMap: Record<string, string> = {
+      VALIDATED: 'REVISADA / LIBERADA',
+      OPEN: 'AGUARDANDO REVISÃO',
+      IN_PROGRESS: 'EM ELABORAÇÃO',
+    };
+
+    return {
+      client: {
+        id: med.clientId,
+        clientName: med.clientName,
+        cnpj: med.cnpj,
+        contractNumber: med.contractNumber,
+        measurementNumber: String(med.measurementNumber),
+        periodStart: med.periodStart,
+        periodEnd: med.periodEnd,
+        dueDate: med.dueDate || med.periodEnd,
+        leasedVehicles: (med.leasedVehicles || []).map((v: any, idx: number) => ({
+          id: v.id || `lv-${idx}`,
+          plate: v.plate,
+          description: v.description,
+          route: v.route || '-',
+          workingDays: Number(v.workingDays || 30),
+          stoppedDays: Number(v.stoppedDays || 0),
+          monthlyRate: Number(v.monthlyRate || v.totalPeriod || v.periodValue || 0),
+          dailyRate: Number(v.dailyRate || 0),
+          periodValue: Number(v.periodValue ?? v.totalPeriod ?? 0),
+          observations: v.observations || '',
+        })),
+        extraTrips: [],
+        excessKmItems: [],
+        deductions: [],
+        invoice: {
+          nfNumber: med.invoice?.nfNumber || invoice.invoiceNumber || 'A EMITIR',
+          nfIssueDate: med.invoice?.nfIssueDate || invoice.issueDate || med.periodEnd,
+          nfDueDate: med.invoice?.nfDueDate || med.dueDate || med.periodEnd,
+          grossValue: Number(med.totals?.grandTotal || 0),
+          retentionISS: Number(med.invoice?.retentionISS || 0),
+          retentionINSS: Number(med.invoice?.retentionINSS || 0),
+          retentionIR: Number(med.invoice?.retentionIR || 0),
+          netValue: Number(med.invoice?.netValue || med.totals?.grandTotal || 0),
+          verificationCode: med.invoice?.verificationCode || invoice.accessKey || '-',
+          observations: med.invoice?.observations || `Medição #${med.measurementNumber} - ${med.contractNumber}`,
+        },
+      },
+      extraTrips: (med.extraTrips || []).map((et: any, idx: number) => ({
+        id: et.id || `et-${idx}`,
+        date: et.date || med.periodStart,
+        plate: et.plate || et.vehiclePlate || '-',
+        route: et.route || '-',
+        vehicleType: et.vehicleType || 'Ônibus Rodoviário',
+        tripCost: Number(et.tripCost ?? et.total ?? 0),
+      })),
+      excessKmItems: (med.excessKmItems || []).map((ek: any, idx: number) => ({
+        id: ek.id || `ek-${idx}`,
+        periodMonth: ek.periodMonth || 'PERÍODO',
+        plate: ek.plate || '-',
+        franchiseKm: Number(ek.franchiseKm || 0),
+        totalKmDriven: Number(ek.totalKmDriven || 0),
+        disregardedKm: Number(ek.disregardedKm || 0),
+        consideredKm: Number(ek.consideredKm || 0),
+        excessKm: Number(ek.excessKm || 0),
+        excessKmRate: Number(ek.excessKmRate || 0),
+        totalValue: Number(ek.totalValue ?? ek.totalExcessValue ?? 0),
+      })),
+      deductions: (med.deductions || []).map((d: any, idx: number) => ({
+        id: d.id || `ded-${idx}`,
+        date: d.date || med.periodEnd,
+        plate: d.plate || 'CONTRATO',
+        description: d.description || '-',
+        type: (d.type === 'CREDIT' ? 'CREDIT' : 'DEBIT') as 'DEBIT' | 'CREDIT',
+        value: Number(d.value || 0),
+      })),
+      partesDiarias: normalizedPartes as any,
+      totals: med.totals || {
+        leasedTotal: 0,
+        extraTripsTotal: 0,
+        excessKmTotal: 0,
+        deductionsTotal: 0,
+        grandTotal: 0,
+      },
+      statusLabel: statusLabelMap[med.status] || 'REVISADA / LIBERADA',
+      elaboratedBy: med.elaboratedBy || 'José Ramos',
+      validatedBy: med.validatedBy || 'Diretoria / Faturamento',
+    };
+  };
+
+  // Handler: Gerar PDF Medição Atual
   const handleGenerateMeasurementPdf = async () => {
     try {
-      toast({
-        title: 'Gerando PDF da Medição...',
-        description: `Preparando folha de medição Nº ${currentClient.measurementNumber} (${currentClient.clientName})...`
-      });
-
-      await ContractMeasurementPdfService.generateMeasurementPDF({
-        client: currentClient,
+      const currentSnapshot: GeneratedContractMeasurement = {
+        id: `curr-${selectedClientId}`,
+        measurementNumber: currentClient.measurementNumber,
+        clientId: selectedClientId,
+        clientName: currentClient.clientName,
+        cnpj: currentClient.clientCnpj,
+        contractNumber: currentClient.contractNumber,
+        periodStart: currentClient.periodStart,
+        periodEnd: currentClient.periodEnd,
+        dueDate: currentClient.dueDate,
+        status: 'VALIDATED',
+        elaboratedBy: 'José Ramos',
+        validatedBy: 'Diretoria / Faturamento',
+        createdAt: new Date().toISOString(),
         leasedVehicles: currentLeasedVehicles,
+        partesDiarias: currentPartesDiarias,
         extraTrips: currentExtraTrips,
         excessKmItems: currentExcessKmItems,
         deductions: currentDeductions,
         invoice: {
-          ...invoice,
+          nfNumber: invoice.invoiceNumber,
+          nfIssueDate: invoice.issueDate,
+          nfDueDate: invoice.dueDate,
+          verificationCode: invoice.accessKey,
           grossValue: totalGrossMeasurement,
-          netReceivableValue: totalGrossMeasurement - (invoice.pisRetention + invoice.cofinsRetention + invoice.csllRetention)
+          netValue: totalGrossMeasurement - (invoice.pisRetention + invoice.cofinsRetention + invoice.csllRetention),
         },
-        companyName: 'Viação São Silvestre LTDA / FluxBus'
-      });
+        totals: {
+          leasedTotal: totalLeasedVehicles,
+          extraTripsTotal: totalExtraTrips,
+          excessKmTotal: totalExcessKm,
+          deductionsTotal: totalDeductions,
+          grandTotal: totalGrossMeasurement,
+        },
+      };
+
+      ContractMeasurementPdfService.generateMeasurementPDF(buildPdfExcelOptionsFromMeasurement(currentSnapshot));
 
       toast({
-        title: 'PDF Gerado com Sucesso!',
-        description: 'O download da folha de medição foi concluído.'
+        title: 'PDF da Medição Gerado!',
+        description: `Boletim de medição Nº ${currentClient.measurementNumber} (${currentClient.clientName}) aberto para impressão/PDF com partes diárias e viagens extras.`,
       });
     } catch (error: any) {
       console.error('Erro ao gerar PDF da medição:', error);
       toast({
         title: 'Erro ao gerar PDF',
         description: error?.message || 'Falha ao processar relatório de medição.',
-        variant: 'destructive'
+        variant: 'destructive',
       });
     }
+  };
+
+  // Handler: Gerar Excel Medição Atual
+  const handleGenerateMeasurementExcel = () => {
+    try {
+      const currentSnapshot: GeneratedContractMeasurement = {
+        id: `curr-${selectedClientId}`,
+        measurementNumber: currentClient.measurementNumber,
+        clientId: selectedClientId,
+        clientName: currentClient.clientName,
+        cnpj: currentClient.clientCnpj,
+        contractNumber: currentClient.contractNumber,
+        periodStart: currentClient.periodStart,
+        periodEnd: currentClient.periodEnd,
+        dueDate: currentClient.dueDate,
+        status: 'VALIDATED',
+        elaboratedBy: 'José Ramos',
+        validatedBy: 'Diretoria / Faturamento',
+        createdAt: new Date().toISOString(),
+        leasedVehicles: currentLeasedVehicles,
+        partesDiarias: currentPartesDiarias,
+        extraTrips: currentExtraTrips,
+        excessKmItems: currentExcessKmItems,
+        deductions: currentDeductions,
+        invoice: {
+          nfNumber: invoice.invoiceNumber,
+          nfIssueDate: invoice.issueDate,
+          nfDueDate: invoice.dueDate,
+          verificationCode: invoice.accessKey,
+          grossValue: totalGrossMeasurement,
+          netValue: totalGrossMeasurement - (invoice.pisRetention + invoice.cofinsRetention + invoice.csllRetention),
+        },
+        totals: {
+          leasedTotal: totalLeasedVehicles,
+          extraTripsTotal: totalExtraTrips,
+          excessKmTotal: totalExcessKm,
+          deductionsTotal: totalDeductions,
+          grandTotal: totalGrossMeasurement,
+        },
+      };
+
+      ContractMeasurementPdfService.generateMeasurementExcel(buildPdfExcelOptionsFromMeasurement(currentSnapshot));
+
+      toast({
+        title: 'Planilha Excel (.xlsx) Gerada!',
+        description: `Arquivo Excel completo com partes diárias, viagens extras e veículos locados baixado com sucesso.`,
+      });
+    } catch (error: any) {
+      console.error('Erro ao gerar Excel da medição:', error);
+      toast({
+        title: 'Erro ao gerar Excel',
+        description: error?.message || 'Falha ao exportar planilha Excel.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // ============================================================================
+  // LISTA DE MEDIÇÕES GERADAS DO PERÍODO (Visualizar, Editar, Excluir, Revisar/Liberar, PDF e Excel)
+  // ============================================================================
+  const INITIAL_GENERATED_MEASUREMENTS: GeneratedContractMeasurement[] = useMemo(
+    () => [
+      {
+        id: 'med-geraes-016',
+        measurementNumber: '016',
+        clientId: 'cli-01',
+        clientName: 'GERAES ARQUITETURA E ENGENHARIA LTDA',
+        cnpj: '25.618.133/0001-57',
+        contractNumber: 'CTC-GERAES-2024/01',
+        obraName: 'MINA VALE MIGUELÃO - N. LIMA-MG',
+        periodStart: '2024-03-21',
+        periodEnd: '2024-04-20',
+        dueDate: '2024-05-05',
+        status: 'VALIDATED',
+        elaboratedBy: 'José Ramos',
+        validatedBy: 'Diretoria Financeira',
+        createdAt: '2024-04-21T10:30:00Z',
+        leasedVehicles: [
+          {
+            id: 'lv-1',
+            plate: 'RUR-7A78',
+            description: 'PRESTAÇÃO DE SERVIÇO COM ÔNIBUS RODOVIÁRIO, COM CESSÃO DE MÃO DE OBRA PARA TRANSPORTE DE FUNCIONÁRIOS.',
+            route: 'PRAÇA DA ESTAÇÃO - BH/MG X MINA VALE MIGUELÃO - N. LIMA-MG',
+            workingDays: 30,
+            stoppedDays: 0,
+            monthlyRate: 33600.0,
+            dailyRate: 1120.0,
+            periodValue: 33600.0,
+            observations: '02 MOTORISTAS',
+          },
+          {
+            id: 'lv-2',
+            plate: 'SHZ-3A40',
+            description: 'PRESTAÇÃO DE SERVIÇO COM MICRO ÔNIBUS RODOVIÁRIO, COM CESSÃO DE MÃO DE OBRA PARA TRANSPORTE DE FUNCIONÁRIOS.',
+            route: 'RAPOSOS - NOVA LIMA/MG X MINA VALE MIGUELÃO - N. LIMA-MG',
+            workingDays: 30,
+            stoppedDays: 0,
+            monthlyRate: 34500.0,
+            dailyRate: 1150.0,
+            periodValue: 34500.0,
+            observations: '02 MOTORISTAS',
+          },
+        ],
+        partesDiarias: INITIAL_PARTES_DIARIAS['cli-01'] || [],
+        extraTrips: [
+          {
+            id: 'et-1',
+            date: '2024-04-05',
+            plate: 'RUR-7A78',
+            route: 'Belo Horizonte X Ouro Preto (Turno Especial)',
+            vehicleType: 'Ônibus Rodoviário',
+            tripCost: 1200.0,
+          },
+        ],
+        excessKmItems: [
+          {
+            id: 'ekm-1',
+            periodMonth: 'ABRIL',
+            plate: 'RUR-7A78',
+            franchiseKm: 2000,
+            totalKmDriven: 2592,
+            disregardedKm: 921,
+            consideredKm: 1671,
+            excessKm: 0,
+            excessKmRate: 8.6,
+            totalValue: 0.0,
+          },
+          {
+            id: 'ekm-2',
+            periodMonth: 'ABRIL',
+            plate: 'SHZ-3A40',
+            franchiseKm: 2000,
+            totalKmDriven: 2497,
+            disregardedKm: 191,
+            consideredKm: 2306,
+            excessKm: 306,
+            excessKmRate: 6.9,
+            totalValue: 2111.4,
+          },
+        ],
+        deductions: [
+          {
+            id: 'ded-1',
+            date: '2024-04-01',
+            plate: 'SHZ-3A40',
+            description: 'APÓLICE SEGURO DE FROTA - MÊS ABRIL',
+            type: 'DEBIT',
+            value: 159.8,
+          },
+        ],
+        invoice: {
+          nfNumber: '0001642',
+          nfIssueDate: '2024-04-22',
+          nfDueDate: '2024-05-05',
+          verificationCode: '31240471055644000125550010000016421004829103',
+          grossValue: 71251.6,
+          netValue: 68033.76,
+          observations: 'Medição Revisada e Liberada para Faturamento.',
+        },
+        totals: {
+          leasedTotal: 68100.0,
+          extraTripsTotal: 1200.0,
+          excessKmTotal: 2111.4,
+          deductionsTotal: 159.8,
+          grandTotal: 71251.6,
+        },
+      },
+      {
+        id: 'med-fmqc-025',
+        measurementNumber: '025',
+        clientId: 'cli-04',
+        clientName: 'FMQC - TRANSPORTES & OPERAÇÕES',
+        cnpj: '08.123.456/0001-99',
+        contractNumber: 'CT-2025/FMQC',
+        obraName: 'FMQC IBIRITÉ',
+        periodStart: '2025-12-01',
+        periodEnd: '2025-12-31',
+        dueDate: '2026-01-10',
+        status: 'OPEN',
+        elaboratedBy: 'José Mário Ramos (DP)',
+        validatedBy: '',
+        createdAt: '2025-12-31T14:00:00Z',
+        leasedVehicles: [
+          {
+            id: 'lv-3',
+            plate: 'QMR-2F82',
+            description: 'LOCAÇÃO DE MICRO-ÔNIBUS COM MOTORISTA PARA TRANSPORTE DE TURNOS.',
+            route: 'IBIRITÉ X UNIDADE OPERACIONAL FMQC',
+            workingDays: 30,
+            stoppedDays: 0,
+            monthlyRate: 28500.0,
+            dailyRate: 950.0,
+            periodValue: 28500.0,
+            observations: '01 MOTORISTA',
+          },
+        ],
+        partesDiarias: INITIAL_PARTES_DIARIAS['cli-04'] || [],
+        extraTrips: [],
+        excessKmItems: [],
+        deductions: [],
+        invoice: {
+          nfNumber: 'A EMITIR',
+          nfIssueDate: '2025-12-31',
+          nfDueDate: '2026-01-10',
+          verificationCode: '-',
+          grossValue: 28500.0,
+          netValue: 28500.0,
+          observations: 'Aguardando revisão e liberação.',
+        },
+        totals: {
+          leasedTotal: 28500.0,
+          extraTripsTotal: 0,
+          excessKmTotal: 0,
+          deductionsTotal: 0,
+          grandTotal: 28500.0,
+        },
+      },
+    ],
+    []
+  );
+
+  const [generatedMeasurements, setGeneratedMeasurements] = useState<GeneratedContractMeasurement[]>(() => {
+    try {
+      const raw = localStorage.getItem('fluxbus_generated_measurements_v1');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+      localStorage.setItem('fluxbus_generated_measurements_v1', JSON.stringify(INITIAL_GENERATED_MEASUREMENTS));
+    } catch {
+      // ignore storage errors
+    }
+    return INITIAL_GENERATED_MEASUREMENTS;
+  });
+
+  const [showAllClientsMeasurements, setShowAllClientsMeasurements] = useState<boolean>(true);
+  const [viewingMeasurement, setViewingMeasurement] = useState<GeneratedContractMeasurement | null>(null);
+  const [isViewMeasurementOpen, setIsViewMeasurementOpen] = useState<boolean>(false);
+  const [editingMeasurement, setEditingMeasurement] = useState<GeneratedContractMeasurement | null>(null);
+  const [isEditMeasurementOpen, setIsEditMeasurementOpen] = useState<boolean>(false);
+  const [measurementToDelete, setMeasurementToDelete] = useState<GeneratedContractMeasurement | null>(null);
+  const [isDeleteMeasurementOpen, setIsDeleteMeasurementOpen] = useState<boolean>(false);
+
+  const [editMeasurementForm, setEditMeasurementForm] = useState<{
+    measurementNumber: string;
+    contractNumber: string;
+    periodStart: string;
+    periodEnd: string;
+    dueDate: string;
+    status: 'IN_PROGRESS' | 'OPEN' | 'VALIDATED';
+    nfNumber: string;
+    validatedBy: string;
+    observations: string;
+  }>({
+    measurementNumber: '',
+    contractNumber: '',
+    periodStart: '',
+    periodEnd: '',
+    dueDate: '',
+    status: 'IN_PROGRESS',
+    nfNumber: '',
+    validatedBy: '',
+    observations: '',
+  });
+
+  const persistGeneratedMeasurements = (nextList: GeneratedContractMeasurement[]) => {
+    setGeneratedMeasurements(nextList);
+    try {
+      localStorage.setItem('fluxbus_generated_measurements_v1', JSON.stringify(nextList));
+      window.dispatchEvent(new CustomEvent('fluxbus:measurements-updated', { detail: nextList }));
+    } catch (e) {
+      console.warn('Erro ao salvar medições no localStorage:', e);
+    }
+  };
+
+  // Sincronizar medições geradas pelo Wizard Modal ou vindas do Backend
+  useEffect(() => {
+    const syncFromStorageAndApi = async () => {
+      let localList: GeneratedContractMeasurement[] = [];
+      try {
+        const raw = localStorage.getItem('fluxbus_generated_measurements_v1');
+        if (raw) {
+          localList = JSON.parse(raw);
+        }
+      } catch {
+        localList = [];
+      }
+
+      try {
+        const apiBulletins = await measurementService.getBulletins().catch(() => []);
+        if (Array.isArray(apiBulletins) && apiBulletins.length > 0) {
+          const existingIds = new Set(localList.map(m => String(m.id)));
+          const convertedFromApi: GeneratedContractMeasurement[] = apiBulletins
+            .filter((b: any) => !existingIds.has(String(b.id)))
+            .map((b: any) => {
+              const matchedClient =
+                CLIENT_CONTRACTS_MOCK.find(
+                  c =>
+                    c.contractNumber === b.contractNumber ||
+                    c.clientName.toLowerCase() === (b.companyName || '').toLowerCase()
+                ) || CLIENT_CONTRACTS_MOCK[0];
+
+              const leaseItems = (b.items || []).filter((i: any) => i.category === 'LEASE');
+              const extraItems = (b.items || []).filter((i: any) => i.category === 'EXTRA_TRIP');
+              const kmItems = (b.items || []).filter((i: any) => i.category === 'EXCESS_KM');
+              const leaseSum = leaseItems.reduce(
+                (s: number, i: any) => s + Number(i.totalPrice ?? Number(i.quantity || 1) * Number(i.unitPrice || 0)),
+                0
+              );
+              const extraSum = extraItems.reduce(
+                (s: number, i: any) => s + Number(i.totalPrice ?? Number(i.quantity || 1) * Number(i.unitPrice || 0)),
+                0
+              );
+              const kmSum = kmItems.reduce(
+                (s: number, i: any) => s + Number(i.totalPrice ?? Number(i.quantity || 1) * Number(i.unitPrice || 0)),
+                0
+              );
+              const totalAll = (b.items || []).reduce(
+                (s: number, i: any) => s + Number(i.totalPrice ?? Number(i.quantity || 1) * Number(i.unitPrice || 0)),
+                0
+              );
+
+              return {
+                id: String(b.id),
+                measurementNumber: String(b.measurementNumber || '001'),
+                clientId: matchedClient.id,
+                clientName: b.companyName || matchedClient.clientName,
+                cnpj: matchedClient.clientCnpj,
+                contractNumber: b.contractNumber || matchedClient.contractNumber,
+                periodStart: b.periodStart,
+                periodEnd: b.periodEnd,
+                dueDate: b.periodEnd,
+                status:
+                  b.status === 'VALIDATED'
+                    ? 'VALIDATED'
+                    : b.status === 'OPEN'
+                    ? 'OPEN'
+                    : 'IN_PROGRESS',
+                elaboratedBy: b.elaboratedBy || 'José Ramos',
+                validatedBy: b.validatedBy || '',
+                createdAt: b.createdAt || new Date().toISOString(),
+                leasedVehicles: leaseItems.map((i: any, idx: number) => ({
+                  id: i.id || `lv-api-${idx}`,
+                  plate: i.vehiclePlate || 'FROTA',
+                  description: i.description,
+                  route: i.route || b.contractNumber || '-',
+                  workingDays: Number(i.workingDays || i.quantity || 30),
+                  stoppedDays: 0,
+                  monthlyRate: Number(i.totalPrice || 0),
+                  dailyRate: Number(i.diaria || i.unitPrice || 0),
+                  periodValue: Number(i.totalPrice || 0),
+                  observations: i.observations || '',
+                })),
+                partesDiarias: INITIAL_PARTES_DIARIAS[matchedClient.id] || [],
+                extraTrips: extraItems.map((i: any, idx: number) => ({
+                  id: i.id || `et-api-${idx}`,
+                  date: i.tripDate || b.periodStart,
+                  plate: i.vehiclePlate || 'FROTA',
+                  route: i.route || i.description,
+                  vehicleType: i.vehicleType || 'Ônibus',
+                  tripCost: Number(i.totalPrice || i.unitPrice || 0),
+                })),
+                excessKmItems: kmItems.map((i: any, idx: number) => ({
+                  id: i.id || `ek-api-${idx}`,
+                  periodMonth: b.periodEnd?.slice(0, 7) || 'MÊS',
+                  plate: i.vehiclePlate || 'FROTA',
+                  franchiseKm: Number(i.franchiseKm || 0),
+                  totalKmDriven: Number(i.totalKmDriven || i.quantity || 0),
+                  disregardedKm: Number(i.disregardedKm || 0),
+                  consideredKm: Number(i.consideredKm || i.quantity || 0),
+                  excessKm: Number(i.excessKm || i.quantity || 0),
+                  excessKmRate: Number(i.unitPrice || 0),
+                  totalValue: Number(i.totalPrice || 0),
+                })),
+                deductions: [],
+                invoice: {
+                  nfNumber: 'A EMITIR',
+                  nfIssueDate: b.periodEnd,
+                  nfDueDate: b.periodEnd,
+                  grossValue: totalAll,
+                  netValue: totalAll,
+                  observations: b.notes || '',
+                },
+                totals: {
+                  leasedTotal: leaseSum || totalAll,
+                  extraTripsTotal: extraSum,
+                  excessKmTotal: kmSum,
+                  deductionsTotal: 0,
+                  grandTotal: totalAll,
+                },
+              };
+            });
+
+          if (convertedFromApi.length > 0) {
+            const combined = [...localList, ...convertedFromApi];
+            persistGeneratedMeasurements(combined);
+            return;
+          }
+        }
+      } catch {
+        // ignore api error
+      }
+
+      if (localList.length > 0) {
+        setGeneratedMeasurements(localList);
+      }
+    };
+
+    syncFromStorageAndApi();
+
+    const handleNewGenerated = () => {
+      try {
+        const raw = localStorage.getItem('fluxbus_generated_measurements_v1');
+        if (raw) {
+          setGeneratedMeasurements(JSON.parse(raw));
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    window.addEventListener('fluxbus:measurement-generated', handleNewGenerated);
+    return () => {
+      window.removeEventListener('fluxbus:measurement-generated', handleNewGenerated);
+    };
+  }, []);
+
+  const filteredGeneratedMeasurements = useMemo(() => {
+    if (showAllClientsMeasurements) return generatedMeasurements;
+    return generatedMeasurements.filter(
+      m =>
+        m.clientId === selectedClientId ||
+        m.contractNumber === currentClient.contractNumber ||
+        m.clientName.toLowerCase() === currentClient.clientName.toLowerCase()
+    );
+  }, [generatedMeasurements, showAllClientsMeasurements, selectedClientId, currentClient]);
+
+  // Gerar / Salvar Medição a partir dos dados da aba atual
+  const handleSaveCurrentPeriodMeasurement = async () => {
+    const newMed: GeneratedContractMeasurement = {
+      id: `med-${selectedClientId}-${Date.now()}`,
+      measurementNumber: currentClient.measurementNumber || String(generatedMeasurements.length + 1).padStart(3, '0'),
+      clientId: selectedClientId,
+      clientName: currentClient.clientName,
+      cnpj: currentClient.clientCnpj,
+      contractNumber: currentClient.contractNumber,
+      obraName: currentClient.clientName,
+      periodStart: currentClient.periodStart,
+      periodEnd: currentClient.periodEnd,
+      dueDate: currentClient.dueDate,
+      status: 'OPEN',
+      elaboratedBy: 'José Ramos',
+      validatedBy: '',
+      createdAt: new Date().toISOString(),
+      leasedVehicles: currentLeasedVehicles.map(v => ({
+        id: v.id,
+        plate: v.plate,
+        description: v.description,
+        route: v.route,
+        workingDays: v.workingDays,
+        stoppedDays: 0,
+        monthlyRate: v.monthlyRate,
+        dailyRate: v.dailyRate,
+        periodValue: v.totalPeriod,
+        observations: v.observations || '',
+      })),
+      partesDiarias: currentPartesDiarias,
+      extraTrips: currentExtraTrips.map(et => ({
+        id: et.id,
+        date: et.date,
+        plate: et.plate,
+        route: et.route,
+        vehicleType: et.vehicleType,
+        tripCost: et.total || et.tripCost,
+      })),
+      excessKmItems: currentExcessKmItems.map(ek => ({
+        id: ek.id,
+        periodMonth: ek.periodMonth,
+        plate: ek.plate,
+        franchiseKm: ek.franchiseKm,
+        totalKmDriven: ek.totalKmDriven,
+        disregardedKm: ek.disregardedKm,
+        consideredKm: ek.consideredKm,
+        excessKm: ek.excessKm,
+        excessKmRate: ek.excessKmRate,
+        totalValue: ek.totalExcessValue,
+      })),
+      deductions: currentDeductions.map(d => ({
+        id: d.id,
+        date: d.date,
+        plate: d.plate,
+        description: d.description,
+        type: d.type,
+        value: d.value,
+      })),
+      invoice: {
+        nfNumber: invoice.invoiceNumber || 'A EMITIR',
+        nfIssueDate: invoice.issueDate,
+        nfDueDate: invoice.dueDate,
+        verificationCode: invoice.accessKey,
+        grossValue: totalGrossMeasurement,
+        netValue: totalGrossMeasurement - (invoice.pisRetention + invoice.cofinsRetention + invoice.csllRetention),
+        observations: `Medição apurada para ${currentClient.clientName} (${currentClient.periodStart} a ${currentClient.periodEnd}).`,
+      },
+      totals: {
+        leasedTotal: totalLeasedVehicles,
+        extraTripsTotal: totalExtraTrips,
+        excessKmTotal: totalExcessKm,
+        deductionsTotal: totalDeductions,
+        grandTotal: totalGrossMeasurement,
+      },
+    };
+
+    const nextList = [newMed, ...generatedMeasurements];
+    persistGeneratedMeasurements(nextList);
+
+    toast({
+      title: 'Medição do Período Gerada!',
+      description: `Boletim Nº ${newMed.measurementNumber} (${newMed.clientName}) adicionado à lista de Medições Geradas.`,
+    });
+  };
+
+  const handleOpenViewGeneratedMeasurement = (med: GeneratedContractMeasurement) => {
+    setViewingMeasurement(med);
+    setIsViewMeasurementOpen(true);
+  };
+
+  const handleOpenEditGeneratedMeasurement = (med: GeneratedContractMeasurement) => {
+    setEditingMeasurement(med);
+    setEditMeasurementForm({
+      measurementNumber: String(med.measurementNumber || ''),
+      contractNumber: med.contractNumber || '',
+      periodStart: med.periodStart || '',
+      periodEnd: med.periodEnd || '',
+      dueDate: med.dueDate || med.periodEnd || '',
+      status: med.status || 'IN_PROGRESS',
+      nfNumber: med.invoice?.nfNumber || '',
+      validatedBy: med.validatedBy || 'Diretoria Financeira',
+      observations: med.invoice?.observations || '',
+    });
+    setIsEditMeasurementOpen(true);
+  };
+
+  const handleSaveEditGeneratedMeasurement = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingMeasurement) return;
+
+    const updated: GeneratedContractMeasurement = {
+      ...editingMeasurement,
+      measurementNumber: editMeasurementForm.measurementNumber,
+      contractNumber: editMeasurementForm.contractNumber,
+      periodStart: editMeasurementForm.periodStart,
+      periodEnd: editMeasurementForm.periodEnd,
+      dueDate: editMeasurementForm.dueDate,
+      status: editMeasurementForm.status,
+      validatedBy:
+        editMeasurementForm.status === 'VALIDATED'
+          ? editMeasurementForm.validatedBy || 'Diretoria Financeira'
+          : editingMeasurement.validatedBy,
+      invoice: {
+        ...editingMeasurement.invoice,
+        nfNumber: editMeasurementForm.nfNumber,
+        nfDueDate: editMeasurementForm.dueDate,
+        observations: editMeasurementForm.observations,
+      },
+    };
+
+    const nextList = generatedMeasurements.map(m => (m.id === updated.id ? updated : m));
+    persistGeneratedMeasurements(nextList);
+    setIsEditMeasurementOpen(false);
+    setEditingMeasurement(null);
+
+    toast({
+      title: 'Medição Atualizada com Sucesso!',
+      description: `Os dados da Medição Nº ${updated.measurementNumber} (${updated.clientName}) foram salvos.`,
+    });
+  };
+
+  const handleLoadMeasurementIntoWorkspace = (med: GeneratedContractMeasurement) => {
+    if (CLIENT_CONTRACTS_MOCK.some(c => c.id === med.clientId)) {
+      setSelectedClientId(med.clientId);
+    }
+    setIsEditMeasurementOpen(false);
+    setActiveTab('leased-vehicles');
+    toast({
+      title: 'Medição Carregada nas Abas de Apuração!',
+      description: `Você está editando os lançamentos de ${med.clientName} (Contrato ${med.contractNumber}).`,
+    });
+  };
+
+  const handleValidateAndReleaseMeasurement = async (med: GeneratedContractMeasurement) => {
+    const newStatus: 'VALIDATED' | 'OPEN' = med.status === 'VALIDATED' ? 'OPEN' : 'VALIDATED';
+    if (newStatus === 'VALIDATED' && /^\d+$/.test(String(med.id))) {
+      await measurementService.validateBulletin(String(med.id), 'Diretoria Financeira').catch(() => {});
+    }
+
+    const updated: GeneratedContractMeasurement = {
+      ...med,
+      status: newStatus,
+      validatedBy: newStatus === 'VALIDATED' ? 'Diretoria / Faturamento' : '',
+    };
+
+    const nextList = generatedMeasurements.map(m => (m.id === med.id ? updated : m));
+    persistGeneratedMeasurements(nextList);
+
+    if (viewingMeasurement?.id === med.id) {
+      setViewingMeasurement(updated);
+    }
+
+    toast({
+      title:
+        newStatus === 'VALIDATED'
+          ? '✅ Medição Revisada e Liberada!'
+          : 'Status Retornado para Em Revisão',
+      description:
+        newStatus === 'VALIDATED'
+          ? `A Medição Nº ${med.measurementNumber} (${med.clientName}) foi revisada/liberada. Os arquivos PDF e Excel já estão liberados para geração!`
+          : `A Medição Nº ${med.measurementNumber} voltou para revisão operacional.`,
+    });
+  };
+
+  const handleRequestDeleteGeneratedMeasurement = (med: GeneratedContractMeasurement) => {
+    setMeasurementToDelete(med);
+    setIsDeleteMeasurementOpen(true);
+  };
+
+  const handleConfirmDeleteGeneratedMeasurement = async () => {
+    if (!measurementToDelete) return;
+    if (/^\d+$/.test(String(measurementToDelete.id))) {
+      await measurementService.deleteBulletin(String(measurementToDelete.id)).catch(() => {});
+    }
+    const nextList = generatedMeasurements.filter(m => m.id !== measurementToDelete.id);
+    persistGeneratedMeasurements(nextList);
+    setIsDeleteMeasurementOpen(false);
+    toast({
+      title: 'Medição Excluída',
+      description: `O Boletim de Medição Nº ${measurementToDelete.measurementNumber} foi removido.`,
+    });
+    setMeasurementToDelete(null);
+  };
+
+  const handleExportMeasurementItemPdf = (med: GeneratedContractMeasurement) => {
+    if (med.status !== 'VALIDATED') {
+      toast({
+        title: 'Medição ainda não Revisada/Liberada',
+        description: 'Clique no botão "Revisar / Liberar" na linha da medição para aprovar e liberar a geração do PDF.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    ContractMeasurementPdfService.generateMeasurementPDF(buildPdfExcelOptionsFromMeasurement(med));
+    toast({
+      title: 'PDF Completo Gerado!',
+      description: `Boletim Nº ${med.measurementNumber} (${med.clientName}) gerado com todas as partes diárias, viagens extras e resumo do período.`,
+    });
+  };
+
+  const handleExportMeasurementItemExcel = (med: GeneratedContractMeasurement) => {
+    if (med.status !== 'VALIDATED') {
+      toast({
+        title: 'Medição ainda não Revisada/Liberada',
+        description: 'Clique no botão "Revisar / Liberar" na linha da medição para aprovar e liberar a geração do Excel.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    ContractMeasurementPdfService.generateMeasurementExcel(buildPdfExcelOptionsFromMeasurement(med));
+    toast({
+      title: 'Arquivo Excel (.xlsx) Gerado!',
+      description: `Planilha completa da Medição Nº ${med.measurementNumber} (${med.clientName}) com partes diárias e viagens extras exportada com sucesso.`,
+    });
   };
 
   // State e Handlers: Viagens Extras (Modal & CRUD)
@@ -854,7 +1739,7 @@ export const ClientContractMeasurementManager: React.FC = () => {
     setSelectedExtraTrip(null);
     setExtraTripForm({
       date: new Date().toISOString().split('T')[0],
-      plate: leasedVehicles[0]?.plate || 'RUR-7A78',
+      plate: currentLeasedVehicles[0]?.plate || leasedVehicles[0]?.plate || 'RUR-7A78',
       route: '',
       vehicleType: 'Ônibus Rodoviário',
       tripCost: 800.00
@@ -910,6 +1795,7 @@ export const ClientContractMeasurementManager: React.FC = () => {
     } else {
       const newItem: ExtraTripItem = {
         id: `et-${Date.now()}`,
+        clientId: selectedClientId,
         date: extraTripForm.date,
         plate: extraTripForm.plate.toUpperCase(),
         route: extraTripForm.route,
@@ -959,7 +1845,7 @@ export const ClientContractMeasurementManager: React.FC = () => {
     setSelectedExcessKm(null);
     setExcessKmForm({
       periodMonth: 'ABRIL',
-      plate: leasedVehicles[0]?.plate || 'RUR-7A78',
+      plate: currentLeasedVehicles[0]?.plate || leasedVehicles[0]?.plate || 'RUR-7A78',
       franchiseKm: 2000,
       totalKmDriven: 2500,
       disregardedKm: 0,
@@ -1026,6 +1912,7 @@ export const ClientContractMeasurementManager: React.FC = () => {
     } else {
       const newItem: ExcessKmItem = {
         id: `ekm-${Date.now()}`,
+        clientId: selectedClientId,
         periodMonth: excessKmForm.periodMonth.toUpperCase(),
         plate: excessKmForm.plate.toUpperCase(),
         franchiseKm: franchise,
@@ -1059,7 +1946,7 @@ export const ClientContractMeasurementManager: React.FC = () => {
     setSelectedDeduction(null);
     setDeductionForm({
       date: new Date().toISOString().split('T')[0],
-      plate: leasedVehicles[0]?.plate || 'RUR-7A78',
+      plate: currentLeasedVehicles[0]?.plate || leasedVehicles[0]?.plate || 'RUR-7A78',
       description: '',
       type: 'DEBIT',
       value: 0
@@ -1125,6 +2012,7 @@ export const ClientContractMeasurementManager: React.FC = () => {
     } else {
       const newDed: ContractDeductionItem = {
         id: `ded-${Date.now()}`,
+        clientId: selectedClientId,
         ...payload
       };
       setDeductions(prev => [...prev, newDed]);
@@ -1376,6 +2264,241 @@ export const ClientContractMeasurementManager: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* LISTA DE MEDIÇÕES GERADAS DO PERÍODO (Visualizar, Editar, Excluir, Revisar/Liberar e Exportar PDF & Excel) */}
+      <Card className="bg-zinc-950 border-zinc-800 text-zinc-100 shadow-2xl">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-zinc-800/80">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <CardTitle className="text-lg font-extrabold text-amber-400 flex items-center gap-2">
+                <FileCheck className="w-5 h-5 text-amber-400" />
+                Medições Geradas do Período
+              </CardTitle>
+              <Badge className="bg-amber-500/15 text-amber-300 border-amber-500/30 font-mono text-xs">
+                {filteredGeneratedMeasurements.length} medição(ões)
+              </Badge>
+            </div>
+            <CardDescription className="text-zinc-400 text-xs mt-1">
+              Gerencie as medições geradas: visualize, edite, exclua, altere o status para <strong className="text-emerald-400">Revisada / Liberada</strong> e exporte os arquivos <strong className="text-emerald-400">Excel (.xlsx)</strong> e <strong className="text-amber-300">PDF</strong> completos (com Partes Diárias lançadas, Viagens Extras, Frota Locada e Faturamento).
+            </CardDescription>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-lg p-1 text-xs">
+              <button
+                type="button"
+                onClick={() => setShowAllClientsMeasurements(true)}
+                className={`px-3 py-1.5 rounded-md font-semibold transition-all ${
+                  showAllClientsMeasurements
+                    ? 'bg-amber-600 text-white shadow'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                Todas ({generatedMeasurements.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowAllClientsMeasurements(false)}
+                className={`px-3 py-1.5 rounded-md font-semibold transition-all ${
+                  !showAllClientsMeasurements
+                    ? 'bg-amber-600 text-white shadow'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                Cliente Atual
+              </button>
+            </div>
+
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleSaveCurrentPeriodMeasurement}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/20"
+            >
+              <Plus className="w-4 h-4 mr-1" /> Gerar / Salvar Medição deste Período
+            </Button>
+          </div>
+        </CardHeader>
+
+        <CardContent className="pt-4">
+          <div className="border border-zinc-800 rounded-xl overflow-x-auto">
+            <Table>
+              <TableHeader className="bg-zinc-900/90">
+                <TableRow className="border-zinc-800">
+                  <TableHead className="text-zinc-300 font-bold text-xs w-28">Nº / Contrato</TableHead>
+                  <TableHead className="text-zinc-300 font-bold text-xs">Cliente / Contratante</TableHead>
+                  <TableHead className="text-zinc-300 font-bold text-xs text-center">Período Apurado</TableHead>
+                  <TableHead className="text-zinc-300 font-bold text-xs text-center">Composição (Frota / Diárias / Extras)</TableHead>
+                  <TableHead className="text-zinc-300 font-bold text-xs text-right">Valor Líquido</TableHead>
+                  <TableHead className="text-zinc-300 font-bold text-xs text-center">Status da Medição</TableHead>
+                  <TableHead className="text-zinc-300 font-bold text-xs text-center">Exportar (PDF / Excel)</TableHead>
+                  <TableHead className="text-zinc-300 font-bold text-xs text-center w-44">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredGeneratedMeasurements.length === 0 ? (
+                  <TableRow className="border-zinc-800">
+                    <TableCell colSpan={8} className="text-center py-8 text-zinc-400 text-xs">
+                      Nenhuma medição gerada para este filtro. Clique em <strong>"Gerar Medição"</strong> no topo ou em <strong>"+ Gerar / Salvar Medição deste Período"</strong> acima.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredGeneratedMeasurements.map((med) => {
+                    const isReviewed = med.status === 'VALIDATED';
+                    const partesCount =
+                      Array.isArray(med.partesDiarias) && med.partesDiarias.length > 0
+                        ? med.partesDiarias.length
+                        : (partesDiariasMap[med.clientId] || []).length;
+                    const leasedCount = (med.leasedVehicles || []).length;
+                    const extrasCount = (med.extraTrips || []).length;
+
+                    return (
+                      <TableRow key={med.id} className="border-zinc-800 hover:bg-zinc-900/50 transition-colors">
+                        <TableCell className="font-mono text-xs">
+                          <div className="font-bold text-amber-400">#{med.measurementNumber}</div>
+                          <div className="text-[11px] text-zinc-400">{med.contractNumber}</div>
+                        </TableCell>
+
+                        <TableCell>
+                          <div className="font-bold text-white text-xs">{med.clientName}</div>
+                          <div className="text-[11px] text-zinc-400 font-mono">CNPJ: {med.cnpj}</div>
+                        </TableCell>
+
+                        <TableCell className="text-center font-mono text-xs text-zinc-200">
+                          <div>{med.periodStart} à {med.periodEnd}</div>
+                          <div className="text-[10px] text-emerald-400">Venc. NF: {med.dueDate || med.periodEnd}</div>
+                        </TableCell>
+
+                        <TableCell className="text-center">
+                          <div className="flex flex-wrap items-center justify-center gap-1.5">
+                            <Badge variant="outline" className="border-blue-500/30 bg-blue-500/10 text-blue-300 text-[10px]">
+                              {leasedCount} Veíc.
+                            </Badge>
+                            <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-300 text-[10px]">
+                              {partesCount} Partes Diárias
+                            </Badge>
+                            <Badge variant="outline" className="border-purple-500/30 bg-purple-500/10 text-purple-300 text-[10px]">
+                              {extrasCount} Viagens Extras
+                            </Badge>
+                          </div>
+                        </TableCell>
+
+                        <TableCell className="text-right font-mono font-extrabold text-sm text-emerald-400">
+                          R$ {Number(med.totals?.grandTotal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </TableCell>
+
+                        <TableCell className="text-center">
+                          {isReviewed ? (
+                            <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold">
+                              ✓ REVISADA / LIBERADA
+                            </Badge>
+                          ) : med.status === 'OPEN' ? (
+                            <Badge className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-bold">
+                              ⏳ EM ANÁLISE / REVISÃO
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-zinc-800 text-zinc-300 border border-zinc-700 text-[10px] font-bold">
+                              📝 EM ELABORAÇÃO
+                            </Badge>
+                          )}
+                        </TableCell>
+
+                        <TableCell className="text-center">
+                          {isReviewed ? (
+                            <div className="flex items-center justify-center gap-1.5">
+                              <Button
+                                type="button"
+                                size="sm"
+                                onClick={() => handleExportMeasurementItemPdf(med)}
+                                title="Gerar PDF Completo (Frota, Partes Diárias, Viagens Extras e NF)"
+                                className="h-7 px-2.5 bg-red-600/90 hover:bg-red-500 text-white font-bold text-[11px] flex items-center gap-1 shadow"
+                              >
+                                <FileText className="w-3.5 h-3.5" /> PDF
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                onClick={() => handleExportMeasurementItemExcel(med)}
+                                title="Baixar Planilha Excel (.xlsx) Completa do Período"
+                                className="h-7 px-2.5 bg-emerald-600/90 hover:bg-emerald-500 text-white font-bold text-[11px] flex items-center gap-1 shadow"
+                              >
+                                <FileSpreadsheet className="w-3.5 h-3.5" /> Excel
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleValidateAndReleaseMeasurement(med)}
+                              title="Clique para Revisar/Liberar a medição e habilitar a geração do PDF e Excel"
+                              className="h-7 px-2.5 border-amber-500/40 bg-amber-500/10 hover:bg-emerald-600 hover:text-white hover:border-emerald-500 text-amber-300 text-[10px] font-bold"
+                            >
+                              <CheckCircle className="w-3 h-3 mr-1" /> Revisar / Liberar p/ PDF & Excel
+                            </Button>
+                          )}
+                        </TableCell>
+
+                        <TableCell className="text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => handleOpenViewGeneratedMeasurement(med)}
+                              title="Visualizar todos os detalhes da Medição"
+                              className="h-8 w-8 text-blue-400 hover:text-blue-300 hover:bg-blue-500/15"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => handleOpenEditGeneratedMeasurement(med)}
+                              title="Editar Medição"
+                              className="h-8 w-8 text-amber-400 hover:text-amber-300 hover:bg-amber-500/15"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </Button>
+
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => handleValidateAndReleaseMeasurement(med)}
+                              title={isReviewed ? 'Retornar status para Em Revisão' : 'Aprovar como Revisada / Liberada'}
+                              className={`h-8 w-8 ${
+                                isReviewed
+                                  ? 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/15'
+                                  : 'text-zinc-400 hover:text-emerald-400 hover:bg-emerald-500/15'
+                              }`}
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                            </Button>
+
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => handleRequestDeleteGeneratedMeasurement(med)}
+                              title="Excluir Medição"
+                              className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-500/15"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Abas Principais da Medição */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
@@ -1967,9 +3090,12 @@ export const ClientContractMeasurementManager: React.FC = () => {
                   </CardDescription>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Button variant="outline" onClick={handleGenerateMeasurementPdf} className="border-zinc-700 bg-zinc-900 text-zinc-200 hover:bg-zinc-800 hover:text-white font-semibold">
                     <Printer className="w-4 h-4 mr-2 text-amber-400" /> Gerar PDF Medição
+                  </Button>
+                  <Button variant="outline" onClick={handleGenerateMeasurementExcel} className="border-emerald-500/40 bg-emerald-950/30 text-emerald-300 hover:bg-emerald-900/50 hover:text-white font-semibold">
+                    <FileSpreadsheet className="w-4 h-4 mr-2 text-emerald-400" /> Gerar Excel Medição (.xlsx)
                   </Button>
                   <Button
                     onClick={handleSendToReceivables}
@@ -3098,7 +4224,433 @@ export const ClientContractMeasurementManager: React.FC = () => {
           </form>
         </DialogContent>
       </Dialog>
-</div>
+
+      {/* MODAL: Visualizar Medição Gerada Completa */}
+      <Dialog open={isViewMeasurementOpen} onOpenChange={setIsViewMeasurementOpen}>
+        <DialogContent className="w-[96vw] max-w-5xl max-h-[90vh] overflow-y-auto bg-zinc-950 border border-zinc-800 text-zinc-100 rounded-2xl p-6 shadow-2xl">
+          {viewingMeasurement && (
+            <div className="space-y-5">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-800 pb-4">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40 font-mono text-xs">
+                      Boletim de Medição Nº {viewingMeasurement.measurementNumber}
+                    </Badge>
+                    <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/40 font-mono text-xs">
+                      Contrato: {viewingMeasurement.contractNumber}
+                    </Badge>
+                    {viewingMeasurement.status === 'VALIDATED' ? (
+                      <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40 text-xs font-bold">
+                        ✓ REVISADA / LIBERADA
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40 text-xs font-bold">
+                        ⏳ AGUARDANDO REVISÃO / LIBERAÇÃO
+                      </Badge>
+                    )}
+                  </div>
+                  <DialogTitle className="text-xl font-extrabold text-white">
+                    {viewingMeasurement.clientName}
+                  </DialogTitle>
+                  <DialogDescription className="text-xs text-zinc-400 font-mono">
+                    CNPJ: {viewingMeasurement.cnpj} · Período: {viewingMeasurement.periodStart} à {viewingMeasurement.periodEnd} · Vencimento NF: {viewingMeasurement.dueDate || viewingMeasurement.periodEnd}
+                  </DialogDescription>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => handleValidateAndReleaseMeasurement(viewingMeasurement)}
+                    className={
+                      viewingMeasurement.status === 'VALIDATED'
+                        ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs'
+                        : 'bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs'
+                    }
+                  >
+                    <CheckCircle className="w-3.5 h-3.5 mr-1.5" />
+                    {viewingMeasurement.status === 'VALIDATED' ? 'Retornar p/ Revisão' : 'Revisar e Liberar Medição'}
+                  </Button>
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={viewingMeasurement.status !== 'VALIDATED'}
+                    onClick={() => handleExportMeasurementItemPdf(viewingMeasurement)}
+                    className="bg-red-600 hover:bg-red-500 disabled:opacity-40 text-white font-bold text-xs"
+                  >
+                    <FileText className="w-3.5 h-3.5 mr-1.5" /> Exportar PDF
+                  </Button>
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={viewingMeasurement.status !== 'VALIDATED'}
+                    onClick={() => handleExportMeasurementItemExcel(viewingMeasurement)}
+                    className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-bold text-xs"
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5 mr-1.5" /> Exportar Excel (.xlsx)
+                  </Button>
+                </div>
+              </div>
+
+              {/* Resumo Financeiro */}
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3">
+                  <span className="text-[10px] text-zinc-400 uppercase font-bold block">1. Veículos Locados</span>
+                  <strong className="text-sm font-mono text-white">
+                    R$ {Number(viewingMeasurement.totals?.leasedTotal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </strong>
+                </div>
+                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3">
+                  <span className="text-[10px] text-zinc-400 uppercase font-bold block">2. Viagens Extras</span>
+                  <strong className="text-sm font-mono text-blue-400">
+                    R$ {Number(viewingMeasurement.totals?.extraTripsTotal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </strong>
+                </div>
+                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3">
+                  <span className="text-[10px] text-zinc-400 uppercase font-bold block">3. KM Excedente</span>
+                  <strong className="text-sm font-mono text-amber-400">
+                    R$ {Number(viewingMeasurement.totals?.excessKmTotal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </strong>
+                </div>
+                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3">
+                  <span className="text-[10px] text-zinc-400 uppercase font-bold block">4. Deduções / Cortes</span>
+                  <strong className="text-sm font-mono text-red-400">
+                    -R$ {Number(viewingMeasurement.totals?.deductionsTotal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </strong>
+                </div>
+                <div className="bg-emerald-950/30 border border-emerald-500/40 rounded-xl p-3">
+                  <span className="text-[10px] text-emerald-400 uppercase font-extrabold block">Total Líquido</span>
+                  <strong className="text-base font-mono text-emerald-300">
+                    R$ {Number(viewingMeasurement.totals?.grandTotal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </strong>
+                </div>
+              </div>
+
+              {/* 1. Veículos Locados */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold uppercase text-amber-400">
+                  1. Veículos Locados sob Contrato Fixo ({(viewingMeasurement.leasedVehicles || []).length})
+                </h4>
+                <div className="border border-zinc-800 rounded-lg overflow-x-auto">
+                  <Table>
+                    <TableHeader className="bg-zinc-900">
+                      <TableRow className="border-zinc-800">
+                        <TableHead className="text-xs text-zinc-300">Placa</TableHead>
+                        <TableHead className="text-xs text-zinc-300">Descrição do Serviço</TableHead>
+                        <TableHead className="text-xs text-zinc-300">Rota / Trajeto</TableHead>
+                        <TableHead className="text-xs text-zinc-300 text-center">Dias</TableHead>
+                        <TableHead className="text-xs text-zinc-300 text-right">Valor Período</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(viewingMeasurement.leasedVehicles || []).map((v: any, idx: number) => (
+                        <TableRow key={v.id || idx} className="border-zinc-800">
+                          <TableCell className="font-mono font-bold text-blue-400 text-xs">{v.plate}</TableCell>
+                          <TableCell className="text-xs text-zinc-200">{v.description}</TableCell>
+                          <TableCell className="text-xs text-zinc-400">{v.route}</TableCell>
+                          <TableCell className="text-center font-mono text-xs">{v.workingDays}d</TableCell>
+                          <TableCell className="text-right font-mono font-bold text-emerald-400 text-xs">
+                            R$ {Number(v.periodValue ?? v.totalPeriod ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+
+              {/* 2. Partes Diárias Lançadas */}
+              {(() => {
+                const pdList =
+                  Array.isArray(viewingMeasurement.partesDiarias) && viewingMeasurement.partesDiarias.length > 0
+                    ? viewingMeasurement.partesDiarias
+                    : partesDiariasMap[viewingMeasurement.clientId] || [];
+                return (
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-bold uppercase text-amber-400">
+                      2. Partes Diárias Lançadas no Período ({pdList.length})
+                    </h4>
+                    <div className="border border-zinc-800 rounded-lg overflow-x-auto">
+                      <Table>
+                        <TableHeader className="bg-zinc-900">
+                          <TableRow className="border-zinc-800">
+                            <TableHead className="text-xs text-zinc-300">Nº Boletim</TableHead>
+                            <TableHead className="text-xs text-zinc-300">Data</TableHead>
+                            <TableHead className="text-xs text-zinc-300">Placa / Veículo</TableHead>
+                            <TableHead className="text-xs text-zinc-300">Motorista</TableHead>
+                            <TableHead className="text-xs text-zinc-300 text-center">Horário</TableHead>
+                            <TableHead className="text-xs text-zinc-300 text-right">KM Rodado / Consid.</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {pdList.length === 0 ? (
+                            <TableRow className="border-zinc-800">
+                              <TableCell colSpan={6} className="text-center text-xs text-zinc-500 py-4">
+                                Nenhuma parte diária vinculada.
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            pdList.map((pd: any, idx: number) => (
+                              <TableRow key={pd.id || idx} className="border-zinc-800">
+                                <TableCell className="font-mono font-bold text-amber-400 text-xs">#{pd.number}</TableCell>
+                                <TableCell className="font-mono text-xs text-zinc-300">{pd.date}</TableCell>
+                                <TableCell className="font-mono font-bold text-blue-400 text-xs">
+                                  {pd.vehiclePlate} <span className="text-zinc-400 font-normal">{pd.vehicleModel}</span>
+                                </TableCell>
+                                <TableCell className="text-xs text-zinc-200">{pd.driverName}</TableCell>
+                                <TableCell className="text-center font-mono text-xs text-zinc-300">
+                                  {pd.startTime} - {pd.endTime}
+                                </TableCell>
+                                <TableCell className="text-right font-mono font-bold text-emerald-400 text-xs">
+                                  {pd.drivenKm ?? pd.kmDriven ?? 0} km / {pd.consideredKm ?? pd.kmConsidered ?? pd.drivenKm ?? 0} km
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* 3. Viagens Extras */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold uppercase text-blue-400">
+                  3. Viagens Extras no Período ({(viewingMeasurement.extraTrips || []).length})
+                </h4>
+                <div className="border border-zinc-800 rounded-lg overflow-x-auto">
+                  <Table>
+                    <TableHeader className="bg-zinc-900">
+                      <TableRow className="border-zinc-800">
+                        <TableHead className="text-xs text-zinc-300">Data</TableHead>
+                        <TableHead className="text-xs text-zinc-300">Placa</TableHead>
+                        <TableHead className="text-xs text-zinc-300">Trajeto / Destino</TableHead>
+                        <TableHead className="text-xs text-zinc-300">Tipo Veículo</TableHead>
+                        <TableHead className="text-xs text-zinc-300 text-right">Valor</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(viewingMeasurement.extraTrips || []).length === 0 ? (
+                        <TableRow className="border-zinc-800">
+                          <TableCell colSpan={5} className="text-center text-xs text-zinc-500 py-4">
+                            Nenhuma viagem extra registrada.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        (viewingMeasurement.extraTrips || []).map((et: any, idx: number) => (
+                          <TableRow key={et.id || idx} className="border-zinc-800">
+                            <TableCell className="font-mono text-xs text-zinc-300">{et.date}</TableCell>
+                            <TableCell className="font-mono font-bold text-blue-400 text-xs">{et.plate || et.vehiclePlate}</TableCell>
+                            <TableCell className="text-xs text-zinc-200">{et.route}</TableCell>
+                            <TableCell className="text-xs text-zinc-400">{et.vehicleType}</TableCell>
+                            <TableCell className="text-right font-mono font-bold text-emerald-400 text-xs">
+                              R$ {Number(et.tripCost ?? et.total ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+
+              <DialogFooter className="border-t border-zinc-800 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsViewMeasurementOpen(false)}
+                  className="border-zinc-700 bg-zinc-900 text-zinc-300"
+                >
+                  Fechar
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setIsViewMeasurementOpen(false);
+                    handleOpenEditGeneratedMeasurement(viewingMeasurement);
+                  }}
+                  className="bg-amber-600 hover:bg-amber-500 text-white font-bold"
+                >
+                  <Edit2 className="w-4 h-4 mr-1.5" /> Editar Medição
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL: Editar Medição Gerada */}
+      <Dialog open={isEditMeasurementOpen} onOpenChange={setIsEditMeasurementOpen}>
+        <DialogContent className="w-[95vw] max-w-lg bg-zinc-950 border border-zinc-800 text-zinc-100 rounded-2xl p-6 shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-amber-400 flex items-center gap-2">
+              <Edit2 className="w-5 h-5" /> Editar Medição Gerada #{editingMeasurement?.measurementNumber}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-zinc-400">
+              Altere o período, número do contrato, status de revisão/liberação ou carregue os itens nas abas para edição detalhada.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleSaveEditGeneratedMeasurement} className="space-y-4 py-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs text-zinc-300">Nº da Medição *</Label>
+                <Input
+                  value={editMeasurementForm.measurementNumber}
+                  onChange={e => setEditMeasurementForm(prev => ({ ...prev, measurementNumber: e.target.value }))}
+                  className="bg-zinc-900 border-zinc-700 text-white font-mono text-xs h-10"
+                  required
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-zinc-300">Número do Contrato *</Label>
+                <Input
+                  value={editMeasurementForm.contractNumber}
+                  onChange={e => setEditMeasurementForm(prev => ({ ...prev, contractNumber: e.target.value }))}
+                  className="bg-zinc-900 border-zinc-700 text-white font-mono text-xs h-10"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <Label className="text-xs text-zinc-300">Início do Período *</Label>
+                <Input
+                  type="date"
+                  value={editMeasurementForm.periodStart}
+                  onChange={e => setEditMeasurementForm(prev => ({ ...prev, periodStart: e.target.value }))}
+                  className="bg-zinc-900 border-zinc-700 text-white font-mono text-xs h-10"
+                  required
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-zinc-300">Fim do Período *</Label>
+                <Input
+                  type="date"
+                  value={editMeasurementForm.periodEnd}
+                  onChange={e => setEditMeasurementForm(prev => ({ ...prev, periodEnd: e.target.value }))}
+                  className="bg-zinc-900 border-zinc-700 text-white font-mono text-xs h-10"
+                  required
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-zinc-300">Vencimento NF *</Label>
+                <Input
+                  type="date"
+                  value={editMeasurementForm.dueDate}
+                  onChange={e => setEditMeasurementForm(prev => ({ ...prev, dueDate: e.target.value }))}
+                  className="bg-zinc-900 border-zinc-700 text-white font-mono text-xs h-10"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs text-zinc-300">Status da Medição *</Label>
+                <Select
+                  value={editMeasurementForm.status}
+                  onValueChange={(val: 'IN_PROGRESS' | 'OPEN' | 'VALIDATED') =>
+                    setEditMeasurementForm(prev => ({ ...prev, status: val }))
+                  }
+                >
+                  <SelectTrigger className="bg-zinc-900 border-zinc-700 text-white text-xs h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
+                    <SelectItem value="IN_PROGRESS">Em Elaboração</SelectItem>
+                    <SelectItem value="OPEN">Em Análise / Aguardando Revisão</SelectItem>
+                    <SelectItem value="VALIDATED">✓ Revisada / Liberada (Libera PDF & Excel)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs text-zinc-300">Nº Nota Fiscal (NFS-e)</Label>
+                <Input
+                  value={editMeasurementForm.nfNumber}
+                  onChange={e => setEditMeasurementForm(prev => ({ ...prev, nfNumber: e.target.value }))}
+                  placeholder="Ex: 0001642"
+                  className="bg-zinc-900 border-zinc-700 text-white font-mono text-xs h-10"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs text-zinc-300">Observações da Medição</Label>
+              <Textarea
+                value={editMeasurementForm.observations}
+                onChange={e => setEditMeasurementForm(prev => ({ ...prev, observations: e.target.value }))}
+                rows={2}
+                className="bg-zinc-900 border-zinc-700 text-white text-xs"
+              />
+            </div>
+
+            {editingMeasurement && (
+              <div className="bg-zinc-900/80 border border-zinc-800 rounded-xl p-3 flex items-center justify-between gap-2">
+                <span className="text-xs text-zinc-300">
+                  Deseja editar veículos locados, partes diárias ou viagens extras?
+                </span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleLoadMeasurementIntoWorkspace(editingMeasurement)}
+                  className="border-amber-500/40 text-amber-300 hover:bg-amber-500/15 text-xs shrink-0"
+                >
+                  Editar Itens nas Abas
+                </Button>
+              </div>
+            )}
+
+            <DialogFooter className="gap-2 pt-3 border-t border-zinc-800">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsEditMeasurementOpen(false)}
+                className="border-zinc-700 bg-zinc-900 text-zinc-300"
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" className="bg-amber-600 hover:bg-amber-500 text-white font-bold">
+                Salvar Alterações
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ALERT DIALOG: Confirmar Exclusão de Medição Gerada */}
+      <AlertDialog open={isDeleteMeasurementOpen} onOpenChange={setIsDeleteMeasurementOpen}>
+        <AlertDialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-lg font-bold text-red-400 flex items-center gap-2">
+              <Trash2 className="w-5 h-5 text-red-400" />
+              Excluir Medição Nº {measurementToDelete?.measurementNumber}?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-zinc-400 text-sm">
+              Tem certeza que deseja excluir a medição do contrato{' '}
+              <span className="font-mono font-bold text-white">{measurementToDelete?.contractNumber}</span> do cliente{' '}
+              <span className="font-bold text-white">{measurementToDelete?.clientName}</span>?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-zinc-900 border-zinc-700 text-zinc-300 hover:bg-zinc-800">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDeleteGeneratedMeasurement}
+              className="bg-red-600 hover:bg-red-500 text-white font-bold"
+            >
+              Sim, Excluir Medição
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
   );
 };
 

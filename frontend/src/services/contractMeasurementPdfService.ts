@@ -1,412 +1,834 @@
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 import {
-  LeasedVehicleItem,
-  ExtraTripItem,
-  ExcessKmItem,
+  ClientContractMock,
+  ContractExtraTripItem,
+  ContractExcessKmItem,
   ContractDeductionItem,
-  RevenueInvoiceData
-} from '@/components/financeiro/ClientContractMeasurementManager';
+} from '../data/measurementContractMockData';
+import { ParteDiaria } from '../types/measurement';
 
 export interface GenerateMeasurementPdfOptions {
-  client: {
-    id: string;
-    clientName: string;
-    clientCnpj: string;
-    contractNumber: string;
-    measurementNumber: string;
-    periodStart: string;
-    periodEnd: string;
-    dueDate: string;
-  };
-  leasedVehicles: LeasedVehicleItem[];
-  extraTrips: ExtraTripItem[];
-  excessKmItems: ExcessKmItem[];
+  client: ClientContractMock;
+  extraTrips: ContractExtraTripItem[];
+  excessKmItems: ContractExcessKmItem[];
   deductions: ContractDeductionItem[];
-  invoice: RevenueInvoiceData;
-  companyName?: string;
-  companyCnpj?: string;
+  partesDiarias?: ParteDiaria[];
+  totals: {
+    leasedTotal: number;
+    extraTripsTotal: number;
+    excessKmTotal: number;
+    deductionsTotal: number;
+    grandTotal: number;
+  };
+  invoiceOverride?: {
+    nfNumber?: string;
+    nfIssueDate?: string;
+    nfDueDate?: string;
+    retentionISS?: number;
+    retentionINSS?: number;
+    retentionIR?: number;
+    netValue?: number;
+    verificationCode?: string;
+    observations?: string;
+  };
+  statusLabel?: string;
+  elaboratedBy?: string;
+  validatedBy?: string;
 }
 
+const formatCurrency = (val: number): string =>
+  val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+const formatDateBR = (dateStr?: string): string => {
+  if (!dateStr) return '-';
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) return dateStr;
+  const parts = dateStr.split('T')[0].split('-');
+  if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  return dateStr;
+};
+
 export class ContractMeasurementPdfService {
-  private static formatCurrency(value?: number): string {
-    if (value == null) return 'R$ 0,00';
-    return `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  }
-
-  private static formatDate(dateStr?: string): string {
-    if (!dateStr) return '-';
-    const clean = dateStr.substring(0, 10);
-    const parts = clean.split('-');
-    if (parts.length === 3) {
-      return `${parts[2]}/${parts[1]}/${parts[0]}`;
-    }
-    return dateStr;
-  }
-
-  public static async generateMeasurementPDF(options: GenerateMeasurementPdfOptions): Promise<void> {
+  /**
+   * Gera e abre a janela de impressão/PDF formatada da Medição Completa por Contrato de Cliente
+   * Contém: Cabeçalho, Resumo Financeiro, Veículos Locados, Partes Diárias Lançadas,
+   * Viagens Extras, KM Excedente, Débitos/Descontos e Dados da NFS-e.
+   */
+  static generateMeasurementPDF(options: GenerateMeasurementPdfOptions): void {
     const {
       client,
-      leasedVehicles,
       extraTrips,
       excessKmItems,
       deductions,
-      invoice,
-      companyName = 'Viação São Silvestre LTDA / FluxBus',
-      companyCnpj = '33.592.510/0001-54'
+      partesDiarias = [],
+      totals,
+      invoiceOverride,
+      statusLabel = 'REVISADA / LIBERADA',
+      elaboratedBy = 'Setor de Medições / Operacional',
+      validatedBy = 'Diretoria / Faturamento',
     } = options;
+    const inv = { ...client.invoice, ...invoiceOverride };
 
-    const doc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4'
-    });
+    const printWindow = window.open('', '_blank', 'width=1180,height=860');
+    if (!printWindow) {
+      alert('Permita pop-ups no navegador para visualizar e salvar o PDF da medição.');
+      return;
+    }
 
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const margin = 14;
+    const leasedRows =
+      client.leasedVehicles.length > 0
+        ? client.leasedVehicles
+            .map(
+              (v, idx) => `
+          <tr>
+            <td class="center">${idx + 1}</td>
+            <td class="mono bold">${v.plate}</td>
+            <td>${v.description}</td>
+            <td>${v.route || '-'}</td>
+            <td class="center">${v.workingDays}d / ${v.stoppedDays || 0}d</td>
+            <td class="right mono">${formatCurrency(v.dailyRate || 0)}</td>
+            <td class="right mono bold">${formatCurrency(v.periodValue || 0)}</td>
+          </tr>
+        `
+            )
+            .join('')
+        : `<tr><td colspan="7" class="empty">Nenhum veículo fixo locado registrado neste período.</td></tr>`;
 
-    // Cabeçalho institucional superior
-    doc.setFillColor(15, 23, 42); // slate-900
-    doc.rect(0, 0, pageWidth, 28, 'F');
+    const partesDiariasRows =
+      partesDiarias.length > 0
+        ? partesDiarias
+            .map((pd, idx) => {
+              const tripsSummary =
+                pd.trips && pd.trips.length > 0
+                  ? pd.trips
+                      .map(
+                        (t) =>
+                          `${t.startTime || ''}-${t.endTime || ''}: ${t.itinerary || t.activityCode || ''}`
+                      )
+                      .join(' | ')
+                  : pd.notes || 'Operação contratual normal';
+              const statusMap: Record<string, string> = {
+                APPROVED: 'APROVADA',
+                PENDING: 'EM ANÁLISE',
+                REJECTED: 'GLOSADA',
+              };
+              return `
+          <tr>
+            <td class="center">${idx + 1}</td>
+            <td class="mono bold">#${pd.number}</td>
+            <td class="center mono">${formatDateBR(pd.date)}</td>
+            <td class="mono bold">${pd.vehiclePlate}${pd.vehicleModel ? ` (${pd.vehicleModel})` : ''}</td>
+            <td>${pd.driverName || '-'}</td>
+            <td class="center mono">${pd.startTime || '-'} às ${pd.endTime || '-'}</td>
+            <td class="right mono">${(pd.kmInitial || 0).toLocaleString('pt-BR')} → ${(pd.kmFinal || 0).toLocaleString('pt-BR')}</td>
+            <td class="right mono">${(pd.kmDriven || 0).toLocaleString('pt-BR')} km</td>
+            <td class="right mono bold">${(pd.kmConsidered ?? pd.kmDriven ?? 0).toLocaleString('pt-BR')} km</td>
+            <td>${tripsSummary}</td>
+            <td class="center bold">${statusMap[pd.status] || pd.status || 'APROVADA'}</td>
+          </tr>
+        `;
+            })
+            .join('')
+        : `<tr><td colspan="11" class="empty">Nenhuma parte diária vinculada ao período.</td></tr>`;
 
-    doc.setFillColor(234, 179, 8); // yellow-500
-    doc.rect(0, 28, pageWidth, 1.5, 'F');
-
-    doc.setTextColor(255, 255, 255);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(13);
-    doc.text(companyName.toUpperCase(), margin, 11);
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8.5);
-    doc.setTextColor(203, 213, 225);
-    doc.text(`CNPJ: ${companyCnpj}  |  Gestão Integrada de Frotas & Fretamento Corporativo`, margin, 18);
-    doc.text('FOLHA OFICIAL DE MEDIÇÃO MENSAL DE SERVIÇOS DE TRANSPORTE', margin, 24);
-
-    // Número da Medição à direita
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.setTextColor(253, 224, 71); // yellow-300
-    doc.text(`MEDIÇÃO Nº ${client.measurementNumber}`, pageWidth - margin, 14, { align: 'right' });
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(226, 232, 240);
-    doc.text(`Emissão: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`, pageWidth - margin, 22, { align: 'right' });
-
-    let currentY = 36;
-
-    // Quadro de Identificação do Contrato / Cliente
-    doc.setFillColor(248, 250, 252); // slate-50
-    doc.setDrawColor(203, 213, 225); // slate-300
-    doc.roundedRect(margin, currentY, pageWidth - margin * 2, 22, 2, 2, 'FD');
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(15, 23, 42);
-    doc.text(`CLIENTE / CONTRATANTE: ${client.clientName.toUpperCase()}`, margin + 4, currentY + 6);
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(71, 85, 105);
-    doc.text(`CNPJ: ${client.clientCnpj}`, margin + 4, currentY + 12);
-    doc.text(`Contrato Nº: ${client.contractNumber}`, margin + 70, currentY + 12);
-    doc.text(
-      `Período de Apuração: ${this.formatDate(client.periodStart)} até ${this.formatDate(client.periodEnd)}`,
-      margin + 4,
-      currentY + 18
-    );
-    doc.text(`Vencimento Fatura: ${this.formatDate(client.dueDate)}`, margin + 115, currentY + 18);
-
-    currentY += 27;
-
-    // Totais Consolidados da Medição
-    const totalLeased = leasedVehicles.reduce((sum, i) => sum + i.totalPeriod, 0);
-    const totalExtras = extraTrips.reduce((sum, i) => sum + i.total, 0);
-    const totalExcessKm = excessKmItems.reduce((sum, i) => sum + i.totalExcessValue, 0);
-    const totalDeductions = deductions.reduce(
-      (sum, i) => sum + (i.type === 'DEBIT' ? i.value : -i.value),
+    const totalKmDrivenPartes = partesDiarias.reduce((acc, pd) => acc + (pd.kmDriven || 0), 0);
+    const totalKmConsideredPartes = partesDiarias.reduce(
+      (acc, pd) => acc + (pd.kmConsidered ?? pd.kmDriven ?? 0),
       0
     );
-    const totalLiquidoMedicao = totalLeased + totalExtras + totalExcessKm - totalDeductions;
 
-    // Resumo dos Totais (Card em colunas)
-    doc.setFillColor(241, 245, 249);
-    doc.roundedRect(margin, currentY, pageWidth - margin * 2, 16, 1.5, 1.5, 'FD');
+    const extraTripsRows =
+      extraTrips.length > 0
+        ? extraTrips
+            .map(
+              (et, idx) => `
+          <tr>
+            <td class="center">${idx + 1}</td>
+            <td class="center mono">${formatDateBR(et.date)}</td>
+            <td class="mono bold">${et.plate}</td>
+            <td>${et.route}</td>
+            <td>${et.vehicleType || '-'}</td>
+            <td class="right mono bold">${formatCurrency(et.tripCost || 0)}</td>
+          </tr>
+        `
+            )
+            .join('')
+        : `<tr><td colspan="6" class="empty">Nenhuma viagem extra registrada no período.</td></tr>`;
 
-    const colWidth = (pageWidth - margin * 2) / 5;
+    const excessKmRows =
+      excessKmItems.length > 0
+        ? excessKmItems
+            .map(
+              (ek, idx) => `
+          <tr>
+            <td class="center">${idx + 1}</td>
+            <td class="center bold">${ek.periodMonth || '-'}</td>
+            <td class="mono bold">${ek.plate}</td>
+            <td class="right mono">${(ek.franchiseKm || 0).toLocaleString('pt-BR')} km</td>
+            <td class="right mono">${(ek.totalKmDriven || 0).toLocaleString('pt-BR')} km</td>
+            <td class="right mono">${(ek.disregardedKm || 0).toLocaleString('pt-BR')} km</td>
+            <td class="right mono">${(ek.consideredKm || 0).toLocaleString('pt-BR')} km</td>
+            <td class="right mono bold">${(ek.excessKm || 0).toLocaleString('pt-BR')} km</td>
+            <td class="right mono">${formatCurrency(ek.excessKmRate || 0)}</td>
+            <td class="right mono bold">${formatCurrency(ek.totalValue || 0)}</td>
+          </tr>
+        `
+            )
+            .join('')
+        : `<tr><td colspan="10" class="empty">Nenhuma apuração de KM excedente registrada no período.</td></tr>`;
 
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7.5);
-    doc.setTextColor(100, 116, 139);
+    const deductionRows =
+      deductions.length > 0
+        ? deductions
+            .map(
+              (d, idx) => `
+          <tr>
+            <td class="center">${idx + 1}</td>
+            <td class="center mono">${formatDateBR(d.date)}</td>
+            <td class="mono bold">${d.plate || 'CONTRATO'}</td>
+            <td>${d.description}</td>
+            <td class="center">${d.type === 'CREDIT' ? 'CRÉDITO (+)' : 'DÉBITO (-)'}</td>
+            <td class="right mono bold ${d.type === 'CREDIT' ? 'green' : 'red'}">
+              ${d.type === 'CREDIT' ? '+' : '-'}${formatCurrency(d.value || 0)}
+            </td>
+          </tr>
+        `
+            )
+            .join('')
+        : `<tr><td colspan="6" class="empty">Nenhuma dedução ou desconto registrado no período.</td></tr>`;
 
-    doc.text('1. Veículos Locados', margin + 3, currentY + 5);
-    doc.text('2. Viagens Extras', margin + colWidth + 3, currentY + 5);
-    doc.text('3. KM Excedente', margin + colWidth * 2 + 3, currentY + 5);
-    doc.text('4. Deduções / Débitos', margin + colWidth * 3 + 3, currentY + 5);
-    doc.text('TOTAL LÍQUIDO MEDIÇÃO', margin + colWidth * 4 + 3, currentY + 5);
+    const html = `
+      <!DOCTYPE html>
+      <html lang="pt-BR">
+      <head>
+        <meta charset="UTF-8" />
+        <title>Boletim de Medição #${client.measurementNumber} - ${client.clientName}</title>
+        <style>
+          @page { size: A4 landscape; margin: 10mm; }
+          * { box-sizing: border-box; font-family: 'Segoe UI', Arial, sans-serif; }
+          body { margin: 0; padding: 14px; color: #18181b; background: #fff; font-size: 10.5px; }
+          .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 2px solid #f59e0b;
+            padding-bottom: 10px;
+            margin-bottom: 12px;
+          }
+          .brand h1 { margin: 0; font-size: 17px; color: #09090b; text-transform: uppercase; letter-spacing: 0.5px; }
+          .brand p { margin: 2px 0; color: #52525b; font-size: 10.5px; }
+          .doc-badge {
+            text-align: right;
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            padding: 8px 12px;
+            border-radius: 8px;
+          }
+          .doc-badge h2 { margin: 0; font-size: 13px; color: #b45309; }
+          .doc-badge p { margin: 2px 0 0; font-size: 10px; color: #78350f; font-weight: 600; }
+          .status-pill {
+            display: inline-block;
+            margin-top: 4px;
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: #059669;
+            color: #fff;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.4px;
+          }
+          .client-box {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 9px 12px;
+            margin-bottom: 12px;
+          }
+          .client-box div span { display: block; font-size: 9px; text-transform: uppercase; color: #64748b; font-weight: 700; }
+          .client-box div strong { font-size: 11px; color: #0f172a; }
+          .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            margin-bottom: 14px;
+          }
+          .summary-card {
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 7px 10px;
+            background: #fff;
+          }
+          .summary-card.highlight {
+            background: #ecfdf5;
+            border-color: #10b981;
+          }
+          .summary-card span { display: block; font-size: 9px; text-transform: uppercase; color: #64748b; font-weight: 700; }
+          .summary-card strong { font-size: 13px; color: #0f172a; font-family: Consolas, monospace; }
+          .summary-card.highlight strong { color: #047857; font-size: 14px; }
+          h3 {
+            margin: 12px 0 5px;
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #1e293b;
+            border-left: 3px solid #f59e0b;
+            padding-left: 7px;
+          }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+          th, td { border: 1px solid #cbd5e1; padding: 4px 6px; font-size: 9.8px; }
+          th { background: #f1f5f9; color: #334155; text-transform: uppercase; font-size: 9px; text-align: left; }
+          .center { text-align: center; }
+          .right { text-align: right; }
+          .mono { font-family: Consolas, monospace; }
+          .bold { font-weight: 700; }
+          .red { color: #dc2626; }
+          .green { color: #059669; }
+          .empty { text-align: center; color: #94a3b8; font-style: italic; padding: 8px; }
+          .nf-box {
+            border: 1px solid #cbd5e1;
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 9px 12px;
+            margin-top: 8px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+          }
+          .nf-box div span { display: block; font-size: 9px; color: #64748b; text-transform: uppercase; font-weight: 700; }
+          .nf-box div strong { font-size: 10.5px; color: #0f172a; }
+          .signatures {
+            margin-top: 26px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            text-align: center;
+          }
+          .sig-line {
+            border-top: 1px solid #334155;
+            padding-top: 5px;
+            font-size: 10px;
+            color: #334155;
+          }
+          .no-print {
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+          }
+          .btn {
+            background: #059669;
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 12px;
+          }
+          @media print { .no-print { display: none !important; } }
+        </style>
+      </head>
+      <body>
+        <div class="no-print">
+          <button class="btn" onclick="window.print()">Imprimir / Salvar PDF</button>
+        </div>
 
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8.5);
-    doc.setTextColor(30, 41, 59);
+        <div class="header">
+          <div class="brand">
+            <h1>VIAÇÃO SÃO SILVESTRE LTDA</h1>
+            <p>Gestão Integrada de Frotas, Fretamento Contínuo & Medições Contratuais</p>
+            <p>Relatório Analítico Completo de Medição do Período (Frota, Partes Diárias, Viagens Extras e Faturamento)</p>
+          </div>
+          <div class="doc-badge">
+            <h2>BOLETIM DE MEDIÇÃO Nº ${client.measurementNumber}</h2>
+            <p>Contrato: ${client.contractNumber}</p>
+            <span class="status-pill">${statusLabel}</span>
+          </div>
+        </div>
 
-    doc.text(this.formatCurrency(totalLeased), margin + 3, currentY + 12);
-    doc.text(this.formatCurrency(totalExtras), margin + colWidth + 3, currentY + 12);
-    doc.text(this.formatCurrency(totalExcessKm), margin + colWidth * 2 + 3, currentY + 12);
-    doc.setTextColor(220, 38, 38);
-    doc.text(totalDeductions > 0 ? `-${this.formatCurrency(totalDeductions)}` : 'R$ 0,00', margin + colWidth * 3 + 3, currentY + 12);
+        <div class="client-box">
+          <div>
+            <span>Cliente / Contratante</span>
+            <strong>${client.clientName}</strong>
+          </div>
+          <div>
+            <span>CNPJ</span>
+            <strong class="mono">${client.cnpj}</strong>
+          </div>
+          <div>
+            <span>Período de Apuração</span>
+            <strong class="mono">${formatDateBR(client.periodStart)} a ${formatDateBR(client.periodEnd)}</strong>
+          </div>
+          <div>
+            <span>Vencimento Fatura / NF</span>
+            <strong class="mono">${formatDateBR(inv.nfDueDate || client.dueDate)}</strong>
+          </div>
+          <div>
+            <span>Partes Diárias / Extras</span>
+            <strong class="mono">${partesDiarias.length} boletim(ns) / ${extraTrips.length} viagem(ns)</strong>
+          </div>
+        </div>
 
-    doc.setTextColor(22, 101, 52); // green-800
-    doc.setFontSize(9);
-    doc.text(this.formatCurrency(totalLiquidoMedicao), margin + colWidth * 4 + 3, currentY + 12);
+        <div class="summary-grid">
+          <div class="summary-card">
+            <span>1. Veículos Locados (${client.leasedVehicles.length})</span>
+            <strong>${formatCurrency(totals.leasedTotal)}</strong>
+          </div>
+          <div class="summary-card">
+            <span>2. Viagens Extras (${extraTrips.length})</span>
+            <strong>${formatCurrency(totals.extraTripsTotal)}</strong>
+          </div>
+          <div class="summary-card">
+            <span>3. KM Excedente (${excessKmItems.length})</span>
+            <strong>${formatCurrency(totals.excessKmTotal)}</strong>
+          </div>
+          <div class="summary-card">
+            <span>4. Deduções / Descontos (${deductions.length})</span>
+            <strong class="red">-${formatCurrency(totals.deductionsTotal)}</strong>
+          </div>
+          <div class="summary-card highlight">
+            <span>5. Total Líquido Medição</span>
+            <strong>${formatCurrency(totals.grandTotal)}</strong>
+          </div>
+        </div>
 
-    currentY += 21;
+        <h3>1. Veículos Locados sob Contrato Fixo (${client.leasedVehicles.length})</h3>
+        <table>
+          <thead>
+            <tr>
+              <th class="center" style="width: 32px">#</th>
+              <th style="width: 85px">Placa</th>
+              <th>Descrição do Veículo / Serviço</th>
+              <th>Rota / Alocação</th>
+              <th class="center" style="width: 85px">Trab. / Parado</th>
+              <th class="right" style="width: 105px">Diária (R$)</th>
+              <th class="right" style="width: 115px">Valor Período</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${leasedRows}
+          </tbody>
+        </table>
 
-    // Seção 1: Veículos Locados sob Contrato Fixo
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9.5);
-    doc.setTextColor(15, 23, 42);
-    doc.text(`1. VEÍCULOS LOCADOS SOB CONTRATO FIXO (${leasedVehicles.length})`, margin, currentY);
-    currentY += 3;
+        <h3>2. Partes Diárias Lançadas no Período (${partesDiarias.length} boletins — KM Rodado: ${totalKmDrivenPartes.toLocaleString('pt-BR')} km | Considerado: ${totalKmConsideredPartes.toLocaleString('pt-BR')} km)</h3>
+        <table>
+          <thead>
+            <tr>
+              <th class="center" style="width: 28px">#</th>
+              <th style="width: 65px">Boletim</th>
+              <th class="center" style="width: 75px">Data</th>
+              <th style="width: 120px">Placa / Veículo</th>
+              <th style="width: 135px">Motorista</th>
+              <th class="center" style="width: 85px">Horário</th>
+              <th class="right" style="width: 110px">Hodômetro</th>
+              <th class="right" style="width: 75px">KM Rod.</th>
+              <th class="right" style="width: 75px">KM Cons.</th>
+              <th>Trajetos / Atividades Executadas</th>
+              <th class="center" style="width: 75px">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${partesDiariasRows}
+          </tbody>
+        </table>
 
-    if (leasedVehicles.length === 0) {
-      doc.setFont('helvetica', 'italic');
-      doc.setFontSize(8);
-      doc.setTextColor(148, 163, 184);
-      doc.text('Nenhum veículo alocado para este cliente no período da medição.', margin, currentY + 4);
-      currentY += 10;
-    } else {
-      const leasedRows = leasedVehicles.map((item, idx) => [
-        String(idx + 1),
-        `${item.description}\nTrajeto: ${item.route}${item.observations ? ` (${item.observations})` : ''}`,
-        item.plate,
-        this.formatCurrency(item.monthlyRate),
-        `${item.workingDays} dias`,
-        this.formatCurrency(item.dailyRate),
-        this.formatCurrency(item.totalPeriod)
-      ]);
+        <h3>3. Viagens Extras & Turnos Adicionais (${extraTrips.length})</h3>
+        <table>
+          <thead>
+            <tr>
+              <th class="center" style="width: 32px">#</th>
+              <th class="center" style="width: 85px">Data</th>
+              <th style="width: 90px">Placa</th>
+              <th>Trajeto / Descrição da Viagem Extra</th>
+              <th style="width: 140px">Tipo de Veículo</th>
+              <th class="right" style="width: 115px">Valor (R$)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${extraTripsRows}
+          </tbody>
+        </table>
 
-      autoTable(doc, {
-        startY: currentY,
-        margin: { left: margin, right: margin },
-        head: [['Item', 'Descrição do Serviço / Trajeto', 'Placa', 'Valor Mensal', 'Dias', 'Valor Diário', 'Total Período']],
-        body: leasedRows,
-        theme: 'grid',
-        headStyles: {
-          fillColor: [30, 41, 59],
-          textColor: [255, 255, 255],
-          fontSize: 7.5,
-          fontStyle: 'bold',
-          halign: 'left'
-        },
-        bodyStyles: {
-          fontSize: 7,
-          textColor: [51, 65, 85],
-          valign: 'top',
-          cellPadding: 2
-        },
-        columnStyles: {
-          0: { cellWidth: 10, halign: 'center' },
-          1: { cellWidth: 70 },
-          2: { cellWidth: 20, fontStyle: 'bold', textColor: [29, 78, 216] },
-          3: { cellWidth: 22, halign: 'right' },
-          4: { cellWidth: 15, halign: 'center' },
-          5: { cellWidth: 22, halign: 'right' },
-          6: { cellWidth: 23, halign: 'right', fontStyle: 'bold', textColor: [22, 101, 52] }
-        }
-      });
+        <h3>4. Apuração de Quilometragem Excedente (${excessKmItems.length})</h3>
+        <table>
+          <thead>
+            <tr>
+              <th class="center" style="width: 28px">#</th>
+              <th class="center" style="width: 80px">Mês/Ref.</th>
+              <th style="width: 85px">Placa</th>
+              <th class="right">Franquia</th>
+              <th class="right">KM Rodado</th>
+              <th class="right">Desconsid.</th>
+              <th class="right">Considerado</th>
+              <th class="right">KM Excedido</th>
+              <th class="right">R$ / KM</th>
+              <th class="right">Total Exc.</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${excessKmRows}
+          </tbody>
+        </table>
 
-      // @ts-ignore
-      currentY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : currentY + 30) + 7;
-    }
+        <h3>5. Deduções, Seguros & Descontos Contratuais (${deductions.length})</h3>
+        <table>
+          <thead>
+            <tr>
+              <th class="center" style="width: 32px">#</th>
+              <th class="center" style="width: 85px">Data</th>
+              <th style="width: 90px">Placa</th>
+              <th>Descrição do Lançamento</th>
+              <th class="center" style="width: 95px">Natureza</th>
+              <th class="right" style="width: 115px">Valor (R$)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${deductionRows}
+          </tbody>
+        </table>
 
-    // Seção 2: Viagens Extras (se houver)
-    if (extraTrips.length > 0) {
-      if (currentY > pageHeight - 50) {
-        doc.addPage();
-        currentY = 20;
-      }
+        <h3>6. Faturamento da Medição & Nota Fiscal (NFS-e)</h3>
+        <div class="nf-box">
+          <div>
+            <span>Número da NFS-e</span>
+            <strong class="mono">${inv.nfNumber || 'A EMITIR'}</strong>
+          </div>
+          <div>
+            <span>Data de Emissão</span>
+            <strong class="mono">${formatDateBR(inv.nfIssueDate)}</strong>
+          </div>
+          <div>
+            <span>Código de Verificação</span>
+            <strong class="mono">${inv.verificationCode || '-'}</strong>
+          </div>
+          <div>
+            <span>Líquido c/ Retenções</span>
+            <strong class="mono green">${formatCurrency(inv.netValue || totals.grandTotal)}</strong>
+          </div>
+        </div>
 
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-      doc.setTextColor(15, 23, 42);
-      doc.text(`2. VIAGENS EXTRAS & TURNOS ESPECIAIS (${extraTrips.length})`, margin, currentY);
-      currentY += 3;
+        <div class="signatures">
+          <div class="sig-line">Elaborado por: ${elaboratedBy}</div>
+          <div class="sig-line">Revisado / Liberado por: ${validatedBy}</div>
+          <div class="sig-line">De Acordo (${client.clientName})</div>
+        </div>
+      </body>
+      </html>
+    `;
 
-      const extraRows = extraTrips.map((et) => [
-        this.formatDate(et.date),
-        et.plate,
-        et.route,
-        et.vehicleType,
-        this.formatCurrency(et.tripCost),
-        this.formatCurrency(et.total)
-      ]);
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+  }
 
-      autoTable(doc, {
-        startY: currentY,
-        margin: { left: margin, right: margin },
-        head: [['Data', 'Placa', 'Rota / Finalidade', 'Tipo Veículo', 'Custo Viagem', 'Total']],
-        body: extraRows,
-        theme: 'grid',
-        headStyles: { fillColor: [51, 65, 85], fontSize: 7.5 },
-        bodyStyles: { fontSize: 7, cellPadding: 1.8 },
-        columnStyles: {
-          0: { cellWidth: 22 },
-          1: { cellWidth: 20 },
-          2: { cellWidth: 78 },
-          3: { cellWidth: 25 },
-          4: { cellWidth: 20, halign: 'right' },
-          5: { cellWidth: 20, halign: 'right', fontStyle: 'bold' }
-        }
-      });
+  /**
+   * Gera e faz o download do arquivo Excel (.xlsx) completo com todas as abas da medição do período:
+   * 1. Resumo da Medição
+   * 2. Veículos Locados
+   * 3. Partes Diárias Lançadas (com detalhamento de trajetos/atividades)
+   * 4. Viagens Extras
+   * 5. KM Excedente
+   * 6. Débitos e Descontos
+   */
+  static generateMeasurementExcel(options: GenerateMeasurementPdfOptions): void {
+    const {
+      client,
+      extraTrips,
+      excessKmItems,
+      deductions,
+      partesDiarias = [],
+      totals,
+      invoiceOverride,
+      statusLabel = 'REVISADA / LIBERADA',
+      elaboratedBy = 'Setor de Medições / Operacional',
+      validatedBy = 'Diretoria / Faturamento',
+    } = options;
+    const inv = { ...client.invoice, ...invoiceOverride };
 
-      // @ts-ignore
-      currentY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : currentY + 25) + 6;
-    }
+    const wb = XLSX.utils.book_new();
 
-    // Seção 3: Deduções e Descontos (se houver)
-    if (deductions.length > 0) {
-      if (currentY > pageHeight - 45) {
-        doc.addPage();
-        currentY = 20;
-      }
+    // ABA 1: Resumo Consolidado da Medição
+    const resumoRows = [
+      ['BOLETIM DE MEDIÇÃO FINANCEIRA E OPERACIONAL - VIAÇÃO SÃO SILVESTRE LTDA'],
+      [],
+      ['DADOS DO CONTRATO E PERÍODO'],
+      ['Nº da Medição', client.measurementNumber, 'Contrato', client.contractNumber],
+      ['Cliente / Contratante', client.clientName, 'CNPJ', client.cnpj],
+      [
+        'Período de Apuração',
+        `${formatDateBR(client.periodStart)} a ${formatDateBR(client.periodEnd)}`,
+        'Vencimento Fatura/NF',
+        formatDateBR(inv.nfDueDate || client.dueDate),
+      ],
+      ['Status da Medição', statusLabel, 'Elaborado / Revisado por', `${elaboratedBy} / ${validatedBy}`],
+      [],
+      ['RESUMO FINANCEIRO DO PERÍODO'],
+      ['Categoria', 'Quantidade de Registros', 'Valor Apurado (R$)'],
+      ['1. Veículos Locados sob Contrato Fixo', client.leasedVehicles.length, totals.leasedTotal],
+      ['2. Partes Diárias Lançadas no Período', partesDiarias.length, 0],
+      ['3. Viagens Extras e Turnos Adicionais', extraTrips.length, totals.extraTripsTotal],
+      ['4. Quilometragem Excedente (Hodômetro)', excessKmItems.length, totals.excessKmTotal],
+      ['5. Deduções / Descontos Contratuais', deductions.length, -Math.abs(totals.deductionsTotal)],
+      ['TOTAL LÍQUIDO DA MEDIÇÃO (R$)', '', totals.grandTotal],
+      [],
+      ['DADOS DE FATURAMENTO (NFS-e)'],
+      ['Número NFS-e', inv.nfNumber || 'A EMITIR'],
+      ['Data Emissão NFS-e', formatDateBR(inv.nfIssueDate)],
+      ['Data Vencimento NFS-e', formatDateBR(inv.nfDueDate || client.dueDate)],
+      ['Código de Verificação', inv.verificationCode || '-'],
+      ['Retenção ISS (R$)', inv.retentionISS || 0],
+      ['Retenção INSS (R$)', inv.retentionINSS || 0],
+      ['Retenção IR (R$)', inv.retentionIR || 0],
+      ['Valor Líquido Nota Fiscal (R$)', inv.netValue || totals.grandTotal],
+      ['Observações', inv.observations || '-'],
+    ];
+    const wsResumo = XLSX.utils.aoa_to_sheet(resumoRows);
+    wsResumo['!cols'] = [{ wch: 36 }, { wch: 34 }, { wch: 28 }, { wch: 30 }];
+    XLSX.utils.book_append_sheet(wb, wsResumo, '1_Resumo_Medicao');
 
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-      doc.setTextColor(15, 23, 42);
-      doc.text(`3. DEDUÇÕES, SEGUROS & REPASSES CONTRATUAIS (${deductions.length})`, margin, currentY);
-      currentY += 3;
+    // ABA 2: Veículos Locados
+    const veiculosHeader = [
+      'Item',
+      'Placa',
+      'Descrição do Veículo / Serviço',
+      'Rota / Alocação',
+      'Dias Trabalhados',
+      'Dias Parados',
+      'Valor Mensal Contratado (R$)',
+      'Diária Contratual (R$)',
+      'Valor Apurado no Período (R$)',
+      'Observações',
+    ];
+    const veiculosData = client.leasedVehicles.map((v, idx) => [
+      idx + 1,
+      v.plate,
+      v.description,
+      v.route || '-',
+      v.workingDays,
+      v.stoppedDays || 0,
+      v.monthlyRate || 0,
+      v.dailyRate || 0,
+      v.periodValue || 0,
+      v.observations || '',
+    ]);
+    veiculosData.push([
+      '',
+      'TOTAL',
+      `${client.leasedVehicles.length} veículo(s)`,
+      '',
+      client.leasedVehicles.reduce((acc, v) => acc + (v.workingDays || 0), 0),
+      client.leasedVehicles.reduce((acc, v) => acc + (v.stoppedDays || 0), 0),
+      '',
+      '',
+      totals.leasedTotal,
+      '',
+    ]);
+    const wsVeiculos = XLSX.utils.aoa_to_sheet([veiculosHeader, ...veiculosData]);
+    wsVeiculos['!cols'] = [
+      { wch: 6 },
+      { wch: 12 },
+      { wch: 38 },
+      { wch: 28 },
+      { wch: 16 },
+      { wch: 14 },
+      { wch: 22 },
+      { wch: 18 },
+      { wch: 22 },
+      { wch: 24 },
+    ];
+    XLSX.utils.book_append_sheet(wb, wsVeiculos, '2_Veiculos_Locados');
 
-      const deductionRows = deductions.map((d) => [
-        this.formatDate(d.date),
-        d.plate,
-        d.description,
-        d.type === 'CREDIT' ? 'CRÉDITO' : 'DÉBITO',
-        d.type === 'CREDIT' ? `+${this.formatCurrency(d.value)}` : `-${this.formatCurrency(d.value)}`
-      ]);
+    // ABA 3: Partes Diárias Lançadas
+    const partesHeader = [
+      'Item',
+      'Nº Boletim',
+      'Data',
+      'Placa',
+      'Modelo Veículo',
+      'Motorista',
+      'Matrícula',
+      'Hora Inicial',
+      'Hora Final',
+      'KM Inicial',
+      'KM Final',
+      'KM Rodado',
+      'KM Considerado',
+      'Qtd. Viagens/Turnos',
+      'Detalhamento dos Trajetos / Atividades',
+      'Status',
+      'Observações',
+    ];
+    const statusMap: Record<string, string> = {
+      APPROVED: 'APROVADA',
+      PENDING: 'EM ANÁLISE',
+      REJECTED: 'GLOSADA',
+    };
+    const partesData: (string | number)[][] = partesDiarias.map((pd, idx) => {
+      const tripsText =
+        pd.trips && pd.trips.length > 0
+          ? pd.trips
+              .map(
+                (t) =>
+                  `[${t.startTime || ''}-${t.endTime || ''}] ${t.itinerary || t.activityCode || ''} (${t.kmPerTrip || 0}km)`
+              )
+              .join(' ; ')
+          : pd.notes || 'Operação normal';
+      return [
+        idx + 1,
+        pd.number,
+        formatDateBR(pd.date),
+        pd.vehiclePlate,
+        pd.vehicleModel || '-',
+        pd.driverName || '-',
+        pd.driverRegistration || '-',
+        pd.startTime || '-',
+        pd.endTime || '-',
+        pd.kmInitial || 0,
+        pd.kmFinal || 0,
+        pd.kmDriven || 0,
+        pd.kmConsidered ?? pd.kmDriven ?? 0,
+        pd.trips?.length || 1,
+        tripsText,
+        statusMap[pd.status] || pd.status || 'APROVADA',
+        pd.notes || '',
+      ];
+    });
+    partesData.push([
+      '',
+      'TOTAL',
+      `${partesDiarias.length} boletim(ns)`,
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      partesDiarias.reduce((acc, p) => acc + (p.kmDriven || 0), 0),
+      partesDiarias.reduce((acc, p) => acc + (p.kmConsidered ?? p.kmDriven ?? 0), 0),
+      partesDiarias.reduce((acc, p) => acc + (p.trips?.length || 1), 0),
+      '',
+      '',
+      '',
+    ]);
+    const wsPartes = XLSX.utils.aoa_to_sheet([partesHeader, ...partesData]);
+    wsPartes['!cols'] = [
+      { wch: 6 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 24 },
+      { wch: 24 },
+      { wch: 12 },
+      { wch: 11 },
+      { wch: 11 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 14 },
+      { wch: 16 },
+      { wch: 48 },
+      { wch: 14 },
+      { wch: 24 },
+    ];
+    XLSX.utils.book_append_sheet(wb, wsPartes, '3_Partes_Diarias');
 
-      autoTable(doc, {
-        startY: currentY,
-        margin: { left: margin, right: margin },
-        head: [['Data', 'Placa', 'Descrição do Lançamento', 'Tipo', 'Valor']],
-        body: deductionRows,
-        theme: 'grid',
-        headStyles: { fillColor: [153, 27, 27], fontSize: 7.5 }, // red-800
-        bodyStyles: { fontSize: 7, cellPadding: 1.8 },
-        columnStyles: {
-          0: { cellWidth: 24 },
-          1: { cellWidth: 22 },
-          2: { cellWidth: 95 },
-          3: { cellWidth: 22, halign: 'center' },
-          4: { cellWidth: 22, halign: 'right', fontStyle: 'bold' }
-        }
-      });
+    // ABA 4: Viagens Extras
+    const extrasHeader = [
+      'Item',
+      'Data da Viagem',
+      'Placa do Veículo',
+      'Trajeto / Itinerário / Turno Extra',
+      'Tipo de Veículo',
+      'Valor da Viagem Extra (R$)',
+    ];
+    const extrasData: (string | number)[][] = extraTrips.map((et, idx) => [
+      idx + 1,
+      formatDateBR(et.date),
+      et.plate,
+      et.route,
+      et.vehicleType || '-',
+      et.tripCost || 0,
+    ]);
+    extrasData.push(['', 'TOTAL', `${extraTrips.length} viagem(ns)`, '', '', totals.extraTripsTotal]);
+    const wsExtras = XLSX.utils.aoa_to_sheet([extrasHeader, ...extrasData]);
+    wsExtras['!cols'] = [{ wch: 6 }, { wch: 14 }, { wch: 14 }, { wch: 44 }, { wch: 22 }, { wch: 22 }];
+    XLSX.utils.book_append_sheet(wb, wsExtras, '4_Viagens_Extras');
 
-      // @ts-ignore
-      currentY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : currentY + 20) + 6;
-    }
+    // ABA 5: KM Excedente
+    const kmHeader = [
+      'Item',
+      'Período / Mês',
+      'Placa',
+      'Franquia Contratada (KM)',
+      'KM Rodado Total',
+      'KM Desconsiderado',
+      'KM Considerado',
+      'KM Excedido',
+      'Tarifa KM Excedente (R$)',
+      'Valor Total Excedente (R$)',
+    ];
+    const kmData: (string | number)[][] = excessKmItems.map((ek, idx) => [
+      idx + 1,
+      ek.periodMonth || '-',
+      ek.plate,
+      ek.franchiseKm || 0,
+      ek.totalKmDriven || 0,
+      ek.disregardedKm || 0,
+      ek.consideredKm || 0,
+      ek.excessKm || 0,
+      ek.excessKmRate || 0,
+      ek.totalValue || 0,
+    ]);
+    kmData.push([
+      '',
+      'TOTAL',
+      '',
+      excessKmItems.reduce((a, b) => a + (b.franchiseKm || 0), 0),
+      excessKmItems.reduce((a, b) => a + (b.totalKmDriven || 0), 0),
+      excessKmItems.reduce((a, b) => a + (b.disregardedKm || 0), 0),
+      excessKmItems.reduce((a, b) => a + (b.consideredKm || 0), 0),
+      excessKmItems.reduce((a, b) => a + (b.excessKm || 0), 0),
+      '',
+      totals.excessKmTotal,
+    ]);
+    const wsKm = XLSX.utils.aoa_to_sheet([kmHeader, ...kmData]);
+    wsKm['!cols'] = [
+      { wch: 6 },
+      { wch: 14 },
+      { wch: 12 },
+      { wch: 20 },
+      { wch: 16 },
+      { wch: 18 },
+      { wch: 16 },
+      { wch: 14 },
+      { wch: 20 },
+      { wch: 22 },
+    ];
+    XLSX.utils.book_append_sheet(wb, wsKm, '5_KM_Excedente');
 
-    // Seção 4: Faturamento e Dados da NFS-e
-    if (currentY > pageHeight - 65) {
-      doc.addPage();
-      currentY = 20;
-    }
+    // ABA 6: Débitos e Descontos
+    const debitosHeader = ['Item', 'Data', 'Placa / Ref.', 'Descrição do Débito / Repasse', 'Natureza', 'Valor (R$)'];
+    const debitosData: (string | number)[][] = deductions.map((d, idx) => [
+      idx + 1,
+      formatDateBR(d.date),
+      d.plate || 'CONTRATO',
+      d.description,
+      d.type === 'CREDIT' ? 'CRÉDITO (+)' : 'DÉBITO (-)',
+      d.type === 'CREDIT' ? d.value : -Math.abs(d.value),
+    ]);
+    debitosData.push(['', 'TOTAL', '', '', '', -Math.abs(totals.deductionsTotal)]);
+    const wsDebitos = XLSX.utils.aoa_to_sheet([debitosHeader, ...debitosData]);
+    wsDebitos['!cols'] = [{ wch: 6 }, { wch: 14 }, { wch: 14 }, { wch: 44 }, { wch: 14 }, { wch: 18 }];
+    XLSX.utils.book_append_sheet(wb, wsDebitos, '6_Debitos_Descontos');
 
-    doc.setFillColor(248, 250, 252);
-    doc.setDrawColor(203, 213, 225);
-    doc.roundedRect(margin, currentY, pageWidth - margin * 2, 28, 2, 2, 'FD');
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(15, 23, 42);
-    doc.text('FATURAMENTO DA MEDIÇÃO & NOTA FISCAL DE SERVIÇO (NFS-e)', margin + 4, currentY + 6);
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7.5);
-    doc.setTextColor(71, 85, 105);
-
-    doc.text(`NFS-e Nº: ${invoice.invoiceNumber || 'A Emitir'}  |  Série: ${invoice.series || '1'}`, margin + 4, currentY + 12);
-    doc.text(`Emissão NF: ${this.formatDate(invoice.issueDate)}`, margin + 65, currentY + 12);
-    doc.text(`Vencimento: ${this.formatDate(invoice.dueDate)}`, margin + 120, currentY + 12);
-
-    doc.text(`Retenções: PIS (0.65%): ${this.formatCurrency(invoice.pisRetention)}  |  COFINS (3.00%): ${this.formatCurrency(invoice.cofinsRetention)}  |  CSLL (1.00%): ${this.formatCurrency(invoice.csllRetention)}`, margin + 4, currentY + 18);
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(22, 101, 52);
-    const valorLiquido = invoice.netReceivableValue > 0 ? invoice.netReceivableValue : totalLiquidoMedicao;
-    doc.text(`VALOR LÍQUIDO A RECEBER: ${this.formatCurrency(valorLiquido)}`, margin + 4, currentY + 24);
-
-    currentY += 34;
-
-    // Seção de Assinaturas
-    if (currentY > pageHeight - 35) {
-      doc.addPage();
-      currentY = 25;
-    }
-
-    doc.setFont('helvetica', 'italic');
-    doc.setFontSize(7);
-    doc.setTextColor(100, 116, 139);
-    doc.text(
-      'Atestamos que os serviços de transporte fretado constantes nesta medição foram prestados a contento e estão em conformidade com o contrato.',
-      margin,
-      currentY
-    );
-    currentY += 12;
-
-    const signWidth = (pageWidth - margin * 2 - 20) / 2;
-
-    // Assinatura Contratante
-    doc.setDrawColor(148, 163, 184);
-    doc.line(margin, currentY, margin + signWidth, currentY);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
-    doc.setTextColor(30, 41, 59);
-    doc.text(client.clientName.toUpperCase(), margin, currentY + 4);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
-    doc.setTextColor(100, 116, 139);
-    doc.text('Fiscal do Contrato / Aprovador', margin, currentY + 8);
-
-    // Assinatura Prestadora
-    doc.line(margin + signWidth + 20, currentY, pageWidth - margin, currentY);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
-    doc.setTextColor(30, 41, 59);
-    doc.text(companyName.toUpperCase(), margin + signWidth + 20, currentY + 4);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
-    doc.setTextColor(100, 116, 139);
-    doc.text('Gerência de Tráfego & Fretamento', margin + signWidth + 20, currentY + 8);
-
-    // Rodapé em todas as páginas
-    const totalPages = doc.getNumberOfPages();
-    for (let p = 1; p <= totalPages; p++) {
-      doc.setPage(p);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7.5);
-      doc.setTextColor(148, 163, 184);
-      doc.setDrawColor(226, 232, 240);
-      doc.line(margin, pageHeight - 8, pageWidth - margin, pageHeight - 8);
-
-      doc.text(
-        'FluxBus • Módulo de Medição & Faturamento de Contratos',
-        margin,
-        pageHeight - 4
-      );
-      doc.text(
-        `Página ${p} de ${totalPages}`,
-        pageWidth - margin,
-        pageHeight - 4,
-        { align: 'right' }
-      );
-    }
-
-    const clientSlug = client.clientName.toLowerCase().replace(/[^a-z0-9]/g, '_').substring(0, 20);
-    const filename = `medicao-${client.measurementNumber}-${clientSlug}.pdf`;
-    doc.save(filename);
+    const safeClientName = (client.clientName || 'Cliente')
+      .replace(/[^a-zA-Z0-9_-]/g, '_')
+      .replace(/_+/g, '_')
+      .slice(0, 35);
+    const safeNumber = String(client.measurementNumber || '001').replace(/[^a-zA-Z0-9_-]/g, '_');
+    XLSX.writeFile(wb, `Medicao_${safeNumber}_${safeClientName}.xlsx`);
   }
 }
-

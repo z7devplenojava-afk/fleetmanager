@@ -358,36 +358,53 @@ export const MeasurementWizardModal: React.FC<MeasurementWizardModalProps> = ({
     try {
       setIsLoading(true);
       const selectedClient = clients.find(c => c.id === selectedClientId);
+      const resolvedClientName = selectedClient?.name || selectedClient?.clientName || 'GERAES ARQUITETURA E ENGENHARIA LTDA';
+      const resolvedContract = contractNumber || selectedClient?.contractNumber || 'CT-2024/001';
+      const resolvedCnpj = selectedClient?.cnpj || '25.618.133/0001-57';
 
       const bulletinPayload = {
-        companyName: selectedClient?.name || selectedClient?.clientName || 'PROMOVER VIGILÂNCIA PATRIMONIAL LTDA',
-        contractNumber: contractNumber || 'CT-2024/001',
+        companyName: resolvedClientName,
+        contractNumber: resolvedContract,
         clientId: (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(selectedClientId)) ? selectedClientId : undefined,
         periodStart,
         periodEnd,
         elaboratedBy: 'José Ramos',
         measuredBy: 'Gestão de Frotas & Operações',
-        notes: `Medição gerada via Assistente Automatizado (PRD 1.0) - Obra/Unidade: ${obraName}. Total de Veículos Alocados: ${pointings.length}, Viagens Extras: ${extraTrips.length}.`,
+        notes: `Medição gerada via Assistente Automatizado (PRD 1.0) - Obra/Unidade: ${obraName || resolvedClientName}. Total de Veículos Alocados: ${pointings.length}, Partes Diárias: ${clientPartesDiarias.length}, Viagens Extras: ${extraTrips.length}.`,
         items: [
           ...pointings.map((p, idx) => ({
             itemNumber: idx + 1,
-            category: 'REGULAR_SERVICE',
-            description: `Locação e Disponibilidade de Veículo ${p.vehiclePlate} (${p.vehicleModel})`,
+            code: resolvedContract,
+            unit: 'DIÁRIA',
+            category: 'LEASE',
+            description: p.description || `Locação e Disponibilidade de Veículo ${p.vehiclePlate} (${p.vehicleModel})`,
             quantity: p.daysWorked,
             unitPrice: p.dailyRate,
-            totalPrice: p.daysWorked * p.dailyRate
+            totalPrice: p.daysWorked * p.dailyRate,
+            vehiclePlate: p.vehiclePlate,
+            workingDays: p.daysWorked,
+            diaria: p.dailyRate,
+            observations: p.cutReason || 'Operação normal'
           })),
           ...extraTrips.map((et, idx) => ({
             itemNumber: pointings.length + idx + 1,
+            code: resolvedContract,
+            unit: 'VIAGEM',
             category: 'EXTRA_TRIP',
             description: `Viagem Extra: ${et.route} (${et.vehiclePlate})`,
             quantity: 1,
             unitPrice: et.total,
-            totalPrice: et.total
+            totalPrice: et.total,
+            vehiclePlate: et.vehiclePlate,
+            tripDate: et.date,
+            route: et.route,
+            vehicleType: et.vehicleType
           })),
           ...surpluses.map((s, idx) => ({
             itemNumber: pointings.length + extraTrips.length + idx + 1,
-            category: 'SURPLUS',
+            code: resolvedContract,
+            unit: 'KM',
+            category: 'EXCESS_KM',
             description: `Excedente: ${s.description}`,
             quantity: Number(s.quantity),
             unitPrice: Number(s.unitPrice),
@@ -396,7 +413,12 @@ export const MeasurementWizardModal: React.FC<MeasurementWizardModalProps> = ({
         ]
       };
 
-      const bulletin = await measurementService.createBulletin(bulletinPayload as any);
+      let bulletin: any = null;
+      try {
+        bulletin = await measurementService.createBulletin(bulletinPayload as any);
+      } catch (apiErr) {
+        console.warn('Aviso ao gravar boletim no backend (usando persistência local complementar):', apiErr);
+      }
 
       // Vincular NFE/CTE se preenchida
       if (nfNumber && bulletin?.id) {
@@ -405,26 +427,123 @@ export const MeasurementWizardModal: React.FC<MeasurementWizardModalProps> = ({
           number: nfNumber,
           accessKey: accessKey || undefined,
           amount: parseFloat(nfAmount) || calculateGrandTotal(),
-          issuerName: selectedClient?.name || selectedClient?.clientName || 'Cliente'
+          issuerName: resolvedClientName
         }).catch(err => console.warn('Erro ao salvar NFE:', err));
+      }
+
+      // Salvar registro completo da medição gerada para listagem, edição, revisão/liberação e exportação PDF/Excel
+      const generatedRecord = {
+        id: bulletin?.id || `med-${Date.now()}`,
+        measurementNumber: bulletin?.measurementNumber || Math.floor(100 + Math.random() * 900),
+        clientId: selectedClientId,
+        clientName: resolvedClientName,
+        cnpj: resolvedCnpj,
+        contractNumber: resolvedContract,
+        obraName: obraName || resolvedClientName,
+        periodStart,
+        periodEnd,
+        dueDate: periodEnd,
+        status: bulletin?.status || 'IN_PROGRESS',
+        elaboratedBy: bulletin?.elaboratedBy || 'José Ramos',
+        validatedBy: bulletin?.validatedBy || '',
+        createdAt: bulletin?.createdAt || new Date().toISOString(),
+        leasedVehicles: pointings.map((p, idx) => ({
+          id: p.id || `lv-${idx + 1}`,
+          plate: p.vehiclePlate,
+          description: p.description || p.vehicleModel || 'TRANSPORTE DE PASSAGEIROS',
+          route: p.route || obraName || 'ROTA OPERACIONAL CONTRATADA',
+          workingDays: p.daysWorked,
+          stoppedDays: p.daysStopped || 0,
+          monthlyRate: (p.dailyRate || 0) * 30,
+          dailyRate: p.dailyRate || 0,
+          periodValue: Math.max(0, (p.daysWorked * p.dailyRate) - ((p.daysStopped || 0) * (p.cutRate || 0))),
+          observations: p.cutReason || '01 MOTORISTA'
+        })),
+        partesDiarias: clientPartesDiarias,
+        extraTrips: extraTrips.map((et, idx) => ({
+          id: et.id || `et-${idx + 1}`,
+          date: et.date || periodStart,
+          plate: et.vehiclePlate,
+          route: et.route,
+          vehicleType: et.vehicleType || 'Ônibus Executivo',
+          tripCost: Number(et.total || et.tripCost || 0)
+        })),
+        excessKmItems: surpluses.map((s, idx) => ({
+          id: s.id || `ek-${idx + 1}`,
+          periodMonth: periodEnd.slice(0, 7),
+          plate: pointings[0]?.vehiclePlate || 'FROTA',
+          franchiseKm: 0,
+          totalKmDriven: Number(s.quantity || 0),
+          disregardedKm: 0,
+          consideredKm: Number(s.quantity || 0),
+          excessKm: Number(s.quantity || 0),
+          excessKmRate: Number(s.unitPrice || 0),
+          totalValue: Number(s.quantity || 0) * Number(s.unitPrice || 0)
+        })),
+        deductions: [
+          ...pointings
+            .filter(p => (p.daysStopped || 0) > 0 && (p.cutRate || 0) > 0)
+            .map((p, idx) => ({
+              id: `cut-${idx + 1}`,
+              date: periodEnd,
+              plate: p.vehiclePlate,
+              description: p.cutReason || `Corte por ${p.daysStopped} dia(s) parado(s)`,
+              type: 'DEBIT' as const,
+              value: (p.daysStopped || 0) * (p.cutRate || 0)
+            })),
+          ...discounts.map((d, idx) => ({
+            id: d.id || `disc-${idx + 1}`,
+            date: periodEnd,
+            plate: 'CONTRATO',
+            description: d.reason || 'Desconto / Glosa Contratual',
+            type: 'DEBIT' as const,
+            value: Number(d.amount || 0)
+          }))
+        ],
+        invoice: {
+          nfNumber: nfNumber || 'A EMITIR',
+          nfIssueDate: new Date().toISOString().split('T')[0],
+          nfDueDate: periodEnd,
+          verificationCode: accessKey || '-',
+          grossValue: calculateSubtotalServices() + calculateTotalExtraTrips() + calculateTotalSurpluses(),
+          retentionISS: 0,
+          retentionINSS: 0,
+          retentionIR: 0,
+          netValue: calculateGrandTotal(),
+          observations: `Medição referente ao período de ${periodStart} a ${periodEnd} (${resolvedContract}).`
+        },
+        totals: {
+          leasedTotal: calculateSubtotalServices() - calculateTotalCuts(),
+          extraTripsTotal: calculateTotalExtraTrips(),
+          excessKmTotal: calculateTotalSurpluses(),
+          deductionsTotal: calculateTotalDiscounts(),
+          grandTotal: calculateGrandTotal()
+        }
+      };
+
+      try {
+        const storageKey = 'fluxbus_generated_measurements_v1';
+        const existingRaw = localStorage.getItem(storageKey);
+        const existingList = existingRaw ? JSON.parse(existingRaw) : [];
+        const updatedList = [
+          generatedRecord,
+          ...existingList.filter((item: any) => String(item.id) !== String(generatedRecord.id))
+        ];
+        localStorage.setItem(storageKey, JSON.stringify(updatedList));
+        window.dispatchEvent(new CustomEvent('fluxbus:measurement-generated', { detail: generatedRecord }));
+      } catch (storageErr) {
+        console.warn('Erro ao salvar medição no cache local:', storageErr);
       }
 
       // Salvar versão inicial v1 imutável
       if (bulletin?.id) {
-        const snapshot = JSON.stringify({
-          bulletin,
-          pointings,
-          extraTrips,
-          surpluses,
-          discounts,
-          grandTotal: calculateGrandTotal()
-        });
-        await measurementService.saveVersion(bulletin.id, 'Criação inicial da medição v1 (Aprovada)', 'José Ramos', snapshot).catch(err => console.warn('Erro ao criar versão:', err));
+        const snapshot = JSON.stringify(generatedRecord);
+        await measurementService.saveVersion(bulletin.id, 'Criação inicial da medição v1', 'José Ramos', snapshot).catch(err => console.warn('Erro ao criar versão:', err));
       }
 
       toast({
         title: 'Medição Gerada com Sucesso!',
-        description: `Medição ${contractNumber || 'CT-2024/001'} gerada no sistema com valor total de R$ ${calculateGrandTotal().toLocaleString('pt-BR', { minimumFractionDigits: 2 })}.`,
+        description: `Medição #${generatedRecord.measurementNumber} (${resolvedContract}) gerada com valor líquido de R$ ${calculateGrandTotal().toLocaleString('pt-BR', { minimumFractionDigits: 2 })}.`,
       });
 
       onSuccess();
