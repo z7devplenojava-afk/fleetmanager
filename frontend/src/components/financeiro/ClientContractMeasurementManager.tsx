@@ -44,6 +44,7 @@ import {
   X
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import { parteDiariaService, ParteDiaria } from '@/services/parteDiariaService';
 import { contasAReceberService } from '@/services/contasAReceberService';
 import { clientService } from '@/services/clientService';
@@ -81,6 +82,9 @@ export interface LeasedVehicleItem {
   description: string;
   route: string;
   plate: string;
+  vehicleModel?: string;
+  providerCompany?: string;
+  contractModality?: string;
   period: string;
   monthlyRate: number;
   workingDays: number;
@@ -214,7 +218,9 @@ const CLIENT_CONTRACTS_MOCK = [
     periodStart: '2024-03-21',
     periodEnd: '2024-04-20',
     dueDate: '2024-05-05',
-    contractNumber: 'CTC-GERAES-2024/01'
+    contractNumber: 'CTC-GERAES-2024/01',
+    hasVehicleRentalContract: true,
+    providerCompany: 'VIAÇÃO SÃO SILVESTRE LTDA'
   },
   {
     id: 'cli-02',
@@ -224,7 +230,9 @@ const CLIENT_CONTRACTS_MOCK = [
     periodStart: '2024-01-01',
     periodEnd: '2024-01-31',
     dueDate: '2024-03-05',
-    contractNumber: 'CTC-ALMENARA-2024/02'
+    contractNumber: 'CTC-ALMENARA-2024/02',
+    hasVehicleRentalContract: false,
+    providerCompany: 'VIAÇÃO SÃO SILVESTRE LTDA'
   },
   {
     id: 'cli-03',
@@ -234,7 +242,9 @@ const CLIENT_CONTRACTS_MOCK = [
     periodStart: '2024-09-01',
     periodEnd: '2024-09-30',
     dueDate: '2024-10-15',
-    contractNumber: 'CTC-VALE-2024/88'
+    contractNumber: 'CTC-VALE-2024/88',
+    hasVehicleRentalContract: true,
+    providerCompany: 'VIAÇÃO SÃO SILVESTRE LTDA'
   },
   {
     id: 'cli-04',
@@ -244,7 +254,9 @@ const CLIENT_CONTRACTS_MOCK = [
     periodStart: '2025-12-01',
     periodEnd: '2025-12-31',
     dueDate: '2026-01-10',
-    contractNumber: 'CT-2025/FMQC'
+    contractNumber: 'CT-2025/FMQC',
+    hasVehicleRentalContract: true,
+    providerCompany: 'VIAÇÃO SÃO SILVESTRE LTDA'
   }
 ];
 
@@ -335,54 +347,131 @@ export const ClientContractMeasurementManager: React.FC = () => {
   const [selectedClientId, setSelectedClientId] = useState('cli-01');
   const [activeTab, setActiveTab] = useState('leased-vehicles');
   const { toast } = useToast();
+  const { company } = useAuth();
+  const defaultProviderCompany = (company?.name || 'VIAÇÃO SÃO SILVESTRE LTDA').toUpperCase();
 
   const currentClient = CLIENT_CONTRACTS_MOCK.find(c => c.id === selectedClientId) || CLIENT_CONTRACTS_MOCK[0];
 
-  // State: Veículos Locados
-  const [leasedVehicles, setLeasedVehicles] = useState<LeasedVehicleItem[]>([
+  // Controle por cliente: possui ou não contrato de locação de veículos (somente veículo pronto para locação)
+  const [clientRentalContractMap, setClientRentalContractMap] = useState<Record<string, boolean>>({
+    'cli-01': true,
+    'cli-02': false,
+    'cli-03': true,
+    'cli-04': true,
+  });
+
+  // State: Veículos Locados pelo Cliente (Contrato somente de locação do veículo pronto para uso)
+  const INITIAL_LEASED_VEHICLES: LeasedVehicleItem[] = [
     {
       id: 'lv-1',
       clientId: 'cli-01',
       itemNumber: 1,
-      description: 'PRESTAÇÃO DE SERVIÇO COM ÔNIBUS RODOVIÁRIO, COM CESSÃO DE MÃO DE OBRA PARA TRANSPORTE DE FUNCIONÁRIOS.',
-      route: 'PRAÇA DA ESTAÇÃO - BH/MG X MINA VALE MIGUELÃO - N. LIMA-MG',
       plate: 'RUR-7A78',
+      vehicleModel: 'Ônibus Rodoviário Marcopolo Paradiso 46L',
+      providerCompany: defaultProviderCompany,
+      contractModality: 'LOCAÇÃO SOMENTE DO VEÍCULO (PRONTO P/ LOCAÇÃO)',
+      description: 'LOCAÇÃO DE VEÍCULO ÔNIBUS RODOVIÁRIO 46 LUGARES — FORNECIMENTO DO VEÍCULO REVISADO E PRONTO PARA LOCAÇÃO (SOMENTE VEÍCULO).',
+      route: 'DISPONIBILIZADO NA UNIDADE: MINA VALE MIGUELÃO - NOVA LIMA/MG',
       period: '21/03/2024 À 20/04/2024',
       monthlyRate: 33600.00,
       workingDays: 30,
       dailyRate: 1120.00,
       totalPeriod: 33600.00,
-      observations: '02 MOTORISTAS'
+      observations: 'SOMENTE VEÍCULO PRONTO P/ LOCAÇÃO'
     },
     {
       id: 'lv-2',
       clientId: 'cli-01',
       itemNumber: 2,
-      description: 'PRESTAÇÃO DE SERVIÇO COM MICRO ÔNIBUS RODOVIÁRIO, COM CESSÃO DE MÃO DE OBRA PARA TRANSPORTE DE FUNCIONÁRIOS.',
-      route: 'RAPOSOS - NOVA LIMA/MG X MINA VALE MIGUELÃO - N. LIMA-MG',
       plate: 'SHZ-3A40',
+      vehicleModel: 'Micro-ônibus Rodoviário Volare W9 28L',
+      providerCompany: defaultProviderCompany,
+      contractModality: 'LOCAÇÃO SOMENTE DO VEÍCULO (PRONTO P/ LOCAÇÃO)',
+      description: 'LOCAÇÃO DE VEÍCULO MICRO-ÔNIBUS RODOVIÁRIO 28 LUGARES — FORNECIMENTO DO VEÍCULO REVISADO E PRONTO PARA LOCAÇÃO (SOMENTE VEÍCULO).',
+      route: 'DISPONIBILIZADO NA UNIDADE: RAPOSOS / MINA VALE MIGUELÃO - MG',
       period: '21/03/2024 À 20/04/2024',
       monthlyRate: 34500.00,
       workingDays: 30,
       dailyRate: 1150.00,
       totalPeriod: 34500.00,
-      observations: '02 MOTORISTAS'
+      observations: 'SOMENTE VEÍCULO PRONTO P/ LOCAÇÃO'
     },
     {
       id: 'lv-3',
+      clientId: 'cli-03',
+      itemNumber: 1,
+      plate: 'QRE-1A23',
+      vehicleModel: 'Ônibus Executivo Mercedes-Benz O-500RS',
+      providerCompany: defaultProviderCompany,
+      contractModality: 'LOCAÇÃO SOMENTE DO VEÍCULO (PRONTO P/ LOCAÇÃO)',
+      description: 'LOCAÇÃO DE VEÍCULO ÔNIBUS EXECUTIVO — FORNECIMENTO DO VEÍCULO PRONTO PARA LOCAÇÃO (SOMENTE VEÍCULO).',
+      route: 'DISPONIBILIZADO NA UNIDADE: COMPLEXO MINERADOR ITABIRA - MG',
+      period: '01/09/2024 À 30/09/2024',
+      monthlyRate: 36000.00,
+      workingDays: 30,
+      dailyRate: 1200.00,
+      totalPeriod: 36000.00,
+      observations: 'SOMENTE VEÍCULO PRONTO P/ LOCAÇÃO'
+    },
+    {
+      id: 'lv-4',
+      clientId: 'cli-03',
+      itemNumber: 2,
+      plate: 'OPX-9B12',
+      vehicleModel: 'Van Executiva Mercedes-Benz Sprinter 18L',
+      providerCompany: defaultProviderCompany,
+      contractModality: 'LOCAÇÃO SOMENTE DO VEÍCULO (PRONTO P/ LOCAÇÃO)',
+      description: 'LOCAÇÃO DE VEÍCULO VAN EXECUTIVA 18 LUGARES — FORNECIMENTO DO VEÍCULO PRONTO PARA LOCAÇÃO (SOMENTE VEÍCULO).',
+      route: 'DISPONIBILIZADO NA UNIDADE: MINA BRUCUTU - SÃO GONÇALO DO RIO ABAIXO/MG',
+      period: '01/09/2024 À 30/09/2024',
+      monthlyRate: 19500.00,
+      workingDays: 30,
+      dailyRate: 650.00,
+      totalPeriod: 19500.00,
+      observations: 'SOMENTE VEÍCULO PRONTO P/ LOCAÇÃO'
+    },
+    {
+      id: 'lv-5',
       clientId: 'cli-04',
       itemNumber: 1,
-      description: 'LOCAÇÃO DE MICRO-ÔNIBUS COM MOTORISTA PARA TRANSPORTE DE TURNOS.',
-      route: 'IBIRITÉ X UNIDADE OPERACIONAL FMQC',
       plate: 'QMR-2F82',
+      vehicleModel: 'Micro-ônibus Urbano / Fretamento',
+      providerCompany: defaultProviderCompany,
+      contractModality: 'LOCAÇÃO SOMENTE DO VEÍCULO (PRONTO P/ LOCAÇÃO)',
+      description: 'LOCAÇÃO DE VEÍCULO MICRO-ÔNIBUS — FORNECIMENTO DO VEÍCULO REVISADO E PRONTO PARA LOCAÇÃO (SOMENTE VEÍCULO).',
+      route: 'DISPONIBILIZADO NA UNIDADE: UNIDADE OPERACIONAL FMQC IBIRITÉ/MG',
       period: '01/12/2025 À 31/12/2025',
       monthlyRate: 28500.00,
       workingDays: 30,
       dailyRate: 950.00,
       totalPeriod: 28500.00,
-      observations: '01 MOTORISTA'
+      observations: 'SOMENTE VEÍCULO PRONTO P/ LOCAÇÃO'
     }
-  ]);
+  ];
+
+  const [leasedVehicles, setLeasedVehicles] = useState<LeasedVehicleItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('fluxbus_contract_leased_vehicles_v2');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+      localStorage.setItem('fluxbus_contract_leased_vehicles_v2', JSON.stringify(INITIAL_LEASED_VEHICLES));
+    } catch {
+      // ignore
+    }
+    return INITIAL_LEASED_VEHICLES;
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('fluxbus_contract_leased_vehicles_v2', JSON.stringify(leasedVehicles));
+    } catch {
+      // ignore
+    }
+  }, [leasedVehicles]);
 
   // State: Viagens Extras
   const [extraTrips, setExtraTrips] = useState<ExtraTripItem[]>([
@@ -604,8 +693,29 @@ export const ClientContractMeasurementManager: React.FC = () => {
     loadPartesDiarias();
   };
 
-    // Itens filtrados pelo cliente selecionado (se não tiver alocações/lançamentos, exibe vazio!)
-  const currentLeasedVehicles = leasedVehicles.filter(v => v.clientId === selectedClientId);
+  // Verifica se o cliente selecionado possui Contrato de Locação de Veículos ativo (o cliente pode ou não ter veículos locados)
+  const hasVehicleRentalContract =
+    clientRentalContractMap[selectedClientId] ?? currentClient.hasVehicleRentalContract ?? true;
+
+  const handleToggleClientRentalContract = (enabled: boolean) => {
+    setClientRentalContractMap(prev => ({
+      ...prev,
+      [selectedClientId]: enabled,
+    }));
+    toast({
+      title: enabled
+        ? 'Contrato de Locação de Veículos Ativado'
+        : 'Cliente Marcado Sem Locação Fixa de Veículos',
+      description: enabled
+        ? `A lista de veículos locados pelo cliente ${currentClient.clientName} está ativa nesta medição.`
+        : `O cliente ${currentClient.clientName} foi configurado como sem veículos locados neste período (apenas partes diárias / viagens extras).`,
+    });
+  };
+
+  // Itens filtrados pelo cliente selecionado (se o cliente não tiver contrato de locação de veículos, exibe vazio!)
+  const currentLeasedVehicles = hasVehicleRentalContract
+    ? leasedVehicles.filter(v => v.clientId === selectedClientId)
+    : [];
   const currentExtraTrips = extraTrips.filter(t => t.clientId === selectedClientId);
   const currentExcessKmItems = excessKmItems.filter(k => k.clientId === selectedClientId);
   const currentDeductions = deductions.filter(d => d.clientId === selectedClientId);
@@ -776,27 +886,33 @@ export const ClientContractMeasurementManager: React.FC = () => {
       setSavingService(false);
     }
   };
-  // State e Handlers: Adicionar / Editar Veículo Locado
+  // State e Handlers: Adicionar / Editar Veículo Locado (Contrato somente do veículo pronto para locação)
   const [isVehicleModalOpen, setIsVehicleModalOpen] = useState(false);
   const [selectedVehicleItem, setSelectedVehicleItem] = useState<LeasedVehicleItem | null>(null);
   const [vehicleForm, setVehicleForm] = useState({
     plate: '',
+    vehicleModel: '',
+    providerCompany: defaultProviderCompany,
     description: '',
     route: '',
     monthlyRate: 30000,
     workingDays: 30,
-    observations: '01 MOTORISTA'
+    observations: 'SOMENTE VEÍCULO PRONTO P/ LOCAÇÃO'
   });
 
   const handleOpenAddVehicle = () => {
     setSelectedVehicleItem(null);
+    const firstFleet = fleetVehicles[0];
+    const modelLabel = firstFleet ? [firstFleet.brand, firstFleet.model].filter(Boolean).join(' ') : 'Ônibus / Micro-ônibus';
     setVehicleForm({
-      plate: fleetVehicles[0]?.plate || 'ABC-1234',
-      description: 'PRESTAÇÃO DE SERVIÇO DE TRANSPORTE DE PASSAGEIROS',
-      route: 'ROTA OPERACIONAL X UNIDADE',
+      plate: firstFleet?.plate || 'RUR-7A78',
+      vehicleModel: modelLabel,
+      providerCompany: defaultProviderCompany,
+      description: 'LOCAÇÃO DE VEÍCULO PRONTO PARA OPERAÇÃO (SOMENTE VEÍCULO)',
+      route: `DISPONIBILIZADO PARA ${currentClient.clientName}`,
       monthlyRate: 30000,
       workingDays: 30,
-      observations: '01 MOTORISTA'
+      observations: 'SOMENTE VEÍCULO PRONTO P/ LOCAÇÃO (SEM MOTORISTA)'
     });
     setIsVehicleModalOpen(true);
   };
@@ -805,11 +921,13 @@ export const ClientContractMeasurementManager: React.FC = () => {
     setSelectedVehicleItem(item);
     setVehicleForm({
       plate: item.plate,
+      vehicleModel: item.vehicleModel || '',
+      providerCompany: item.providerCompany || defaultProviderCompany,
       description: item.description,
       route: item.route,
       monthlyRate: item.monthlyRate,
       workingDays: item.workingDays,
-      observations: item.observations || ''
+      observations: item.observations || 'SOMENTE VEÍCULO PRONTO P/ LOCAÇÃO'
     });
     setIsVehicleModalOpen(true);
   };
@@ -817,7 +935,7 @@ export const ClientContractMeasurementManager: React.FC = () => {
   const handleSaveVehicle = (e: React.FormEvent) => {
     e.preventDefault();
     if (!vehicleForm.plate.trim() || !vehicleForm.description.trim()) {
-      toast({ title: 'Atenção', description: 'Preencha a placa e a descrição do serviço.', variant: 'destructive' });
+      toast({ title: 'Atenção', description: 'Preencha a placa do veículo e a descrição da locação.', variant: 'destructive' });
       return;
     }
     const days = Number(vehicleForm.workingDays) || 30;
@@ -825,10 +943,19 @@ export const ClientContractMeasurementManager: React.FC = () => {
     const daily = monthly / (days || 1);
     const total = monthly;
 
+    // Garantir que o contrato de locação do cliente esteja marcado como ativo ao alocar um veículo
+    setClientRentalContractMap(prev => ({
+      ...prev,
+      [selectedClientId]: true,
+    }));
+
     if (selectedVehicleItem) {
       setLeasedVehicles(prev => prev.map(v => v.id === selectedVehicleItem.id ? {
         ...v,
         plate: vehicleForm.plate.trim().toUpperCase(),
+        vehicleModel: vehicleForm.vehicleModel.trim(),
+        providerCompany: vehicleForm.providerCompany.trim().toUpperCase() || defaultProviderCompany,
+        contractModality: 'LOCAÇÃO SOMENTE DO VEÍCULO (PRONTO P/ LOCAÇÃO)',
         description: vehicleForm.description.trim().toUpperCase(),
         route: vehicleForm.route.trim().toUpperCase(),
         monthlyRate: monthly,
@@ -837,13 +964,16 @@ export const ClientContractMeasurementManager: React.FC = () => {
         totalPeriod: total,
         observations: vehicleForm.observations
       } : v));
-      toast({ title: 'Veículo Atualizado', description: 'As alterações foram salvas na medição.' });
+      toast({ title: 'Veículo Locado Atualizado', description: 'Os dados de locação do veículo foram salvos na medição.' });
     } else {
       const newItem: LeasedVehicleItem = {
         id: `lv-${Date.now()}`,
         clientId: selectedClientId,
         itemNumber: currentLeasedVehicles.length + 1,
         plate: vehicleForm.plate.trim().toUpperCase(),
+        vehicleModel: vehicleForm.vehicleModel.trim(),
+        providerCompany: vehicleForm.providerCompany.trim().toUpperCase() || defaultProviderCompany,
+        contractModality: 'LOCAÇÃO SOMENTE DO VEÍCULO (PRONTO P/ LOCAÇÃO)',
         description: vehicleForm.description.trim().toUpperCase(),
         route: vehicleForm.route.trim().toUpperCase(),
         period: `${currentClient.periodStart} À ${currentClient.periodEnd}`,
@@ -854,7 +984,7 @@ export const ClientContractMeasurementManager: React.FC = () => {
         observations: vehicleForm.observations
       };
       setLeasedVehicles(prev => [...prev, newItem]);
-      toast({ title: 'Veículo Alocado', description: `Veículo ${newItem.plate} adicionado ao contrato de ${currentClient.clientName}.` });
+      toast({ title: 'Veículo Locado ao Cliente', description: `Veículo ${newItem.plate} locado ao contrato de ${currentClient.clientName} (Fornecedor: ${newItem.providerCompany}).` });
     }
     setIsVehicleModalOpen(false);
   };
@@ -1124,26 +1254,30 @@ export const ClientContractMeasurementManager: React.FC = () => {
           {
             id: 'lv-1',
             plate: 'RUR-7A78',
-            description: 'PRESTAÇÃO DE SERVIÇO COM ÔNIBUS RODOVIÁRIO, COM CESSÃO DE MÃO DE OBRA PARA TRANSPORTE DE FUNCIONÁRIOS.',
-            route: 'PRAÇA DA ESTAÇÃO - BH/MG X MINA VALE MIGUELÃO - N. LIMA-MG',
+            vehicleModel: 'Ônibus Rodoviário Marcopolo Paradiso 46L',
+            providerCompany: defaultProviderCompany,
+            description: 'LOCAÇÃO DE VEÍCULO ÔNIBUS RODOVIÁRIO 46 LUGARES — FORNECIMENTO DO VEÍCULO REVISADO E PRONTO PARA LOCAÇÃO (SOMENTE VEÍCULO).',
+            route: 'DISPONIBILIZADO NA UNIDADE: MINA VALE MIGUELÃO - NOVA LIMA/MG',
             workingDays: 30,
             stoppedDays: 0,
             monthlyRate: 33600.0,
             dailyRate: 1120.0,
             periodValue: 33600.0,
-            observations: '02 MOTORISTAS',
+            observations: 'SOMENTE VEÍCULO PRONTO P/ LOCAÇÃO',
           },
           {
             id: 'lv-2',
             plate: 'SHZ-3A40',
-            description: 'PRESTAÇÃO DE SERVIÇO COM MICRO ÔNIBUS RODOVIÁRIO, COM CESSÃO DE MÃO DE OBRA PARA TRANSPORTE DE FUNCIONÁRIOS.',
-            route: 'RAPOSOS - NOVA LIMA/MG X MINA VALE MIGUELÃO - N. LIMA-MG',
+            vehicleModel: 'Micro-ônibus Rodoviário Volare W9 28L',
+            providerCompany: defaultProviderCompany,
+            description: 'LOCAÇÃO DE VEÍCULO MICRO-ÔNIBUS RODOVIÁRIO 28 LUGARES — FORNECIMENTO DO VEÍCULO REVISADO E PRONTO PARA LOCAÇÃO (SOMENTE VEÍCULO).',
+            route: 'DISPONIBILIZADO NA UNIDADE: RAPOSOS / MINA VALE MIGUELÃO - MG',
             workingDays: 30,
             stoppedDays: 0,
             monthlyRate: 34500.0,
             dailyRate: 1150.0,
             periodValue: 34500.0,
-            observations: '02 MOTORISTAS',
+            observations: 'SOMENTE VEÍCULO PRONTO P/ LOCAÇÃO',
           },
         ],
         partesDiarias: INITIAL_PARTES_DIARIAS['cli-01'] || [],
@@ -1227,16 +1361,18 @@ export const ClientContractMeasurementManager: React.FC = () => {
         createdAt: '2025-12-31T14:00:00Z',
         leasedVehicles: [
           {
-            id: 'lv-3',
+            id: 'lv-5',
             plate: 'QMR-2F82',
-            description: 'LOCAÇÃO DE MICRO-ÔNIBUS COM MOTORISTA PARA TRANSPORTE DE TURNOS.',
-            route: 'IBIRITÉ X UNIDADE OPERACIONAL FMQC',
+            vehicleModel: 'Micro-ônibus Urbano / Fretamento',
+            providerCompany: defaultProviderCompany,
+            description: 'LOCAÇÃO DE VEÍCULO MICRO-ÔNIBUS — FORNECIMENTO DO VEÍCULO REVISADO E PRONTO PARA LOCAÇÃO (SOMENTE VEÍCULO).',
+            route: 'DISPONIBILIZADO NA UNIDADE: UNIDADE OPERACIONAL FMQC IBIRITÉ/MG',
             workingDays: 30,
             stoppedDays: 0,
             monthlyRate: 28500.0,
             dailyRate: 950.0,
             periodValue: 28500.0,
-            observations: '01 MOTORISTA',
+            observations: 'SOMENTE VEÍCULO PRONTO P/ LOCAÇÃO',
           },
         ],
         partesDiarias: INITIAL_PARTES_DIARIAS['cli-04'] || [],
@@ -2523,39 +2659,93 @@ export const ClientContractMeasurementManager: React.FC = () => {
         {/* TAB 1: Veículos Locados */}
         <TabsContent value="leased-vehicles" className="space-y-4">
           <Card className="bg-zinc-950 border-zinc-800 text-zinc-100">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="text-lg font-bold text-amber-400">Veículos Locados sob Contrato Fixo</CardTitle>
+            <CardHeader className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-zinc-800/80 pb-4">
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <CardTitle className="text-lg font-bold text-amber-400">
+                    Veículos Locados sob Contrato Fixo — {currentClient.clientName}
+                  </CardTitle>
+                  {hasVehicleRentalContract && currentLeasedVehicles.length > 0 ? (
+                    <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40 text-xs font-bold">
+                      ✓ Cliente com Contrato de Locação ({currentLeasedVehicles.length} veículo(s) locado(s))
+                    </Badge>
+                  ) : (
+                    <Badge className="bg-zinc-800 text-zinc-300 border-zinc-700 text-xs">
+                      Cliente sem veículos locados neste período
+                    </Badge>
+                  )}
+                </div>
                 <CardDescription className="text-zinc-400 text-xs">
-                  Apurado com base no valor mensal contratado, dias rodados e diárias dos motoristas (Conforme layout Viação São Silvestre).
+                  <strong>Contrato somente de locação do veículo:</strong> a <strong>{defaultProviderCompany}</strong> (ou outra empresa locadora) é responsável por fornecer o <strong>veículo revisado e pronto para locação</strong>. Os clientes podem ou não possuir veículos locados.
                 </CardDescription>
               </div>
-              <Button onClick={handleOpenAddVehicle} size="sm" className="bg-amber-600 hover:bg-amber-500 text-white font-semibold">
-                <Plus className="w-4 h-4 mr-1" /> Adicionar Veículo
-              </Button>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-lg p-1 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => handleToggleClientRentalContract(true)}
+                    className={`px-3 py-1.5 rounded-md font-semibold transition-all ${
+                      hasVehicleRentalContract
+                        ? 'bg-emerald-600 text-white shadow'
+                        : 'text-zinc-400 hover:text-zinc-200'
+                    }`}
+                  >
+                    Possui Locação de Veículos
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleClientRentalContract(false)}
+                    className={`px-3 py-1.5 rounded-md font-semibold transition-all ${
+                      !hasVehicleRentalContract
+                        ? 'bg-zinc-700 text-white shadow'
+                        : 'text-zinc-400 hover:text-zinc-200'
+                    }`}
+                  >
+                    Sem Locação de Veículos
+                  </button>
+                </div>
+
+                <Button onClick={handleOpenAddVehicle} size="sm" className="bg-amber-600 hover:bg-amber-500 text-white font-semibold">
+                  <Plus className="w-4 h-4 mr-1" /> Locar Veículo ao Cliente
+                </Button>
+              </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-4">
               <div className="border border-zinc-800 rounded-lg overflow-x-auto">
                 <Table>
                   <TableHeader className="bg-zinc-900">
                     <TableRow className="border-zinc-800">
                       <TableHead className="w-12 text-center text-zinc-400">Item</TableHead>
-                      <TableHead className="text-zinc-300">Descrição dos Serviços / Trajeto</TableHead>
-                      <TableHead className="text-zinc-300">Placa</TableHead>
+                      <TableHead className="text-zinc-300">Placa / Veículo Pronto p/ Locação</TableHead>
+                      <TableHead className="text-zinc-300">Descrição da Locação (Somente Veículo) & Unidade</TableHead>
+                      <TableHead className="text-zinc-300">Empresa Fornecedora (Locadora)</TableHead>
                       <TableHead className="text-right text-zinc-300">Valor Mensal</TableHead>
-                      <TableHead className="text-center text-zinc-300">Dias Rodados</TableHead>
+                      <TableHead className="text-center text-zinc-300">Dias Locados</TableHead>
                       <TableHead className="text-right text-zinc-300">Valor Diário</TableHead>
                       <TableHead className="text-right text-zinc-300">Valor Período</TableHead>
                       <TableHead className="text-center text-zinc-300 w-28">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {currentLeasedVehicles.length === 0 ? (
+                    {!hasVehicleRentalContract ? (
                       <TableRow className="border-zinc-800">
-                        <TableCell colSpan={8} className="text-center text-zinc-500 text-sm py-8">
-                          <p className="font-semibold text-zinc-300 text-base">Nenhum veículo alocado para este cliente neste período.</p>
-                          <p className="text-xs text-zinc-500 mt-1 max-w-md mx-auto">
-                            Como os veículos não são fixos por contrato, clique em "+ Adicionar Veículo" para alocar um veículo da frota ou mova um veículo de outro cliente para cá.
+                        <TableCell colSpan={9} className="text-center text-zinc-400 text-sm py-10">
+                          <Bus className="w-8 h-8 text-zinc-500 mx-auto mb-2" />
+                          <p className="font-semibold text-zinc-200 text-base">
+                            Este cliente não possui veículos locados sob contrato fixo neste período.
+                          </p>
+                          <p className="text-xs text-zinc-400 mt-1 max-w-xl mx-auto">
+                            O cliente pode ou não ter veículos locados. Caso este cliente passe a ter contrato de locação de veículos (fornecimento do veículo pronto para locação), clique em <strong>"Possui Locação de Veículos"</strong> ou em <strong>"+ Locar Veículo ao Cliente"</strong>.
+                          </p>
+                        </TableCell>
+                      </TableRow>
+                    ) : currentLeasedVehicles.length === 0 ? (
+                      <TableRow className="border-zinc-800">
+                        <TableCell colSpan={9} className="text-center text-zinc-500 text-sm py-8">
+                          <p className="font-semibold text-zinc-300 text-base">Nenhum veículo locado listado para este cliente neste período.</p>
+                          <p className="text-xs text-zinc-500 mt-1 max-w-lg mx-auto">
+                            Clique em <strong>"+ Locar Veículo ao Cliente"</strong> para vincular os veículos fornecidos prontos para locação ao contrato deste cliente.
                           </p>
                         </TableCell>
                       </TableRow>
@@ -2564,15 +2754,31 @@ export const ClientContractMeasurementManager: React.FC = () => {
                         <TableRow key={item.id} className="border-zinc-800 hover:bg-zinc-900/50">
                           <TableCell className="text-center font-bold text-amber-400">{idx + 1}</TableCell>
                           <TableCell>
-                            <div className="font-semibold text-zinc-100">{item.description}</div>
+                            <div className="font-mono text-sm font-extrabold text-blue-400">{item.plate}</div>
+                            <div className="text-[11px] text-zinc-300 font-medium">
+                              {item.vehicleModel || 'Veículo Pronto p/ Locação'}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="font-semibold text-zinc-100 text-xs">{item.description}</div>
                             <div className="text-xs text-zinc-400 flex items-center gap-1 mt-0.5">
                               <Navigation className="w-3 h-3 text-amber-400" /> {item.route}
                             </div>
-                            {item.observations && (
-                              <Badge className="bg-zinc-800 text-zinc-300 text-[10px] mt-1">{item.observations}</Badge>
-                            )}
+                            <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                              <Badge className="bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px]">
+                                {item.contractModality || 'SOMENTE VEÍCULO - PRONTO P/ LOCAÇÃO'}
+                              </Badge>
+                              {item.observations && (
+                                <Badge className="bg-zinc-800 text-zinc-300 text-[10px]">{item.observations}</Badge>
+                              )}
+                            </div>
                           </TableCell>
-                          <TableCell className="font-mono text-xs font-bold text-blue-400">{item.plate}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="border-blue-500/30 bg-blue-500/10 text-blue-300 text-[11px] font-semibold">
+                              {item.providerCompany || defaultProviderCompany}
+                            </Badge>
+                            <span className="block text-[10px] text-zinc-500 mt-0.5">Veículo pronto p/ locação</span>
+                          </TableCell>
                           <TableCell className="text-right font-mono text-zinc-300">
                             R$ {formatDecimalRate(item.monthlyRate)}
                           </TableCell>
@@ -2594,7 +2800,7 @@ export const ClientContractMeasurementManager: React.FC = () => {
                                 variant="ghost"
                                 onClick={() => handleOpenMoveVehicle(item)}
                                 className="h-8 w-8 p-0 text-amber-400 hover:text-amber-300 hover:bg-amber-950/40 rounded-lg"
-                                title="Mover Veículo para Outro Cliente / Contrato"
+                                title="Transferir Locação do Veículo para Outro Cliente / Contrato"
                               >
                                 <ArrowRightLeft className="w-4 h-4" />
                               </Button>
@@ -2612,7 +2818,7 @@ export const ClientContractMeasurementManager: React.FC = () => {
                                 variant="ghost"
                                 onClick={() => handleDeleteVehicle(item)}
                                 className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-950/40 rounded-lg"
-                                title="Remover da Medição"
+                                title="Remover da Locação"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </Button>
@@ -2622,7 +2828,7 @@ export const ClientContractMeasurementManager: React.FC = () => {
                       ))
                     )}
                     <TableRow className="bg-zinc-900/80 font-bold border-t-2 border-zinc-700">
-                      <TableCell colSpan={6} className="text-right uppercase text-zinc-300">Total Locações:</TableCell>
+                      <TableCell colSpan={7} className="text-right uppercase text-zinc-300">Total Locações de Veículos:</TableCell>
                       <TableCell className="text-right font-mono text-amber-400 text-base">
                         R$ {totalLeasedVehicles.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </TableCell>
@@ -3878,26 +4084,26 @@ export const ClientContractMeasurementManager: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* MODAL: Adicionar / Editar Veículo Locado com Design Fiel ao Layout Operacional */}
+      {/* MODAL: Adicionar / Editar Veículo Locado (Contrato somente do veículo pronto para locação) */}
       <Dialog open={isVehicleModalOpen} onOpenChange={setIsVehicleModalOpen}>
         <DialogContent className="bg-zinc-950 border-zinc-800 text-white max-w-xl max-h-[92vh] overflow-y-auto rounded-2xl p-6 shadow-2xl">
           <DialogHeader className="space-y-1 pb-1">
             <DialogTitle className="flex items-center gap-2.5 text-amber-500 font-bold text-lg">
               <Bus className="w-5 h-5 text-amber-500" />
-              <span>{selectedVehicleItem ? 'Editar Veículo Locado' : 'Alocar Novo Veículo ao Contrato'}</span>
+              <span>{selectedVehicleItem ? 'Editar Veículo Locado ao Cliente' : 'Locar Veículo ao Contrato do Cliente'}</span>
             </DialogTitle>
             <DialogDescription className="text-zinc-400 text-xs">
-              Informe a placa, descrição do serviço e condições financeiras do contrato para {currentClient.clientName}.
+              Contrato somente de locação do veículo: a <strong>{defaultProviderCompany}</strong> (ou outra empresa locadora) é responsável por fornecer o veículo revisado e pronto para locação para <strong>{currentClient.clientName}</strong>.
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleSaveVehicle} className="space-y-4 py-2">
-            {/* Linha 1: Placa do Veículo & Dias Rodados no Período */}
+            {/* Linha 1: Placa do Veículo & Modelo/Tipo */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs text-zinc-300 font-semibold">
-                    Placa do Veículo:
+                    Placa do Veículo Locado:
                   </Label>
                   <button
                     type="button"
@@ -3920,10 +4126,15 @@ export const ClientContractMeasurementManager: React.FC = () => {
                     value={vehicleForm.plate}
                     fallbackLabel={vehicleForm.plate}
                     onChange={(val, opt) => {
+                      const extractedModel = opt?.label?.split('—')[1]?.trim() || opt?.badge || prevModel(vehicleForm.vehicleModel);
+                      function prevModel(m: string) { return m || 'Ônibus / Micro-ônibus'; }
                       setVehicleForm(prev => ({
                         ...prev,
                         plate: val,
-                        description: prev.description || (opt?.subtitle ? `TRANSPORTE EM ${opt.subtitle}` : prev.description)
+                        vehicleModel: extractedModel,
+                        description:
+                          prev.description ||
+                          `LOCAÇÃO DE VEÍCULO ${extractedModel.toUpperCase()} — FORNECIMENTO DO VEÍCULO PRONTO PARA LOCAÇÃO (SOMENTE VEÍCULO)`
                       }));
                     }}
                     options={vehicleOptions}
@@ -3937,7 +4148,35 @@ export const ClientContractMeasurementManager: React.FC = () => {
 
               <div className="space-y-1.5">
                 <Label className="text-xs text-zinc-300 font-semibold">
-                  Dias Rodados no Período:
+                  Modelo / Tipo do Veículo:
+                </Label>
+                <Input
+                  value={vehicleForm.vehicleModel}
+                  onChange={(e) => setVehicleForm({ ...vehicleForm, vehicleModel: e.target.value })}
+                  placeholder="Ex: Ônibus Rodoviário 46L / Micro-ônibus"
+                  className="bg-zinc-900 border-zinc-700 text-zinc-100 text-xs h-10"
+                />
+              </div>
+            </div>
+
+            {/* Linha 1.5: Empresa Responsável por Fornecer o Veículo Pronto para Locação & Dias Locados */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-zinc-300 font-semibold">
+                  Empresa Fornecedora do Veículo (Locadora):
+                </Label>
+                <Input
+                  value={vehicleForm.providerCompany}
+                  onChange={(e) => setVehicleForm({ ...vehicleForm, providerCompany: e.target.value.toUpperCase() })}
+                  placeholder="Ex: VIAÇÃO SÃO SILVESTRE LTDA"
+                  className="bg-zinc-900 border-zinc-700 text-amber-300 font-semibold text-xs h-10"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs text-zinc-300 font-semibold">
+                  Dias Locados no Período:
                 </Label>
                 <Input
                   type="number"
@@ -3950,21 +4189,21 @@ export const ClientContractMeasurementManager: React.FC = () => {
               </div>
             </div>
 
-            {/* Linha 2: Descrição do Serviço (Tabela de Serviços + Cadastrar Novo) */}
+            {/* Linha 2: Descrição do Contrato de Locação do Veículo */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <Label className="text-xs text-zinc-300 font-semibold">
-                  Descrição do Serviço:
+                  Descrição da Locação (Somente Veículo Pronto p/ Locação):
                 </Label>
                 <button
                   type="button"
                   onClick={() => {
-                    setNewServiceForm({ name: '', category: 'FRETAMENTO_CONTINUO', description: '' });
+                    setNewServiceForm({ name: '', category: 'LOCACAO_VEICULOS', description: '' });
                     setIsNewServiceModalOpen(true);
                   }}
                   className="text-[11px] text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-1 transition-colors"
                 >
-                  <Plus className="w-3 h-3" /> Cadastrar Novo Serviço
+                  <Plus className="w-3 h-3" /> Cadastrar Novo Tipo de Locação
                 </button>
               </div>
 
@@ -3973,26 +4212,26 @@ export const ClientContractMeasurementManager: React.FC = () => {
                 fallbackLabel={vehicleForm.description}
                 onChange={(val) => setVehicleForm(prev => ({ ...prev, description: val }))}
                 options={serviceOptions}
-                placeholder="Selecione na tabela de serviços cadastrados..."
-                searchPlaceholder="Pesquisar serviço cadastrado..."
-                emptyText="Nenhum serviço encontrado. Clique em Cadastrar Novo Serviço."
+                placeholder="Selecione na tabela de locações/serviços cadastrados..."
+                searchPlaceholder="Pesquisar descrição cadastrada..."
+                emptyText="Nenhuma descrição encontrada. Preencha abaixo ou clique em Cadastrar."
                 maxVisibleOptions={30}
               />
 
               <Input
                 value={vehicleForm.description}
                 onChange={(e) => setVehicleForm({ ...vehicleForm, description: e.target.value })}
-                placeholder="Ex: PRESTAÇÃO DE SERVIÇO DE TRANSPORTE DE PASSAGEIROS"
+                placeholder="Ex: LOCAÇÃO DE VEÍCULO PRONTO PARA OPERAÇÃO (SOMENTE VEÍCULO)"
                 className="bg-zinc-900 border-zinc-800 text-zinc-200 text-xs h-9 mt-1"
                 required
               />
             </div>
 
-            {/* Linha 3: Itinerário / Trajeto (Base de Rotas + Cadastrar Nova Rota) */}
+            {/* Linha 3: Local / Unidade de Disponibilização do Veículo */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <Label className="text-xs text-zinc-300 font-semibold">
-                  Itinerário / Trajeto:
+                  Unidade / Local de Disponibilização do Veículo ao Cliente:
                 </Label>
                 <button
                   type="button"
@@ -4002,7 +4241,7 @@ export const ClientContractMeasurementManager: React.FC = () => {
                   }}
                   className="text-[11px] text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1 transition-colors"
                 >
-                  <Plus className="w-3 h-3" /> Cadastrar Nova Rota
+                  <Plus className="w-3 h-3" /> Cadastrar Nova Unidade / Rota
                 </button>
               </div>
 
@@ -4011,26 +4250,26 @@ export const ClientContractMeasurementManager: React.FC = () => {
                 fallbackLabel={vehicleForm.route}
                 onChange={(val) => setVehicleForm(prev => ({ ...prev, route: val }))}
                 options={routeOptions}
-                placeholder="Buscar na base de rotas cadastradas..."
-                searchPlaceholder="Pesquisar por nome de rota ou itinerário..."
-                emptyText="Nenhuma rota encontrada. Clique em Cadastrar Nova Rota."
+                placeholder="Buscar unidade/local na base cadastrada..."
+                searchPlaceholder="Pesquisar unidade ou local de entrega..."
+                emptyText="Nenhum local encontrado. Digite abaixo."
                 maxVisibleOptions={30}
               />
 
               <Input
                 value={vehicleForm.route}
                 onChange={(e) => setVehicleForm({ ...vehicleForm, route: e.target.value })}
-                placeholder="Ex: ROTA OPERACIONAL X UNIDADE"
+                placeholder="Ex: DISPONIBILIZADO NA UNIDADE OPERACIONAL DO CLIENTE"
                 className="bg-zinc-900 border-zinc-800 text-zinc-200 text-xs h-9 mt-1"
               />
             </div>
 
-            {/* Linha 4: Valor Mensal Contratado (Decimal 15,9) & Observações Operacionais */}
+            {/* Linha 4: Valor Mensal de Locação do Veículo (Decimal 15,9) & Condição de Fornecimento */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs text-zinc-300 font-semibold">
-                    Valor Mensal Contratado (R$):
+                    Valor Mensal da Locação (R$):
                   </Label>
                   <span className="text-[10px] text-emerald-400 font-mono font-medium">
                     Decimal 15,9
@@ -4049,13 +4288,13 @@ export const ClientContractMeasurementManager: React.FC = () => {
 
               <div className="space-y-1.5">
                 <Label className="text-xs text-zinc-300 font-semibold">
-                  Observações Operacionais:
+                  Condição de Fornecimento:
                 </Label>
                 <Input
                   value={vehicleForm.observations}
                   onChange={(e) => setVehicleForm({ ...vehicleForm, observations: e.target.value })}
-                  placeholder="Ex: 01 MOTORISTA"
-                  className="bg-zinc-900 border-zinc-700 text-zinc-100 text-sm h-10"
+                  placeholder="Ex: SOMENTE VEÍCULO PRONTO P/ LOCAÇÃO"
+                  className="bg-zinc-900 border-zinc-700 text-zinc-100 text-xs h-10"
                 />
               </div>
             </div>
