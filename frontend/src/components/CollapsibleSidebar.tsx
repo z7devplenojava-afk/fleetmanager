@@ -10,6 +10,7 @@ import Logo from './Logo';
 import { UserRole } from '@/types/user';
 import { isDriverUser } from '@/utils/roleRouting';
 import { getRoleDisplayName } from '@/utils/permissions';
+import { resolveCompanyLogoUrl } from '@/utils/logoUtils';
 import {
   BarChart3,
   FileText,
