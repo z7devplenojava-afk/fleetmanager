@@ -152,12 +152,17 @@ public class RentalInvoiceService {
     public int syncAllReceivables() {
         int created = 0;
         for (RentalInvoice invoice : rentalInvoiceRepository.findAll()) {
-            boolean existed = !accountsReceivableRepository.findByRentalInvoiceId(invoice.getId()).isEmpty();
-            ensureFiscalData(invoice);
-            rentalInvoiceRepository.save(invoice);
-            syncReceivable(invoice);
-            if (!existed) {
-                created++;
+            try {
+                boolean existed = !accountsReceivableRepository.findByRentalInvoiceId(invoice.getId()).isEmpty();
+                ensureFiscalData(invoice);
+                rentalInvoiceRepository.save(invoice);
+                syncReceivable(invoice);
+                if (!existed) {
+                    created++;
+                }
+            } catch (Exception e) {
+                log.warn("Falha ao sincronizar fatura de locação {} no Contas a Receber: {}",
+                        invoice.getNumber(), e.getMessage());
             }
         }
         return created;
@@ -368,17 +373,21 @@ public class RentalInvoiceService {
         List<AccountsReceivable> existing = accountsReceivableRepository.findByRentalInvoiceId(invoice.getId());
         AccountsReceivable account = existing.isEmpty() ? new AccountsReceivable() : existing.get(0);
 
-        BigDecimal amount = scale(invoice.getNetAmount());
+        BigDecimal rawNet = invoice.getNetAmount() != null ? invoice.getNetAmount() : invoice.getTotalAmount();
+        BigDecimal amount = scale(rawNet != null && rawNet.compareTo(BigDecimal.ZERO) >= 0 ? rawNet : BigDecimal.ZERO);
+        UUID effectiveCompanyId = client.getCompanyId() != null
+                ? client.getCompanyId()
+                : com.z7design.fleet_manager.tenant.TenantContext.getCurrentTenant();
         account.setRentalInvoiceId(invoice.getId());
         account.setClient(client);
-        account.setCompanyId(client.getCompanyId());
-        account.setInvoiceNumber(invoice.getNumber());
+        account.setCompanyId(effectiveCompanyId);
+        account.setInvoiceNumber(invoice.getNumber() != null && !invoice.getNumber().isBlank() ? invoice.getNumber() : "LOC-" + invoice.getId().toString().substring(0, 6));
         account.setDescription("Locação de Veículos - Fatura " + invoice.getNumber()
                 + " (" + formatPeriod(invoice) + ")");
         account.setAmount(amount);
         account.setAmountPaid(invoice.getStatus() == ReceivableStatus.PAID ? amount : BigDecimal.ZERO);
-        account.setIssueDate(invoice.getIssueDate());
-        account.setDueDate(invoice.getDueDate());
+        account.setIssueDate(invoice.getIssueDate() != null ? invoice.getIssueDate() : LocalDate.now());
+        account.setDueDate(invoice.getDueDate() != null ? invoice.getDueDate() : LocalDate.now().plusDays(15));
         account.setPaymentDate(invoice.getReceiptDate());
         account.setStatus(invoice.getStatus() == null ? ReceivableStatus.PENDING : invoice.getStatus());
         account.setCategory(ReceivableCategory.VEHICLE_RENTAL);

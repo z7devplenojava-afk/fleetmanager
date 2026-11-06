@@ -718,56 +718,111 @@ public class AccountsReceivableService {
     public int syncAllReceivables() {
         log.info("Iniciando sincronização total de Medições e Contratos no Contas a Receber...");
         int count = 0;
+        UUID currentTenant = com.z7design.fleet_manager.tenant.TenantContext.getCurrentTenant();
 
         // 1. Sincronizar Boletins de Medição
-        List<MeasurementBulletin> bulletins = measurementBulletinRepository.findAll();
-        for (MeasurementBulletin mb : bulletins) {
-            if (mb.getClient() != null) {
-                List<AccountsReceivable> existing = accountsReceivableRepository.findByMeasurementId(mb.getId());
-                AccountsReceivable ar;
-                if (!existing.isEmpty()) {
-                    ar = existing.get(0);
-                } else {
-                    ar = new AccountsReceivable();
-                    ar.setMeasurement(mb);
-                    count++;
+        try {
+            List<MeasurementBulletin> bulletins = measurementBulletinRepository.findAll();
+            for (MeasurementBulletin mb : bulletins) {
+                try {
+                    if (mb.getClient() != null) {
+                        BigDecimal val = mb.getNetAmount() != null && mb.getNetAmount().compareTo(BigDecimal.ZERO) > 0
+                                ? mb.getNetAmount()
+                                : (mb.getSubtotal() != null && mb.getSubtotal().compareTo(BigDecimal.ZERO) > 0
+                                        ? mb.getSubtotal()
+                                        : BigDecimal.ZERO);
+                        if (val.compareTo(BigDecimal.ZERO) <= 0 && mb.getItems() != null) {
+                            val = mb.getItems().stream()
+                                    .map(item -> {
+                                        if (item.getTotalPrice() != null && item.getTotalPrice().compareTo(BigDecimal.ZERO) > 0) {
+                                            return item.getTotalPrice();
+                                        }
+                                        BigDecimal qty = item.getQuantity() != null ? item.getQuantity() : BigDecimal.ONE;
+                                        BigDecimal unit = item.getUnitPrice() != null ? item.getUnitPrice() : BigDecimal.ZERO;
+                                        return qty.multiply(unit);
+                                    })
+                                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+                        }
+                        if (val.compareTo(BigDecimal.ZERO) <= 0) {
+                            continue;
+                        }
+
+                        List<AccountsReceivable> existing = accountsReceivableRepository.findByMeasurementId(mb.getId());
+                        AccountsReceivable ar;
+                        if (!existing.isEmpty()) {
+                            ar = existing.get(0);
+                        } else {
+                            ar = new AccountsReceivable();
+                            ar.setMeasurement(mb);
+                            count++;
+                        }
+                        ar.setClient(mb.getClient());
+                        ar.setCompanyId(mb.getClient().getCompanyId() != null ? mb.getClient().getCompanyId() : currentTenant);
+                        ar.setMeasurementNumber(mb.getContractNumber() != null ? mb.getContractNumber() : "MED-" + mb.getId().toString().substring(0, 6));
+                        ar.setInvoiceNumber(mb.getNfNumber() != null && !mb.getNfNumber().isBlank() ? mb.getNfNumber() : "MED-" + (mb.getContractNumber() != null ? mb.getContractNumber() : mb.getId().toString().substring(0, 6)));
+                        ar.setDescription("Medição de Fretamento / Locação - Contrato " + (mb.getContractNumber() != null ? mb.getContractNumber() : "N/A"));
+                        ar.setAmount(val);
+                        ar.setGrossAmount(mb.getGrossAmount() != null && mb.getGrossAmount().compareTo(BigDecimal.ZERO) > 0 ? mb.getGrossAmount() : val);
+                        ar.setNetAmount(val);
+                        ar.setCategory(com.z7design.fleet_manager.model.enums.ReceivableCategory.MEASUREMENT);
+                        if (ar.getPaymentMethod() == null) {
+                            ar.setPaymentMethod(com.z7design.fleet_manager.model.enums.PaymentMethod.BANK_SLIP);
+                        }
+                        if (ar.getStatus() == null) {
+                            ar.setStatus(ReceivableStatus.PENDING);
+                        }
+                        if (ar.getIssueDate() == null) ar.setIssueDate(LocalDate.now());
+                        if (ar.getDueDate() == null) ar.setDueDate(mb.getPeriodEnd() != null ? mb.getPeriodEnd().plusDays(15) : LocalDate.now().plusDays(30));
+                        accountsReceivableRepository.save(ar);
+                    }
+                } catch (Exception ex) {
+                    log.warn("Falha ao sincronizar boletim de medição {} no Contas a Receber: {}", mb.getId(), ex.getMessage());
                 }
-                ar.setClient(mb.getClient());
-                ar.setMeasurementNumber(mb.getContractNumber() != null ? mb.getContractNumber() : "MED-" + mb.getId().toString().substring(0, 6));
-                ar.setInvoiceNumber(mb.getNfNumber() != null && !mb.getNfNumber().isBlank() ? mb.getNfNumber() : "MED-" + (mb.getContractNumber() != null ? mb.getContractNumber() : mb.getId().toString().substring(0, 6)));
-                ar.setDescription("Medição de Fretamento - Contrato " + (mb.getContractNumber() != null ? mb.getContractNumber() : "N/A"));
-                BigDecimal val = mb.getNetAmount() != null && mb.getNetAmount().compareTo(BigDecimal.ZERO) > 0 ? mb.getNetAmount() : (mb.getSubtotal() != null ? mb.getSubtotal() : BigDecimal.ZERO);
-                ar.setAmount(val);
-                ar.setCategory(com.z7design.fleet_manager.model.enums.ReceivableCategory.MEASUREMENT);
-                if (ar.getIssueDate() == null) ar.setIssueDate(LocalDate.now());
-                if (ar.getDueDate() == null) ar.setDueDate(LocalDate.now().plusDays(30));
-                accountsReceivableRepository.save(ar);
             }
+        } catch (Exception ex) {
+            log.warn("Erro geral ao varrer boletins de medição: {}", ex.getMessage());
         }
 
         // 2. Sincronizar Contratos de Fretamento e Turismo
-        List<com.z7design.fleet_manager.model.CharterContract> charters = charterContractRepository.findAll();
-        for (com.z7design.fleet_manager.model.CharterContract charter : charters) {
-            if (charter.getClient() != null && charter.getValue() != null && charter.getValue().compareTo(BigDecimal.ZERO) > 0) {
-                String invNum = "FRET-" + charter.getId().toString().substring(0, 6);
-                List<AccountsReceivable> existing = accountsReceivableRepository.findByInvoiceNumber(invNum);
-                if (existing.isEmpty()) {
-                    AccountsReceivable ar = new AccountsReceivable();
-                    ar.setClient(charter.getClient());
-                    ar.setInvoiceNumber(invNum);
-                    ar.setDescription("Fretamento e Turismo - " + charter.getName());
-                    ar.setAmount(charter.getValue());
-                    ar.setCategory(com.z7design.fleet_manager.model.enums.ReceivableCategory.CHARTER_TOURISM);
-                    ar.setIssueDate(charter.getStartDate() != null ? charter.getStartDate() : LocalDate.now());
-                    ar.setDueDate(charter.getEndDate() != null ? charter.getEndDate() : LocalDate.now().plusDays(30));
-                    accountsReceivableRepository.save(ar);
-                    count++;
+        try {
+            List<com.z7design.fleet_manager.model.CharterContract> charters = charterContractRepository.findAll();
+            for (com.z7design.fleet_manager.model.CharterContract charter : charters) {
+                try {
+                    if (charter.getClient() != null && charter.getValue() != null && charter.getValue().compareTo(BigDecimal.ZERO) > 0) {
+                        String invNum = "FRET-" + charter.getId().toString().substring(0, 6);
+                        List<AccountsReceivable> existing = accountsReceivableRepository.findByInvoiceNumber(invNum);
+                        if (existing.isEmpty()) {
+                            AccountsReceivable ar = new AccountsReceivable();
+                            ar.setClient(charter.getClient());
+                            ar.setCompanyId(charter.getClient().getCompanyId() != null ? charter.getClient().getCompanyId() : currentTenant);
+                            ar.setInvoiceNumber(invNum);
+                            ar.setDescription("Fretamento e Turismo - " + (charter.getName() != null ? charter.getName() : invNum));
+                            ar.setAmount(charter.getValue());
+                            ar.setGrossAmount(charter.getValue());
+                            ar.setNetAmount(charter.getValue());
+                            ar.setCategory(com.z7design.fleet_manager.model.enums.ReceivableCategory.CHARTER_TOURISM);
+                            ar.setPaymentMethod(com.z7design.fleet_manager.model.enums.PaymentMethod.BANK_SLIP);
+                            ar.setStatus(ReceivableStatus.PENDING);
+                            ar.setIssueDate(charter.getStartDate() != null ? charter.getStartDate() : LocalDate.now());
+                            ar.setDueDate(charter.getEndDate() != null ? charter.getEndDate() : LocalDate.now().plusDays(30));
+                            accountsReceivableRepository.save(ar);
+                            count++;
+                        }
+                    }
+                } catch (Exception ex) {
+                    log.warn("Falha ao sincronizar contrato de fretamento {} no Contas a Receber: {}", charter.getId(), ex.getMessage());
                 }
             }
+        } catch (Exception ex) {
+            log.warn("Erro geral ao varrer contratos de fretamento: {}", ex.getMessage());
         }
 
         // 3. Sincronizar Faturas de Locação de Veículos
-        count += rentalInvoiceService.syncAllReceivables();
+        try {
+            count += rentalInvoiceService.syncAllReceivables();
+        } catch (Exception ex) {
+            log.warn("Erro ao sincronizar faturas de locação no Contas a Receber: {}", ex.getMessage());
+        }
 
         log.info("Sincronização total concluída: {} novos títulos gerados no Contas a Receber.", count);
         return count;

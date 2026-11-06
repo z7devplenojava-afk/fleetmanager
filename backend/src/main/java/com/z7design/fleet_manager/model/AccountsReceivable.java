@@ -19,7 +19,7 @@ import org.hibernate.annotations.Filter;
 
 @Entity
 @Table(name = "accounts_receivable")
-@Filter(name = "tenantFilter", condition = "company_id = :companyId")
+@Filter(name = "tenantFilter", condition = "(company_id = :companyId OR company_id IS NULL)")
 public class AccountsReceivable implements TenantAware {
 
     @Id
@@ -73,7 +73,7 @@ public class AccountsReceivable implements TenantAware {
     private String description;
 
     @NotNull(message = "Valor Ã© obrigatÃ³rio")
-    @DecimalMin(value = "0.0", inclusive = false, message = "Valor deve ser maior que zero")
+    @DecimalMin(value = "0.0", inclusive = true, message = "Valor nÃ£o pode ser negativo")
     @Column(name = "amount", nullable = false, precision = 15, scale = 2)
     private BigDecimal amount;
 
@@ -101,7 +101,7 @@ public class AccountsReceivable implements TenantAware {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "payment_method", nullable = false)
-    private PaymentMethod paymentMethod;
+    private PaymentMethod paymentMethod = PaymentMethod.BANK_SLIP;
 
     @Column(name = "overdue_days")
     private Integer overdueDays = 0;

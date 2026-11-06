@@ -32,18 +32,21 @@ public interface AccountsReceivableRepository extends JpaRepository<AccountsRece
     @Query("SELECT ar FROM AccountsReceivable ar WHERE ar.dueDate < :currentDate AND ar.status != 'PAID'")
     List<AccountsReceivable> findOverdueAccounts(@Param("currentDate") LocalDate currentDate);
     
-    // Buscar por número da fatura exato ou contendo
-    List<AccountsReceivable> findByInvoiceNumber(String invoiceNumber);
+    // Buscar por número da fatura exato ou contendo (query nativa para respeitar unicidade independente de tenantFilter)
+    @Query(value = "SELECT * FROM accounts_receivable WHERE invoice_number = :invoiceNumber", nativeQuery = true)
+    List<AccountsReceivable> findByInvoiceNumber(@Param("invoiceNumber") String invoiceNumber);
     List<AccountsReceivable> findByInvoiceNumberContainingIgnoreCase(String invoiceNumber);
     
     // Buscar por número da medição
     List<AccountsReceivable> findByMeasurementNumberContainingIgnoreCase(String measurementNumber);
     
-    // Buscar por ID da medição
-    List<AccountsReceivable> findByMeasurementId(UUID measurementId);
+    // Buscar por ID da medição (query nativa para ignorar tenantFilter ao verificar unicidade/existência)
+    @Query(value = "SELECT * FROM accounts_receivable WHERE measurement_id = :measurementId", nativeQuery = true)
+    List<AccountsReceivable> findByMeasurementId(@Param("measurementId") UUID measurementId);
 
-    // Buscar título financeiro vinculado a uma fatura de locação
-    List<AccountsReceivable> findByRentalInvoiceId(UUID rentalInvoiceId);
+    // Buscar título financeiro vinculado a uma fatura de locação (query nativa para respeitar índice único uk_accounts_receivable_rental_invoice independente de company_id)
+    @Query(value = "SELECT * FROM accounts_receivable WHERE rental_invoice_id = :rentalInvoiceId", nativeQuery = true)
+    List<AccountsReceivable> findByRentalInvoiceId(@Param("rentalInvoiceId") UUID rentalInvoiceId);
     
     // Buscar por cliente e status
     List<AccountsReceivable> findByClientIdAndStatus(UUID clientId, ReceivableStatus status);
