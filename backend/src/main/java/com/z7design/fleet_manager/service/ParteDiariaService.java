@@ -36,8 +36,8 @@ public class ParteDiariaService {
         pd.setNumber(dto.getNumber() != null && !dto.getNumber().isBlank() ? dto.getNumber() : "PD-" + (System.currentTimeMillis() % 100000));
         pd.setDate(dto.getDate() != null ? dto.getDate() : LocalDate.now());
         pd.setObraName(dto.getObraName());
-        pd.setServiceName(dto.getServiceName());
-        pd.setRouteName(dto.getRouteName());
+        pd.setServiceName(dto.getServiceName() != null && !dto.getServiceName().isBlank() ? dto.getServiceName() : dto.getClientName());
+        pd.setRouteName(dto.getRouteName() != null && !dto.getRouteName().isBlank() ? dto.getRouteName() : dto.getContractNumber());
         pd.setVehiclePlate(dto.getVehiclePlate() != null && !dto.getVehiclePlate().isBlank() ? dto.getVehiclePlate() : "QMR-2F82");
         pd.setVehicleModel(dto.getVehicleModel());
         pd.setDriverName(dto.getDriverName() != null ? dto.getDriverName() : "Motorista Operacional");
@@ -62,9 +62,30 @@ public class ParteDiariaService {
 
         if (dto.getClientId() != null) {
             clientRepository.findById(dto.getClientId()).ifPresent(pd::setClient);
+        } else if (dto.getClientName() != null && !dto.getClientName().isBlank()) {
+            String targetName = dto.getClientName().trim().toLowerCase();
+            clientRepository.findAll().stream()
+                    .filter(c -> c.getName() != null && (
+                            c.getName().trim().toLowerCase().equals(targetName) ||
+                            c.getName().trim().toLowerCase().contains(targetName) ||
+                            targetName.contains(c.getName().trim().toLowerCase())
+                    ))
+                    .findFirst()
+                    .ifPresent(pd::setClient);
         }
         if (dto.getVehicleId() != null) {
             vehicleRepository.findById(dto.getVehicleId()).ifPresent(v -> {
+                pd.setVehicle(v);
+                if (dto.getEndKm() != null) {
+                    int endKmInt = dto.getEndKm().intValue();
+                    if (v.getCurrentMileage() == null || endKmInt > v.getCurrentMileage()) {
+                        v.setCurrentMileage(endKmInt);
+                        vehicleRepository.save(v);
+                    }
+                }
+            });
+        } else if (dto.getVehiclePlate() != null && !dto.getVehiclePlate().isBlank()) {
+            vehicleRepository.findByPlateRaw(dto.getVehiclePlate().trim()).ifPresent(v -> {
                 pd.setVehicle(v);
                 if (dto.getEndKm() != null) {
                     int endKmInt = dto.getEndKm().intValue();
@@ -231,10 +252,14 @@ public class ParteDiariaService {
         if (pd.getClient() != null) {
             dto.setClientId(pd.getClient().getId());
             dto.setClientName(pd.getClient().getName());
+        } else if (pd.getServiceName() != null && !pd.getServiceName().isBlank()) {
+            dto.setClientName(pd.getServiceName());
         }
         if (pd.getContract() != null) {
             dto.setContractId(pd.getContract().getId());
             dto.setContractNumber(pd.getContract().getContractNumber());
+        } else if (pd.getRouteName() != null && !pd.getRouteName().isBlank()) {
+            dto.setContractNumber(pd.getRouteName());
         }
         if (pd.getVehicle() != null) {
             dto.setVehicleId(pd.getVehicle().getId());

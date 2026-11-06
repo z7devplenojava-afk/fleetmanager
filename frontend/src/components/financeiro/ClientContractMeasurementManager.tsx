@@ -1620,6 +1620,7 @@ export const ClientContractMeasurementManager: React.FC = () => {
   }, [
     selectedClientId,
     leasedVehicles,
+    partesDiariasMap,
     extraTrips,
     excessKmItems,
     deductions,

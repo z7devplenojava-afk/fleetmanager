@@ -21,6 +21,17 @@ public class ParteDiariaController {
 
     private final ParteDiariaService parteDiariaService;
 
+    private UUID parseUuidOrNull(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(raw.trim());
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
     @PostMapping
     @Operation(summary = "Criar Parte Diária", description = "Cadastra uma nova Parte Diária operacional com horários e KM")
     public ResponseEntity<ParteDiariaDTO> create(@RequestBody ParteDiariaDTO dto) {
@@ -33,13 +44,9 @@ public class ParteDiariaController {
             @RequestParam(value = "clientId", required = false) String clientId,
             @RequestParam(value = "start", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
             @RequestParam(value = "end", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end) {
-        UUID clientUuid = null;
-        if (clientId != null && !clientId.isBlank()) {
-            try {
-                clientUuid = UUID.fromString(clientId.trim());
-            } catch (IllegalArgumentException e) {
-                return ResponseEntity.ok(List.of());
-            }
+        UUID clientUuid = parseUuidOrNull(clientId);
+        if (clientId != null && !clientId.isBlank() && clientUuid == null) {
+            return ResponseEntity.ok(parteDiariaService.findFiltered(null, start, end));
         }
         return ResponseEntity.ok(parteDiariaService.findFiltered(clientUuid, start, end));
     }
@@ -47,19 +54,30 @@ public class ParteDiariaController {
     @GetMapping("/{id}")
     @Operation(summary = "Buscar Parte Diária por ID", description = "Retorna os detalhes operacionais de uma Parte Diária")
     public ResponseEntity<ParteDiariaDTO> getById(@PathVariable("id") String id) {
-        return ResponseEntity.ok(parteDiariaService.getById(UUID.fromString(id)));
+        UUID uuid = parseUuidOrNull(id);
+        if (uuid == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(parteDiariaService.getById(uuid));
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Atualizar Parte Diária", description = "Edita uma Parte Diária existente")
+    @Operation(summary = "Atualizar Parte Diária", description = "Edita uma Parte Diária existente (ou cria caso seja um registro de preset local)")
     public ResponseEntity<ParteDiariaDTO> update(@PathVariable("id") String id, @RequestBody ParteDiariaDTO dto) {
-        return ResponseEntity.ok(parteDiariaService.update(UUID.fromString(id), dto));
+        UUID uuid = parseUuidOrNull(id);
+        if (uuid == null) {
+            return ResponseEntity.ok(parteDiariaService.create(dto));
+        }
+        return ResponseEntity.ok(parteDiariaService.update(uuid, dto));
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Excluir Parte Diária", description = "Remove uma Parte Diária por ID")
     public ResponseEntity<Void> delete(@PathVariable("id") String id) {
-        parteDiariaService.delete(UUID.fromString(id));
+        UUID uuid = parseUuidOrNull(id);
+        if (uuid != null) {
+            parteDiariaService.delete(uuid);
+        }
         return ResponseEntity.noContent().build();
     }
 }
