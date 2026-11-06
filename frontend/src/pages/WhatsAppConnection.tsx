@@ -16,7 +16,8 @@ import {
   Wifi,
   WifiOff,
   Phone,
-  Zap
+  Zap,
+  AlertTriangle
 } from 'lucide-react';
 import api from '@/lib/axios';
 import { generateQrCodeSvgUri } from '@/utils/qrCodeHelper';
