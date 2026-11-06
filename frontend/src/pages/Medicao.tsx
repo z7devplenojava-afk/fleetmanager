@@ -181,8 +181,8 @@ const Medicao: React.FC = () => {
         monthlyData.push({
           month,
           total: monthBulletins.length,
-          complete: monthComplete.length,
-          simplified: monthSimplified.length,
+          complete: monthComplete,
+          simplified: monthSimplified,
           totalValue: monthBulletins.reduce((sum, b) => {
             const itemsValue = b.items?.reduce((itemSum, item) => itemSum + (item.quantity * item.unitPrice), 0) || 0;
             return sum + itemsValue;

@@ -40,9 +40,9 @@ const ContasAReceberTab: React.FC = () => {
   const [alertasVencimento, setAlertasVencimento] = useState<ContaAReceber[]>([]);
   const [showDashboard, setShowDashboard] = useState(false);
 
-  // Estados para filtros
-  const [anoSelecionado, setAnoSelecionado] = useState<number>(new Date().getFullYear());
-  const [mesSelecionado, setMesSelecionado] = useState<number>(new Date().getMonth() + 1);
+  // Estados para filtros (0 = Todos os Anos / Todos os Meses para exibir medições de qualquer período)
+  const [anoSelecionado, setAnoSelecionado] = useState<number>(0);
+  const [mesSelecionado, setMesSelecionado] = useState<number>(0);
   const [contasFiltradas, setContasFiltradas] = useState<ContaAReceber[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('TODOS');
@@ -115,11 +115,15 @@ const ContasAReceberTab: React.FC = () => {
 
     // Filtro por texto
     if (searchTerm) {
+      const term = searchTerm.toLowerCase();
       filtered = filtered.filter(conta =>
-        conta && conta.descricao && conta.cliente &&
-        (conta.descricao.toLowerCase().includes(searchTerm.toLowerCase()) ||
-         conta.cliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
-         conta.numeroFatura?.toLowerCase().includes(searchTerm.toLowerCase()))
+        conta &&
+        ((conta.descricao?.toLowerCase().includes(term) || false) ||
+         (conta.cliente?.toLowerCase().includes(term) || false) ||
+         (conta.numeroFatura?.toLowerCase().includes(term) || false) ||
+         (conta.contrato?.toLowerCase().includes(term) || false) ||
+         (conta.measurementNumber?.toLowerCase().includes(term) || false) ||
+         (conta.placasVeiculos?.toLowerCase().includes(term) || false))
       );
     }
 
@@ -133,16 +137,17 @@ const ContasAReceberTab: React.FC = () => {
       filtered = filtered.filter(conta => conta.tipo === tipoFilter);
     }
 
-    // Filtro por ano e mês
+    // Filtro por ano e mês (0 = Todos)
     filtered = filtered.filter(conta => {
-      if (!conta || !conta.vencimento) return false;
+      if (!conta || !conta.vencimento) return anoSelecionado === 0 && mesSelecionado === 0;
       try {
         const dataVencimento = new Date(conta.vencimento);
-        if (isNaN(dataVencimento.getTime())) return false;
-        return dataVencimento.getFullYear() === anoSelecionado &&
-               dataVencimento.getMonth() + 1 === mesSelecionado;
+        if (isNaN(dataVencimento.getTime())) return anoSelecionado === 0 && mesSelecionado === 0;
+        const matchesYear = anoSelecionado === 0 || dataVencimento.getFullYear() === anoSelecionado;
+        const matchesMonth = mesSelecionado === 0 || dataVencimento.getMonth() + 1 === mesSelecionado;
+        return matchesYear && matchesMonth;
       } catch {
-        return false;
+        return anoSelecionado === 0 && mesSelecionado === 0;
       }
     });
 
@@ -151,6 +156,15 @@ const ContasAReceberTab: React.FC = () => {
 
   useEffect(() => {
     loadData();
+    const handleSyncEvents = () => {
+      loadData();
+    };
+    window.addEventListener('fluxbus:receivables-updated', handleSyncEvents);
+    window.addEventListener('fluxbus:measurements-updated', handleSyncEvents);
+    return () => {
+      window.removeEventListener('fluxbus:receivables-updated', handleSyncEvents);
+      window.removeEventListener('fluxbus:measurements-updated', handleSyncEvents);
+    };
   }, []);
 
   useEffect(() => {
@@ -431,8 +445,10 @@ const ContasAReceberTab: React.FC = () => {
                 className="w-full px-3 py-2 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-seguranca-yellow focus:border-transparent bg-seguranca-black text-white"
               >
                 <option value="TODOS">Todos os Tipos</option>
-                <option value="FATURA">Fatura</option>
+                <option value="LOCACAO_VEICULOS">Locação de Veículos</option>
                 <option value="MEDICAO">Medição</option>
+                <option value="FATURA">Fatura</option>
+                <option value="FRETAMENTO_TURISMO">Fretamento / Turismo</option>
                 <option value="SERVICO">Serviço</option>
                 <option value="PRODUTO">Produto</option>
               </select>
@@ -451,10 +467,17 @@ const ContasAReceberTab: React.FC = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Seleção de Ano */}
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-4">
             <span className="text-white font-medium">Ano:</span>
-            <div className="flex gap-2">
-              {[2025, 2026].map(ano => (
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant={anoSelecionado === 0 ? "default" : "outline"}
+                onClick={() => setAnoSelecionado(0)}
+                className={anoSelecionado === 0 ? "bg-seguranca-yellow text-black font-bold" : "border-gray-600 text-white hover:bg-seguranca-black"}
+              >
+                Todos
+              </Button>
+              {[2024, 2025, 2026].map(ano => (
                 <Button
                   key={ano}
                   variant={ano === anoSelecionado ? "default" : "outline"}
@@ -471,13 +494,20 @@ const ContasAReceberTab: React.FC = () => {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-white font-medium">
-                Mês: {meses[mesSelecionado - 1]} {anoSelecionado}
+                Mês: {mesSelecionado === 0 ? 'Todos os Meses' : meses[mesSelecionado - 1]} {anoSelecionado === 0 ? '(Todos os Anos)' : anoSelecionado}
               </span>
               <span className="text-gray-400 text-sm">
                 {contasFiltradas.length} conta(s) encontrada(s)
               </span>
             </div>
-            <div className="grid grid-cols-6 gap-2">
+            <div className="grid grid-cols-3 sm:grid-cols-7 gap-2">
+              <Button
+                variant={mesSelecionado === 0 ? "default" : "outline"}
+                onClick={() => setMesSelecionado(0)}
+                className={mesSelecionado === 0 ? "bg-seguranca-yellow text-black font-bold" : "border-gray-600 text-white hover:bg-seguranca-black"}
+              >
+                Todos
+              </Button>
               {meses.map((mes, index) => (
                 <Button
                   key={mes}

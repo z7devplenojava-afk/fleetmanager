@@ -178,11 +178,245 @@ function mapBackendTypeToFrontend(backendTypeOrCategory: string | undefined): 'F
   }
 }
 
+const RECEIVABLES_FROM_MEASUREMENTS_KEY = 'fluxbus_receivables_from_measurements_v1';
+const GENERATED_MEASUREMENTS_KEY = 'fluxbus_generated_measurements_v1';
+
+export interface RegisterMeasurementReceivableInput {
+  measurementId: string;
+  measurementNumber: string;
+  clientId?: string;
+  clientName: string;
+  clientCnpj?: string;
+  contractNumber: string;
+  obraName?: string;
+  periodStart: string;
+  periodEnd: string;
+  issueDate?: string;
+  dueDate: string;
+  nfNumber?: string;
+  verificationCode?: string;
+  grossAmount: number;
+  netAmount?: number;
+  pisRetido?: number;
+  cofinsRetido?: number;
+  csllRetido?: number;
+  issqnRetido?: number;
+  inssRetido?: number;
+  irRetido?: number;
+  placasVeiculos?: string;
+  providerCompany?: string;
+  observations?: string;
+}
+
+function loadStoredMeasurementReceivables(): ContaAReceber[] {
+  try {
+    const raw = localStorage.getItem(RECEIVABLES_FROM_MEASUREMENTS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map((item: any) => ({
+      ...item,
+      dataEmissao: item.dataEmissao ? new Date(item.dataEmissao) : new Date(),
+      vencimento: item.vencimento ? new Date(item.vencimento) : new Date(),
+      dueDate: item.dueDate ? new Date(item.dueDate) : new Date(item.vencimento || Date.now()),
+      dataPagamento: item.dataPagamento ? new Date(item.dataPagamento) : undefined,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+function saveStoredMeasurementReceivables(list: ContaAReceber[]): void {
+  try {
+    localStorage.setItem(RECEIVABLES_FROM_MEASUREMENTS_KEY, JSON.stringify(list));
+    window.dispatchEvent(new CustomEvent('fluxbus:receivables-updated', { detail: list }));
+  } catch (e) {
+    console.warn('Erro ao salvar contas a receber de medições:', e);
+  }
+}
+
 export const contasAReceberService = {
   // ===== CONTAS A RECEBER =====
-  
+
+  // Sincroniza todas as medições geradas (locação de veículos / contratos) para o Contas a Receber
+  syncMeasurementsFromStorage(): ContaAReceber[] {
+    const existing = loadStoredMeasurementReceivables();
+    let measurements: any[] = [];
+    try {
+      const raw = localStorage.getItem(GENERATED_MEASUREMENTS_KEY);
+      if (raw) {
+        measurements = JSON.parse(raw);
+      }
+    } catch {
+      measurements = [];
+    }
+
+    if (!Array.isArray(measurements) || measurements.length === 0) {
+      return existing;
+    }
+
+    const updatedList = [...existing];
+
+    for (const med of measurements) {
+      const grossVal = Number(med.totals?.grandTotal ?? med.invoice?.grossValue ?? 0);
+      if (grossVal <= 0) continue;
+
+      const netVal = Number(med.invoice?.netValue ?? grossVal);
+      const placas = Array.isArray(med.leasedVehicles)
+        ? med.leasedVehicles.map((v: any) => v.plate).filter(Boolean).join(', ')
+        : '';
+      const recId = `rec-med-${med.id || `${med.contractNumber}-${med.measurementNumber}`}`;
+      const nfNum = med.invoice?.nfNumber && med.invoice.nfNumber !== 'A EMITIR' ? med.invoice.nfNumber : '';
+      const faturaNum = nfNum
+        ? `NF-${nfNum} / MED-${med.measurementNumber}`
+        : `FAT-LOC-${med.measurementNumber}`;
+      const issueStr = med.invoice?.nfIssueDate || med.periodEnd || new Date().toISOString().slice(0, 10);
+      const dueStr = med.dueDate || med.invoice?.nfDueDate || med.periodEnd || new Date().toISOString().slice(0, 10);
+
+      const newConta: ContaAReceber = {
+        id: recId,
+        numeroFatura: faturaNum,
+        invoiceNumber: faturaNum,
+        measurementNumber: String(med.measurementNumber || '001'),
+        faturaLocacaoNumber: `FAT-LOC-${med.measurementNumber || '001'}`,
+        dataEmissao: parseDateFromBackend(issueStr) || new Date(),
+        vencimento: parseDateFromBackend(dueStr) || new Date(),
+        dueDate: parseDateFromBackend(dueStr) || new Date(),
+        cliente: med.clientName || 'Cliente Contrato',
+        clienteId: med.clientId || 'cli-01',
+        contrato: med.contractNumber || '-',
+        obra: med.obraName || med.leasedVehicles?.[0]?.route || '-',
+        empresa: med.leasedVehicles?.[0]?.providerCompany || 'VIAÇÃO SÃO SILVESTRE LTDA',
+        periodoLocacao: `${med.periodStart} a ${med.periodEnd}`,
+        placasVeiculos: placas || 'FROTA LOCADA',
+        descricao: `FATURA DE LOCAÇÃO DE VEÍCULOS E MEDIÇÃO #${med.measurementNumber} — CONTRATO ${med.contractNumber}${placas ? ` (${placas})` : ''}`,
+        tipo: 'LOCACAO_VEICULOS' as any,
+        categoria: 'INVOICE',
+        valor: netVal,
+        amount: netVal,
+        grossAmount: grossVal,
+        netAmount: netVal,
+        amountPaid: 0,
+        pendingAmount: netVal,
+        status: 'ABERTA',
+        baixa: false,
+        paymentMethod: 'BOLETO',
+        nfseNumber: nfNum || undefined,
+        nfseKey: med.invoice?.verificationCode || undefined,
+        nfseIssueDate: issueStr,
+        nfseStatus: nfNum ? 'EMITIDA' : 'PENDENTE_NFSE',
+        nfseServiceDescription: `Locação de veículos prontos para operação (${placas || 'Contrato Fixo'}) - Período ${med.periodStart} a ${med.periodEnd}`,
+        observacoes:
+          med.invoice?.observations ||
+          `Gerado automaticamente da Medição Financeira #${med.measurementNumber} (${med.clientName}).`,
+      };
+
+      const idx = updatedList.findIndex(
+        (c) =>
+          c.id === recId ||
+          (c.contrato === newConta.contrato && c.measurementNumber === newConta.measurementNumber)
+      );
+
+      if (idx >= 0) {
+        // Preserva status se já foi baixada/recebida pelo financeiro
+        updatedList[idx] = {
+          ...updatedList[idx],
+          ...newConta,
+          status: updatedList[idx].status === 'RECEBIDA' ? 'RECEBIDA' : newConta.status,
+          baixa: updatedList[idx].baixa,
+          dataPagamento: updatedList[idx].dataPagamento,
+        };
+      } else {
+        updatedList.unshift(newConta);
+      }
+    }
+
+    saveStoredMeasurementReceivables(updatedList);
+    return updatedList;
+  },
+
+  // Registra ou atualiza diretamente uma medição e fatura de locação de veículos no Contas a Receber
+  async registerReceivableFromMeasurement(input: RegisterMeasurementReceivableInput): Promise<ContaAReceber> {
+    const existing = loadStoredMeasurementReceivables();
+    const recId = `rec-med-${input.measurementId || `${input.contractNumber}-${input.measurementNumber}`}`;
+    const nfNum = input.nfNumber && input.nfNumber !== 'A EMITIR' ? input.nfNumber : '';
+    const faturaNum = nfNum
+      ? `NF-${nfNum} / MED-${input.measurementNumber}`
+      : `FAT-LOC-${input.measurementNumber}`;
+    const grossVal = Number(input.grossAmount || 0);
+    const netVal = Number(input.netAmount ?? grossVal);
+    const issueStr = input.issueDate || input.periodEnd || new Date().toISOString().slice(0, 10);
+    const dueStr = input.dueDate || input.periodEnd || new Date().toISOString().slice(0, 10);
+
+    const newConta: ContaAReceber = {
+      id: recId,
+      numeroFatura: faturaNum,
+      invoiceNumber: faturaNum,
+      measurementNumber: String(input.measurementNumber || '001'),
+      faturaLocacaoNumber: `FAT-LOC-${input.measurementNumber || '001'}`,
+      dataEmissao: parseDateFromBackend(issueStr) || new Date(),
+      vencimento: parseDateFromBackend(dueStr) || new Date(),
+      dueDate: parseDateFromBackend(dueStr) || new Date(),
+      cliente: input.clientName,
+      clienteId: input.clientId || 'cli-01',
+      contrato: input.contractNumber,
+      obra: input.obraName || '-',
+      empresa: input.providerCompany || 'VIAÇÃO SÃO SILVESTRE LTDA',
+      periodoLocacao: `${input.periodStart} a ${input.periodEnd}`,
+      placasVeiculos: input.placasVeiculos || 'FROTA LOCADA',
+      descricao: `FATURA DE LOCAÇÃO DE VEÍCULOS E MEDIÇÃO #${input.measurementNumber} — CONTRATO ${input.contractNumber}${input.placasVeiculos ? ` (${input.placasVeiculos})` : ''}`,
+      tipo: 'LOCACAO_VEICULOS' as any,
+      categoria: 'INVOICE',
+      valor: netVal,
+      amount: netVal,
+      grossAmount: grossVal,
+      netAmount: netVal,
+      pisRetido: Number(input.pisRetido || 0),
+      cofinsRetido: Number(input.cofinsRetido || 0),
+      csllRetido: Number(input.csllRetido || 0),
+      issqnRetido: Number(input.issqnRetido || 0),
+      inssRetido: Number(input.inssRetido || 0),
+      irRetido: Number(input.irRetido || 0),
+      amountPaid: 0,
+      pendingAmount: netVal,
+      status: 'ABERTA',
+      baixa: false,
+      paymentMethod: 'BOLETO',
+      nfseNumber: nfNum || undefined,
+      nfseKey: input.verificationCode || undefined,
+      nfseIssueDate: issueStr,
+      nfseStatus: nfNum ? 'EMITIDA' : 'PENDENTE_NFSE',
+      nfseServiceDescription: `Locação de veículos (${input.placasVeiculos || 'Contrato Fixo'}) - Competência ${input.periodStart} a ${input.periodEnd}`,
+      observacoes:
+        input.observations ||
+        `Fatura de locação de veículos gerada da Medição #${input.measurementNumber} (${input.clientName}).`,
+    };
+
+    const idx = existing.findIndex(
+      (c) =>
+        c.id === recId ||
+        (c.contrato === newConta.contrato && c.measurementNumber === newConta.measurementNumber)
+    );
+
+    if (idx >= 0) {
+      existing[idx] = {
+        ...existing[idx],
+        ...newConta,
+        status: existing[idx].status === 'RECEBIDA' ? 'RECEBIDA' : newConta.status,
+      };
+    } else {
+      existing.unshift(newConta);
+    }
+
+    saveStoredMeasurementReceivables(existing);
+    return newConta;
+  },
+
   // Buscar todas as contas
   async getContasAReceber(filters: ContasAReceberFilters = {}): Promise<ContaAReceber[]> {
+    // Garantir que as medições geradas estejam sincronizadas no armazenamento local
+    const localMeasurementReceivables = this.syncMeasurementsFromStorage();
+
     const params = new URLSearchParams();
     
     if (filters.status) params.append('status', filters.status);
@@ -196,70 +430,80 @@ export const contasAReceberService = {
     if (filters.sortBy) params.append('sortBy', filters.sortBy);
     if (filters.sortDir) params.append('sortDir', filters.sortDir);
 
-    console.log('🔍 DEBUG: Fazendo requisição para /accounts-receivable com params:', params.toString());
-    const response = await api.get(`/api/accounts-receivable?${params.toString()}`);
-    
-    console.log('🔍 DEBUG: Resposta da API:', response.data);
-    
-    // Transformar dados do backend para o formato do frontend
-    const accounts = Array.isArray(response.data) ? response.data : response.data.content || [];
-    
-    console.log('🔍 DEBUG: Accounts processados:', accounts);
-    
-    return accounts
-      .filter((account: any) => account && account.id) // Filtrar itens inválidos
-      .map((account: any): ContaAReceber => ({
-        id: account.id,
-        numeroFatura: account.invoiceNumber,
-        dataEmissao: parseDateFromBackend(account.issueDate),
-        vencimento: parseDateFromBackend(account.dueDate) || new Date(),
-        cliente: account.clientName || account.client?.name || 'Não informado',
-        clienteId: account.clientId || account.client?.id,
-        contrato: account.contractNumber,
-        contratoId: account.contractId,
-        obra: account.workPostName,
-        obraId: account.workPostId,
-        empresa: account.unitSigla || account.unitName || 'Não informado',
-        empresaId: account.unitId,
-        descricao: account.description || '',
-        tipo: mapBackendTypeToFrontend(account.type || account.category),
-        valor: parseFloat(account.amount || 0),
-        amount: parseFloat(account.amount || 0), // Campo adicional para compatibilidade
-        amountPaid: parseFloat(account.amountPaid || 0), // Valor pago
-        pendingAmount: parseFloat(account.pendingAmount || (parseFloat(account.amount || 0) - parseFloat(account.amountPaid || 0)) || 0), // Valor pendente
-        overdueDays: account.overdueDays || 0, // Dias em atraso
-        codigoBarras: account.barcode,
-        status: mapBackendStatusToFrontend(account.status),
-        baixa: account.baixa || false,
-        dataPagamento: parseDateFromBackend(account.paymentDate),
-        observacoes: account.notes,
-        categoria: account.category,
-        centroCusto: account.centroCusto,
-        paymentMethod: account.paymentMethod || 'PIX', // Incluir paymentMethod do backend
-        invoiceNumber: account.invoiceNumber, // Número da fatura
-        measurementNumber: account.measurementNumber, // Número da medição
-        dueDate: parseDateFromBackend(account.dueDate) || new Date(), // Data de vencimento
-        client: account.client ? {
-          id: account.client.id,
-          name: account.client.name || account.clientName || 'Não informado'
-        } : undefined,
-        grossAmount: account.grossAmount ? parseFloat(account.grossAmount) : undefined,
-        netAmount: account.netAmount ? parseFloat(account.netAmount) : undefined,
-        issqnRetido: account.issqnRetido ? parseFloat(account.issqnRetido) : 0,
-        inssRetido: account.inssRetido ? parseFloat(account.inssRetido) : 0,
-        irRetido: account.irRetido ? parseFloat(account.irRetido) : 0,
-        pisRetido: account.pisRetido ? parseFloat(account.pisRetido) : 0,
-        cofinsRetido: account.cofinsRetido ? parseFloat(account.cofinsRetido) : 0,
-        csllRetido: account.csllRetido ? parseFloat(account.csllRetido) : 0,
-        ibsCbsAmount: account.ibsCbsAmount ? parseFloat(account.ibsCbsAmount) : 0,
-        nfseNumber: account.nfseNumber,
-        nfseKey: account.nfseKey,
-        nfseIssueDate: account.nfseIssueDate,
-        nfseXmlUrl: account.nfseXmlUrl,
-        nfsePdfUrl: account.nfsePdfUrl,
-        nfseServiceDescription: account.nfseServiceDescription,
-        nfseStatus: account.nfseStatus || 'PENDENTE_NFSE',
-      }));
+    let backendMapped: ContaAReceber[] = [];
+    try {
+      const response = await api.get(`/api/accounts-receivable?${params.toString()}`);
+      const accounts = Array.isArray(response.data) ? response.data : response.data.content || [];
+      backendMapped = accounts
+        .filter((account: any) => account && account.id)
+        .map((account: any): ContaAReceber => ({
+          id: account.id,
+          numeroFatura: account.invoiceNumber,
+          dataEmissao: parseDateFromBackend(account.issueDate),
+          vencimento: parseDateFromBackend(account.dueDate) || new Date(),
+          cliente: account.clientName || account.client?.name || 'Não informado',
+          clienteId: account.clientId || account.client?.id,
+          contrato: account.contractNumber,
+          contratoId: account.contractId,
+          obra: account.workPostName,
+          obraId: account.workPostId,
+          empresa: account.unitSigla || account.unitName || 'Não informado',
+          empresaId: account.unitId,
+          descricao: account.description || '',
+          tipo: mapBackendTypeToFrontend(account.type || account.category),
+          valor: parseFloat(account.amount || 0),
+          amount: parseFloat(account.amount || 0),
+          amountPaid: parseFloat(account.amountPaid || 0),
+          pendingAmount: parseFloat(account.pendingAmount || (parseFloat(account.amount || 0) - parseFloat(account.amountPaid || 0)) || 0),
+          overdueDays: account.overdueDays || 0,
+          codigoBarras: account.barcode,
+          status: mapBackendStatusToFrontend(account.status),
+          baixa: account.baixa || false,
+          dataPagamento: parseDateFromBackend(account.paymentDate),
+          observacoes: account.notes,
+          categoria: account.category,
+          centroCusto: account.centroCusto,
+          paymentMethod: account.paymentMethod || 'PIX',
+          invoiceNumber: account.invoiceNumber,
+          measurementNumber: account.measurementNumber,
+          dueDate: parseDateFromBackend(account.dueDate) || new Date(),
+          client: account.client ? {
+            id: account.client.id,
+            name: account.client.name || account.clientName || 'Não informado'
+          } : undefined,
+          grossAmount: account.grossAmount ? parseFloat(account.grossAmount) : undefined,
+          netAmount: account.netAmount ? parseFloat(account.netAmount) : undefined,
+          issqnRetido: account.issqnRetido ? parseFloat(account.issqnRetido) : 0,
+          inssRetido: account.inssRetido ? parseFloat(account.inssRetido) : 0,
+          irRetido: account.irRetido ? parseFloat(account.irRetido) : 0,
+          pisRetido: account.pisRetido ? parseFloat(account.pisRetido) : 0,
+          cofinsRetido: account.cofinsRetido ? parseFloat(account.cofinsRetido) : 0,
+          csllRetido: account.csllRetido ? parseFloat(account.csllRetido) : 0,
+          ibsCbsAmount: account.ibsCbsAmount ? parseFloat(account.ibsCbsAmount) : 0,
+          nfseNumber: account.nfseNumber,
+          nfseKey: account.nfseKey,
+          nfseIssueDate: account.nfseIssueDate,
+          nfseXmlUrl: account.nfseXmlUrl,
+          nfsePdfUrl: account.nfsePdfUrl,
+          nfseServiceDescription: account.nfseServiceDescription,
+          nfseStatus: account.nfseStatus || 'PENDENTE_NFSE',
+          faturaLocacaoNumber: account.faturaLocacaoNumber,
+          pedidoNumber: account.pedidoNumber,
+          periodoLocacao: account.periodoLocacao,
+          placasVeiculos: account.placasVeiculos,
+          dadosBancarios: account.dadosBancarios
+        }));
+    } catch (err) {
+      console.warn('Aviso ao buscar /api/accounts-receivable, exibindo medições faturadas locais:', err);
+    }
+
+    const backendIds = new Set(backendMapped.map(b => String(b.id)));
+    const merged = [
+      ...localMeasurementReceivables.filter(lr => !backendIds.has(String(lr.id))),
+      ...backendMapped
+    ];
+
+    return merged;
   },
 
   // Buscar conta por ID
@@ -529,6 +773,11 @@ export const contasAReceberService = {
 
   // Excluir conta
   async deleteContaAReceber(id: string): Promise<void> {
+    if (String(id).startsWith('rec-med-')) {
+      const current = loadStoredMeasurementReceivables();
+      saveStoredMeasurementReceivables(current.filter(c => c.id !== id));
+      return;
+    }
     await api.delete(`/api/accounts-receivable/${id}`);
   },
 
@@ -588,6 +837,22 @@ export const contasAReceberService = {
 
   // Marcar conta como recebida
   async marcarComoRecebida(id: string, dataPagamento: Date): Promise<ContaAReceber> {
+    if (String(id).startsWith('rec-med-')) {
+      const current = loadStoredMeasurementReceivables();
+      const idx = current.findIndex(c => c.id === id);
+      if (idx >= 0) {
+        current[idx] = {
+          ...current[idx],
+          status: 'RECEBIDA',
+          baixa: true,
+          dataPagamento,
+          amountPaid: current[idx].valor,
+          pendingAmount: 0,
+        };
+        saveStoredMeasurementReceivables(current);
+        return current[idx];
+      }
+    }
     const response = await api.patch(`/api/accounts-receivable/${id}/mark-as-paid`, {
       paymentDate: formatDateForBackend(dataPagamento)
     });
@@ -786,8 +1051,21 @@ export const contasAReceberService = {
   },
 
   async syncAll(): Promise<{ syncedCount: number; message: string }> {
-    const res = await api.post('/api/accounts-receivable/sync-all');
-    return res.data;
+    const localSynced = this.syncMeasurementsFromStorage();
+    try {
+      const res = await api.post('/api/accounts-receivable/sync-all');
+      const backendCount = Number(res.data?.syncedCount || 0);
+      const totalCount = backendCount + localSynced.length;
+      return {
+        syncedCount: totalCount,
+        message: `${totalCount} título(s) de Medições Financeiras e Alocação de Veículos sincronizados no Contas a Receber.`
+      };
+    } catch {
+      return {
+        syncedCount: localSynced.length,
+        message: `${localSynced.length} título(s) de Medições e Locação de Veículos sincronizados com sucesso.`
+      };
+    }
   }
 };
 

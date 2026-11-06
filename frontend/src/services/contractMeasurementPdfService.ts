@@ -27,9 +27,15 @@ export interface GenerateMeasurementPdfOptions {
     retentionISS?: number;
     retentionINSS?: number;
     retentionIR?: number;
+    retentionPIS?: number;
+    retentionCOFINS?: number;
+    retentionCSLL?: number;
     netValue?: number;
     verificationCode?: string;
     observations?: string;
+    providerCompany?: string;
+    providerCnpj?: string;
+    bankDetails?: string;
   };
   statusLabel?: string;
   elaboratedBy?: string;
@@ -488,23 +494,87 @@ export class ContractMeasurementPdfService {
           </tbody>
         </table>
 
-        <h3>6. Faturamento da Medição & Nota Fiscal (NFS-e)</h3>
-        <div class="nf-box">
+        <h3>6. Espelho para Faturamento ao Cliente & Emissão da Nota Fiscal (NFS-e) / Fatura de Locação</h3>
+        <div class="nf-box" style="grid-template-columns: repeat(5, 1fr); margin-bottom: 8px;">
+          <div>
+            <span>Nº Fatura de Locação</span>
+            <strong class="mono">FAT-LOC-${client.measurementNumber}/2026</strong>
+          </div>
           <div>
             <span>Número da NFS-e</span>
-            <strong class="mono">${inv.nfNumber || 'A EMITIR'}</strong>
+            <strong class="mono">${inv.nfNumber || 'A EMITIR PELO FATURAMENTO'}</strong>
           </div>
           <div>
-            <span>Data de Emissão</span>
-            <strong class="mono">${formatDateBR(inv.nfIssueDate)}</strong>
+            <span>Emissão / Vencimento</span>
+            <strong class="mono">${formatDateBR(inv.nfIssueDate || client.periodEnd)} → ${formatDateBR(inv.nfDueDate || client.dueDate)}</strong>
           </div>
           <div>
-            <span>Código de Verificação</span>
-            <strong class="mono">${inv.verificationCode || '-'}</strong>
+            <span>Valor Bruto da Fatura</span>
+            <strong class="mono">${formatCurrency(totals.grandTotal)}</strong>
           </div>
           <div>
-            <span>Líquido c/ Retenções</span>
+            <span>Valor Líquido a Receber (Financeiro)</span>
             <strong class="mono green">${formatCurrency(inv.netValue || totals.grandTotal)}</strong>
+          </div>
+        </div>
+
+        <table style="margin-bottom: 10px;">
+          <thead>
+            <tr>
+              <th style="width: 24%">Emitente / Prestadora (Locadora)</th>
+              <th style="width: 26%">Tomador / Cliente (Faturado)</th>
+              <th style="width: 25%">Retenções Fiscais & Impostos</th>
+              <th style="width: 25%">Integração Contas a Receber / Bancário</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <strong>${invoiceOverride?.providerCompany || 'VIAÇÃO SÃO SILVESTRE LTDA'}</strong><br/>
+                CNPJ: <span class="mono">${invoiceOverride?.providerCnpj || '19.876.543/0001-10'}</span><br/>
+                Cód. Serviço / CNAE: <span class="mono">16.01 / 7711-0/00</span><br/>
+                Natureza: Locação de Veículos & Fretamento
+              </td>
+              <td>
+                <strong>${client.clientName}</strong><br/>
+                CNPJ: <span class="mono">${client.cnpj}</span><br/>
+                Contrato: <span class="mono">${client.contractNumber}</span><br/>
+                Competência: <span class="mono">${formatDateBR(client.periodStart)} a ${formatDateBR(client.periodEnd)}</span>
+              </td>
+              <td class="mono">
+                PIS (0,65%): ${formatCurrency(invoiceOverride?.retentionPIS || 0)}<br/>
+                COFINS (3,00%): ${formatCurrency(invoiceOverride?.retentionCOFINS || 0)}<br/>
+                CSLL (1,00%): ${formatCurrency(invoiceOverride?.retentionCSLL || 0)}<br/>
+                ISS / INSS / IR: ${formatCurrency((inv.retentionISS || 0) + (inv.retentionINSS || 0) + (inv.retentionIR || 0))}
+              </td>
+              <td>
+                <strong>Status Contas a Receber:</strong> DISPONÍVEL NO FINANCEIRO<br/>
+                <strong>Forma de Cobrança:</strong> Boleto / PIX / TED<br/>
+                <strong>Dados Bancários:</strong> ${invoiceOverride?.bankDetails || 'Banco Itaú (341) Ag. 3150 C/C 44890-2 · PIX CNPJ'}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style="border: 1px solid #cbd5e1; background: #fffbeb; border-radius: 8px; padding: 8px 12px; margin-bottom: 10px;">
+          <span style="display:block; font-size: 9px; font-weight: 700; text-transform: uppercase; color: #b45309; margin-bottom: 3px;">
+            Discriminação Sugerida dos Serviços para Emissão da Nota Fiscal (NFS-e) / Fatura de Locação de Veículos:
+          </span>
+          <div class="mono" style="font-size: 9.5px; color: #1e293b; line-height: 1.45;">
+            FATURAMENTO REFERENTE À LOCAÇÃO DE VEÍCULOS E PRESTAÇÃO DE SERVIÇOS DE TRANSPORTE — CONTRATO Nº ${client.contractNumber} — BOLETIM DE MEDIÇÃO Nº ${client.measurementNumber} — PERÍODO DE COMPETÊNCIA: ${formatDateBR(client.periodStart)} A ${formatDateBR(client.periodEnd)}.
+            VEÍCULOS ALOCADOS (${client.leasedVehicles.length}): ${
+              client.leasedVehicles.length > 0
+                ? client.leasedVehicles
+                    .map(
+                      (v) =>
+                        `[${v.plate} - ${v.description} - ${v.workingDays} DIAS - ${formatCurrency(v.periodValue || 0)}]`
+                    )
+                    .join('; ')
+                : 'N/A'
+            }.
+            PARTES DIÁRIAS APURADAS: ${partesDiarias.length} BOLETIM(NS) (${totalKmConsideredPartes.toLocaleString('pt-BR')} KM CONSIDERADOS).
+            VIAGENS EXTRAS: ${formatCurrency(totals.extraTripsTotal)} | KM EXCEDENTE: ${formatCurrency(totals.excessKmTotal)} | DEDUÇÕES: -${formatCurrency(totals.deductionsTotal)}.
+            VALOR BRUTO DA FATURA: ${formatCurrency(totals.grandTotal)} | VALOR LÍQUIDO A RECEBER: ${formatCurrency(inv.netValue || totals.grandTotal)} — VENCIMENTO: ${formatDateBR(inv.nfDueDate || client.dueDate)}.
           </div>
         </div>
 
@@ -823,6 +893,57 @@ export class ContractMeasurementPdfService {
     const wsDebitos = XLSX.utils.aoa_to_sheet([debitosHeader, ...debitosData]);
     wsDebitos['!cols'] = [{ wch: 6 }, { wch: 14 }, { wch: 14 }, { wch: 44 }, { wch: 14 }, { wch: 18 }];
     XLSX.utils.book_append_sheet(wb, wsDebitos, '6_Debitos_Descontos');
+
+    // ABA 7: Espelho de Faturamento, Emissão de Nota Fiscal (NFS-e) e Contas a Receber
+    const placasAlocadas = client.leasedVehicles.map((v) => v.plate).join(', ') || '-';
+    const discriminacaoNFSe = `FATURAMENTO REFERENTE À LOCAÇÃO DE VEÍCULOS E PRESTAÇÃO DE SERVIÇOS DE TRANSPORTE — CONTRATO Nº ${client.contractNumber} — MEDIÇÃO Nº ${client.measurementNumber} — PERÍODO: ${formatDateBR(client.periodStart)} A ${formatDateBR(client.periodEnd)}. VEÍCULOS ALOCADOS (${client.leasedVehicles.length}): ${
+      client.leasedVehicles
+        .map((v) => `[${v.plate} - ${v.description} - ${v.workingDays}d - R$ ${(v.periodValue || 0).toFixed(2)}]`)
+        .join('; ') || 'N/A'
+    }. PARTES DIÁRIAS: ${partesDiarias.length} BOLETIM(NS). VIAGENS EXTRAS: R$ ${totals.extraTripsTotal.toFixed(2)}. KM EXCEDENTE: R$ ${totals.excessKmTotal.toFixed(2)}. DEDUÇÕES: -R$ ${totals.deductionsTotal.toFixed(2)}. VALOR BRUTO: R$ ${totals.grandTotal.toFixed(2)} | VALOR LÍQUIDO A RECEBER: R$ ${(inv.netValue || totals.grandTotal).toFixed(2)} — VENCIMENTO: ${formatDateBR(inv.nfDueDate || client.dueDate)}.`;
+
+    const faturamentoRows = [
+      ['ESPELHO PARA FATURAMENTO AO CLIENTE, EMISSÃO DE NOTA FISCAL (NFS-e) E CONTAS A RECEBER'],
+      [],
+      ['1. IDENTIFICAÇÃO DO PRESTADOR / LOCADORA DE VEÍCULOS'],
+      ['Empresa Prestadora / Locadora', invoiceOverride?.providerCompany || 'VIAÇÃO SÃO SILVESTRE LTDA'],
+      ['CNPJ do Prestador', invoiceOverride?.providerCnpj || '19.876.543/0001-10'],
+      ['Código de Serviço / CNAE', '16.01 / 7711-0/00 - Locação de Veículos e Fretamento Contínuo'],
+      ['Dados Bancários p/ Recebimento', invoiceOverride?.bankDetails || 'Banco Itaú (341) Ag. 3150 C/C 44890-2 · PIX CNPJ'],
+      [],
+      ['2. DADOS DO CLIENTE / TOMADOR PARA EMISSÃO DA NOTA FISCAL E FATURA'],
+      ['Razão Social do Cliente', client.clientName],
+      ['CNPJ do Cliente', client.cnpj],
+      ['Número do Contrato', client.contractNumber],
+      ['Número do Boletim de Medição', client.measurementNumber],
+      ['Número da Fatura de Locação', `FAT-LOC-${client.measurementNumber}/2026`],
+      ['Número da Nota Fiscal (NFS-e)', inv.nfNumber || 'A EMITIR PELO SETOR DE FATURAMENTO'],
+      ['Data de Emissão da Fatura / NF', formatDateBR(inv.nfIssueDate || client.periodEnd)],
+      ['Data de Vencimento (Contas a Receber)', formatDateBR(inv.nfDueDate || client.dueDate)],
+      ['Período de Competência', `${formatDateBR(client.periodStart)} a ${formatDateBR(client.periodEnd)}`],
+      ['Placas dos Veículos Alocados', placasAlocadas],
+      [],
+      ['3. COMPOSIÇÃO DO VALOR PARA FATURAMENTO E CONTAS A RECEBER'],
+      ['Item de Faturamento', 'Base / Quantidade', 'Valor (R$)'],
+      ['Locação de Veículos sob Contrato Fixo', `${client.leasedVehicles.length} veículo(s) (${placasAlocadas})`, totals.leasedTotal],
+      ['Viagens Extras e Turnos Adicionais', `${extraTrips.length} viagem(ns)`, totals.extraTripsTotal],
+      ['Quilometragem Excedente Apurada', `${excessKmItems.length} apuração(ões)`, totals.excessKmTotal],
+      ['Deduções / Descontos Contratuais', `${deductions.length} lançamento(s)`, -Math.abs(totals.deductionsTotal)],
+      ['VALOR BRUTO DA FATURA / NOTA FISCAL (R$)', '', totals.grandTotal],
+      ['(-) Retenção PIS (0,65%)', '', invoiceOverride?.retentionPIS || 0],
+      ['(-) Retenção COFINS (3,00%)', '', invoiceOverride?.retentionCOFINS || 0],
+      ['(-) Retenção CSLL (1,00%)', '', invoiceOverride?.retentionCSLL || 0],
+      ['(-) Retenção ISS (R$)', '', inv.retentionISS || 0],
+      ['(-) Retenção INSS (R$)', '', inv.retentionINSS || 0],
+      ['(-) Retenção IRRF (R$)', '', inv.retentionIR || 0],
+      ['(=) VALOR LÍQUIDO DISPONÍVEL NO CONTAS A RECEBER (R$)', '', inv.netValue || totals.grandTotal],
+      [],
+      ['4. TEXTO PRONTO PARA DISCRIMINAÇÃO DOS SERVIÇOS NA NOTA FISCAL (COPIAR E COLAR)'],
+      ['Discriminação Completa para NFS-e / Fatura', discriminacaoNFSe],
+    ];
+    const wsFaturamento = XLSX.utils.aoa_to_sheet(faturamentoRows);
+    wsFaturamento['!cols'] = [{ wch: 44 }, { wch: 68 }, { wch: 24 }];
+    XLSX.utils.book_append_sheet(wb, wsFaturamento, '7_Faturamento_e_NFSe');
 
     const safeClientName = (client.clientName || 'Cliente')
       .replace(/[^a-zA-Z0-9_-]/g, '_')

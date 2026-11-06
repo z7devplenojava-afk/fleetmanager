@@ -33,6 +33,8 @@ import { MeasurementViewModal } from './MeasurementViewModal';
 import { MeasurementDeleteDialog } from './MeasurementDeleteDialog';
 import { MeasurementValidationModal } from './MeasurementValidationModal';
 import { BulkDeleteDialog } from './BulkDeleteDialog';
+import { ContractMeasurementPdfService } from '@/services/contractMeasurementPdfService';
+import { contasAReceberService } from '@/services/contasAReceberService';
 import api from '@/lib/axios';
 
 interface MeasurementCompleteTableProps {
@@ -70,37 +72,80 @@ export default function MeasurementCompleteTable({
   const [showValidationModal, setShowValidationModal] = useState(false);
   const [selectedBulletin, setSelectedBulletin] = useState<MeasurementBulletin | null>(null);
 
-  // Carregar boletins
+  // Carregar boletins (API + Medições Geradas por Contrato)
   const loadBulletins = async () => {
     try {
       setLoading(true);
-      console.log('🔄 Iniciando carregamento de boletins...');
-      const data = await measurementService.getBulletins();
-      console.log('📊 Dados recebidos:', data);
-      setBulletins(data);
-      
-      // Se não há dados mas não houve erro, é normal
-      if (data.length === 0) {
-        console.log('ℹ️ Nenhum boletim de medição encontrado');
-        toast({
-          title: "Informação",
-          description: "Nenhum boletim de medição encontrado. A tabela está vazia.",
-          variant: "default"
-        });
-      } else {
-        console.log(`✅ ${data.length} boletins carregados com sucesso`);
+      const data = await measurementService.getBulletins().catch(() => []);
+      const apiList = Array.isArray(data) ? data : [];
+
+      let localList: any[] = [];
+      try {
+        const raw = localStorage.getItem('fluxbus_generated_measurements_v1');
+        if (raw) {
+          localList = JSON.parse(raw);
+        }
+      } catch {
+        localList = [];
       }
+
+      const apiIds = new Set(apiList.map((b: any) => String(b.id)));
+      const convertedLocal: MeasurementBulletin[] = (Array.isArray(localList) ? localList : [])
+        .filter((m: any) => !apiIds.has(String(m.id)))
+        .map((m: any) => {
+          const grandTotal = Number(m.totals?.grandTotal || m.invoice?.grossValue || 0);
+          const leasedItems = (m.leasedVehicles || []).map((v: any, idx: number) => ({
+            id: v.id || `lv-${idx}`,
+            description: v.description || `Locação Veículo ${v.plate}`,
+            unit: 'MÊS',
+            quantity: 1,
+            unitPrice: Number(v.periodValue ?? v.totalPeriod ?? v.monthlyRate ?? 0),
+            totalValue: Number(v.periodValue ?? v.totalPeriod ?? v.monthlyRate ?? 0),
+          }));
+          const extraItems = (m.extraTrips || []).map((et: any, idx: number) => ({
+            id: et.id || `et-${idx}`,
+            description: `Viagem Extra (${et.plate}): ${et.route}`,
+            unit: 'VIAGEM',
+            quantity: 1,
+            unitPrice: Number(et.tripCost ?? et.total ?? 0),
+            totalValue: Number(et.tripCost ?? et.total ?? 0),
+          }));
+          const items = [...leasedItems, ...extraItems];
+          if (items.length === 0) {
+            items.push({
+              id: `it-${m.id}`,
+              description: `Locação de Frota / Contrato ${m.contractNumber}`,
+              unit: 'MÊS',
+              quantity: 1,
+              unitPrice: grandTotal,
+              totalValue: grandTotal,
+            });
+          }
+
+          return {
+            id: String(m.id),
+            measurementNumber: Number(m.measurementNumber || 1),
+            contractNumber: m.contractNumber || 'CT-LOCACAO',
+            companyName: m.clientName || 'Cliente Contrato',
+            clientName: m.clientName || 'Cliente Contrato',
+            periodStart: m.periodStart,
+            periodEnd: m.periodEnd,
+            elaboratedBy: m.elaboratedBy || 'José Ramos',
+            validatedBy: m.validatedBy || 'Diretoria Financeira',
+            status: (m.status === 'VALIDATED' ? 'VALIDATED' : 'PENDING') as MeasurementStatus,
+            notes: `Medição completa de locação de veículos (${(m.leasedVehicles || []).map((v: any) => v.plate).join(', ') || 'Frota'})`,
+            items: items as any,
+            subtotal: grandTotal,
+            taxes: 0,
+            totalValue: grandTotal,
+            createdAt: m.createdAt || new Date().toISOString(),
+            updatedAt: m.createdAt || new Date().toISOString(),
+          } as unknown as MeasurementBulletin;
+        });
+
+      setBulletins([...convertedLocal, ...apiList]);
     } catch (error) {
       console.error('❌ Erro ao carregar boletins:', error);
-      // Só mostrar toast se for um erro real, não se for lista vazia
-      if (error instanceof Error && error.message !== 'Falha ao buscar boletins de medição') {
-        toast({
-          title: "Erro",
-          description: "Não foi possível carregar os boletins de medição",
-          variant: "destructive"
-        });
-      }
-      // Em caso de erro, definir lista vazia
       setBulletins([]);
     } finally {
       setLoading(false);
@@ -135,6 +180,13 @@ export default function MeasurementCompleteTable({
 
   useEffect(() => {
     loadBulletins();
+    const handleSync = () => loadBulletins();
+    window.addEventListener('fluxbus:measurements-updated', handleSync);
+    window.addEventListener('fluxbus:measurement-generated', handleSync);
+    return () => {
+      window.removeEventListener('fluxbus:measurements-updated', handleSync);
+      window.removeEventListener('fluxbus:measurement-generated', handleSync);
+    };
   }, []);
 
   // Função helper para determinar se uma medição é completa
@@ -287,43 +339,105 @@ export default function MeasurementCompleteTable({
     setSelectedBulletin(null);
   };
 
+  const buildLocalPdfExcelPayload = (bulletin: MeasurementBulletin) => {
+    let rawMed: any = null;
+    try {
+      const raw = localStorage.getItem('fluxbus_generated_measurements_v1');
+      if (raw) {
+        const list = JSON.parse(raw);
+        if (Array.isArray(list)) {
+          rawMed = list.find((m: any) => String(m.id) === String(bulletin.id) || m.contractNumber === bulletin.contractNumber);
+        }
+      }
+    } catch {
+      rawMed = null;
+    }
+
+    const totalVal = Number(
+      rawMed?.totals?.grandTotal ||
+      bulletin.totalValue ||
+      bulletin.items?.reduce((s, i) => s + Number(i.totalValue || Number(i.quantity || 1) * Number(i.unitPrice || 0)), 0) ||
+      0
+    );
+
+    return {
+      client: {
+        id: String(rawMed?.clientId || bulletin.id),
+        clientName: rawMed?.clientName || bulletin.companyName || bulletin.clientName || 'Cliente Contratante',
+        cnpj: rawMed?.cnpj || '00.000.000/0001-00',
+        contractNumber: rawMed?.contractNumber || bulletin.contractNumber || 'CT-LOCACAO',
+        measurementNumber: String(rawMed?.measurementNumber || bulletin.measurementNumber || '001'),
+        periodStart: rawMed?.periodStart || bulletin.periodStart,
+        periodEnd: rawMed?.periodEnd || bulletin.periodEnd,
+        dueDate: rawMed?.dueDate || rawMed?.periodEnd || bulletin.periodEnd,
+        leasedVehicles: Array.isArray(rawMed?.leasedVehicles) && rawMed.leasedVehicles.length > 0
+          ? rawMed.leasedVehicles.map((v: any, idx: number) => ({
+              id: v.id || `lv-${idx}`,
+              plate: v.plate || 'FROTA',
+              description: v.description || 'Locação de Veículo',
+              route: v.route || '-',
+              workingDays: Number(v.workingDays || 30),
+              stoppedDays: Number(v.stoppedDays || 0),
+              monthlyRate: Number(v.monthlyRate || v.periodValue || 0),
+              dailyRate: Number(v.dailyRate || 0),
+              periodValue: Number(v.periodValue ?? v.totalPeriod ?? 0),
+              observations: v.observations || '',
+            }))
+          : (bulletin.items || []).map((it: any, idx: number) => ({
+              id: `lv-${idx}`,
+              plate: 'FROTA',
+              description: it.description || 'Locação de Veículo',
+              route: bulletin.contractNumber || '-',
+              workingDays: 30,
+              stoppedDays: 0,
+              monthlyRate: Number(it.totalValue || Number(it.quantity || 1) * Number(it.unitPrice || 0)),
+              dailyRate: Number(it.unitPrice || 0) / 30,
+              periodValue: Number(it.totalValue || Number(it.quantity || 1) * Number(it.unitPrice || 0)),
+              observations: '',
+            })),
+        extraTrips: [],
+        excessKmItems: [],
+        deductions: [],
+        invoice: {
+          nfNumber: rawMed?.invoice?.nfNumber || 'A EMITIR',
+          nfIssueDate: rawMed?.invoice?.nfIssueDate || bulletin.periodEnd,
+          nfDueDate: rawMed?.dueDate || bulletin.periodEnd,
+          grossValue: totalVal,
+          retentionISS: Number(rawMed?.invoice?.retentionISS || 0),
+          retentionINSS: Number(rawMed?.invoice?.retentionINSS || 0),
+          retentionIR: Number(rawMed?.invoice?.retentionIR || 0),
+          retentionPIS: Number(rawMed?.invoice?.retentionPIS || 0),
+          retentionCOFINS: Number(rawMed?.invoice?.retentionCOFINS || 0),
+          retentionCSLL: Number(rawMed?.invoice?.retentionCSLL || 0),
+          netValue: Number(rawMed?.invoice?.netValue || totalVal),
+          verificationCode: rawMed?.invoice?.verificationCode || '-',
+          observations: rawMed?.invoice?.observations || bulletin.notes || 'Fatura de Serviços de Alocação de Veículos',
+        },
+      },
+      extraTrips: rawMed?.extraTrips || [],
+      excessKmItems: rawMed?.excessKmItems || [],
+      deductions: rawMed?.deductions || [],
+      partesDiarias: rawMed?.partesDiarias || [],
+      totals: rawMed?.totals || {
+        leasedTotal: totalVal,
+        extraTripsTotal: 0,
+        excessKmTotal: 0,
+        deductionsTotal: 0,
+        grandTotal: totalVal,
+      },
+      statusLabel: bulletin.status === 'VALIDATED' ? 'REVISADA / LIBERADA' : 'EM ANÁLISE',
+      elaboratedBy: rawMed?.elaboratedBy || bulletin.elaboratedBy || 'José Ramos',
+      validatedBy: rawMed?.validatedBy || bulletin.validatedBy || 'Diretoria Financeira',
+    };
+  };
+
   // Funções de exportação
   const handleExportPDF = async (bulletin: MeasurementBulletin) => {
     try {
-      console.log(`📄 Iniciando geração de PDF para boletim: ${bulletin.id}`);
-      
-      const blob = await measurementService.generateBulletinPDF(bulletin.id);
-      
-      // Verificar se o blob é válido
-      if (!blob || blob.size === 0) {
-        throw new Error('PDF gerado está vazio');
-      }
-      
-      console.log('✅ PDF recebido, tamanho:', blob.size, 'bytes');
-      console.log('📄 Tipo do blob:', blob.type);
-      
-      // Criar URL do blob
-      const url = window.URL.createObjectURL(blob);
-      
-      // Criar link de download
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `boletim_medicao_${bulletin.id}.pdf`;
-      link.style.display = 'none';
-      
-      // Adicionar ao DOM, clicar e remover
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      // Limpar URL do blob
-      setTimeout(() => {
-        window.URL.revokeObjectURL(url);
-      }, 1000);
-      
+      ContractMeasurementPdfService.generateMeasurementPDF(buildLocalPdfExcelPayload(bulletin));
       toast({
-        title: "Sucesso",
-        description: `PDF gerado com sucesso! (${Math.round(blob.size / 1024)} KB)`,
+        title: "PDF p/ Faturamento & NF Gerado!",
+        description: `Espelho de medição e faturamento (${bulletin.companyName || bulletin.clientName}) aberto para impressão/PDF.`,
       });
     } catch (error) {
       console.error('❌ Erro ao gerar PDF:', error);
@@ -337,19 +451,10 @@ export default function MeasurementCompleteTable({
 
   const handleExportExcel = async (bulletin: MeasurementBulletin) => {
     try {
-      const blob = await measurementService.generateBulletinExcel(bulletin.id);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `boletim_medicao_${bulletin.id}.xlsx`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      
+      ContractMeasurementPdfService.generateMeasurementExcel(buildLocalPdfExcelPayload(bulletin));
       toast({
-        title: "Sucesso",
-        description: "Excel gerado com sucesso!",
+        title: "Planilha Excel (.xlsx) p/ Faturamento Gerada!",
+        description: "Arquivo Excel completo com aba de Faturamento & NFS-e exportado com sucesso!",
       });
     } catch (error) {
       console.error('Erro ao gerar Excel:', error);

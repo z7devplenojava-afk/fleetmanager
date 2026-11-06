@@ -33,6 +33,7 @@ import {
   MeasurementFilters 
 } from '@/types/measurement';
 import { measurementService } from '@/services/measurementService';
+import { ContractMeasurementPdfService } from '@/services/contractMeasurementPdfService';
 import { BulkDeleteDialog } from './BulkDeleteDialog';
 
 interface MeasurementSimpleTableProps {
@@ -248,43 +249,75 @@ const MeasurementSimpleTable: React.FC<MeasurementSimpleTableProps> = ({
     setShowBulkDeleteDialog(true);
   };
 
+  const buildSimplePdfExcelPayload = (bulletin: MeasurementBulletin) => {
+    const totalVal = Number(
+      bulletin.totalValue ||
+      bulletin.subtotal ||
+      bulletin.items?.reduce((s, i) => s + Number(i.totalValue || Number(i.quantity || 1) * Number(i.unitPrice || 0)), 0) ||
+      0
+    );
+    return {
+      client: {
+        id: String(bulletin.id),
+        clientName: bulletin.companyName || bulletin.clientName || 'Cliente Contratante',
+        cnpj: '00.000.000/0001-00',
+        contractNumber: bulletin.contractNumber || 'CT-LOCACAO',
+        measurementNumber: String(bulletin.measurementNumber || '001'),
+        periodStart: bulletin.periodStart,
+        periodEnd: bulletin.periodEnd,
+        dueDate: bulletin.periodEnd,
+        leasedVehicles: (bulletin.items || []).map((it: any, idx: number) => ({
+          id: `lv-${idx}`,
+          plate: 'FROTA',
+          description: it.description || 'Locação de Veículo',
+          route: bulletin.contractNumber || '-',
+          workingDays: 30,
+          stoppedDays: 0,
+          monthlyRate: Number(it.totalValue || Number(it.quantity || 1) * Number(it.unitPrice || 0)),
+          dailyRate: Number(it.unitPrice || 0) / 30,
+          periodValue: Number(it.totalValue || Number(it.quantity || 1) * Number(it.unitPrice || 0)),
+          observations: '',
+        })),
+        extraTrips: [],
+        excessKmItems: [],
+        deductions: [],
+        invoice: {
+          nfNumber: 'A EMITIR',
+          nfIssueDate: bulletin.periodEnd,
+          nfDueDate: bulletin.periodEnd,
+          grossValue: totalVal,
+          retentionISS: 0,
+          retentionINSS: 0,
+          retentionIR: 0,
+          netValue: totalVal,
+          verificationCode: '-',
+          observations: bulletin.notes || 'Fatura de Serviços de Alocação de Veículos',
+        },
+      },
+      extraTrips: [],
+      excessKmItems: [],
+      deductions: [],
+      partesDiarias: [],
+      totals: {
+        leasedTotal: totalVal,
+        extraTripsTotal: 0,
+        excessKmTotal: 0,
+        deductionsTotal: 0,
+        grandTotal: totalVal,
+      },
+      statusLabel: bulletin.status === 'VALIDATED' ? 'REVISADA / LIBERADA' : 'EM ANÁLISE',
+      elaboratedBy: bulletin.elaboratedBy || 'José Ramos',
+      validatedBy: bulletin.validatedBy || 'Diretoria Financeira',
+    };
+  };
+
   // Funções de exportação
   const handleExportPDF = async (bulletin: MeasurementBulletin) => {
     try {
-      console.log(`📄 Iniciando geração de PDF para boletim: ${bulletin.id}`);
-      
-      const blob = await measurementService.generateBulletinPDF(bulletin.id);
-      
-      // Verificar se o blob é válido
-      if (!blob || blob.size === 0) {
-        throw new Error('PDF gerado está vazio');
-      }
-      
-      console.log('✅ PDF recebido, tamanho:', blob.size, 'bytes');
-      console.log('📄 Tipo do blob:', blob.type);
-      
-      // Criar URL do blob
-      const url = window.URL.createObjectURL(blob);
-      
-      // Criar link de download
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `boletim_medicao_${bulletin.id}.pdf`;
-      link.style.display = 'none';
-      
-      // Adicionar ao DOM, clicar e remover
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      // Limpar URL do blob
-      setTimeout(() => {
-        window.URL.revokeObjectURL(url);
-      }, 1000);
-      
+      ContractMeasurementPdfService.generateMeasurementPDF(buildSimplePdfExcelPayload(bulletin));
       toast({
-        title: "Sucesso",
-        description: `PDF gerado com sucesso! (${Math.round(blob.size / 1024)} KB)`,
+        title: "PDF p/ Faturamento & NF Gerado!",
+        description: `Espelho de medição e faturamento gerado com sucesso!`,
       });
     } catch (error) {
       console.error('❌ Erro ao gerar PDF:', error);
@@ -298,19 +331,10 @@ const MeasurementSimpleTable: React.FC<MeasurementSimpleTableProps> = ({
 
   const handleExportExcel = async (bulletin: MeasurementBulletin) => {
     try {
-      const blob = await measurementService.generateBulletinExcel(bulletin.id);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `boletim_medicao_${bulletin.id}.xlsx`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      
+      ContractMeasurementPdfService.generateMeasurementExcel(buildSimplePdfExcelPayload(bulletin));
       toast({
-        title: "Sucesso",
-        description: "Excel gerado com sucesso!",
+        title: "Planilha Excel (.xlsx) p/ Faturamento Gerada!",
+        description: "Excel completo com aba de Faturamento & NFS-e gerado com sucesso!",
       });
     } catch (error) {
       console.error('Erro ao gerar Excel:', error);

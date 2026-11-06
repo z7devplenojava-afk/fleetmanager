@@ -57,7 +57,10 @@ export const ContasAReceberTable: React.FC<ContasAReceberTableProps> = ({
     const matchesSearch = 
       (conta.descricao?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
       (conta.cliente?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-      (conta.numeroFatura?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
+      (conta.numeroFatura?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+      (conta.contrato?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+      (conta.measurementNumber?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+      (conta.placasVeiculos?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
     
     const matchesStatus = statusFilter === 'TODOS' || conta.status === statusFilter;
     const matchesTipo = tipoFilter === 'TODOS' || conta.tipo === tipoFilter;
@@ -248,11 +251,13 @@ export const ContasAReceberTable: React.FC<ContasAReceberTableProps> = ({
                           <Users size={14} className="text-gray-400" />
                           {conta.cliente || '-'}
                         </div>
-                        {(conta.obra || conta.contrato || conta.measurementNumber) && (
+                        {(conta.obra || conta.contrato || conta.measurementNumber || conta.placasVeiculos || conta.periodoLocacao) && (
                           <div className="text-xs text-gray-400 mt-0.5 flex flex-wrap gap-2">
                             {conta.measurementNumber && <span className="text-purple-400 font-semibold">Medição #{conta.measurementNumber}</span>}
                             {conta.obra && <span>Obra: {conta.obra}</span>}
                             {conta.contrato && <span>Contrato: {conta.contrato}</span>}
+                            {conta.periodoLocacao && <span className="text-cyan-400">Período: {conta.periodoLocacao}</span>}
+                            {conta.placasVeiculos && <span className="text-amber-400 font-mono">Placas: {conta.placasVeiculos}</span>}
                           </div>
                         )}
                       </div>

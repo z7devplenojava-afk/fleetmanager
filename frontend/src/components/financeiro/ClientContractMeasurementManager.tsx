@@ -1078,12 +1078,16 @@ export const ClientContractMeasurementManager: React.FC = () => {
           nfIssueDate: med.invoice?.nfIssueDate || invoice.issueDate || med.periodEnd,
           nfDueDate: med.invoice?.nfDueDate || med.dueDate || med.periodEnd,
           grossValue: Number(med.totals?.grandTotal || 0),
-          retentionISS: Number(med.invoice?.retentionISS || 0),
-          retentionINSS: Number(med.invoice?.retentionINSS || 0),
-          retentionIR: Number(med.invoice?.retentionIR || 0),
+          retentionISS: Number(med.invoice?.retentionISS ?? ((Number(med.totals?.grandTotal || 0) * (invoice.issRatePercentage || 2.5)) / 100)),
+          retentionINSS: Number(med.invoice?.retentionINSS ?? invoice.inssRetention ?? 0),
+          retentionIR: Number(med.invoice?.retentionIR ?? 0),
+          retentionPIS: Number(med.invoice?.retentionPIS ?? invoice.pisRetention ?? 0),
+          retentionCOFINS: Number(med.invoice?.retentionCOFINS ?? invoice.cofinsRetention ?? 0),
+          retentionCSLL: Number(med.invoice?.retentionCSLL ?? invoice.csllRetention ?? 0),
           netValue: Number(med.invoice?.netValue || med.totals?.grandTotal || 0),
           verificationCode: med.invoice?.verificationCode || invoice.accessKey || '-',
-          observations: med.invoice?.observations || `Medição #${med.measurementNumber} - ${med.contractNumber}`,
+          observations: med.invoice?.observations || `Fatura de Serviços de Alocação / Locação de Veículos — Medição #${med.measurementNumber} (${med.contractNumber})`,
+          providerCompany: defaultProviderCompany,
         },
       },
       extraTrips: (med.extraTrips || []).map((et: any, idx: number) => ({
@@ -1458,11 +1462,145 @@ export const ClientContractMeasurementManager: React.FC = () => {
     setGeneratedMeasurements(nextList);
     try {
       localStorage.setItem('fluxbus_generated_measurements_v1', JSON.stringify(nextList));
+      contasAReceberService.syncMeasurementsFromStorage();
       window.dispatchEvent(new CustomEvent('fluxbus:measurements-updated', { detail: nextList }));
     } catch (e) {
       console.warn('Erro ao salvar medições no localStorage:', e);
     }
   };
+
+  // Sincronização automática da apuração ativa (Veículos Alocados, Viagens Extras, KM Excedente, Deduções e NF)
+  // com a lista de Medições Geradas, KPIs do Topo e Contas a Receber
+  useEffect(() => {
+    try {
+      const netVal = Math.max(
+        0,
+        totalGrossMeasurement - (Number(invoice.pisRetention || 0) + Number(invoice.cofinsRetention || 0) + Number(invoice.csllRetention || 0) + Number(invoice.inssRetention || 0))
+      );
+
+      setGeneratedMeasurements(prev => {
+        const existingIdx = prev.findIndex(
+          m => m.clientId === selectedClientId && m.contractNumber === currentClient.contractNumber
+        );
+
+        const updatedSnapshot: GeneratedContractMeasurement = {
+          id: existingIdx >= 0 ? prev[existingIdx].id : `med-${selectedClientId}-${currentClient.measurementNumber}`,
+          measurementNumber: existingIdx >= 0 ? prev[existingIdx].measurementNumber : (currentClient.measurementNumber || '001'),
+          clientId: selectedClientId,
+          clientName: currentClient.clientName,
+          cnpj: currentClient.clientCnpj,
+          contractNumber: currentClient.contractNumber,
+          obraName: existingIdx >= 0 ? prev[existingIdx].obraName : currentClient.clientName,
+          periodStart: currentClient.periodStart,
+          periodEnd: currentClient.periodEnd,
+          dueDate: currentClient.dueDate,
+          status: existingIdx >= 0 ? prev[existingIdx].status : 'VALIDATED',
+          elaboratedBy: existingIdx >= 0 ? prev[existingIdx].elaboratedBy : 'José Ramos',
+          validatedBy: existingIdx >= 0 ? prev[existingIdx].validatedBy : 'Diretoria Financeira',
+          createdAt: existingIdx >= 0 ? prev[existingIdx].createdAt : new Date().toISOString(),
+          leasedVehicles: currentLeasedVehicles.map(v => ({
+            id: v.id,
+            plate: v.plate,
+            vehicleModel: v.vehicleModel,
+            providerCompany: v.providerCompany || defaultProviderCompany,
+            description: v.description,
+            route: v.route,
+            workingDays: v.workingDays,
+            stoppedDays: 0,
+            monthlyRate: v.monthlyRate,
+            dailyRate: v.dailyRate,
+            periodValue: v.totalPeriod,
+            observations: v.observations || '',
+          })),
+          partesDiarias: currentPartesDiarias,
+          extraTrips: currentExtraTrips.map(et => ({
+            id: et.id,
+            date: et.date,
+            plate: et.plate,
+            route: et.route,
+            vehicleType: et.vehicleType,
+            tripCost: et.total || et.tripCost,
+          })),
+          excessKmItems: currentExcessKmItems.map(ek => ({
+            id: ek.id,
+            periodMonth: ek.periodMonth,
+            plate: ek.plate,
+            franchiseKm: ek.franchiseKm,
+            totalKmDriven: ek.totalKmDriven,
+            disregardedKm: ek.disregardedKm,
+            consideredKm: ek.consideredKm,
+            excessKm: ek.excessKm,
+            excessKmRate: ek.excessKmRate,
+            totalValue: ek.totalExcessValue,
+          })),
+          deductions: currentDeductions.map(d => ({
+            id: d.id,
+            date: d.date,
+            plate: d.plate,
+            description: d.description,
+            type: d.type,
+            value: d.value,
+          })),
+          invoice: {
+            nfNumber: invoice.invoiceNumber || 'A EMITIR',
+            nfIssueDate: invoice.issueDate,
+            nfDueDate: invoice.dueDate || currentClient.dueDate,
+            verificationCode: invoice.accessKey,
+            grossValue: totalGrossMeasurement,
+            retentionPIS: invoice.pisRetention,
+            retentionCOFINS: invoice.cofinsRetention,
+            retentionCSLL: invoice.csllRetention,
+            retentionINSS: invoice.inssRetention,
+            retentionISS: Number(((totalGrossMeasurement * (invoice.issRatePercentage || 2.5)) / 100).toFixed(2)),
+            netValue: netVal || totalGrossMeasurement,
+            observations: `Fatura de Serviços de Alocação de Veículos — ${currentClient.clientName} (${currentClient.periodStart} a ${currentClient.periodEnd}).`,
+          },
+          totals: {
+            leasedTotal: totalLeasedVehicles,
+            extraTripsTotal: totalExtraTrips,
+            excessKmTotal: totalExcessKm,
+            deductionsTotal: totalDeductions,
+            grandTotal: totalGrossMeasurement,
+          },
+        };
+
+        let nextList: GeneratedContractMeasurement[];
+        if (existingIdx >= 0) {
+          nextList = [...prev];
+          nextList[existingIdx] = updatedSnapshot;
+        } else if (totalGrossMeasurement > 0 || currentLeasedVehicles.length > 0) {
+          nextList = [updatedSnapshot, ...prev];
+        } else {
+          return prev;
+        }
+
+        try {
+          localStorage.setItem('fluxbus_generated_measurements_v1', JSON.stringify(nextList));
+          contasAReceberService.syncMeasurementsFromStorage();
+          window.dispatchEvent(new CustomEvent('fluxbus:measurements-updated', { detail: nextList }));
+        } catch {
+          // ignore
+        }
+        return nextList;
+      });
+    } catch (err) {
+      console.warn('Erro ao sincronizar medição ativa:', err);
+    }
+  }, [
+    selectedClientId,
+    leasedVehicles,
+    extraTrips,
+    excessKmItems,
+    deductions,
+    invoice.invoiceNumber,
+    invoice.issueDate,
+    invoice.dueDate,
+    invoice.pisRetention,
+    invoice.cofinsRetention,
+    invoice.csllRetention,
+    invoice.inssRetention,
+    totalGrossMeasurement,
+  ]);
 
   // Sincronizar medições geradas pelo Wizard Modal ou vindas do Backend
   useEffect(() => {
@@ -1831,34 +1969,54 @@ export const ClientContractMeasurementManager: React.FC = () => {
   };
 
   const handleExportMeasurementItemPdf = (med: GeneratedContractMeasurement) => {
-    if (med.status !== 'VALIDATED') {
-      toast({
-        title: 'Medição ainda não Revisada/Liberada',
-        description: 'Clique no botão "Revisar / Liberar" na linha da medição para aprovar e liberar a geração do PDF.',
-        variant: 'destructive',
-      });
-      return;
-    }
     ContractMeasurementPdfService.generateMeasurementPDF(buildPdfExcelOptionsFromMeasurement(med));
     toast({
-      title: 'PDF Completo Gerado!',
-      description: `Boletim Nº ${med.measurementNumber} (${med.clientName}) gerado com todas as partes diárias, viagens extras e resumo do período.`,
+      title: 'PDF p/ Faturamento & Nota Fiscal Gerado!',
+      description: `Boletim Nº ${med.measurementNumber} (${med.clientName}) gerado com todas as informações para faturar ao cliente, emitir a NFS-e e espelho de alocação de veículos.`,
     });
   };
 
   const handleExportMeasurementItemExcel = (med: GeneratedContractMeasurement) => {
-    if (med.status !== 'VALIDATED') {
-      toast({
-        title: 'Medição ainda não Revisada/Liberada',
-        description: 'Clique no botão "Revisar / Liberar" na linha da medição para aprovar e liberar a geração do Excel.',
-        variant: 'destructive',
-      });
-      return;
-    }
     ContractMeasurementPdfService.generateMeasurementExcel(buildPdfExcelOptionsFromMeasurement(med));
     toast({
-      title: 'Arquivo Excel (.xlsx) Gerado!',
-      description: `Planilha completa da Medição Nº ${med.measurementNumber} (${med.clientName}) com partes diárias e viagens extras exportada com sucesso.`,
+      title: 'Planilha Excel (.xlsx) p/ Faturamento Gerada!',
+      description: `Planilha completa da Medição Nº ${med.measurementNumber} (${med.clientName}) com aba de Faturamento & NFS-e, veículos alocados, partes diárias e viagens extras exportada com sucesso.`,
+    });
+  };
+
+  const handleSendMeasurementItemToReceivables = async (med: GeneratedContractMeasurement) => {
+    const platesList = (med.leasedVehicles || []).map((v: any) => v.plate).filter(Boolean).join(', ');
+    const grossVal = Number(med.totals?.grandTotal || med.invoice?.grossValue || 0);
+    const netVal = Number(med.invoice?.netValue || grossVal);
+
+    await contasAReceberService.registerReceivableFromMeasurement({
+      measurementId: String(med.id),
+      measurementNumber: String(med.measurementNumber || '001'),
+      clientId: med.clientId,
+      clientName: med.clientName,
+      clientCnpj: med.cnpj,
+      contractNumber: med.contractNumber,
+      obraName: med.obraName || med.clientName,
+      periodStart: med.periodStart,
+      periodEnd: med.periodEnd,
+      dueDate: med.dueDate || med.invoice?.nfDueDate || med.periodEnd,
+      grossAmount: grossVal,
+      netAmount: netVal,
+      nfseNumber: med.invoice?.nfNumber && med.invoice.nfNumber !== 'A EMITIR' ? med.invoice.nfNumber : undefined,
+      nfseKey: med.invoice?.verificationCode && med.invoice.verificationCode !== '-' ? med.invoice.verificationCode : undefined,
+      nfseIssueDate: med.invoice?.nfIssueDate,
+      pisRetido: Number(med.invoice?.retentionPIS || 0),
+      cofinsRetido: Number(med.invoice?.retentionCOFINS || 0),
+      csllRetido: Number(med.invoice?.retentionCSLL || 0),
+      inssRetido: Number(med.invoice?.retentionINSS || 0),
+      issValor: Number(med.invoice?.retentionISS || 0),
+      placasVeiculos: platesList || 'FROTA ALOCADA',
+      observations: `Fatura de Serviços de Alocação de Veículos — Medição #${med.measurementNumber} (${med.contractNumber})`,
+    });
+
+    toast({
+      title: '⚡ Disponível no Contas a Receber (Financeiro)!',
+      description: `Fatura da Medição Nº ${med.measurementNumber} (${med.clientName} — R$ ${netVal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}) lançada e sincronizada na tela de Contas a Receber.`,
     });
   };
 
@@ -2286,11 +2444,42 @@ export const ClientContractMeasurementManager: React.FC = () => {
     });
   };
 
-  const handleSendToReceivables = () => {
+  const handleSendToReceivables = async () => {
+    const platesList = currentLeasedVehicles.map(v => v.plate).filter(Boolean).join(', ');
+    const netVal = Math.max(
+      0,
+      totalGrossMeasurement - (Number(invoice.pisRetention || 0) + Number(invoice.cofinsRetention || 0) + Number(invoice.csllRetention || 0) + Number(invoice.inssRetention || 0))
+    );
+
+    await contasAReceberService.registerReceivableFromMeasurement({
+      measurementId: `med-${selectedClientId}-${currentClient.measurementNumber}`,
+      measurementNumber: currentClient.measurementNumber,
+      clientId: selectedClientId,
+      clientName: currentClient.clientName,
+      clientCnpj: currentClient.clientCnpj,
+      contractNumber: currentClient.contractNumber,
+      obraName: currentClient.clientName,
+      periodStart: currentClient.periodStart,
+      periodEnd: currentClient.periodEnd,
+      dueDate: invoice.dueDate || currentClient.dueDate,
+      grossAmount: totalGrossMeasurement,
+      netAmount: netVal || totalGrossMeasurement,
+      nfseNumber: invoice.invoiceNumber && invoice.invoiceNumber !== 'A EMITIR' ? invoice.invoiceNumber : undefined,
+      nfseKey: invoice.accessKey && invoice.accessKey !== '-' ? invoice.accessKey : undefined,
+      nfseIssueDate: invoice.issueDate,
+      pisRetido: Number(invoice.pisRetention || 0),
+      cofinsRetido: Number(invoice.cofinsRetention || 0),
+      csllRetido: Number(invoice.csllRetention || 0),
+      inssRetido: Number(invoice.inssRetention || 0),
+      issValor: Number(((totalGrossMeasurement * (invoice.issRatePercentage || 2.5)) / 100).toFixed(2)),
+      placasVeiculos: platesList || 'FROTA ALOCADA',
+      observations: `Fatura de Serviços de Alocação de Veículos — Medição #${currentClient.measurementNumber} (${currentClient.contractNumber})`,
+    });
+
     setInvoice({ ...invoice, status: 'SENT_TO_RECEIVABLES' });
     toast({
-      title: '⚡ Lançado no Contas a Receber!',
-      description: `Nota Fiscal Nº ${invoice.invoiceNumber} (R$ ${totalGrossMeasurement.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}) enviada para cobrança e geração de boleto.`,
+      title: '⚡ Fatura Disponível no Contas a Receber (Financeiro)!',
+      description: `Nota Fiscal / Fatura Nº ${invoice.invoiceNumber || currentClient.measurementNumber} (${currentClient.clientName} — R$ ${(netVal || totalGrossMeasurement).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}) lançada com sucesso na tela de Contas a Receber.`,
     });
   };
 
@@ -2348,6 +2537,36 @@ export const ClientContractMeasurementManager: React.FC = () => {
                   <Clock className="w-3.5 h-3.5 text-emerald-400" />
                   Vencimento NF: <span className="text-emerald-400 font-bold">{currentClient.dueDate}</span>
                 </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleGenerateMeasurementPdf}
+                  title="Gerar PDF completo para Faturamento ao Cliente e Emissão da Nota Fiscal (NFS-e)"
+                  className="bg-red-600/90 hover:bg-red-500 text-white font-bold text-xs shadow"
+                >
+                  <FileText className="w-3.5 h-3.5 mr-1.5" /> PDF p/ Faturar & NF
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleGenerateMeasurementExcel}
+                  title="Gerar Planilha Excel (.xlsx) com todas as abas e Espelho da Nota Fiscal"
+                  className="bg-emerald-600/90 hover:bg-emerald-500 text-white font-bold text-xs shadow"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 mr-1.5" /> Excel (.xlsx) p/ Faturar
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleSendToReceivables}
+                  title="Disponibilizar valores para o Financeiro na tela de Contas a Receber"
+                  className="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-extrabold text-xs shadow"
+                >
+                  <DollarSign className="w-3.5 h-3.5 mr-1" /> Enviar p/ Contas a Receber
+                </Button>
               </div>
             </div>
           </div>
@@ -2548,43 +2767,53 @@ export const ClientContractMeasurementManager: React.FC = () => {
                         </TableCell>
 
                         <TableCell className="text-center">
-                          {isReviewed ? (
-                            <div className="flex items-center justify-center gap-1.5">
-                              <Button
-                                type="button"
-                                size="sm"
-                                onClick={() => handleExportMeasurementItemPdf(med)}
-                                title="Gerar PDF Completo (Frota, Partes Diárias, Viagens Extras e NF)"
-                                className="h-7 px-2.5 bg-red-600/90 hover:bg-red-500 text-white font-bold text-[11px] flex items-center gap-1 shadow"
-                              >
-                                <FileText className="w-3.5 h-3.5" /> PDF
-                              </Button>
-                              <Button
-                                type="button"
-                                size="sm"
-                                onClick={() => handleExportMeasurementItemExcel(med)}
-                                title="Baixar Planilha Excel (.xlsx) Completa do Período"
-                                className="h-7 px-2.5 bg-emerald-600/90 hover:bg-emerald-500 text-white font-bold text-[11px] flex items-center gap-1 shadow"
-                              >
-                                <FileSpreadsheet className="w-3.5 h-3.5" /> Excel
-                              </Button>
-                            </div>
-                          ) : (
+                          <div className="flex flex-wrap items-center justify-center gap-1.5">
                             <Button
                               type="button"
                               size="sm"
-                              variant="outline"
-                              onClick={() => handleValidateAndReleaseMeasurement(med)}
-                              title="Clique para Revisar/Liberar a medição e habilitar a geração do PDF e Excel"
-                              className="h-7 px-2.5 border-amber-500/40 bg-amber-500/10 hover:bg-emerald-600 hover:text-white hover:border-emerald-500 text-amber-300 text-[10px] font-bold"
+                              onClick={() => handleExportMeasurementItemPdf(med)}
+                              title="Gerar PDF Completo para Faturamento ao Cliente e Emissão da Nota Fiscal (NFS-e)"
+                              className="h-7 px-2.5 bg-red-600/90 hover:bg-red-500 text-white font-bold text-[11px] flex items-center gap-1 shadow"
                             >
-                              <CheckCircle className="w-3 h-3 mr-1" /> Revisar / Liberar p/ PDF & Excel
+                              <FileText className="w-3.5 h-3.5" /> PDF
                             </Button>
-                          )}
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={() => handleExportMeasurementItemExcel(med)}
+                              title="Baixar Planilha Excel (.xlsx) Completa p/ Faturamento e Nota Fiscal"
+                              className="h-7 px-2.5 bg-emerald-600/90 hover:bg-emerald-500 text-white font-bold text-[11px] flex items-center gap-1 shadow"
+                            >
+                              <FileSpreadsheet className="w-3.5 h-3.5" /> Excel
+                            </Button>
+                            {!isReviewed && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleValidateAndReleaseMeasurement(med)}
+                                title="Clique para marcar como Revisada/Liberada"
+                                className="h-7 px-2 border-amber-500/40 bg-amber-500/10 hover:bg-emerald-600 hover:text-white hover:border-emerald-500 text-amber-300 text-[10px] font-bold"
+                              >
+                                <CheckCircle className="w-3 h-3 mr-1" /> Liberar
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
 
                         <TableCell className="text-center">
                           <div className="flex items-center justify-center gap-1">
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => handleSendMeasurementItemToReceivables(med)}
+                              title="Disponibilizar no Contas a Receber (Financeiro)"
+                              className="h-8 w-8 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/15"
+                            >
+                              <DollarSign className="w-4 h-4" />
+                            </Button>
+
                             <Button
                               type="button"
                               size="icon"
