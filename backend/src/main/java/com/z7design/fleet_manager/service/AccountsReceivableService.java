@@ -715,6 +715,7 @@ public class AccountsReceivableService {
     /**
      * Sincroniza todas as medições de contratos, contratos de locação e turismo sem títulos no Contas a Receber.
      */
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED)
     public int syncAllReceivables() {
         log.info("Iniciando sincronização total de Medições e Contratos no Contas a Receber...");
         int count = 0;

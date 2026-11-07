@@ -197,11 +197,31 @@ public class MaterialRequisitionService {
         // Regra de Negócio: Apenas requisições pendentes podem ser excluídas
         if (req.getStatus() != MaterialRequisition.RequisitionStatus.PENDING_CHECK &&
             req.getStatus() != MaterialRequisition.RequisitionStatus.WAITING_QUOTES) {
-            throw new IllegalStateException("Apenas requisições pendentes podem ser excluídas. Esta requisição está em status '" + req.getStatus() + "'.");
+            throw new IllegalArgumentException("Apenas requisições pendentes podem ser excluídas. Esta requisição está em status '" + req.getStatus() + "'.");
         }
 
+        cleanupRequisitionDependencies(id);
         requisitionRepository.delete(req);
         log.info("🗑️ Requisição de Almoxarifado {} excluída com sucesso", id);
+    }
+
+    private void cleanupRequisitionDependencies(UUID requisitionId) {
+        try {
+            List<ProcurementPurchaseOrder> pos = purchaseOrderRepository.findByRequisitionId(requisitionId);
+            if (pos != null && !pos.isEmpty()) {
+                purchaseOrderRepository.deleteAll(pos);
+            }
+        } catch (Exception e) {
+            log.warn("Aviso ao limpar ordens de compra vinculadas à requisição {}: {}", requisitionId, e.getMessage());
+        }
+        try {
+            List<ProcurementQuoteComparison> comps = comparisonRepository.findByRequisitionId(requisitionId);
+            if (comps != null && !comps.isEmpty()) {
+                comparisonRepository.deleteAll(comps);
+            }
+        } catch (Exception e) {
+            log.warn("Aviso ao limpar cotações vinculadas à requisição {}: {}", requisitionId, e.getMessage());
+        }
     }
 
     @Transactional
@@ -217,6 +237,7 @@ public class MaterialRequisitionService {
 
                 if (req.getStatus() == MaterialRequisition.RequisitionStatus.PENDING_CHECK ||
                     req.getStatus() == MaterialRequisition.RequisitionStatus.WAITING_QUOTES) {
+                    cleanupRequisitionDependencies(id);
                     requisitionRepository.delete(req);
                     deleted++;
                 } else {

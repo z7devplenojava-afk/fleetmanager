@@ -108,3 +108,4 @@ public class VehicleInspectionDTO {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
+

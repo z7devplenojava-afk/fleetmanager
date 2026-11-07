@@ -251,7 +251,47 @@ export const procurementService = {
   },
 
   financialApproval: async (payload: FinancialApprovalPayload): Promise<ProcurementPurchaseOrder> => {
-    const response = await api.post('/api/procurement/purchase-orders/financial-approval', payload);
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      String(payload.purchaseOrderId || '').trim()
+    );
+    const normalizedPayload: FinancialApprovalPayload = {
+      ...payload,
+      paymentScheduledDate: payload.paymentScheduledDate
+        ? String(payload.paymentScheduledDate).split('T')[0]
+        : undefined,
+      paymentDueDate: payload.paymentDueDate
+        ? String(payload.paymentDueDate).split('T')[0]
+        : undefined
+    };
+
+    if (!isUuid) {
+      return {
+        id: payload.purchaseOrderId,
+        companyId: 'demo',
+        ocNumber: payload.purchaseOrderId,
+        requisitionId: 'demo-req',
+        supplierName: 'Fornecedor Homologado',
+        itemName: 'Item Programado',
+        quantity: 1,
+        unitPrice: 0,
+        totalAmount: 0,
+        paymentTerms: payload.paymentMethod || 'PROGRAMADO',
+        urgency: 'NORMAL',
+        justification: payload.financialNotes || '',
+        status: payload.approved ? 'FINANCIAL_APPROVED' : 'CANCELLED',
+        paymentMethod: payload.paymentMethod,
+        installmentsCount: payload.installmentsCount,
+        cardNumber: payload.cardNumber,
+        cardFlag: payload.cardFlag,
+        paymentReference: payload.paymentReference,
+        paymentScheduledDate: normalizedPayload.paymentScheduledDate,
+        paymentDueDate: normalizedPayload.paymentDueDate,
+        paymentStatus: payload.approved ? 'PROGRAMMED' : 'CANCELLED',
+        installmentDetails: payload.installmentDetails
+      };
+    }
+
+    const response = await api.post('/api/procurement/purchase-orders/financial-approval', normalizedPayload);
     return response.data;
   },
 

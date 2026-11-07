@@ -1053,7 +1053,7 @@ export const contasAReceberService = {
   async syncAll(): Promise<{ syncedCount: number; message: string }> {
     const localSynced = this.syncMeasurementsFromStorage();
     try {
-      const res = await api.post('/api/accounts-receivable/sync-all');
+      const res = await api.post('/api/accounts-receivable/sync-all', {}, { _silentError: true } as any);
       const backendCount = Number(res.data?.syncedCount || 0);
       const totalCount = backendCount + localSynced.length;
       return {

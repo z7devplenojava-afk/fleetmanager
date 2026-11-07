@@ -216,32 +216,55 @@ export const DEFAULT_FLEET_VEHICLES: Vehicle[] = [
 ];
 
 class FleetService {
-  // Veículos
-  async getVehicles(): Promise<Vehicle[]> {
-    console.log('🔍 FleetService - Buscando veículos...');
-    try {
-      let response;
-      try {
-        response = await api.get('/api/vehicles');
-      } catch (e) {
-        response = await api.get('/api/frota/vehicles');
-      }
-      
-      const list = Array.isArray(response?.data) 
-        ? response.data 
-        : (Array.isArray(response?.data?.content) ? response.data.content : []);
-      
-      if (list.length === 0) {
-        console.warn('⚠️ FleetService - Retorno vazio do backend. Aplicando frota operacional padrão.');
-        return DEFAULT_FLEET_VEHICLES;
-      }
+  private vehiclesCache: { data: Vehicle[]; timestamp: number } | null = null;
+  private vehiclesInFlight: Promise<Vehicle[]> | null = null;
+  private readonly CACHE_TTL_MS = 30000; // 30 segundos de cache de alta performance
 
-      console.log('✅ FleetService - Veículos carregados:', list.length);
-      return list;
-    } catch (error: any) {
-      console.error('❌ FleetService - Erro ao buscar veículos, aplicando fallback padrão:', error);
-      return DEFAULT_FLEET_VEHICLES;
+  public invalidateVehiclesCache(): void {
+    this.vehiclesCache = null;
+    this.vehiclesInFlight = null;
+  }
+
+  // Veículos
+  async getVehicles(forceRefresh = false): Promise<Vehicle[]> {
+    if (!forceRefresh && this.vehiclesCache && Date.now() - this.vehiclesCache.timestamp < this.CACHE_TTL_MS) {
+      return this.vehiclesCache.data;
     }
+    if (!forceRefresh && this.vehiclesInFlight) {
+      return this.vehiclesInFlight;
+    }
+
+    this.vehiclesInFlight = (async () => {
+      console.log('🔍 FleetService - Buscando veículos...');
+      try {
+        let response;
+        try {
+          response = await api.get('/api/vehicles');
+        } catch (e) {
+          response = await api.get('/api/frota/vehicles');
+        }
+        
+        const list = Array.isArray(response?.data) 
+          ? response.data 
+          : (Array.isArray(response?.data?.content) ? response.data.content : []);
+        
+        if (list.length === 0) {
+          console.warn('⚠️ FleetService - Retorno vazio do backend. Aplicando frota operacional padrão.');
+          return DEFAULT_FLEET_VEHICLES;
+        }
+
+        console.log('✅ FleetService - Veículos carregados:', list.length);
+        this.vehiclesCache = { data: list, timestamp: Date.now() };
+        return list;
+      } catch (error: any) {
+        console.error('❌ FleetService - Erro ao buscar veículos, aplicando fallback padrão:', error);
+        return DEFAULT_FLEET_VEHICLES;
+      } finally {
+        this.vehiclesInFlight = null;
+      }
+    })();
+
+    return this.vehiclesInFlight;
   }
 
   async getVehicle(id: string): Promise<Vehicle | null> {
@@ -251,21 +274,25 @@ class FleetService {
 
   async createVehicle(vehicle: Omit<Vehicle, 'id' | 'createdAt' | 'updatedAt'>): Promise<Vehicle> {
     const response = await api.post('/api/frota/vehicles', vehicle);
+    this.invalidateVehiclesCache();
     return response.data;
   }
 
   async updateVehicle(id: string, vehicle: Partial<Vehicle>): Promise<Vehicle> {
     const response = await api.put(`/api/frota/vehicles/${id}`, vehicle);
+    this.invalidateVehiclesCache();
     return response.data;
   }
 
   async deleteVehicle(id: string): Promise<void> {
     await api.delete(`/api/frota/vehicles/${id}`);
+    this.invalidateVehiclesCache();
   }
 
   /** Exclusão em massa (soft delete). Retorna { requested, deleted }. */
   async bulkDeleteVehicles(ids: string[]): Promise<{ requested: number; deleted: number }> {
     const response = await api.post('/api/frota/vehicles/bulk-delete', ids);
+    this.invalidateVehiclesCache();
     return response.data;
   }
 

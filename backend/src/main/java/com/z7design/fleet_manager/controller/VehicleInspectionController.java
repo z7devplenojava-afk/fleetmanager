@@ -83,3 +83,4 @@ public class VehicleInspectionController {
         return ResponseEntity.ok(Map.of("nextRegistryNumber", next));
     }
 }
+

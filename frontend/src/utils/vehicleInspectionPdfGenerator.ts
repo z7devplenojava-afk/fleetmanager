@@ -458,3 +458,4 @@ export async function downloadVehicleInspectionPDF(
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+

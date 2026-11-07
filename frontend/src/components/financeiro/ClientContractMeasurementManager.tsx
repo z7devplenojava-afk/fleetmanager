@@ -1491,13 +1491,15 @@ export const ClientContractMeasurementManager: React.FC = () => {
 
   const persistGeneratedMeasurements = (nextList: GeneratedContractMeasurement[]) => {
     setGeneratedMeasurements(nextList);
-    try {
-      localStorage.setItem('fluxbus_generated_measurements_v1', JSON.stringify(nextList));
-      contasAReceberService.syncMeasurementsFromStorage();
-      window.dispatchEvent(new CustomEvent('fluxbus:measurements-updated', { detail: nextList }));
-    } catch (e) {
-      console.warn('Erro ao salvar medições no localStorage:', e);
-    }
+    setTimeout(() => {
+      try {
+        localStorage.setItem('fluxbus_generated_measurements_v1', JSON.stringify(nextList));
+        contasAReceberService.syncMeasurementsFromStorage();
+        window.dispatchEvent(new CustomEvent('fluxbus:measurements-updated', { detail: nextList }));
+      } catch (e) {
+        console.warn('Erro ao salvar medições no localStorage:', e);
+      }
+    }, 0);
   };
 
   // Sincronização automática da apuração ativa (Veículos Alocados, Viagens Extras, KM Excedente, Deduções e NF)
@@ -1605,13 +1607,17 @@ export const ClientContractMeasurementManager: React.FC = () => {
           return prev;
         }
 
-        try {
-          localStorage.setItem('fluxbus_generated_measurements_v1', JSON.stringify(nextList));
-          contasAReceberService.syncMeasurementsFromStorage();
-          window.dispatchEvent(new CustomEvent('fluxbus:measurements-updated', { detail: nextList }));
-        } catch {
-          // ignore
-        }
+        // Defer side effects outside of the synchronous state updater function
+        setTimeout(() => {
+          try {
+            localStorage.setItem('fluxbus_generated_measurements_v1', JSON.stringify(nextList));
+            contasAReceberService.syncMeasurementsFromStorage();
+            window.dispatchEvent(new CustomEvent('fluxbus:measurements-updated', { detail: nextList }));
+          } catch {
+            // ignore
+          }
+        }, 0);
+
         return nextList;
       });
     } catch (err) {

@@ -106,7 +106,10 @@ export const FinancialPaymentProgrammingModal: React.FC<FinancialPaymentProgramm
         setPaymentReference(purchaseOrder.paymentReference);
       }
       if (purchaseOrder.paymentScheduledDate) {
-        setScheduledDate(purchaseOrder.paymentScheduledDate);
+        setScheduledDate(String(purchaseOrder.paymentScheduledDate).split('T')[0]);
+      }
+      if (purchaseOrder.paymentDueDate) {
+        setDueDate(String(purchaseOrder.paymentDueDate).split('T')[0]);
       }
       if (purchaseOrder.financialNotes) {
         setFinancialNotes(purchaseOrder.financialNotes);
@@ -178,6 +181,9 @@ export const FinancialPaymentProgrammingModal: React.FC<FinancialPaymentProgramm
         schedule: installmentsSchedule
       });
 
+      const normalizedScheduledDate = scheduledDate ? String(scheduledDate).split('T')[0] : undefined;
+      const normalizedDueDate = dueDate ? String(dueDate).split('T')[0] : undefined;
+
       const payload: FinancialApprovalPayload = {
         purchaseOrderId: purchaseOrder.id,
         approved: true,
@@ -187,8 +193,8 @@ export const FinancialPaymentProgrammingModal: React.FC<FinancialPaymentProgramm
         cardNumber: resolvedCardNumber,
         cardFlag,
         paymentReference: finalReference,
-        paymentScheduledDate: scheduledDate,
-        paymentDueDate: dueDate,
+        paymentScheduledDate: normalizedScheduledDate,
+        paymentDueDate: normalizedDueDate,
         installmentDetails: installmentDetailsJson
       };
 

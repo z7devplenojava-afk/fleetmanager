@@ -148,7 +148,7 @@ public class RentalInvoiceService {
     /**
      * Gera/atualiza os títulos do Contas a Receber de todas as faturas de locação já existentes.
      */
-    @Transactional
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED)
     public int syncAllReceivables() {
         int created = 0;
         for (RentalInvoice invoice : rentalInvoiceRepository.findAll()) {

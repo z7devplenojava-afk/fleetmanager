@@ -654,3 +654,4 @@ export const VehicleInspectionModal: React.FC<VehicleInspectionModalProps> = ({
     </>
   );
 };
+

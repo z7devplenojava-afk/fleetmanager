@@ -10,3 +10,4 @@ ALTER TABLE vehicle_inspections
 -- Garantir índice para busca rápida por placa e por número de registro
 CREATE INDEX IF NOT EXISTS idx_vehicle_inspections_plate ON vehicle_inspections(vehicle_plate);
 CREATE INDEX IF NOT EXISTS idx_vehicle_inspections_reg_num ON vehicle_inspections(registry_number);
+

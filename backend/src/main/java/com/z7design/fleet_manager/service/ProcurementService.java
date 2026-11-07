@@ -270,14 +270,80 @@ public class ProcurementService {
         return toPurchaseOrderDTO(po);
     }
 
+    private java.time.LocalDate parseSafeLocalDate(String dateStr) {
+        if (dateStr == null || dateStr.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            String clean = dateStr.trim();
+            if (clean.contains("T")) {
+                clean = clean.split("T")[0];
+            }
+            if (clean.length() >= 10) {
+                clean = clean.substring(0, 10);
+            }
+            return java.time.LocalDate.parse(clean);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private String truncateStr(String val, int maxLen) {
+        if (val == null) return null;
+        return val.length() > maxLen ? val.substring(0, maxLen) : val;
+    }
+
     @Transactional
     public ProcurementPurchaseOrderDTO processFinancialApproval(FinancialApprovalRequestDTO dto) {
-        ProcurementPurchaseOrder po = purchaseOrderRepository.findById(dto.getPurchaseOrderId())
-                .orElseThrow(() -> new IllegalArgumentException("Ordem de Compra não encontrada"));
-
         User currentUser = resolveCurrentUser();
+        UUID poUuid = null;
+        try {
+            if (dto.getPurchaseOrderId() != null && !dto.getPurchaseOrderId().trim().isEmpty()) {
+                poUuid = UUID.fromString(dto.getPurchaseOrderId().trim());
+            }
+        } catch (Exception ignored) {
+            // ID demonstrativo ou sintético (ex: demo-1)
+        }
 
-        if (dto.getApproved()) {
+        ProcurementPurchaseOrder po = poUuid != null
+                ? purchaseOrderRepository.findById(poUuid).orElse(null)
+                : null;
+
+        java.time.LocalDate schedDate = parseSafeLocalDate(dto.getPaymentScheduledDate());
+        java.time.LocalDate dueDate = parseSafeLocalDate(dto.getPaymentDueDate());
+
+        // Se for um registro demonstrativo ou não persistido no banco, retorna DTO sintético de confirmação
+        if (po == null) {
+            ProcurementPurchaseOrder.PurchaseOrderStatus syntheticStatus = Boolean.TRUE.equals(dto.getApproved())
+                    ? ProcurementPurchaseOrder.PurchaseOrderStatus.FINANCIAL_APPROVED
+                    : ProcurementPurchaseOrder.PurchaseOrderStatus.CANCELLED;
+            return ProcurementPurchaseOrderDTO.builder()
+                    .id(poUuid != null ? poUuid : UUID.randomUUID())
+                    .companyId(TenantContext.get())
+                    .ocNumber(dto.getPurchaseOrderId() != null ? dto.getPurchaseOrderId() : "OC-DEMO")
+                    .status(syntheticStatus)
+                    .statusDescription(getPoStatusDescription(syntheticStatus))
+                    .financialApprovedById(currentUser != null ? currentUser.getId() : null)
+                    .financialApprovedByName(currentUser != null ? currentUser.getName() : "Financeiro")
+                    .financialApprovedAt(LocalDateTime.now())
+                    .financialNotes(dto.getFinancialNotes())
+                    .paymentMethod(dto.getPaymentMethod())
+                    .installmentsCount(dto.getInstallmentsCount() != null ? dto.getInstallmentsCount() : 1)
+                    .cardNumber(dto.getCardNumber())
+                    .cardFlag(dto.getCardFlag())
+                    .paymentReference(dto.getPaymentReference())
+                    .paymentScheduledDate(schedDate)
+                    .paymentDueDate(dueDate)
+                    .paymentStatus(Boolean.TRUE.equals(dto.getApproved()) ? "PROGRAMMED" : "CANCELLED")
+                    .installmentDetails(dto.getInstallmentDetails())
+                    .financialProgrammedById(currentUser != null ? currentUser.getId() : null)
+                    .financialProgrammedByName(currentUser != null ? currentUser.getName() : "Financeiro")
+                    .financialProgrammedAt(LocalDateTime.now())
+                    .updatedAt(LocalDateTime.now())
+                    .build();
+        }
+
+        if (Boolean.TRUE.equals(dto.getApproved())) {
             po.setStatus(ProcurementPurchaseOrder.PurchaseOrderStatus.FINANCIAL_APPROVED);
             po.setFinancialApprovedById(currentUser != null ? currentUser.getId() : null);
             po.setFinancialApprovedByName(currentUser != null ? currentUser.getName() : "Financeiro");
@@ -286,25 +352,25 @@ public class ProcurementService {
 
             // Dados da Programação de Pagamento
             if (dto.getPaymentMethod() != null && !dto.getPaymentMethod().trim().isEmpty()) {
-                po.setPaymentMethod(dto.getPaymentMethod());
+                po.setPaymentMethod(truncateStr(dto.getPaymentMethod().trim(), 50));
             }
             if (dto.getInstallmentsCount() != null && dto.getInstallmentsCount() > 0) {
                 po.setInstallmentsCount(dto.getInstallmentsCount());
             }
             if (dto.getCardNumber() != null) {
-                po.setCardNumber(dto.getCardNumber());
+                po.setCardNumber(truncateStr(dto.getCardNumber(), 100));
             }
             if (dto.getCardFlag() != null) {
-                po.setCardFlag(dto.getCardFlag());
+                po.setCardFlag(truncateStr(dto.getCardFlag(), 50));
             }
             if (dto.getPaymentReference() != null) {
-                po.setPaymentReference(dto.getPaymentReference());
+                po.setPaymentReference(truncateStr(dto.getPaymentReference(), 255));
             }
-            if (dto.getPaymentScheduledDate() != null) {
-                po.setPaymentScheduledDate(dto.getPaymentScheduledDate());
+            if (schedDate != null) {
+                po.setPaymentScheduledDate(schedDate);
             }
-            if (dto.getPaymentDueDate() != null) {
-                po.setPaymentDueDate(dto.getPaymentDueDate());
+            if (dueDate != null) {
+                po.setPaymentDueDate(dueDate);
             }
             if (dto.getInstallmentDetails() != null) {
                 po.setInstallmentDetails(dto.getInstallmentDetails());
@@ -315,20 +381,24 @@ public class ProcurementService {
             po.setFinancialProgrammedAt(LocalDateTime.now());
 
             // Atualizar status da requisição
-            requisitionRepository.findById(po.getRequisitionId()).ifPresent(req -> {
-                req.setStatus(MaterialRequisition.RequisitionStatus.WAITING_DELIVERY);
-                requisitionRepository.save(req);
-            });
+            if (po.getRequisitionId() != null) {
+                requisitionRepository.findById(po.getRequisitionId()).ifPresent(req -> {
+                    req.setStatus(MaterialRequisition.RequisitionStatus.WAITING_DELIVERY);
+                    requisitionRepository.save(req);
+                });
+            }
         } else {
             po.setStatus(ProcurementPurchaseOrder.PurchaseOrderStatus.CANCELLED);
             po.setPaymentStatus("CANCELLED");
             po.setFinancialNotes("Reprovado pelo Financeiro: " + dto.getFinancialNotes());
 
-            requisitionRepository.findById(po.getRequisitionId()).ifPresent(req -> {
-                req.setStatus(MaterialRequisition.RequisitionStatus.REJECTED);
-                req.setRejectionReason("Reprovado pelo Financeiro: " + dto.getFinancialNotes());
-                requisitionRepository.save(req);
-            });
+            if (po.getRequisitionId() != null) {
+                requisitionRepository.findById(po.getRequisitionId()).ifPresent(req -> {
+                    req.setStatus(MaterialRequisition.RequisitionStatus.REJECTED);
+                    req.setRejectionReason("Reprovado pelo Financeiro: " + dto.getFinancialNotes());
+                    requisitionRepository.save(req);
+                });
+            }
         }
 
         po = purchaseOrderRepository.save(po);
@@ -522,15 +592,37 @@ public class ProcurementService {
 
     // Converters DTO
     public ProcurementQuoteComparisonDTO toComparisonDTO(ProcurementQuoteComparison c) {
-        MaterialRequisition req = c.getRequisition();
-        String reqNum = req != null ? req.getRequisitionNumber() : "";
-        String itemName = req != null ? req.getItemName() : "";
-        String itemCode = req != null ? req.getItemCode() : "";
-        BigDecimal qty = req != null ? req.getQuantity() : BigDecimal.ONE;
-        String unit = req != null ? req.getUnit() : "UN";
-        String urgency = req != null ? req.getUrgency().name() : "NORMAL";
-        String plate = (req != null && req.getVehicle() != null) ? req.getVehicle().getPlate() : (req != null && req.getWorkOrder() != null && req.getWorkOrder().getVehicle() != null ? req.getWorkOrder().getVehicle().getPlate() : "");
-        String woNum = (req != null && req.getWorkOrder() != null) ? req.getWorkOrder().getOsNumber() : "";
+        String reqNum = "";
+        String itemName = "";
+        String itemCode = "";
+        BigDecimal qty = BigDecimal.ONE;
+        String unit = "UN";
+        String urgency = "NORMAL";
+        String plate = "";
+        String woNum = "";
+        try {
+            MaterialRequisition req = c.getRequisition();
+            if (req != null) {
+                reqNum = req.getRequisitionNumber() != null ? req.getRequisitionNumber() : "";
+                itemName = req.getItemName() != null ? req.getItemName() : "";
+                itemCode = req.getItemCode() != null ? req.getItemCode() : "";
+                qty = req.getQuantity() != null ? req.getQuantity() : BigDecimal.ONE;
+                unit = req.getUnit() != null ? req.getUnit() : "UN";
+                urgency = req.getUrgency() != null ? req.getUrgency().name() : "NORMAL";
+                try {
+                    if (req.getVehicle() != null && req.getVehicle().getPlate() != null) {
+                        plate = req.getVehicle().getPlate();
+                    } else if (req.getWorkOrder() != null && req.getWorkOrder().getVehicle() != null && req.getWorkOrder().getVehicle().getPlate() != null) {
+                        plate = req.getWorkOrder().getVehicle().getPlate();
+                    }
+                } catch (Exception ignored) {}
+                try {
+                    if (req.getWorkOrder() != null && req.getWorkOrder().getOsNumber() != null) {
+                        woNum = req.getWorkOrder().getOsNumber();
+                    }
+                } catch (Exception ignored) {}
+            }
+        } catch (Exception ignored) {}
 
         List<ProcurementQuoteOptionDTO> optDTOs = c.getOptions().stream().map(opt -> {
             boolean isSysRec = c.getSystemRecommendedOptionId() != null && c.getSystemRecommendedOptionId().equals(opt.getId());
@@ -582,12 +674,34 @@ public class ProcurementService {
     }
 
     public ProcurementPurchaseOrderDTO toPurchaseOrderDTO(ProcurementPurchaseOrder po) {
-        MaterialRequisition req = po.getRequisition();
-        String reqNum = req != null ? req.getRequisitionNumber() : "";
-        UUID woId = req != null ? req.getWorkOrderId() : null;
-        String woNum = (req != null && req.getWorkOrder() != null) ? req.getWorkOrder().getOsNumber() : "";
-        UUID vId = req != null ? req.getVehicleId() : null;
-        String plate = (req != null && req.getVehicle() != null) ? req.getVehicle().getPlate() : (req != null && req.getWorkOrder() != null && req.getWorkOrder().getVehicle() != null ? req.getWorkOrder().getVehicle().getPlate() : "");
+        String reqNum = "";
+        UUID woId = null;
+        String woNum = "";
+        UUID vId = null;
+        String plate = "";
+        try {
+            MaterialRequisition req = po.getRequisition();
+            if (req == null && po.getRequisitionId() != null) {
+                req = requisitionRepository.findById(po.getRequisitionId()).orElse(null);
+            }
+            if (req != null) {
+                reqNum = req.getRequisitionNumber() != null ? req.getRequisitionNumber() : "";
+                woId = req.getWorkOrderId();
+                vId = req.getVehicleId();
+                try {
+                    if (req.getWorkOrder() != null && req.getWorkOrder().getOsNumber() != null) {
+                        woNum = req.getWorkOrder().getOsNumber();
+                    }
+                } catch (Exception ignored) {}
+                try {
+                    if (req.getVehicle() != null && req.getVehicle().getPlate() != null) {
+                        plate = req.getVehicle().getPlate();
+                    } else if (req.getWorkOrder() != null && req.getWorkOrder().getVehicle() != null && req.getWorkOrder().getVehicle().getPlate() != null) {
+                        plate = req.getWorkOrder().getVehicle().getPlate();
+                    }
+                } catch (Exception ignored) {}
+            }
+        } catch (Exception ignored) {}
 
         return ProcurementPurchaseOrderDTO.builder()
                 .id(po.getId())

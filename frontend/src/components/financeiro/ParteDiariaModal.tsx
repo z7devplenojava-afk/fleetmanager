@@ -245,7 +245,16 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
       setWorkPosts(workPostList);
 
       const routeList = Array.isArray(rawRoutes) ? rawRoutes : (rawRoutes as any)?.content || [];
-      setRoutes(routeList);
+      const seenRouteNames = new Set<string>();
+      const uniqueRoutes: Route[] = [];
+      routeList.forEach((r: Route) => {
+        const name = (r.name || '').trim();
+        if (name && !seenRouteNames.has(name.toUpperCase())) {
+          seenRouteNames.add(name.toUpperCase());
+          uniqueRoutes.push(r);
+        }
+      });
+      setRoutes(uniqueRoutes);
 
       const getCargoText = (e: any): string => {
         if (!e) return '';
@@ -405,7 +414,8 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
     }
 
     let backendContracts: any[] = [];
-    if (targetClientId && !targetClientId.startsWith('preset-')) {
+    const isTargetUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(targetClientId || '');
+    if (targetClientId && !targetClientId.startsWith('preset-') && isTargetUuid) {
       try {
         const raw = await contractService.getContractsByClient(targetClientId).catch(async () => {
           return await contractService.getContracts({ clientId: targetClientId }).catch(() => []);
@@ -1653,8 +1663,8 @@ export const ParteDiariaModal: React.FC<ParteDiariaModalProps> = ({
                             <SelectValue placeholder="Ou escolha um itinerário/rota cadastrada na base..." />
                           </SelectTrigger>
                           <SelectContent className="bg-slate-900 border-slate-700 text-white max-h-52 overflow-y-auto">
-                            {routes.map(r => (
-                              <SelectItem key={r.id} value={r.name}>
+                            {routes.map((r, rIdx) => (
+                              <SelectItem key={r.id || `route-${rIdx}-${r.name}`} value={r.name}>
                                 {r.name} {r.distanceKm ? `(${r.distanceKm} km)` : ''}
                               </SelectItem>
                             ))}

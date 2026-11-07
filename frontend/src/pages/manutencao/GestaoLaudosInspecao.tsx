@@ -474,3 +474,4 @@ export const GestaoLaudosInspecao: React.FC = () => {
 };
 
 export default GestaoLaudosInspecao;
+

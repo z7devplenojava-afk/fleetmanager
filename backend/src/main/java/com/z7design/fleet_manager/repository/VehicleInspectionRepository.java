@@ -51,3 +51,4 @@ public interface VehicleInspectionRepository extends JpaRepository<VehicleInspec
     @Query("SELECT vi.registryNumber FROM VehicleInspection vi WHERE vi.registryNumber IS NOT NULL ORDER BY vi.createdAt DESC")
     List<String> findRecentRegistryNumbers(Pageable pageable);
 }
+

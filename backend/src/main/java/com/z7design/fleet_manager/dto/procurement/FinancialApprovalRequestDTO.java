@@ -6,9 +6,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDate;
-import java.util.UUID;
-
 @Data
 @Builder
 @NoArgsConstructor
@@ -16,7 +13,7 @@ import java.util.UUID;
 public class FinancialApprovalRequestDTO {
 
     @NotNull(message = "ID da ordem de compra é obrigatório")
-    private UUID purchaseOrderId;
+    private String purchaseOrderId;
 
     @NotNull(message = "Decisão de aprovação é obrigatória")
     private Boolean approved;
@@ -29,8 +26,8 @@ public class FinancialApprovalRequestDTO {
     private String cardNumber; // Ex: Final 4821 - Cartão Corporativo Bradesco
     private String cardFlag; // MASTERCARD, VISA, ELO, AMEX
     private String paymentReference; // Chave PIX, NSU/Autorização, Banco/Agência/Conta
-    private LocalDate paymentScheduledDate;
-    private LocalDate paymentDueDate;
+    private String paymentScheduledDate;
+    private String paymentDueDate;
     private String installmentDetails; // JSON com detalhamento das parcelas
 }
 
