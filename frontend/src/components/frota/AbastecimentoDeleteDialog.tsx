@@ -33,10 +33,11 @@ const AbastecimentoDeleteDialog: React.FC<AbastecimentoDeleteDialogProps> = ({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [confirmationText, setConfirmationText] = useState('');
+  const [reason, setReason] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const deleteFuelRecordMutation = useMutation({
-    mutationFn: (id: string) => fleetService.deleteFuelRecord(id),
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => fleetService.deleteFuelRecord(id, reason),
     onSuccess: () => {
       toast({
         title: "Sucesso",
@@ -48,6 +49,7 @@ const AbastecimentoDeleteDialog: React.FC<AbastecimentoDeleteDialogProps> = ({
       
       // Limpar formulário e fechar modal
       setConfirmationText('');
+      setReason('');
       onSuccess();
     },
     onError: (error: any) => {
@@ -61,11 +63,11 @@ const AbastecimentoDeleteDialog: React.FC<AbastecimentoDeleteDialogProps> = ({
   });
 
   const handleDelete = async () => {
-    if (!abastecimento) return;
+    if (!abastecimento || !reason.trim()) return;
     
     setIsLoading(true);
     try {
-      deleteFuelRecordMutation.mutate(abastecimento.id);
+      deleteFuelRecordMutation.mutate({ id: abastecimento.id, reason: reason.trim() });
     } finally {
       setIsLoading(false);
     }
@@ -73,10 +75,11 @@ const AbastecimentoDeleteDialog: React.FC<AbastecimentoDeleteDialogProps> = ({
 
   const handleClose = () => {
     setConfirmationText('');
+    setReason('');
     onClose();
   };
 
-  const isConfirmButtonDisabled = confirmationText !== 'EXCLUIR' || isLoading || deleteFuelRecordMutation.isPending;
+  const isConfirmButtonDisabled = confirmationText !== 'EXCLUIR' || !reason.trim() || reason.trim().length < 3 || isLoading || deleteFuelRecordMutation.isPending;
 
   if (!abastecimento) return null;
 
@@ -127,6 +130,25 @@ const AbastecimentoDeleteDialog: React.FC<AbastecimentoDeleteDialogProps> = ({
               <strong>Atenção:</strong> Esta ação irá excluir permanentemente o registro de abastecimento. 
               Todos os dados relacionados serão perdidos.
             </p>
+          </div>
+
+          {/* Motivo da Exclusão (Obrigatório) */}
+          <div className="space-y-1.5">
+            <Label htmlFor="deletion-reason" className="text-seguranca-lightgray text-sm font-semibold flex items-center justify-between">
+              <span>Motivo da Exclusão <span className="text-red-400">*</span></span>
+              <span className="text-[11px] text-gray-400 font-normal">Obrigatório p/ auditoria</span>
+            </Label>
+            <Input
+              id="deletion-reason"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Ex: Lançamento duplicado, erro na digitação de litros..."
+              className="border border-gray-600 bg-seguranca-black text-seguranca-lightgray hover:border-gray-500 focus:border-seguranca-yellow text-sm"
+              required
+            />
+            {reason.trim().length > 0 && reason.trim().length < 3 && (
+              <p className="text-xs text-amber-400">Informe um motivo mais descritivo (mínimo 3 caracteres).</p>
+            )}
           </div>
 
           {/* Confirmação */}

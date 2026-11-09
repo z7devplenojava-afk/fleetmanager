@@ -315,8 +315,8 @@ public class SecurityConfig {
                                                 // Endpoints de suppliers (fornecedores) - requerem permissÃƒÂµes
                                                 // administrativas
                                                 // ou financeiras
-                                                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/suppliers/**").authenticated()
-                                                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/cost-centers/**").authenticated()
+                                                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/suppliers", "/api/suppliers/**").authenticated()
+                                                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/cost-centers", "/api/cost-centers/**").authenticated()
                                                 .requestMatchers("/api/suppliers/**")
                                                 .hasAnyAuthority("SUPER_ADMIN", "ADMIN", "FINANCEIRO",
                                                                 "ROLE_SUPER_ADMIN", "ROLE_ADMIN", "ROLE_COMPANY_ADMIN",

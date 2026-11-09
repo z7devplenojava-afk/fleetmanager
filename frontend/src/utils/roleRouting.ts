@@ -12,7 +12,7 @@ export const isDriverUser = (user?: {
 
   const role = (user.role || '').toUpperCase().replace(/^ROLE_/, '').trim();
 
-  // Papéis administrativos, operacionais, gestores, fiscais e RH NUNCA devem ser tratados como motoristas
+  // Papéis administrativos, operacionais, manutenção, gestores, fiscais e RH NUNCA devem ser tratados como motoristas
   const nonDriverRoles = [
     'SUPER_ADMIN',
     'FLEX_ADMIN',
@@ -22,6 +22,7 @@ export const isDriverUser = (user?: {
     'OPERACIONAL',
     'TRAFFIC_MANAGER',
     'GESTOR_TRAFEGO',
+    'GESTOR_DE_TRAFEGO',
     'GERENTE_OPERACIONAL',
     'GERENTE',
     'COORDENADOR',
@@ -31,10 +32,26 @@ export const isDriverUser = (user?: {
     'COMERCIAL',
     'DIRETORIA',
     'DIRETOR',
+    'MANUTENCAO',
+    'GESTOR_DE_MANUTENCAO',
+    'GESTOR_MANUTENCAO',
+    'ENCARREGADO_DE_MANUTENCAO',
+    'ENCARREGADO_MANUTENCAO',
+    'ANALISTA_DE_FROTA',
+    'ANALISTA_FROTA',
     'MECANICO',
     'ENCARREGADO',
     'FISCAL',
-    'ASSISTENTE'
+    'ASSISTENTE',
+    'PORTARIA',
+    'COLABORADOR',
+    'EMPLOYEE',
+    'CLIENTE',
+    'CLIENT_USER',
+    'VIGILANTE',
+    'SUPERVISOR',
+    'AUXILIAR_ADMINISTRATIVO',
+    'AUXI_ADMINISTRATIVO'
   ];
 
   if (nonDriverRoles.includes(role)) {

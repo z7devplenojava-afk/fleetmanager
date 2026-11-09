@@ -1935,7 +1935,25 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
       || user?.role === 'RH' || user?.role === 'DEPARTAMENTO_PESSOAL';
   }, [isSuperAdmin, userRoles, user?.role]);
 
-  const filteredMainMenuItems = useMemo(() => filterItemsForRole(mainMenuItems), [filterItemsForRole]);
+  const filteredMainMenuItems = useMemo(() => {
+    const items = filterItemsForRole(mainMenuItems);
+    const driverOnlyIds = new Set([
+      'driver-dashboard',
+      'driver-checklist',
+      'driver-work-orders',
+      'driver-parte-diaria',
+      'driver-trips',
+      'driver-trip-execution',
+      'driver-controle-horas',
+      'meus-holerites',
+      'driver-mensagens',
+    ]);
+    if (!isMotorista) {
+      // Usuários que NÃO têm cargo/função de motorista nunca veem funcionalidades exclusivas de motorista
+      return items.filter(item => !driverOnlyIds.has(item.id));
+    }
+    return items;
+  }, [filterItemsForRole, isMotorista]);
   const filteredManutencaoItems = useMemo(() => filterItemsForRole(manutencaoMenuItems), [filterItemsForRole]);
   const filteredFinanceiroItems = useMemo(() => filterItemsForRole(financeiroMenuItems), [filterItemsForRole]);
   const filteredOperacionalItems = useMemo(

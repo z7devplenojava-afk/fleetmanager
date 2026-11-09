@@ -358,8 +358,9 @@ class FleetService {
     return response.data;
   }
 
-  async deleteFuelRecord(id: string): Promise<void> {
-    await api.delete(`/api/fuel-records/${id}`);
+  async deleteFuelRecord(id: string, reason?: string): Promise<void> {
+    const params = reason ? `?reason=${encodeURIComponent(reason)}` : '';
+    await api.delete(`/api/fuel-records/${id}${params}`);
   }
 
   // Multas

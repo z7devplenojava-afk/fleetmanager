@@ -497,10 +497,13 @@ public class FuelRecordController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteFuelRecord(@PathVariable("id") UUID id) {
+    public ResponseEntity<Void> deleteFuelRecord(
+            @PathVariable("id") UUID id,
+            @RequestParam(value = "reason", required = false) String reason) {
         if (!fuelRecordRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Registro de abastecimento nÃ£o encontrado com ID: " + id);
+            throw new ResourceNotFoundException("Registro de abastecimento não encontrado com ID: " + id);
         }
+        log.info("🗑️ Excluindo registro de abastecimento {} - Motivo da exclusão: {}", id, reason != null ? reason : "Não informado");
         fuelRecordRepository.deleteById(id);
         return ResponseEntity.noContent().build();
     }

@@ -64,8 +64,7 @@ public class TimeSheetService {
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     public byte[] generateMonthlyTimeSheet(UUID employeeId, int year, int month) {
-        Employee employee = employeeRepository.findById(employeeId)
-                .orElseThrow(() -> new RuntimeException("FuncionÃ¡rio nÃ£o encontrado: " + employeeId));
+        Employee employee = timeRecordService.resolveEmployee(employeeId);
 
         YearMonth yearMonth = YearMonth.of(year, month);
         LocalDate startDate = yearMonth.atDay(1);
@@ -186,8 +185,7 @@ public class TimeSheetService {
     }
 
     public byte[] generateMonthlyTimeSheetPdf(UUID employeeId, int year, int month) {
-        Employee employee = employeeRepository.findById(employeeId)
-                .orElseThrow(() -> new RuntimeException("Funcionário não encontrado: " + employeeId));
+        Employee employee = timeRecordService.resolveEmployee(employeeId);
 
         YearMonth yearMonth = YearMonth.of(year, month);
         LocalDate startDate = yearMonth.atDay(1);

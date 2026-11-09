@@ -2,13 +2,15 @@ import React, { useState } from 'react';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Fuel, Plus, Droplets, RefreshCw, Layers, Gauge, ShoppingCart, Settings, BarChart3, MapPin, Sparkles } from 'lucide-react';
+import { Fuel, Plus, Droplets, RefreshCw, Layers, Gauge, ShoppingCart, Settings, BarChart3, MapPin, Sparkles, Building2, LayoutDashboard } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import fleetService from '@/services/fleetService';
 import { FuelConsumptionStats } from '@/components/frota/FuelConsumptionStats';
 import { FuelConsumptionOverview } from '@/components/frota/FuelConsumptionOverview';
 import { AbastecimentosTable } from '@/components/frota/AbastecimentosTable';
 import AbastecimentoInternoFormModal from '@/components/frota/AbastecimentoInternoFormModal';
+import { AbastecimentoInternoTab } from '@/components/frota/AbastecimentoInternoTab';
+import { AbastecimentoGeralDashboardTab } from '@/components/frota/AbastecimentoGeralDashboardTab';
 import { useToast } from '@/hooks/use-toast';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -23,7 +25,7 @@ import AbastecimentoExternoReport, { AbastExternoSubTab } from '@/components/fro
 const AbastecimentoDashboard: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isExternoModalOpen, setIsExternoModalOpen] = useState(false);
-    const [activeTab, setActiveTab] = useState('vehicles');
+    const [activeTab, setActiveTab] = useState('dashboard-geral');
     const [externoSubTab, setExternoSubTab] = useState<AbastExternoSubTab>('lancamentos');
     const queryClient = useQueryClient();
     const { toast } = useToast();
@@ -58,6 +60,12 @@ const AbastecimentoDashboard: React.FC = () => {
             <div className="space-y-6 pb-32 sm:pb-8">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                     <TabsList className="flex items-center justify-start h-auto w-full bg-seguranca-graphite border border-gray-700/80 overflow-x-auto no-scrollbar p-1.5 gap-1.5 rounded-xl mb-6">
+                        <TabsTrigger value="dashboard-geral" className="shrink-0 whitespace-nowrap px-3.5 py-2 text-xs sm:text-sm text-seguranca-lightgray rounded-lg data-[state='active']:bg-seguranca-red data-[state='active']:text-white">
+                            <LayoutDashboard size={16} className="mr-2 shrink-0" /> Dashboard Geral
+                        </TabsTrigger>
+                        <TabsTrigger value="interno" className="shrink-0 whitespace-nowrap px-3.5 py-2 text-xs sm:text-sm text-seguranca-lightgray rounded-lg data-[state='active']:bg-blue-600 data-[state='active']:text-white">
+                            <Building2 size={16} className="mr-2 shrink-0" /> Abastecimento Interno
+                        </TabsTrigger>
                         <TabsTrigger value="vehicles" className="shrink-0 whitespace-nowrap px-3.5 py-2 text-xs sm:text-sm text-seguranca-lightgray rounded-lg data-[state='active']:bg-seguranca-red data-[state='active']:text-white">
                             <Fuel size={16} className="mr-2 shrink-0" /> Veículos
                         </TabsTrigger>
@@ -77,6 +85,27 @@ const AbastecimentoDashboard: React.FC = () => {
                             <BarChart3 size={16} className="mr-2 shrink-0" /> Relatórios
                         </TabsTrigger>
                     </TabsList>
+
+                    {/* Aba 1: Dashboard Geral de Abastecimentos */}
+                    <TabsContent value="dashboard-geral" className="space-y-6 mt-0">
+                        <AbastecimentoGeralDashboardTab
+                            fuelRecords={fuelRecords}
+                            vehicles={vehicles}
+                            onRefresh={() => refetchRecords()}
+                            onNavigateTab={setActiveTab}
+                            isLoading={recordsLoading}
+                        />
+                    </TabsContent>
+
+                    {/* Aba 2: Abastecimento Interno */}
+                    <TabsContent value="interno" className="space-y-6 mt-0">
+                        <AbastecimentoInternoTab
+                            fuelRecords={fuelRecords}
+                            vehicles={vehicles}
+                            onRefresh={() => refetchRecords()}
+                            isLoading={recordsLoading}
+                        />
+                    </TabsContent>
 
                     <TabsContent value="vehicles" className="space-y-6 mt-0">
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
