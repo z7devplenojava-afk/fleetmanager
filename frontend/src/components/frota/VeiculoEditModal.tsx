@@ -17,17 +17,42 @@ interface VeiculoEditModalProps {
   onClose: () => void;
   onSuccess: () => void;
   veiculo: any | null;
+  initialTab?: string;
 }
 
 const VeiculoEditModal: React.FC<VeiculoEditModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
-  veiculo
+  veiculo,
+  initialTab
 }) => {
   const [isLoading, setIsLoading] = useState(false);
+  const [fullVeiculo, setFullVeiculo] = useState<any | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  React.useEffect(() => {
+    let active = true;
+    if (isOpen && veiculo?.id) {
+      setFullVeiculo(veiculo);
+      fleetService
+        .getVehicle(veiculo.id)
+        .then(res => {
+          if (active && res) {
+            setFullVeiculo((prev: any) => ({ ...prev, ...res }));
+          }
+        })
+        .catch(() => {
+          // Mantém dados já disponíveis em `veiculo`
+        });
+    } else if (!isOpen) {
+      setFullVeiculo(null);
+    }
+    return () => {
+      active = false;
+    };
+  }, [isOpen, veiculo?.id]);
 
   // Função para converter string de data ou Date para Date ou null
   const toDate = (dateVal: string | Date | undefined | null): Date | null => {
@@ -90,10 +115,13 @@ const VeiculoEditModal: React.FC<VeiculoEditModalProps> = ({
 
       // Allocations
       postoDeTrabalho: v.workPostId || '',
+      obraSetorNome: v.workPostName || v.postoDeTrabalho || v.location || v.projectName || v.operationName || '',
+      garagem: v.garageId || '',
+      garagemNome: v.garageName || '',
       departamento: v.department || '',
       departmentId: v.departmentId || '',
-      empresa: v.companyName || v.clientName || '',
-      empresaId: v.companyId || v.clientId || '',
+      empresa: v.clientName || v.companyName || '',
+      empresaId: v.clientId || '',
       responsavel: v.responsibleEmployeeId || '',
 
       // Maintenance
@@ -129,12 +157,13 @@ const VeiculoEditModal: React.FC<VeiculoEditModalProps> = ({
       insuranceSecondPremiumValue: v.insuranceSecondPremiumValue ?? 0,
       insuranceSecondExpiryDate: toDateStr(v.insuranceSecondExpiryDate),
 
-      // Cliente / Alocação
+      // Cliente / Alocação / Locação
       clientName: v.clientName || '',
       clientId: v.clientId || '',
       allocationContractNumber: v.allocationContractNumber || '',
       allocationStartDate: toDateStr(v.allocationStartDate),
       allocationEndDate: toDateStr(v.allocationEndDate),
+      rentalMonthlyRate: v.rentalMonthlyRate ?? 0,
 
       // Agregado
       isAggregated: Boolean(v.isAggregated),
@@ -229,8 +258,10 @@ const VeiculoEditModal: React.FC<VeiculoEditModalProps> = ({
         // Alocações
         department: formData.departamento || undefined,
         departmentId: formData.departmentId || undefined,
-        companyId: formData.empresaId || formData.clientId || undefined,
         workPostId: formData.postoDeTrabalho || undefined,
+        location: formData.obraSetorNome || undefined,
+        garageId: formData.garagem || undefined,
+        garageName: formData.garagemNome || undefined,
         responsibleEmployeeId: formData.responsavel && formData.responsavel.trim() !== '' ? formData.responsavel : undefined,
 
         // Cliente / Alocação
@@ -329,9 +360,22 @@ const VeiculoEditModal: React.FC<VeiculoEditModalProps> = ({
     };
   }, []);
 
+  const sourceVehicle = fullVeiculo || veiculo;
   const initialValues = React.useMemo(() => {
-    return veiculo ? mapVehicleToFormData(veiculo) : undefined;
-  }, [veiculo?.id, veiculo?.placa, veiculo?.plate]);
+    return sourceVehicle ? mapVehicleToFormData(sourceVehicle) : undefined;
+  }, [
+    sourceVehicle?.id,
+    sourceVehicle?.placa,
+    sourceVehicle?.plate,
+    sourceVehicle?.clientId,
+    sourceVehicle?.clientName,
+    sourceVehicle?.workPostId,
+    sourceVehicle?.workPostName,
+    sourceVehicle?.location,
+    sourceVehicle?.allocationContractNumber,
+    sourceVehicle?.allocationStartDate,
+    sourceVehicle?.allocationEndDate
+  ]);
 
   const handleOpenChange = (open: boolean) => {
     if (!open) {
@@ -359,11 +403,12 @@ const VeiculoEditModal: React.FC<VeiculoEditModalProps> = ({
 
         {isOpen && initialValues && (
           <VehicleForm
-            key={veiculo?.id || 'edit-vehicle'}
+            key={`${veiculo?.id || 'edit-vehicle'}-${initialTab || 'general'}`}
             initialData={initialValues}
             onSubmit={handleSubmit}
             isLoading={isLoading}
             isEditMode={true}
+            initialTab={initialTab}
           />
         )}
       </DialogContent>

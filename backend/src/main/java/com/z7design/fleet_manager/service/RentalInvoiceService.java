@@ -46,6 +46,7 @@ public class RentalInvoiceService {
     private final ContractRepository contractRepository;
     private final VehicleRepository vehicleRepository;
     private final AccountsReceivableRepository accountsReceivableRepository;
+    private final com.z7design.fleet_manager.repository.WorkPostRepository workPostRepository;
 
     @Transactional(readOnly = true)
     public List<RentalInvoiceDTO> list(UUID clientId, UUID contractId, String status, String search) {
@@ -252,6 +253,9 @@ public class RentalInvoiceService {
             if (plate == null || plate.isBlank()) {
                 continue;
             }
+            if (vehicle != null) {
+                syncVehicleRentalAllocation(vehicle, invoice);
+            }
             RentalInvoiceVehicle item = RentalInvoiceVehicle.builder()
                     .vehicleId(vehicle != null ? vehicle.getId() : itemDto.getVehicleId())
                     .plate(plate.trim().toUpperCase())
@@ -267,6 +271,7 @@ public class RentalInvoiceService {
                     ? contractRepository.findById(invoice.getContractId()).orElse(null)
                     : null;
             for (Vehicle vehicle : resolveVehicles(invoice.getClientId(), contract)) {
+                syncVehicleRentalAllocation(vehicle, invoice);
                 RentalInvoiceVehicle item = RentalInvoiceVehicle.builder()
                         .vehicleId(vehicle.getId())
                         .plate(vehicle.getPlate())
@@ -276,6 +281,54 @@ public class RentalInvoiceService {
                         .build();
                 invoice.addItem(item);
             }
+        }
+    }
+
+    private void syncVehicleRentalAllocation(Vehicle vehicle, RentalInvoice invoice) {
+        try {
+            boolean changed = false;
+            if (invoice.getClientId() != null && !invoice.getClientId().equals(vehicle.getClientId())) {
+                vehicle.setClientId(invoice.getClientId());
+                changed = true;
+            }
+            if (invoice.getClientName() != null && !invoice.getClientName().isBlank()
+                    && !invoice.getClientName().equals(vehicle.getClientName())) {
+                vehicle.setClientName(invoice.getClientName());
+                changed = true;
+            }
+            if (invoice.getContractId() != null && !invoice.getContractId().equals(vehicle.getContractId())) {
+                vehicle.setContractId(invoice.getContractId());
+                changed = true;
+            }
+            if (invoice.getContractNumber() != null && !invoice.getContractNumber().isBlank()
+                    && !invoice.getContractNumber().equals(vehicle.getAllocationContractNumber())) {
+                vehicle.setAllocationContractNumber(invoice.getContractNumber());
+                changed = true;
+            }
+            if (invoice.getPeriodStart() != null && vehicle.getAllocationStartDate() == null) {
+                vehicle.setAllocationStartDate(invoice.getPeriodStart());
+                changed = true;
+            }
+            if (invoice.getPeriodEnd() != null && !invoice.getPeriodEnd().equals(vehicle.getAllocationEndDate())) {
+                vehicle.setAllocationEndDate(invoice.getPeriodEnd());
+                changed = true;
+            }
+            if (vehicle.getWorkPostId() == null && invoice.getClientId() != null) {
+                List<com.z7design.fleet_manager.model.WorkPost> clientPosts = workPostRepository.findByClientId(invoice.getClientId());
+                if (clientPosts != null && !clientPosts.isEmpty()) {
+                    com.z7design.fleet_manager.model.WorkPost wp = clientPosts.get(0);
+                    vehicle.setWorkPostId(wp.getId());
+                    if (vehicle.getLocation() == null || vehicle.getLocation().isBlank()) {
+                        vehicle.setLocation(wp.getName());
+                    }
+                    changed = true;
+                }
+            }
+            if (changed) {
+                vehicleRepository.save(vehicle);
+            }
+        } catch (Exception e) {
+            log.warn("Aviso ao sincronizar alocação do veículo {} na fatura: {}", vehicle.getPlate(), e.getMessage());
         }
     }
 

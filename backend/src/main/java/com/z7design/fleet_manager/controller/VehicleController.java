@@ -32,6 +32,7 @@ public class VehicleController {
     private final VehicleService vehicleService;
     private final VehicleExcelImportService vehicleExcelImportService;
     private final com.z7design.fleet_manager.service.VehicleCrlvImportService vehicleCrlvImportService;
+    private final com.z7design.fleet_manager.service.VehicleRentalExpenseService vehicleRentalExpenseService;
 
     @GetMapping
     @Operation(summary = "Listar todos os veÃ­culos", description = "Retorna uma lista de todos os veÃ­culos")
@@ -213,5 +214,40 @@ public class VehicleController {
         log.info("Recebida requisição de importação de CRLV em lote: {} arquivo(s)", files.size());
         com.z7design.fleet_manager.dto.CrlvImportResultDTO result = vehicleCrlvImportService.importCrlvBatch(files);
         return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/{id}/rental-expenses")
+    @Operation(summary = "Listar despesas de locação do veículo", description = "Lista as despesas de responsabilidade do cliente vinculadas à locação do veículo")
+    public ResponseEntity<List<com.z7design.fleet_manager.dto.VehicleRentalExpenseDTO>> listRentalExpenses(@PathVariable("id") UUID id) {
+        return ResponseEntity.ok(vehicleRentalExpenseService.listByVehicle(id));
+    }
+
+    @PostMapping("/{id}/rental-expenses")
+    @PreAuthorize("hasAnyAuthority('FLEET_WRITE', 'ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN', 'GESTOR', 'GESTOR_FROTA', 'OPERACIONAL', 'ROLE_FLEET_WRITE', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_GESTOR', 'ROLE_GESTOR_FROTA', 'ROLE_OPERACIONAL') or isAuthenticated()")
+    @Operation(summary = "Registrar despesa de locação do veículo", description = "Cria uma nova despesa de locação (responsabilidade do cliente) para o veículo")
+    public ResponseEntity<com.z7design.fleet_manager.dto.VehicleRentalExpenseDTO> createRentalExpense(
+            @PathVariable("id") UUID id,
+            @RequestBody com.z7design.fleet_manager.dto.VehicleRentalExpenseDTO dto) {
+        return ResponseEntity.status(201).body(vehicleRentalExpenseService.create(id, dto));
+    }
+
+    @PutMapping("/{id}/rental-expenses/{expenseId}")
+    @PreAuthorize("hasAnyAuthority('FLEET_WRITE', 'ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN', 'GESTOR', 'GESTOR_FROTA', 'OPERACIONAL', 'ROLE_FLEET_WRITE', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_GESTOR', 'ROLE_GESTOR_FROTA', 'ROLE_OPERACIONAL') or isAuthenticated()")
+    @Operation(summary = "Atualizar despesa de locação do veículo", description = "Atualiza os dados de uma despesa de locação do veículo")
+    public ResponseEntity<com.z7design.fleet_manager.dto.VehicleRentalExpenseDTO> updateRentalExpense(
+            @PathVariable("id") UUID id,
+            @PathVariable("expenseId") UUID expenseId,
+            @RequestBody com.z7design.fleet_manager.dto.VehicleRentalExpenseDTO dto) {
+        return ResponseEntity.ok(vehicleRentalExpenseService.update(expenseId, dto));
+    }
+
+    @DeleteMapping("/{id}/rental-expenses/{expenseId}")
+    @PreAuthorize("hasAnyAuthority('FLEET_WRITE', 'ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN', 'GESTOR', 'GESTOR_FROTA', 'OPERACIONAL', 'ROLE_FLEET_WRITE', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_GESTOR', 'ROLE_GESTOR_FROTA', 'ROLE_OPERACIONAL') or isAuthenticated()")
+    @Operation(summary = "Excluir despesa de locação do veículo", description = "Exclui uma despesa de locação do veículo")
+    public ResponseEntity<Void> deleteRentalExpense(
+            @PathVariable("id") UUID id,
+            @PathVariable("expenseId") UUID expenseId) {
+        vehicleRentalExpenseService.delete(expenseId);
+        return ResponseEntity.noContent().build();
     }
 }

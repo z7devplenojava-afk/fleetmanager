@@ -172,11 +172,15 @@ public class VehicleService {
             
             // Atualizar campos
             existingVehicle.setPlate(vehicleDTO.getPlate());
+            if (vehicleDTO.getFleetNumber() != null) existingVehicle.setFleetNumber(vehicleDTO.getFleetNumber());
             existingVehicle.setModel(vehicleDTO.getModel());
             existingVehicle.setBrand(vehicleDTO.getBrand());
             existingVehicle.setYear(vehicleDTO.getYear());
             existingVehicle.setColor(vehicleDTO.getColor());
             existingVehicle.setStatus(vehicleDTO.getStatus());
+            if (vehicleDTO.getPatrimonyNumber() != null) existingVehicle.setPatrimonyNumber(vehicleDTO.getPatrimonyNumber());
+            if (vehicleDTO.getModelYear() != null) existingVehicle.setModelYear(vehicleDTO.getModelYear());
+            if (vehicleDTO.getHourmeter() != null) existingVehicle.setHourmeter(vehicleDTO.getHourmeter());
             existingVehicle.setFuelType(vehicleDTO.getFuelType());
             existingVehicle.setCapacity(vehicleDTO.getCapacity());
             existingVehicle.setCurrentMileage(vehicleDTO.getCurrentMileage());
@@ -184,6 +188,10 @@ public class VehicleService {
             existingVehicle.setAssignedDriver(vehicleDTO.getAssignedDriver());
             existingVehicle.setResponsibleEmployeeId(vehicleDTO.getResponsibleEmployeeId());
             existingVehicle.setDepartment(vehicleDTO.getDepartment());
+            existingVehicle.setDepartmentId(vehicleDTO.getDepartmentId());
+            existingVehicle.setGarageId(vehicleDTO.getGarageId());
+            existingVehicle.setGarageName(vehicleDTO.getGarageName());
+            existingVehicle.setWorkPostId(vehicleDTO.getWorkPostId());
             existingVehicle.setLocation(vehicleDTO.getLocation());
             existingVehicle.setAcquisitionDate(vehicleDTO.getAcquisitionDate());
             existingVehicle.setAcquisitionValue(vehicleDTO.getAcquisitionValue());
@@ -195,6 +203,79 @@ public class VehicleService {
             existingVehicle.setDocumentationExpiryDate(vehicleDTO.getDocumentationExpiryDate());
             existingVehicle.setNotes(vehicleDTO.getNotes());
             existingVehicle.setPhotos(vehicleDTO.getPhotos());
+
+            // Documentais
+            if (vehicleDTO.getChassisNumber() != null) existingVehicle.setChassisNumber(vehicleDTO.getChassisNumber());
+            if (vehicleDTO.getRenavan() != null) existingVehicle.setRenavan(vehicleDTO.getRenavan());
+
+            // Cliente / Alocação / Locação
+            existingVehicle.setClientId(vehicleDTO.getClientId());
+            existingVehicle.setClientName(vehicleDTO.getClientName());
+            if (vehicleDTO.getContractId() != null) existingVehicle.setContractId(vehicleDTO.getContractId());
+            existingVehicle.setAllocationContractNumber(vehicleDTO.getAllocationContractNumber());
+            existingVehicle.setAllocationStartDate(vehicleDTO.getAllocationStartDate());
+            existingVehicle.setAllocationEndDate(vehicleDTO.getAllocationEndDate());
+
+            // Sincronização automática Cliente <-> Posto de Trabalho / Obra
+            if (existingVehicle.getWorkPostId() != null) {
+                workPostRepository.findById(existingVehicle.getWorkPostId()).ifPresent(wp -> {
+                    if (existingVehicle.getLocation() == null || existingVehicle.getLocation().isBlank()) {
+                        existingVehicle.setLocation(wp.getName());
+                    }
+                    if (existingVehicle.getClientId() == null && wp.getClient() != null) {
+                        existingVehicle.setClientId(wp.getClient().getId());
+                        existingVehicle.setClientName(wp.getClient().getName());
+                    }
+                });
+            } else if (existingVehicle.getClientId() != null) {
+                if (existingVehicle.getClientName() == null || existingVehicle.getClientName().isBlank()) {
+                    clientRepository.findById(existingVehicle.getClientId())
+                            .ifPresent(c -> existingVehicle.setClientName(c.getName()));
+                }
+                List<WorkPost> clientPosts = workPostRepository.findByClientId(existingVehicle.getClientId());
+                if (clientPosts != null && !clientPosts.isEmpty()) {
+                    WorkPost firstPost = clientPosts.get(0);
+                    existingVehicle.setWorkPostId(firstPost.getId());
+                    if (existingVehicle.getLocation() == null || existingVehicle.getLocation().isBlank()) {
+                        existingVehicle.setLocation(firstPost.getName());
+                    }
+                }
+            }
+
+            // Financiamento e Valor de Mercado
+            existingVehicle.setFinancingStatus(vehicleDTO.getFinancingStatus());
+            existingVehicle.setFinancingInstallmentValue(vehicleDTO.getFinancingInstallmentValue());
+            existingVehicle.setFinancingRemainingInstallments(vehicleDTO.getFinancingRemainingInstallments());
+            existingVehicle.setFinancingPayoffBalance(vehicleDTO.getFinancingPayoffBalance());
+            existingVehicle.setFinancingBankOrInstitution(vehicleDTO.getFinancingBankOrInstitution());
+            existingVehicle.setFinancingContractNumber(vehicleDTO.getFinancingContractNumber());
+            existingVehicle.setFinancingStartDate(vehicleDTO.getFinancingStartDate());
+            existingVehicle.setFinancingEndDate(vehicleDTO.getFinancingEndDate());
+            existingVehicle.setMarketValue(vehicleDTO.getMarketValue());
+
+            // Seguros
+            existingVehicle.setInsurancePolicyNumber(vehicleDTO.getInsurancePolicyNumber());
+            existingVehicle.setInsuranceCompany(vehicleDTO.getInsuranceCompany());
+            existingVehicle.setInsurancePremiumValue(vehicleDTO.getInsurancePremiumValue());
+            existingVehicle.setInsuranceCoverageType(vehicleDTO.getInsuranceCoverageType());
+            existingVehicle.setInsuranceSecondPolicyNumber(vehicleDTO.getInsuranceSecondPolicyNumber());
+            existingVehicle.setInsuranceSecondCompany(vehicleDTO.getInsuranceSecondCompany());
+            existingVehicle.setInsuranceSecondPremiumValue(vehicleDTO.getInsuranceSecondPremiumValue());
+            existingVehicle.setInsuranceSecondExpiryDate(vehicleDTO.getInsuranceSecondExpiryDate());
+
+            // Agregado
+            existingVehicle.setIsAggregated(vehicleDTO.getIsAggregated());
+            existingVehicle.setAggregatedOwnerName(vehicleDTO.getAggregatedOwnerName());
+            existingVehicle.setAggregatedOwnerCpfCnpj(vehicleDTO.getAggregatedOwnerCpfCnpj());
+            existingVehicle.setAggregatedOwnerPhone(vehicleDTO.getAggregatedOwnerPhone());
+            existingVehicle.setAggregatedOwnerEmail(vehicleDTO.getAggregatedOwnerEmail());
+            existingVehicle.setAggregatedDailyRate(vehicleDTO.getAggregatedDailyRate());
+            existingVehicle.setAggregatedMonthlyRate(vehicleDTO.getAggregatedMonthlyRate());
+            existingVehicle.setAggregatedPaymentType(vehicleDTO.getAggregatedPaymentType());
+            existingVehicle.setAggregatedContractStartDate(vehicleDTO.getAggregatedContractStartDate());
+            existingVehicle.setAggregatedContractEndDate(vehicleDTO.getAggregatedContractEndDate());
+            existingVehicle.setAggregatedNotes(vehicleDTO.getAggregatedNotes());
+            existingVehicle.setFinancialDifference(vehicleDTO.getFinancialDifference());
 
             // Campos de Ônibus
             existingVehicle.setVehicleType(vehicleDTO.getVehicleType());

@@ -45,6 +45,7 @@ export interface VehicleFormData {
 
     // Allocation
     postoDeTrabalho: string;
+    obraSetorNome?: string;
     garagem: string;
     garagemNome: string;
     departamento: string;
@@ -88,12 +89,13 @@ export interface VehicleFormData {
     insuranceSecondPremiumValue: number;
     insuranceSecondExpiryDate: string;
 
-    // Cliente / Alocação
+    // Cliente / Alocação / Locação
     clientName: string;
     clientId: string;
     allocationContractNumber: string;
     allocationStartDate: string;
     allocationEndDate: string;
+    rentalMonthlyRate?: number;
 
     // Agregado
     isAggregated: boolean;

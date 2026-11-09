@@ -56,6 +56,7 @@ import {
 } from '@/services/rentalInvoiceService';
 import { RentalInvoicePdfService } from '@/services/rentalInvoicePdfService';
 import { SearchableSelect, SearchableOption } from '@/components/frota/SearchableSelect';
+import VeiculoEditModal from '@/components/frota/VeiculoEditModal';
 import {
   Truck,
   Plus,
@@ -253,6 +254,7 @@ export const GestaoLocacao: React.FC = () => {
   const [viewInvoice, setViewInvoice] = useState<RentalInvoice | null>(null);
   const [invoiceToDelete, setInvoiceToDelete] = useState<RentalInvoice | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [editingVehicleForRental, setEditingVehicleForRental] = useState<Vehicle | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -326,6 +328,19 @@ export const GestaoLocacao: React.FC = () => {
     [contracts, contractsById]
   );
 
+  const latestInvoiceForVehicle = useCallback(
+    (vehicle: Vehicle): RentalInvoice | undefined => {
+      const cleanPlate = (vehicle.plate || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+      return invoices.find(inv =>
+        (inv.items || []).some(item => {
+          const itemPlate = (item.plate || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+          return (vehicle.id && item.vehicleId === vehicle.id) || (cleanPlate && itemPlate === cleanPlate);
+        })
+      );
+    },
+    [invoices]
+  );
+
   const clientForVehicle = useCallback(
     (vehicle: Vehicle): Client | undefined => {
       // 1. Vínculo direto do veículo com o cliente
@@ -354,9 +369,21 @@ export const GestaoLocacao: React.FC = () => {
         if (client) return client;
       }
 
+      // 5. Fatura de locação vinculada ao veículo
+      const linkedInvoice = latestInvoiceForVehicle(vehicle);
+      if (linkedInvoice) {
+        if (linkedInvoice.clientId && clientsById.has(linkedInvoice.clientId)) {
+          return clientsById.get(linkedInvoice.clientId);
+        }
+        const invNameKey = normalizeName(linkedInvoice.clientName);
+        if (invNameKey && clientsByName.has(invNameKey)) {
+          return clientsByName.get(invNameKey);
+        }
+      }
+
       return undefined;
     },
-    [clientsById, clientsByName, workPostsById, directContractForVehicle]
+    [clientsById, clientsByName, workPostsById, directContractForVehicle, latestInvoiceForVehicle]
   );
 
   const contractForVehicle = useCallback(
@@ -364,13 +391,18 @@ export const GestaoLocacao: React.FC = () => {
       const directContract = directContractForVehicle(vehicle);
       if (directContract) return directContract;
 
+      const linkedInvoice = latestInvoiceForVehicle(vehicle);
+      if (linkedInvoice?.contractId && contractsById.has(linkedInvoice.contractId)) {
+        return contractsById.get(linkedInvoice.contractId);
+      }
+
       const client = clientForVehicle(vehicle);
       if (!client) return undefined;
       return contracts.find(
         contract => contract.clientId === client.id && (contract.status === 'ACTIVE' || !contract.status)
       );
     },
-    [directContractForVehicle, clientForVehicle, contracts]
+    [directContractForVehicle, latestInvoiceForVehicle, contractsById, clientForVehicle, contracts]
   );
 
   const rentalVehicles = useMemo(() => {
@@ -378,14 +410,15 @@ export const GestaoLocacao: React.FC = () => {
       // Veículos em rascunho (importados de planilhas) não são locações reais
       if (isPlaceholderVehicle(vehicle)) return false;
       const client = clientForVehicle(vehicle);
-      if (!client) return false;
-      // Vínculo explícito de locação: cliente, posto/obra ou contrato
-      if (hasRentalAssignment(vehicle)) return true;
+      const linkedInvoice = latestInvoiceForVehicle(vehicle);
+      if (!client && !linkedInvoice) return false;
+      // Vínculo explícito de locação: cliente, posto/obra, contrato ou fatura de locação
+      if (hasRentalAssignment(vehicle) || Boolean(linkedInvoice)) return true;
       // Dados legados: veículo real vinculado somente pelo nome do cliente
       const nameKey = normalizeName(vehicle.clientName);
       return Boolean(nameKey && !GENERIC_CLIENT_NAMES.includes(nameKey));
     });
-  }, [vehicles, clientForVehicle]);
+  }, [vehicles, clientForVehicle, latestInvoiceForVehicle]);
 
   const filteredVehicles = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -924,6 +957,7 @@ export const GestaoLocacao: React.FC = () => {
                         <TableHead className="text-zinc-400">Placa</TableHead>
                         <TableHead className="text-zinc-400">Veículo</TableHead>
                         <TableHead className="text-zinc-400">Cliente</TableHead>
+                        <TableHead className="text-zinc-400">Obra / Setor de Trabalho</TableHead>
                         <TableHead className="text-zinc-400">Contrato</TableHead>
                         <TableHead className="text-zinc-400">Período da Locação</TableHead>
                         <TableHead className="text-zinc-400 text-right">Ações</TableHead>
@@ -933,6 +967,23 @@ export const GestaoLocacao: React.FC = () => {
                       {filteredVehicles.slice(0, MAX_VEHICLE_ROWS).map(vehicle => {
                         const contract = contractForVehicle(vehicle);
                         const client = clientForVehicle(vehicle);
+                        const linkedInvoice = latestInvoiceForVehicle(vehicle);
+                        const workPost = vehicle.workPostId ? workPostsById.get(vehicle.workPostId) : undefined;
+                        const clientWorkPost = !workPost && client
+                          ? workPosts.find(wp => wp.clientId === client.id)
+                          : undefined;
+                        const obraSetorLabel =
+                          workPost?.name ||
+                          vehicle.workPostName ||
+                          vehicle.postoDeTrabalho ||
+                          (vehicle as any).location ||
+                          clientWorkPost?.name ||
+                          contract?.description ||
+                          '-';
+                        const startDate =
+                          vehicle.allocationStartDate || linkedInvoice?.periodStart || contract?.startDate;
+                        const endDate =
+                          vehicle.allocationEndDate || linkedInvoice?.periodEnd || contract?.endDate;
                         return (
                           <TableRow key={vehicle.id} className="border-zinc-800 hover:bg-zinc-900/50">
                             <TableCell className="font-mono text-xs font-bold text-amber-400">
@@ -946,27 +997,57 @@ export const GestaoLocacao: React.FC = () => {
                                 {vehicle.vehicleType ? VEHICLE_TYPE_LABELS[vehicle.vehicleType] || vehicle.vehicleType : 'Veículo'}
                               </div>
                             </TableCell>
-                            <TableCell className="text-zinc-200">
-                              {client?.name || vehicle.clientName || contract?.clientName || '-'}
+                            <TableCell className="text-zinc-200 font-medium">
+                              {client?.name || vehicle.clientName || linkedInvoice?.clientName || contract?.clientName || '-'}
                             </TableCell>
                             <TableCell className="text-zinc-300 text-xs">
-                              {contract ? `${contract.contractNumber} · ${contract.description}` : vehicle.allocationContractNumber || '-'}
+                              {obraSetorLabel}
                             </TableCell>
                             <TableCell className="text-zinc-300 text-xs">
-                              {vehicle.allocationStartDate || contract?.startDate
-                                ? `${formatDate(vehicle.allocationStartDate || contract?.startDate)} a ${formatDate(vehicle.allocationEndDate || contract?.endDate)}`
+                              {contract
+                                ? `${contract.contractNumber} · ${contract.description}`
+                                : vehicle.allocationContractNumber || linkedInvoice?.contractNumber || '-'}
+                            </TableCell>
+                            <TableCell className="text-zinc-300 text-xs">
+                              {startDate
+                                ? `${formatDate(startDate)} a ${endDate ? formatDate(endDate) : 'Em aberto'}`
                                 : '-'}
                             </TableCell>
                             <TableCell className="text-right">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => openNewInvoice(vehicle)}
-                                className="border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20"
-                              >
-                                <FileText className="w-3.5 h-3.5 mr-1" />
-                                Gerar Fatura
-                              </Button>
+                              <div className="flex items-center justify-end gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() =>
+                                    setEditingVehicleForRental({
+                                      ...vehicle,
+                                      clientId: vehicle.clientId || client?.id || linkedInvoice?.clientId,
+                                      clientName: vehicle.clientName || client?.name || linkedInvoice?.clientName,
+                                      workPostId: vehicle.workPostId || workPost?.id || clientWorkPost?.id,
+                                      workPostName: obraSetorLabel !== '-' ? obraSetorLabel : undefined,
+                                      allocationContractNumber:
+                                        vehicle.allocationContractNumber ||
+                                        contract?.contractNumber ||
+                                        linkedInvoice?.contractNumber,
+                                      allocationStartDate: startDate || undefined,
+                                      allocationEndDate: endDate || undefined,
+                                    })
+                                  }
+                                  className="border-indigo-500/40 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20"
+                                >
+                                  <Pencil className="w-3.5 h-3.5 mr-1" />
+                                  Locação / Despesas
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => openNewInvoice(vehicle)}
+                                  className="border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20"
+                                >
+                                  <FileText className="w-3.5 h-3.5 mr-1" />
+                                  Gerar Fatura
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         );
@@ -1670,6 +1751,19 @@ export const GestaoLocacao: React.FC = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {/* Modal de Edição de Locação e Despesas do Veículo */}
+      {editingVehicleForRental && (
+        <VeiculoEditModal
+          isOpen={Boolean(editingVehicleForRental)}
+          onClose={() => setEditingVehicleForRental(null)}
+          onSuccess={() => {
+            setEditingVehicleForRental(null);
+            loadData();
+          }}
+          veiculo={editingVehicleForRental}
+          initialTab="rental"
+        />
+      )}
       </div>
     </StandardLayout>
   );

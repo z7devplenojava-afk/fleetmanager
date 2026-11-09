@@ -6,6 +6,7 @@ import { VehicleFormSectionProps } from '../types';
 import { Users, MapPin, FileText, Phone, Mail, Building2, CheckCircle2 } from 'lucide-react';
 import { clientService, Client } from '@/services/clientService';
 import { contractService, Contract } from '@/services/contractService';
+import { workPostService, WorkPost } from '@/services/workPostService';
 import { useQuery } from '@tanstack/react-query';
 
 export const VehicleClientSection: React.FC<VehicleFormSectionProps> = ({ formData, handleInputChange }) => {
@@ -16,7 +17,23 @@ export const VehicleClientSection: React.FC<VehicleFormSectionProps> = ({ formDa
         retry: 2
     });
 
-    const currentClientId = formData.clientId || formData.empresaId;
+    const { data: workPosts, isLoading: workPostsLoading } = useQuery({
+        queryKey: ['workPosts'],
+        queryFn: () => workPostService.getWorkPosts(),
+        retry: 2
+    });
+
+    const currentClientId = React.useMemo(() => {
+        const candidateId = formData.clientId || formData.empresaId;
+        if (!clients || clients.length === 0) return candidateId || '';
+        if (candidateId && clients.some(c => c.id === candidateId)) return candidateId;
+        const candidateName = (formData.clientName || formData.empresa || '').trim().toLowerCase();
+        if (candidateName) {
+            const byName = clients.find(c => (c.name || '').trim().toLowerCase() === candidateName);
+            if (byName) return byName.id;
+        }
+        return '';
+    }, [clients, formData.clientId, formData.empresaId, formData.clientName, formData.empresa]);
 
     const { data: contracts, isLoading: contractsLoading } = useQuery({
         queryKey: ['contracts-for-client-tab', currentClientId],
@@ -30,6 +47,13 @@ export const VehicleClientSection: React.FC<VehicleFormSectionProps> = ({ formDa
         return clients.find(c => c.id === currentClientId) || null;
     }, [clients, currentClientId]);
 
+    const filteredWorkPosts = React.useMemo(() => {
+        if (!workPosts || workPosts.length === 0) return [];
+        if (!currentClientId) return workPosts;
+        const matching = workPosts.filter((wp: any) => wp.clientId === currentClientId);
+        return matching.length > 0 ? matching : workPosts;
+    }, [workPosts, currentClientId]);
+
     const handleClientChange = (selectedId: string) => {
         const client = clients?.find(c => c.id === selectedId);
         const name = client?.name || '';
@@ -37,6 +61,14 @@ export const VehicleClientSection: React.FC<VehicleFormSectionProps> = ({ formDa
         handleInputChange('clientName', name);
         handleInputChange('empresaId', selectedId);
         handleInputChange('empresa', name);
+
+        if (workPosts && workPosts.length > 0) {
+            const clientPosts = workPosts.filter((w: any) => w.clientId === selectedId);
+            if (clientPosts.length > 0) {
+                handleInputChange('postoDeTrabalho', clientPosts[0].id);
+                handleInputChange('obraSetorNome', clientPosts[0].name || '');
+            }
+        }
 
         // Se encontrar contratos, sugere o primeiro ou ativo
         const clientContracts = contracts?.filter(c => c.clientId === selectedId);
@@ -69,8 +101,8 @@ export const VehicleClientSection: React.FC<VehicleFormSectionProps> = ({ formDa
                             <Users className="h-5 w-5 text-indigo-400" />
                         </div>
                         <div>
-                            <h3 className="text-lg font-semibold text-white">Cliente / Alocação do Veículo</h3>
-                            <p className="text-xs text-gray-400">Associe o cliente e o contrato de prestação de serviços ou locação</p>
+                            <h3 className="text-lg font-semibold text-white">Cliente / Obra / Setor de Alocação</h3>
+                            <p className="text-xs text-gray-400">Associe o cliente, a obra/setor de trabalho e o contrato de locação</p>
                         </div>
                     </div>
                     {selectedClient && (
@@ -93,7 +125,7 @@ export const VehicleClientSection: React.FC<VehicleFormSectionProps> = ({ formDa
                             disabled={clientsLoading}
                         >
                             <SelectTrigger className="bg-gray-900/50 border-gray-600 text-white focus:border-indigo-500 focus:ring-indigo-500/20 transition-all duration-200">
-                                <SelectValue placeholder="Selecione um cliente..." />
+                                <SelectValue placeholder={formData.clientName || "Selecione um cliente..."} />
                             </SelectTrigger>
                             <SelectContent className="bg-gray-900 border-gray-600 z-[10060]">
                                 {clients?.map((client: Client) => (
@@ -111,10 +143,68 @@ export const VehicleClientSection: React.FC<VehicleFormSectionProps> = ({ formDa
                         <Input
                             id="clientName"
                             value={formData.clientName || ''}
-                            onChange={(e) => handleInputChange('clientName', e.target.value)}
+                            onChange={(e) => {
+                                handleInputChange('clientName', e.target.value);
+                                handleInputChange('empresa', e.target.value);
+                            }}
                             placeholder="Nome do cliente onde está alocado"
                             className="bg-gray-900/50 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-500 focus:ring-indigo-500/20 transition-all duration-200"
                         />
+                    </div>
+
+                    {/* Posto de Trabalho / Obra do Cliente */}
+                    <div className="space-y-2">
+                        <Label htmlFor="clientWorkPost" className="text-gray-300 font-medium">
+                            Posto de Trabalho / Obra Cadastrada
+                        </Label>
+                        <Select
+                            value={formData.postoDeTrabalho || ''}
+                            onValueChange={(val) => {
+                                const wp = workPosts?.find(w => w.id === val);
+                                handleInputChange('postoDeTrabalho', val);
+                                if (wp?.name) {
+                                    handleInputChange('obraSetorNome', wp.name);
+                                }
+                                if (wp?.clientId && wp.clientId !== currentClientId) {
+                                    handleClientChange(wp.clientId);
+                                }
+                            }}
+                            disabled={workPostsLoading}
+                        >
+                            <SelectTrigger className="bg-gray-900/50 border-gray-600 text-white focus:border-indigo-500 focus:ring-indigo-500/20 transition-all duration-200">
+                                <SelectValue placeholder={formData.obraSetorNome || "Selecione a obra / posto..."} />
+                            </SelectTrigger>
+                            <SelectContent className="bg-gray-900 border-gray-600 z-[10060]">
+                                {filteredWorkPosts.length > 0 ? (
+                                    filteredWorkPosts.map((wp: WorkPost) => (
+                                        <SelectItem key={wp.id} value={wp.id} className="text-white hover:bg-gray-700">
+                                            {wp.name} {wp.postCode ? `(${wp.postCode})` : ''}
+                                        </SelectItem>
+                                    ))
+                                ) : (
+                                    <SelectItem value="none" disabled>
+                                        Nenhum posto cadastrado para este cliente
+                                    </SelectItem>
+                                )}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    {/* Obra / Setor de Trabalho (Input direto) */}
+                    <div className="space-y-2">
+                        <Label htmlFor="obraSetorClientTab" className="text-gray-300 font-medium">
+                            Obra / Setor de Trabalho Alocado
+                        </Label>
+                        <div className="relative">
+                            <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                            <Input
+                                id="obraSetorClientTab"
+                                value={formData.obraSetorNome || ''}
+                                onChange={(e) => handleInputChange('obraSetorNome', e.target.value)}
+                                placeholder="Qual obra / setor de trabalho..."
+                                className="bg-gray-900/50 border-gray-600 text-white placeholder-gray-400 pl-10 focus:border-indigo-500 focus:ring-indigo-500/20 transition-all duration-200"
+                            />
+                        </div>
                     </div>
 
                     {/* Seleção de Contrato Associado */}
@@ -173,7 +263,7 @@ export const VehicleClientSection: React.FC<VehicleFormSectionProps> = ({ formDa
 
                     {/* Data Início Alocação */}
                     <div className="space-y-2">
-                        <Label htmlFor="allocationStartDate" className="text-gray-300 font-medium">Data Início Alocação</Label>
+                        <Label htmlFor="allocationStartDate" className="text-gray-300 font-medium">Data Inicial da Locação</Label>
                         <Input
                             id="allocationStartDate"
                             type="date"
@@ -185,7 +275,7 @@ export const VehicleClientSection: React.FC<VehicleFormSectionProps> = ({ formDa
 
                     {/* Data Término Alocação */}
                     <div className="space-y-2">
-                        <Label htmlFor="allocationEndDate" className="text-gray-300 font-medium">Data Término Alocação</Label>
+                        <Label htmlFor="allocationEndDate" className="text-gray-300 font-medium">Data Final da Locação (se houver)</Label>
                         <Input
                             id="allocationEndDate"
                             type="date"
@@ -249,7 +339,7 @@ export const VehicleClientSection: React.FC<VehicleFormSectionProps> = ({ formDa
                     <div className="flex items-start gap-2">
                         <MapPin className="h-4 w-4 text-indigo-400 mt-0.5 shrink-0" />
                         <p className="text-xs text-indigo-300">
-                            Os dados de alocação de cliente e contrato são sincronizados com a aba Alocação e refletem nos relatórios e ordens de serviço.
+                            Os dados de alocação de cliente, obra/setor e contrato são sincronizados automaticamente com as abas Alocação e Locação.
                         </p>
                     </div>
                 </div>

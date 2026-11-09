@@ -84,7 +84,17 @@ interface VeiculoComponent {
   observacoes?: string;
   // Campos adicionais para edição
   workPostId?: string;
+  workPostName?: string;
+  postoDeTrabalho?: string;
+  location?: string;
   companyId?: string;
+  companyName?: string;
+  clientId?: string;
+  clientName?: string;
+  contractId?: string;
+  allocationContractNumber?: string;
+  allocationStartDate?: string;
+  allocationEndDate?: string;
   departmentId?: string;
   department?: string;
   responsibleEmployeeId?: string;
@@ -92,6 +102,7 @@ interface VeiculoComponent {
   nextMaintenanceDate?: string;
   insuranceExpiryDate?: string;
   documentationExpiryDate?: string;
+  [key: string]: any;
 }
 
 interface AbastecimentoComponent {
@@ -137,6 +148,7 @@ interface MultaComponent {
 // Funções de mapeamento
 const mapVehicleToComponent = (vehicle: Vehicle): VeiculoComponent => {
   return {
+    ...vehicle,
     id: vehicle.id.toString(), // já é string UUID
     placa: vehicle.plate,
     fleetNumber: vehicle.fleetNumber || (vehicle as any).prefixo || '',
@@ -161,7 +173,17 @@ const mapVehicleToComponent = (vehicle: Vehicle): VeiculoComponent => {
     observacoes: vehicle.notes,
     // Campos adicionais para edição
     workPostId: vehicle.workPostId,
+    workPostName: vehicle.workPostName || vehicle.postoDeTrabalho,
+    postoDeTrabalho: vehicle.postoDeTrabalho || vehicle.workPostName,
+    location: (vehicle as any).location || vehicle.workPostName || vehicle.postoDeTrabalho,
     companyId: vehicle.companyId,
+    companyName: vehicle.companyName,
+    clientId: vehicle.clientId,
+    clientName: vehicle.clientName,
+    contractId: vehicle.contractId,
+    allocationContractNumber: vehicle.allocationContractNumber,
+    allocationStartDate: vehicle.allocationStartDate,
+    allocationEndDate: vehicle.allocationEndDate,
     departmentId: vehicle.departmentId,
     department: vehicle.department,
     responsibleEmployeeId: vehicle.responsibleEmployeeId,

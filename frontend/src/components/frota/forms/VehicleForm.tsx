@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Car, Building, DollarSign, Wrench, Save, Loader2, FileText, ImageIcon, X, Trash2, RefreshCw, Shield, Users, UserCheck, AlertTriangle, ShieldAlert, FileCheck, Upload } from 'lucide-react';
+import { Car, Building, DollarSign, Wrench, Save, Loader2, FileText, ImageIcon, X, Trash2, RefreshCw, Shield, Users, UserCheck, AlertTriangle, ShieldAlert, FileCheck, Upload, Truck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import fleetService from '@/services/fleetService';
 import { VehicleFormData } from './types';
@@ -15,6 +15,7 @@ import { VehicleBusInfo } from './sections/VehicleBusInfo';
 import { VehicleFinancingSection } from './sections/VehicleFinancingSection';
 import { VehicleInsuranceSection } from './sections/VehicleInsuranceSection';
 import { VehicleClientSection } from './sections/VehicleClientSection';
+import { VehicleRentalSection } from './sections/VehicleRentalSection';
 import { VehicleAgregadoSection } from './sections/VehicleAgregadoSection';
 import { VehicleFinesSection } from './sections/VehicleFinesSection';
 import { VehicleWearAndWarrantySection } from './sections/VehicleWearAndWarrantySection';
@@ -27,6 +28,7 @@ interface VehicleFormProps {
     isLoading: boolean;
     submitLabel?: string;
     isEditMode?: boolean;
+    initialTab?: string;
 }
 
 const DEFAULT_FORM_DATA: VehicleFormData = {
@@ -66,6 +68,7 @@ const DEFAULT_FORM_DATA: VehicleFormData = {
     routeName: '',
     // Alocação
     postoDeTrabalho: '',
+    obraSetorNome: '',
     garagem: '',
     garagemNome: '',
     departamento: '',
@@ -102,12 +105,13 @@ const DEFAULT_FORM_DATA: VehicleFormData = {
     insuranceSecondCompany: '',
     insuranceSecondPremiumValue: 0,
     insuranceSecondExpiryDate: '',
-    // Cliente / Alocação
+    // Cliente / Alocação / Locação
     clientName: '',
     clientId: '',
     allocationContractNumber: '',
     allocationStartDate: '',
     allocationEndDate: '',
+    rentalMonthlyRate: 0,
     // Agregado
     isAggregated: false,
     aggregatedOwnerName: '',
@@ -134,10 +138,11 @@ export const VehicleForm: React.FC<VehicleFormProps> = ({
     onSubmit,
     isLoading,
     submitLabel = 'Salvar Veículo',
-    isEditMode = false
+    isEditMode = false,
+    initialTab = 'general'
 }) => {
     const [formData, setFormData] = useState<VehicleFormData>(DEFAULT_FORM_DATA);
-    const [currentTab, setCurrentTab] = useState('general');
+    const [currentTab, setCurrentTab] = useState(initialTab || 'general');
     const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
     const { validate, getFieldStatus } = useVehicleValidation();
     const { toast } = useToast();
@@ -344,38 +349,42 @@ export const VehicleForm: React.FC<VehicleFormProps> = ({
         <form onSubmit={handleSubmit} className="flex flex-col h-full">
             <div className="flex-1 overflow-y-auto px-6 py-4">
                 <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
-                    <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8 mb-4 bg-gray-800/50 p-1 flex-none gap-1">
+                    <TabsList className="grid w-full grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 mb-4 bg-gray-800/50 p-1 flex-none gap-1 h-auto">
                         <TabsTrigger value="general" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white flex gap-1 items-center text-xs">
                             <Car className="h-3 w-3" />
-                            <span className="hidden lg:inline">Geral</span>
+                            <span>Geral</span>
                         </TabsTrigger>
                         <TabsTrigger value="allocation" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white flex gap-1 items-center text-xs">
                             <Building className="h-3 w-3" />
-                            <span className="hidden lg:inline">Alocação</span>
+                            <span>Alocação</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="rental" className="data-[state=active]:bg-amber-600 data-[state=active]:text-white flex gap-1 items-center text-xs font-semibold">
+                            <Truck className="h-3 w-3" />
+                            <span>Locação</span>
                         </TabsTrigger>
                         <TabsTrigger value="financial" className="data-[state=active]:bg-yellow-600 data-[state=active]:text-white flex gap-1 items-center text-xs">
                             <DollarSign className="h-3 w-3" />
-                            <span className="hidden lg:inline">Financeiro</span>
+                            <span>Financeiro</span>
                         </TabsTrigger>
                         <TabsTrigger value="insurance" className="data-[state=active]:bg-green-600 data-[state=active]:text-white flex gap-1 items-center text-xs">
                             <Shield className="h-3 w-3" />
-                            <span className="hidden lg:inline">Seguros</span>
+                            <span>Seguros</span>
                         </TabsTrigger>
                         <TabsTrigger value="client" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white flex gap-1 items-center text-xs">
                             <Users className="h-3 w-3" />
-                            <span className="hidden lg:inline">Cliente</span>
+                            <span>Cliente</span>
                         </TabsTrigger>
                         <TabsTrigger value="agregado" className="data-[state=active]:bg-orange-600 data-[state=active]:text-white flex gap-1 items-center text-xs">
                             <UserCheck className="h-3 w-3" />
-                            <span className="hidden lg:inline">Agregado</span>
+                            <span>Agregado</span>
                         </TabsTrigger>
                         <TabsTrigger value="maintenance" className="data-[state=active]:bg-amber-600 data-[state=active]:text-white flex gap-1 items-center text-xs">
                             <Wrench className="h-3 w-3" />
-                            <span className="hidden lg:inline">Manutenção</span>
+                            <span>Manutenção</span>
                         </TabsTrigger>
                         <TabsTrigger value="fines" className="data-[state=active]:bg-rose-600 data-[state=active]:text-white flex gap-1 items-center text-xs">
                             <AlertTriangle className="h-3 w-3" />
-                            <span className="hidden lg:inline">Multas</span>
+                            <span>Multas</span>
                         </TabsTrigger>
                     </TabsList>
 
@@ -602,6 +611,12 @@ export const VehicleForm: React.FC<VehicleFormProps> = ({
                                 <h3 className="text-lg font-semibold text-white">Alocação e Responsabilidade</h3>
                             </div>
                             <VehicleAllocationInfo formData={formData} handleInputChange={handleInputChange} />
+                        </div>
+                    </TabsContent>
+
+                    <TabsContent value="rental" className="mt-0 focus-visible:ring-0 space-y-6">
+                        <div>
+                            <VehicleRentalSection formData={formData} handleInputChange={handleInputChange} />
                         </div>
                     </TabsContent>
 

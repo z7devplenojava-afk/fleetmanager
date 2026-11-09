@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Building, Settings, User, Warehouse } from 'lucide-react';
+import { Building, MapPin, Settings, User, Warehouse } from 'lucide-react';
 import { VehicleFormSectionProps } from '../types';
 import { workPostService, WorkPost } from '@/services/workPostService';
 import { clientService } from '@/services/clientService';
@@ -9,6 +10,7 @@ import { contractService } from '@/services/contractService';
 import { departmentService, Department } from '@/services/departmentService';
 import { employeeService } from '@/services/employeeService';
 import { garageService, Garage } from '@/services/garageService';
+import { rentalInvoiceService } from '@/services/rentalInvoiceService';
 import { useQuery } from '@tanstack/react-query';
 
 export const VehicleAllocationInfo: React.FC<VehicleFormSectionProps> = ({ formData, handleInputChange }) => {
@@ -44,14 +46,138 @@ export const VehicleAllocationInfo: React.FC<VehicleFormSectionProps> = ({ formD
         retry: 2
     });
 
+    const { data: rentalInvoices } = useQuery({
+        queryKey: ['rental-invoices-for-vehicle-alloc'],
+        queryFn: () => rentalInvoiceService.list(),
+        staleTime: 30000,
+        retry: 1
+    });
+
+    // Resolve clientId válido (somente se existir na lista de clientes)
+    const validClientId = React.useMemo(() => {
+        const candidateId = formData.clientId || formData.empresaId;
+        if (!clients || clients.length === 0) return candidateId || '';
+        if (candidateId && clients.some(c => c.id === candidateId)) {
+            return candidateId;
+        }
+        // Tenta resolver pelo nome do cliente se o ID não bater (ex: tenant companyId antigo)
+        const candidateName = (formData.clientName || formData.empresa || '').trim().toLowerCase();
+        if (candidateName) {
+            const byName = clients.find(c => (c.name || '').trim().toLowerCase() === candidateName);
+            if (byName) return byName.id;
+        }
+        return '';
+    }, [clients, formData.clientId, formData.empresaId, formData.clientName, formData.empresa]);
+
+    // Auto-sincronização: quando o veículo está alocado via Fatura de Locação, Posto de Trabalho ou Nome de Cliente,
+    // preenche automaticamente Empresa/Cliente e Posto de Trabalho/Obra
+    useEffect(() => {
+        if (!clients || clients.length === 0) return;
+
+        let resolvedClientId = validClientId;
+        let resolvedClientName = formData.clientName || formData.empresa || '';
+        let resolvedWorkPostId = formData.postoDeTrabalho || '';
+        let resolvedWorkPostName = formData.obraSetorNome || '';
+        let resolvedContractNumber = formData.allocationContractNumber || '';
+        let resolvedStartDate = formData.allocationStartDate || '';
+        let resolvedEndDate = formData.allocationEndDate || '';
+
+        // 1. Se tem postoDeTrabalho selecionado, descobre o cliente e o nome da obra
+        if (resolvedWorkPostId && workPosts && workPosts.length > 0) {
+            const wp = workPosts.find(w => w.id === resolvedWorkPostId);
+            if (wp) {
+                if (!resolvedWorkPostName && wp.name) {
+                    resolvedWorkPostName = wp.name;
+                }
+                if (!resolvedClientId && wp.clientId) {
+                    const cl = clients.find(c => c.id === wp.clientId);
+                    if (cl) {
+                        resolvedClientId = cl.id;
+                        resolvedClientName = cl.name;
+                    }
+                }
+            }
+        }
+
+        // 2. Se ainda não tem cliente (ou datas), verifica nas Faturas de Locação pela placa ou vehicleId
+        if (rentalInvoices && rentalInvoices.length > 0 && (formData.placa || formData.vehicleId)) {
+            const cleanPlate = (formData.placa || '').trim().toUpperCase();
+            const matchingInvoice = rentalInvoices.find(inv =>
+                inv.items?.some(
+                    item =>
+                        (formData.vehicleId && item.vehicleId === formData.vehicleId) ||
+                        (cleanPlate && (item.plate || '').trim().toUpperCase() === cleanPlate)
+                )
+            );
+            if (matchingInvoice) {
+                if (!resolvedClientId && matchingInvoice.clientId) {
+                    const cl = clients.find(c => c.id === matchingInvoice.clientId);
+                    resolvedClientId = cl?.id || matchingInvoice.clientId;
+                    resolvedClientName = cl?.name || matchingInvoice.clientName || resolvedClientName;
+                }
+                if (!resolvedContractNumber && matchingInvoice.contractNumber) {
+                    resolvedContractNumber = matchingInvoice.contractNumber;
+                }
+                if (!resolvedStartDate && matchingInvoice.periodStart) {
+                    resolvedStartDate = matchingInvoice.periodStart.substring(0, 10);
+                }
+                if (!resolvedEndDate && matchingInvoice.periodEnd) {
+                    resolvedEndDate = matchingInvoice.periodEnd.substring(0, 10);
+                }
+            }
+        }
+
+        // 3. Se já temos o cliente e ainda não temos postoDeTrabalho, seleciona automaticamente a obra/setor do cliente
+        if (resolvedClientId && !resolvedWorkPostId && workPosts && workPosts.length > 0) {
+            const clientPosts = workPosts.filter((wp: any) => wp.clientId === resolvedClientId);
+            if (clientPosts.length > 0) {
+                resolvedWorkPostId = clientPosts[0].id;
+                if (!resolvedWorkPostName) {
+                    resolvedWorkPostName = clientPosts[0].name || '';
+                }
+            }
+        }
+
+        if (resolvedClientId && resolvedClientId !== formData.clientId) {
+            handleInputChange('clientId', resolvedClientId);
+            handleInputChange('empresaId', resolvedClientId);
+        }
+        if (resolvedClientName && resolvedClientName !== formData.clientName) {
+            handleInputChange('clientName', resolvedClientName);
+            handleInputChange('empresa', resolvedClientName);
+        }
+        if (resolvedWorkPostId && resolvedWorkPostId !== formData.postoDeTrabalho) {
+            handleInputChange('postoDeTrabalho', resolvedWorkPostId);
+        }
+        if (resolvedWorkPostName && resolvedWorkPostName !== formData.obraSetorNome) {
+            handleInputChange('obraSetorNome', resolvedWorkPostName);
+        }
+        if (resolvedContractNumber && !formData.allocationContractNumber) {
+            handleInputChange('allocationContractNumber', resolvedContractNumber);
+        }
+        if (resolvedStartDate && !formData.allocationStartDate) {
+            handleInputChange('allocationStartDate', resolvedStartDate);
+        }
+        if (resolvedEndDate && !formData.allocationEndDate) {
+            handleInputChange('allocationEndDate', resolvedEndDate);
+        }
+    }, [
+        clients,
+        workPosts,
+        rentalInvoices,
+        validClientId,
+        formData.placa,
+        formData.vehicleId,
+        formData.postoDeTrabalho,
+    ]);
+
     // Obras filtradas pelo cliente/empresa selecionada
-    const currentClientId = formData.clientId || formData.empresaId;
     const filteredWorkPosts = React.useMemo(() => {
         if (!workPosts || workPosts.length === 0) return [];
-        if (!currentClientId) return workPosts;
-        const matching = workPosts.filter((wp: any) => wp.clientId === currentClientId);
+        if (!validClientId) return workPosts;
+        const matching = workPosts.filter((wp: any) => wp.clientId === validClientId);
         return matching.length > 0 ? matching : workPosts;
-    }, [workPosts, currentClientId]);
+    }, [workPosts, validClientId]);
 
     const handleClientChange = async (selectedId: string) => {
         const selectedClient = clients?.find(c => c.id === selectedId);
@@ -61,11 +187,17 @@ export const VehicleAllocationInfo: React.FC<VehicleFormSectionProps> = ({ formD
         handleInputChange('clientId', selectedId);
         handleInputChange('clientName', name);
 
-        // Se o posto atual não pertencer ao novo cliente, limpa
-        if (formData.postoDeTrabalho) {
-            const currentWp = workPosts?.find(w => w.id === formData.postoDeTrabalho);
-            if (currentWp && currentWp.clientId && currentWp.clientId !== selectedId) {
-                handleInputChange('postoDeTrabalho', '');
+        // Seleciona automaticamente a obra/setor do cliente (ou limpa se pertencer a outro cliente)
+        if (workPosts && workPosts.length > 0) {
+            const clientPosts = workPosts.filter((w: any) => w.clientId === selectedId);
+            if (clientPosts.length > 0) {
+                handleInputChange('postoDeTrabalho', clientPosts[0].id);
+                handleInputChange('obraSetorNome', clientPosts[0].name || '');
+            } else if (formData.postoDeTrabalho) {
+                const currentWp = workPosts.find(w => w.id === formData.postoDeTrabalho);
+                if (currentWp && currentWp.clientId && currentWp.clientId !== selectedId) {
+                    handleInputChange('postoDeTrabalho', '');
+                }
             }
         }
 
@@ -84,6 +216,9 @@ export const VehicleAllocationInfo: React.FC<VehicleFormSectionProps> = ({ formD
                     if (activeContract.endDate) {
                         handleInputChange('allocationEndDate', activeContract.endDate.split('T')[0]);
                     }
+                    if ((activeContract as any).unitVehicleValue) {
+                        handleInputChange('rentalMonthlyRate', Number((activeContract as any).unitVehicleValue) || 0);
+                    }
                 }
             }
         } catch (error) {
@@ -100,12 +235,12 @@ export const VehicleAllocationInfo: React.FC<VehicleFormSectionProps> = ({ formD
                 <div className="relative">
                     <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Select
-                        value={formData.clientId || formData.empresaId || ''}
+                        value={validClientId}
                         onValueChange={handleClientChange}
                         disabled={clientsLoading}
                     >
                         <SelectTrigger className="bg-gray-900/50 border-gray-600 text-white pl-10 focus:border-purple-500 focus:ring-purple-500/20 transition-all duration-200">
-                            <SelectValue placeholder="Selecione um cliente / empresa" />
+                            <SelectValue placeholder={formData.clientName || "Selecione um cliente / empresa"} />
                         </SelectTrigger>
                         <SelectContent className="bg-gray-900 border-gray-600 z-[10060]">
                             {clients?.map((client) => (
@@ -128,20 +263,23 @@ export const VehicleAllocationInfo: React.FC<VehicleFormSectionProps> = ({ formD
                         onValueChange={(value) => {
                             const wp = workPosts?.find(w => w.id === value);
                             handleInputChange('postoDeTrabalho', value);
-                            if (wp && wp.clientId && !formData.clientId) {
+                            if (wp?.name) {
+                                handleInputChange('obraSetorNome', wp.name);
+                            }
+                            if (wp && wp.clientId && wp.clientId !== validClientId) {
                                 handleClientChange(wp.clientId);
                             }
                         }}
                         disabled={workPostsLoading}
                     >
                         <SelectTrigger className="bg-gray-900/50 border-gray-600 text-white pl-10 focus:border-purple-500 focus:ring-purple-500/20 transition-all duration-200">
-                            <SelectValue placeholder={currentClientId ? "Selecione o posto da empresa…" : "Selecione um posto / obra"} />
+                            <SelectValue placeholder={formData.obraSetorNome || (validClientId ? "Selecione o posto da empresa…" : "Selecione um posto / obra")} />
                         </SelectTrigger>
                         <SelectContent className="bg-gray-900 border-gray-600 z-[10060]">
                             {filteredWorkPosts.length > 0 ? (
                                 filteredWorkPosts.map((wp: WorkPost) => (
                                     <SelectItem key={wp.id} value={wp.id} className="text-white hover:bg-gray-700">
-                                        {wp.name} {wp.postCode ? `(${wp.postCode})` : ''} {!currentClientId && wp.clientName ? `— ${wp.clientName}` : ''}
+                                        {wp.name} {wp.postCode ? `(${wp.postCode})` : ''} {!validClientId && wp.clientName ? `— ${wp.clientName}` : ''}
                                     </SelectItem>
                                 ))
                             ) : (
@@ -151,6 +289,23 @@ export const VehicleAllocationInfo: React.FC<VehicleFormSectionProps> = ({ formD
                             )}
                         </SelectContent>
                     </Select>
+                </div>
+            </div>
+
+            {/* Obra / Setor de Trabalho Específico (editável / sincronizado) */}
+            <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="obraSetorNome" className="text-gray-300 font-medium">
+                    Obra / Setor de Trabalho Alocado
+                </Label>
+                <div className="relative">
+                    <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-purple-400" />
+                    <Input
+                        id="obraSetorNome"
+                        value={formData.obraSetorNome || ''}
+                        onChange={(e) => handleInputChange('obraSetorNome', e.target.value)}
+                        placeholder="Informe ou confirme a Obra / Setor de Trabalho onde o veículo está alocado..."
+                        className="bg-gray-900/50 border-gray-600 text-white pl-10 focus:border-purple-500 focus:ring-purple-500/20 transition-all duration-200"
+                    />
                 </div>
             </div>
 
@@ -230,7 +385,7 @@ export const VehicleAllocationInfo: React.FC<VehicleFormSectionProps> = ({ formD
                         <SelectTrigger className="bg-gray-900/50 border-gray-600 text-white pl-10 focus:border-purple-500 focus:ring-purple-500/20 transition-all duration-200">
                             <SelectValue placeholder="Selecione um departamento" />
                         </SelectTrigger>
-                        <SelectContent className="bg-gray-900 border-gray-600">
+                        <SelectContent className="bg-gray-900 border-gray-600 z-[10060]">
                             {departments?.map((dept: Department) => (
                                 <SelectItem key={dept.id} value={dept.id} className="text-white hover:bg-gray-700">
                                     {dept.name}
@@ -254,7 +409,7 @@ export const VehicleAllocationInfo: React.FC<VehicleFormSectionProps> = ({ formD
                         <SelectTrigger className="bg-gray-900/50 border-gray-600 text-white pl-10 focus:border-purple-500 focus:ring-purple-500/20 transition-all duration-200">
                             <SelectValue placeholder="Selecione um responsável" />
                         </SelectTrigger>
-                        <SelectContent className="bg-gray-900 border-gray-600">
+                        <SelectContent className="bg-gray-900 border-gray-600 z-[10060]">
                             {employees?.map((emp) => (
                                 <SelectItem key={emp.id} value={emp.id} className="text-white hover:bg-gray-700">
                                     {emp.name}
