@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Fuel, Plus, Droplets, RefreshCw, Layers, Gauge, ShoppingCart, Settings, BarChart3, MapPin, Sparkles, Building2, LayoutDashboard } from 'lucide-react';
+import { Fuel, Plus, Droplets, RefreshCw, Layers, Gauge, ShoppingCart, Settings, BarChart3, MapPin, Sparkles, Building2, LayoutDashboard, Receipt } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import fleetService from '@/services/fleetService';
 import { FuelConsumptionStats } from '@/components/frota/FuelConsumptionStats';
@@ -21,6 +21,7 @@ import FuelReportsDashboard from '@/components/frota/FuelReportsDashboard';
 import EfficiencyAlerts from '@/components/frota/EfficiencyAlerts';
 import AbastecimentoExternoFormModal from '@/components/frota/AbastecimentoExternoFormModal';
 import AbastecimentoExternoReport, { AbastExternoSubTab } from '@/components/frota/AbastecimentoExternoReport';
+import { FuelExpensesTab } from '@/components/abastecimento/FuelExpensesTab';
 
 const AbastecimentoDashboard: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -77,6 +78,9 @@ const AbastecimentoDashboard: React.FC = () => {
                         </TabsTrigger>
                         <TabsTrigger value="deliveries" className="shrink-0 whitespace-nowrap px-3.5 py-2 text-xs sm:text-sm text-seguranca-lightgray rounded-lg data-[state='active']:bg-seguranca-red data-[state='active']:text-white">
                             <ShoppingCart size={16} className="mr-2 shrink-0" /> Entradas (NF)
+                        </TabsTrigger>
+                        <TabsTrigger value="despesas" className="shrink-0 whitespace-nowrap px-3.5 py-2 text-xs sm:text-sm text-seguranca-lightgray rounded-lg data-[state='active']:bg-purple-600 data-[state='active']:text-white font-medium">
+                            <Receipt size={16} className="mr-2 shrink-0 text-purple-300" /> Despesas & Boletos
                         </TabsTrigger>
                         <TabsTrigger value="readings" className="shrink-0 whitespace-nowrap px-3.5 py-2 text-xs sm:text-sm text-seguranca-lightgray rounded-lg data-[state='active']:bg-seguranca-red data-[state='active']:text-white">
                             <Gauge size={16} className="mr-2 shrink-0" /> Fechamentos
@@ -235,6 +239,10 @@ const AbastecimentoDashboard: React.FC = () => {
 
                     <TabsContent value="deliveries" className="mt-0">
                         <FuelDeliveryManagement />
+                    </TabsContent>
+
+                    <TabsContent value="despesas" className="mt-0">
+                        <FuelExpensesTab />
                     </TabsContent>
 
                     <TabsContent value="readings" className="mt-0">

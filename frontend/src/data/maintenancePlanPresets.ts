@@ -225,3 +225,4 @@ export const MAINTENANCE_PLAN_PRESETS: MaintenanceItemPreset[] = [
         recommendedNotes: 'Urbano: média de 80.000 a 120.000 km. Rodoviário: pode ultrapassar 200.000 km.'
     }
 ];
+

@@ -25,6 +25,9 @@ export interface CreateContaAPagarRequest {
   companySigla?: string;
   paymentMethod?: string;
   totalInstallments?: number;
+  installmentSeq?: number;
+  boletoUrl?: string;
+  boletoOriginalName?: string;
   parentInvoiceId?: string;
   nfeKey?: string;
   ddaInvoiceId?: string;
@@ -474,7 +477,13 @@ export const contasAPagarService = {
       centroCusto: conta.centroCusto === 'NENHUM' ? undefined : conta.centroCusto,
       companySigla: conta.companySigla,
       workOrderId: conta.workOrderId,
-      workOrderNumber: conta.workOrderNumber
+      workOrderNumber: conta.workOrderNumber,
+      invoiceNumber: conta.invoiceNumber,
+      totalInstallments: conta.totalInstallments,
+      installmentSeq: conta.installmentSeq,
+      paymentMethod: (conta as any).paymentMethod,
+      boletoUrl: conta.boletoUrl,
+      boletoOriginalName: conta.boletoOriginalName
     };
 
 

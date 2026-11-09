@@ -513,6 +513,9 @@ public class InvoiceService {
             if (dto.getIsCanceled() != null) invoice.setIsCanceled(dto.getIsCanceled());
             if (dto.getWorkOrderId() != null) invoice.setWorkOrderId(dto.getWorkOrderId());
             if (dto.getWorkOrderNumber() != null) invoice.setWorkOrderNumber(dto.getWorkOrderNumber());
+            if (dto.getBoletoUrl() != null) invoice.setBoletoUrl(dto.getBoletoUrl());
+            if (dto.getBoletoOriginalName() != null) invoice.setBoletoOriginalName(dto.getBoletoOriginalName());
+            if (dto.getTotalInstallments() != null) invoice.setTotalInstallments(dto.getTotalInstallments());
             
             log.debug("Campos bÃ¡sicos definidos");
             
