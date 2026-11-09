@@ -198,65 +198,65 @@ const Index: React.FC = () => {
 
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <Card className="bg-[#18181b] border-[#27272a] hover:border-red-600/30 transition-all duration-300 group">
+        <Card className="bg-card border-border hover:border-red-600/40 transition-all duration-300 group shadow-sm">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-muted-foreground/60 text-[10px] uppercase font-bold tracking-widest mb-1">Total de Usuários</p>
-                <p className="text-2xl font-bold text-white">
+                <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-widest mb-1">Total de Usuários</p>
+                <p className="text-2xl font-bold text-card-foreground">
                   {dashboardService.formatNumber(stats.totalUsers)}
                 </p>
               </div>
-              <div className="p-2.5 bg-[#27272a] rounded border border-[#3f3f46] group-hover:scale-110 transition-transform">
-                <Users className="h-5 w-5 text-blue-400" />
+              <div className="p-2.5 bg-muted rounded-lg border border-border group-hover:scale-110 transition-transform">
+                <Users className="h-5 w-5 text-blue-500 dark:text-blue-400" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-[#18181b] border-[#27272a] hover:border-red-600/30 transition-all duration-300 group">
+        <Card className="bg-card border-border hover:border-red-600/40 transition-all duration-300 group shadow-sm">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-muted-foreground/60 text-[10px] uppercase font-bold tracking-widest mb-1">Contratos Ativos</p>
-                <p className="text-2xl font-bold text-white">
+                <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-widest mb-1">Contratos Ativos</p>
+                <p className="text-2xl font-bold text-card-foreground">
                   {dashboardService.formatNumber(stats.activeContracts)}
                 </p>
               </div>
-              <div className="p-2.5 bg-[#27272a] rounded border border-[#3f3f46] group-hover:scale-110 transition-transform">
-                <FileText className="h-5 w-5 text-green-400" />
+              <div className="p-2.5 bg-muted rounded-lg border border-border group-hover:scale-110 transition-transform">
+                <FileText className="h-5 w-5 text-emerald-600 dark:text-green-400" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-[#18181b] border-[#27272a] hover:border-red-600/30 transition-all duration-300 group">
+        <Card className="bg-card border-border hover:border-red-600/40 transition-all duration-300 group shadow-sm">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-muted-foreground/60 text-[10px] uppercase font-bold tracking-widest mb-1">Receita Mensal</p>
-                <p className="text-2xl font-bold text-red-500">
+                <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-widest mb-1">Receita Mensal</p>
+                <p className="text-2xl font-bold text-red-600 dark:text-red-500">
                   {dashboardService.formatCurrency(stats.monthlyRevenue)}
                 </p>
               </div>
-              <div className="p-2.5 bg-[#27272a] rounded border border-[#3f3f46] group-hover:scale-110 transition-transform">
-                <DollarSign className="h-5 w-5 text-red-500" />
+              <div className="p-2.5 bg-muted rounded-lg border border-border group-hover:scale-110 transition-transform">
+                <DollarSign className="h-5 w-5 text-red-600 dark:text-red-500" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-[#18181b] border-[#27272a] hover:border-red-600/30 transition-all duration-300 group">
+        <Card className="bg-card border-border hover:border-red-600/40 transition-all duration-300 group shadow-sm">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-muted-foreground/60 text-[10px] uppercase font-bold tracking-widest mb-1">Equipamentos</p>
-                <p className="text-2xl font-bold text-white">
+                <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-widest mb-1">Equipamentos</p>
+                <p className="text-2xl font-bold text-card-foreground">
                   {dashboardService.formatNumber(stats.totalEquipment)}
                 </p>
               </div>
-              <div className="p-2.5 bg-[#27272a] rounded border border-[#3f3f46] group-hover:scale-110 transition-transform">
-                <Package className="h-5 w-5 text-orange-400" />
+              <div className="p-2.5 bg-muted rounded-lg border border-border group-hover:scale-110 transition-transform">
+                <Package className="h-5 w-5 text-orange-500 dark:text-orange-400" />
               </div>
             </div>
           </CardContent>
@@ -406,28 +406,28 @@ const Index: React.FC = () => {
 
       {/* Dashboard com abas */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 bg-accent/20 border border-border/50 p-1.5 rounded-2xl h-auto gap-2">
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 bg-muted/80 border border-border p-1.5 rounded-2xl h-auto gap-2">
           <TabsTrigger
             value="overview"
-            className="data-[state='active']:bg-primary data-[state='active']:text-primary-foreground text-muted-foreground font-bold rounded-xl py-3 transition-all active:scale-95 shadow-sm"
+            className="data-[state='active']:bg-primary data-[state='active']:text-primary-foreground text-muted-foreground hover:text-foreground font-bold rounded-xl py-3 transition-all active:scale-95 shadow-sm"
           >
             Visão Geral
           </TabsTrigger>
           <TabsTrigger
             value="modules"
-            className="data-[state='active']:bg-primary data-[state='active']:text-primary-foreground text-muted-foreground font-bold rounded-xl py-3 transition-all active:scale-95 shadow-sm"
+            className="data-[state='active']:bg-primary data-[state='active']:text-primary-foreground text-muted-foreground hover:text-foreground font-bold rounded-xl py-3 transition-all active:scale-95 shadow-sm"
           >
             Módulos
           </TabsTrigger>
           <TabsTrigger
             value="activity"
-            className="data-[state='active']:bg-primary data-[state='active']:text-primary-foreground text-muted-foreground font-bold rounded-xl py-3 transition-all active:scale-95 shadow-sm"
+            className="data-[state='active']:bg-primary data-[state='active']:text-primary-foreground text-muted-foreground hover:text-foreground font-bold rounded-xl py-3 transition-all active:scale-95 shadow-sm"
           >
             Atividade
           </TabsTrigger>
           <TabsTrigger
             value="profile"
-            className="data-[state='active']:bg-primary data-[state='active']:text-primary-foreground text-muted-foreground font-bold rounded-xl py-3 transition-all active:scale-95 shadow-sm"
+            className="data-[state='active']:bg-primary data-[state='active']:text-primary-foreground text-muted-foreground hover:text-foreground font-bold rounded-xl py-3 transition-all active:scale-95 shadow-sm"
           >
             Perfil
           </TabsTrigger>

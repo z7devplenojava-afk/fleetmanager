@@ -2091,8 +2091,8 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
                 : 'px-4 py-2.5 text-sm font-medium w-full'
               }
               ${active
-                ? 'bg-red-600 text-white shadow-md'
-                : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                ? 'bg-red-600 text-white shadow-md font-semibold'
+                : 'text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent'
               }
             `}
           >
@@ -2188,12 +2188,12 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
               type="button"
               onClick={() => toggleModule(moduleId)}
               aria-expanded={isExpanded}
-              className="w-full flex items-center justify-between px-2 py-1.5 rounded-md text-xs font-semibold text-muted-foreground/60 hover:text-white hover:bg-white/5 uppercase tracking-wider transition-all select-none group cursor-pointer text-left focus:outline-none"
+              className="w-full flex items-center justify-between px-2 py-1.5 rounded-md text-xs font-bold text-sidebar-foreground/65 hover:text-sidebar-foreground hover:bg-sidebar-accent uppercase tracking-wider transition-all select-none group cursor-pointer text-left focus:outline-none"
             >
               <span className="flex items-center gap-2 truncate">
                 <ChevronDown
                   size={14}
-                  className={`transition-transform duration-200 text-muted-foreground/40 group-hover:text-white shrink-0 ${
+                  className={`transition-transform duration-200 text-sidebar-foreground/50 group-hover:text-sidebar-foreground shrink-0 ${
                     isExpanded ? 'rotate-0' : '-rotate-90'
                   }`}
                 />
@@ -2231,17 +2231,17 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
         />
       )}
 
-      {/* Sidebar - 100% opaca com fundo sólido para evitar vazamento do conteúdo */}
+      {/* Sidebar - 100% opaca com fundo sólido adaptável ao tema (Dark, Grafite, Branco) */}
       <aside
         className={`
-          fixed left-0 top-0 bottom-0 h-full max-h-[100dvh] bg-[#111319] dark:bg-[#0c0e14] text-sidebar-foreground border-r border-[#262833]
-          flex flex-col transition-transform duration-300 ease-in-out z-50 shadow-2xl
+          fixed left-0 top-0 bottom-0 h-full max-h-[100dvh] bg-sidebar text-sidebar-foreground border-r border-sidebar-border
+          flex flex-col transition-all duration-300 ease-in-out z-50 shadow-2xl
           ${isMobile ? 'w-[85vw] max-w-[320px]' : (collapsed ? 'w-16' : 'w-64')}
           ${isMobile && collapsed ? '-translate-x-full pointer-events-none invisible' : 'translate-x-0 visible'}
         `}
       >
         {/* Header com Logo e Botão de Fechar no Mobile */}
-        <div className={`${collapsed && !isMobile ? 'px-2' : 'px-4'} border-b border-[#262833] flex items-center justify-between h-[64px] bg-[#111319] dark:bg-[#0c0e14] shrink-0`}>
+        <div className={`${collapsed && !isMobile ? 'px-2' : 'px-4'} border-b border-sidebar-border flex items-center justify-between h-[64px] bg-sidebar shrink-0 transition-colors duration-300`}>
           <ScrollPreservingLink
             to="/"
             onClick={() => { if (isMobile && !collapsed) onToggle(); }}
@@ -2265,7 +2265,7 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
           {isMobile && !collapsed && (
             <button
               onClick={onToggle}
-              className="p-1.5 text-zinc-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors ml-2 shrink-0"
+              className="p-1.5 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-lg transition-colors ml-2 shrink-0"
               title="Fechar menu"
               aria-label="Fechar menu"
             >
@@ -2277,7 +2277,7 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
         {/* Conteúdo da navegação */}
         <div
           ref={scrollContainerRef}
-          className={`flex-1 overflow-y-auto py-4 bg-[#111319] dark:bg-[#0c0e14] ${collapsed && !isMobile ? 'scrollbar-hide' : ''}`}
+          className={`flex-1 overflow-y-auto py-4 bg-sidebar transition-colors duration-300 ${collapsed && !isMobile ? 'scrollbar-hide' : ''}`}
         >
           {/* Menu Principal */}
           {renderModuleSection('main', 'Menu Principal', filteredMainMenuItems)}
@@ -2340,7 +2340,7 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
         </div>
 
         {/* Footer */}
-        <div className={`border-t border-[#262833] bg-[#111319] dark:bg-[#0c0e14] shrink-0 ${
+        <div className={`border-t border-sidebar-border bg-sidebar transition-colors duration-300 shrink-0 ${
           collapsed && !isMobile ? 'p-2 flex flex-col items-center gap-2' : 'p-2.5 sm:p-3'
         } ${isMobile ? 'pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]' : ''}`}>
           {user && (
@@ -2356,7 +2356,7 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsLogoutModalOpen(true)}
-                  className="w-10 h-10 rounded-lg flex items-center justify-center text-red-400 hover:text-white hover:bg-red-500/20 transition-colors"
+                  className="w-10 h-10 rounded-lg flex items-center justify-center text-red-500 hover:text-white hover:bg-red-600 transition-colors"
                   title="Sair do sistema"
                   aria-label="Sair do sistema"
                 >
@@ -2364,7 +2364,7 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
                 </button>
               </>
             ) : (
-              <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-white/[0.04] border border-white/5">
+              <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-sidebar-accent/70 border border-sidebar-border">
                 <div
                   className="flex items-center space-x-2.5 cursor-pointer min-w-0 flex-1 hover:opacity-80 transition-opacity"
                   onClick={handleProfileClick}
@@ -2374,10 +2374,10 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
                     <User2 size={16} className="text-black" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-xs font-semibold text-foreground truncate">
+                    <div className="text-xs font-semibold text-sidebar-foreground truncate">
                       {user?.name || 'Usuário'}
                     </div>
-                    <div className="text-[10px] text-muted-foreground truncate uppercase font-medium">
+                    <div className="text-[10px] text-sidebar-foreground/70 truncate uppercase font-medium">
                       {getRoleDisplayName(user?.role)}
                     </div>
                   </div>
@@ -2386,7 +2386,7 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsLogoutModalOpen(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-400 hover:text-white bg-red-500/10 hover:bg-red-600 border border-red-500/30 hover:border-red-600 rounded-lg transition-all shrink-0 active:scale-95 shadow-sm"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-500 hover:text-white bg-red-500/10 hover:bg-red-600 border border-red-500/30 hover:border-red-600 rounded-lg transition-all shrink-0 active:scale-95 shadow-sm"
                   title="Sair do sistema"
                 >
                   <LogOut size={14} />

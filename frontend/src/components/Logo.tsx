@@ -86,10 +86,10 @@ const Logo: React.FC<LogoProps> = ({
         </div>
         {showText && (
           <div className="flex flex-col -space-y-0.5 justify-center">
-            <span className="text-[9px] font-bold text-red-400 uppercase tracking-widest leading-none">
+            <span className="text-[9px] font-bold text-red-500 uppercase tracking-widest leading-none">
               Empresa
             </span>
-            <span className="text-xs font-bold text-white truncate max-w-[160px] sm:max-w-[220px] leading-tight">
+            <span className="text-xs font-bold text-sidebar-foreground truncate max-w-[160px] sm:max-w-[220px] leading-tight">
               {companyName}
             </span>
           </div>

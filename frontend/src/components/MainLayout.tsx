@@ -281,10 +281,10 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         <main className="flex-1 p-2 sm:p-3 md:p-4 pb-24 md:pb-6 overflow-visible bg-background relative z-10">
           {/* Fundo Personalizado VSS (Viação São Silvestre) */}
           {isVss && (
-            <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden select-none">
+            <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden select-none vss-bg-overlay">
               {/* Imagem de Fundo Fotográfica */}
               <div
-                className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-all duration-700"
+                className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-all duration-700 vss-bg-photo"
                 style={{
                   backgroundImage: `url('/vss-bg.jpg')`,
                   filter: 'blur(1.5px) brightness(0.60) saturate(0.85)',

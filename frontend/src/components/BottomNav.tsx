@@ -51,7 +51,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ onToggleSidebar }) => {
         <nav
             role="navigation"
             aria-label="Navegação inferior mobile"
-            className="md:hidden fixed bottom-0 left-0 right-0 bg-background/95 dark:bg-[#0c0e14]/95 backdrop-blur-md border-t border-border z-40 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_20px_rgba(0,0,0,0.3)]"
+            className="md:hidden fixed bottom-0 left-0 right-0 bg-sidebar/95 backdrop-blur-md border-t border-sidebar-border z-40 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_20px_rgba(0,0,0,0.2)] transition-colors duration-300"
         >
             <div className="grid grid-cols-4 items-center h-16 px-1">
                 {navItems.map((item) => (
