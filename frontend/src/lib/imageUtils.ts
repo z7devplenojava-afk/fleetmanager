@@ -87,3 +87,55 @@ export async function compressImageIfNeeded(
     reader.readAsDataURL(file);
   });
 }
+
+/**
+ * Comprime uma imagem em formato Data URL (base64) redimensionando e reduzindo a qualidade
+ * para evitar erros de 413 (Payload Too Large).
+ */
+export async function compressDataUrl(
+  dataUrl: string,
+  maxWidth = 1280,
+  maxHeight = 960,
+  quality = 0.75
+): Promise<string> {
+  if (!dataUrl || !dataUrl.startsWith('data:image')) {
+    return dataUrl;
+  }
+  // Se já for pequena (< 150KB), não precisa reprocessar
+  if (dataUrl.length < 150 * 1024) {
+    return dataUrl;
+  }
+
+  return new Promise((resolve) => {
+    const img = document.createElement('img');
+    img.onload = () => {
+      let width = img.width;
+      let height = img.height;
+
+      if (width > height) {
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+      } else {
+        if (height > maxHeight) {
+          width = Math.round((width * maxHeight) / height);
+          height = maxHeight;
+        }
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve(dataUrl);
+        return;
+      }
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}

@@ -51,6 +51,7 @@ import { clientService } from '@/services/clientService';
 import { workPostService } from '@/services/workPostService';
 import { employeeService, Employee } from '@/services/employeeService';
 import { openVehicleInspectionPDFPreview } from '@/utils/vehicleInspectionPdfGenerator';
+import { compressImageIfNeeded, compressDataUrl } from '@/lib/imageUtils';
 
 interface VehicleInspectionModalProps {
   open: boolean;
@@ -644,17 +645,40 @@ export const VehicleInspectionModal: React.FC<VehicleInspectionModalProps> = ({
     }
 
     const selectedFiles = Array.from(files).slice(0, remainingSlots);
-    selectedFiles.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result as string;
-        setEvidences((prev) => {
-          if (prev.length >= MAX_EVIDENCES) return prev;
-          return [...prev, result];
-        });
-      };
-      reader.readAsDataURL(file);
-    });
+    for (const file of selectedFiles) {
+      try {
+        const compressedFile = await compressImageIfNeeded(file, 1280, 960, 0.75);
+        const reader = new FileReader();
+        reader.onload = async () => {
+          let result = reader.result as string;
+          try {
+            result = await compressDataUrl(result, 1280, 960, 0.75);
+          } catch {
+            // fallback silencioso
+          }
+          setEvidences((prev) => {
+            if (prev.length >= MAX_EVIDENCES) return prev;
+            return [...prev, result];
+          });
+        };
+        reader.readAsDataURL(compressedFile);
+      } catch {
+        const reader = new FileReader();
+        reader.onload = async () => {
+          let result = reader.result as string;
+          try {
+            result = await compressDataUrl(result, 1280, 960, 0.75);
+          } catch {
+            // fallback silencioso
+          }
+          setEvidences((prev) => {
+            if (prev.length >= MAX_EVIDENCES) return prev;
+            return [...prev, result];
+          });
+        };
+        reader.readAsDataURL(file);
+      }
+    }
 
     toast({
       title: `${selectedFiles.length} foto(s) adicionada(s)`,
@@ -717,7 +741,7 @@ export const VehicleInspectionModal: React.FC<VehicleInspectionModalProps> = ({
     if (!ctx) return;
 
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
 
     setEvidences((prev) => {
       const next = [...prev, dataUrl].slice(0, MAX_EVIDENCES);
@@ -737,9 +761,12 @@ export const VehicleInspectionModal: React.FC<VehicleInspectionModalProps> = ({
     setEvidences((prev) => prev.filter((_, idx) => idx !== indexToRemove));
   };
 
-  const buildFormData = (): CreateVehicleInspectionDTO => {
+  const buildFormData = async (): Promise<CreateVehicleInspectionDTO> => {
     const validPhotos = evidences.filter(Boolean).slice(0, MAX_EVIDENCES);
-    const photosJson = validPhotos.length > 0 ? JSON.stringify(validPhotos) : undefined;
+    const compressedPhotos = await Promise.all(
+      validPhotos.map((photo) => compressDataUrl(photo, 1280, 960, 0.75))
+    );
+    const photosJson = compressedPhotos.length > 0 ? JSON.stringify(compressedPhotos) : undefined;
     return {
       registryNumber,
       inspectionType: 'LAUDO',
@@ -779,7 +806,7 @@ export const VehicleInspectionModal: React.FC<VehicleInspectionModalProps> = ({
 
     setSaving(true);
     try {
-      const payload = buildFormData();
+      const payload = await buildFormData();
       if (inspection?.id) {
         await vehicleInspectionService.updateInspection(inspection.id, payload);
         toast({ title: 'Laudo Atualizado!', description: `Laudo Nº ${registryNumber} salvo com sucesso.` });
@@ -803,9 +830,10 @@ export const VehicleInspectionModal: React.FC<VehicleInspectionModalProps> = ({
   const handlePrintPDF = async () => {
     setGeneratingPdf(true);
     try {
+      const formData = await buildFormData();
       const mockObj: VehicleInspection = {
         id: inspection?.id || 'preview',
-        ...buildFormData(),
+        ...formData,
       };
       await openVehicleInspectionPDFPreview(mockObj);
       toast({
