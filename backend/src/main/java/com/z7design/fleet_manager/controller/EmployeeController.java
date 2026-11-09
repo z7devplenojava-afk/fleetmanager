@@ -3,6 +3,7 @@ package com.z7design.fleet_manager.controller;
 import com.z7design.fleet_manager.dto.EmployeeDTO;
 import com.z7design.fleet_manager.dto.SimpleEmployeeDTO;
 import com.z7design.fleet_manager.model.Employee;
+import com.z7design.fleet_manager.repository.EmployeeRepository;
 import com.z7design.fleet_manager.service.EmployeeService;
 import com.z7design.fleet_manager.service.EmployeeRecordPdfService;
 import com.z7design.fleet_manager.exception.ResourceNotFoundException;
@@ -33,6 +34,7 @@ import java.util.HashMap;
 public class EmployeeController {
     
     private final EmployeeService employeeService;
+    private final EmployeeRepository employeeRepository;
     private final EmployeeRecordPdfService employeeRecordPdfService;
     private final EmployeeExcelImportService employeeExcelImportService;
     private final com.z7design.fleet_manager.service.EmployeePdfImportService employeePdfImportService;

@@ -72,7 +72,7 @@ public class Invoice implements TenantAware {
     @Column(name = "linha_digitavel", length = 60)
     private String linhaDigitavel;
 
-    @Column(name = "boleto_url", length = 500)
+    @Column(name = "boleto_url", columnDefinition = "TEXT")
     private String boletoUrl;
 
     @Column(name = "boleto_original_name", length = 255)

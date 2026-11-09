@@ -205,8 +205,17 @@ jobs:
             echo "📥 Pull das últimas imagens..."
             docker compose -f docker-compose.ci.yml pull
 
+            # Iniciar banco antes do backend para remover registros de migracao com falha e destravar locks
+            docker compose -f docker-compose.ci.yml up -d postgres-ci
+            docker exec fluxbus-db-ci sh -c 'until pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" >/dev/null 2>&1; do sleep 1; done'
+            docker exec fluxbus-db-ci sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT pg_advisory_unlock_all(); DELETE FROM flyway_schema_history WHERE success = false;"' || true
+
             echo "🚀 Subindo containers..."
-            docker compose -f docker-compose.ci.yml up -d --force-recreate --remove-orphans
+            docker compose -f docker-compose.ci.yml up -d --force-recreate --remove-orphans || {
+              echo "❌ Falha ao subir containers no CI. Logs do backend:"
+              docker logs fluxbus-backend-ci --tail 100 || true
+              exit 1
+            }
 
             echo "✅ Deploy concluído!"
             echo "📊 Status dos containers:"
