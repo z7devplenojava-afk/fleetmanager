@@ -12,7 +12,7 @@ import {
   MapPin, Building2, Users, Pencil, AlertTriangle, Gauge,
   ArrowLeftRight, History, ArrowRight, QrCode, Camera,
   LogIn, LogOut, Clock, Wrench, ShieldCheck, CheckCircle2,
-  RefreshCw, Filter, Smartphone, ExternalLink, Calendar, Sparkles, Info
+  RefreshCw, Filter, Smartphone, ExternalLink, Calendar, Sparkles, Info, Eye
 } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
@@ -27,7 +27,7 @@ import {
 import {
   garageService, Garage, GarageInput, GarageOccupancyDashboard,
   GarageMovement, GarageTransferInput, GarageCheckInInput, GarageCheckOutInput,
-  MOVEMENT_REASON_LABELS,
+  GarageVehicleSummary, MOVEMENT_REASON_LABELS,
 } from '@/services/garageService';
 import { employeeService, Employee } from '@/services/employeeService';
 import fleetService from '@/services/fleetService';
@@ -179,10 +179,23 @@ export const Garagens: React.FC = () => {
   // Confirmação de exclusão/desativação
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  // Modal de veículos de uma garagem
+  // Modal de visualização de informações e veículos de uma garagem
   const [vehiclesDialogOpen, setVehiclesDialogOpen] = useState(false);
   const [selectedGarage, setSelectedGarage] = useState<Garage | null>(null);
   const [vehicleToAssign, setVehicleToAssign] = useState('');
+  const [stayVehicleSearch, setStayVehicleSearch] = useState('');
+  const [stayEditingVehicleId, setStayEditingVehicleId] = useState<string | null>(null);
+  const [stayDriverName, setStayDriverName] = useState('');
+  const [stayStartDate, setStayStartDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [stayStartTime, setStayStartTime] = useState(() => new Date().toTimeString().slice(0, 5));
+  const [stayEndDate, setStayEndDate] = useState('');
+  const [stayEndTime, setStayEndTime] = useState('');
+  const [stayWorkSchedule, setStayWorkSchedule] = useState('06:00 às 14:20 - Turno Manhã');
+  const [stayIsTemporary, setStayIsTemporary] = useState(false);
+  const [stayReason, setStayReason] = useState('RECOLHIMENTO');
+  const [stayFilterMode, setStayFilterMode] = useState<'all' | 'active' | 'temporary'>('all');
+  const [staySearchQuery, setStaySearchQuery] = useState('');
+  const [staySaving, setStaySaving] = useState(false);
 
   // Remanejamento entre garagens
   const [transferDialogOpen, setTransferDialogOpen] = useState(false);
@@ -190,6 +203,9 @@ export const Garagens: React.FC = () => {
   const [transferToGarageId, setTransferToGarageId] = useState('');
   const [transferReason, setTransferReason] = useState('REMANEJAMENTO');
   const [transferDetail, setTransferDetail] = useState('');
+  const [transferDriverName, setTransferDriverName] = useState('');
+  const [transferWorkSchedule, setTransferWorkSchedule] = useState('');
+  const [transferIsTemporary, setTransferIsTemporary] = useState(false);
   const [transferSaving, setTransferSaving] = useState(false);
 
   // Histórico de movimentações
@@ -214,6 +230,12 @@ export const Garagens: React.FC = () => {
   const [terminalReason, setTerminalReason] = useState<string>('RECOLHIMENTO');
   const [terminalDetail, setTerminalDetail] = useState<string>('');
   const [terminalKm, setTerminalKm] = useState<number | undefined>(undefined);
+  const [terminalStartDate, setTerminalStartDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [terminalStartTime, setTerminalStartTime] = useState(() => new Date().toTimeString().slice(0, 5));
+  const [terminalEndDate, setTerminalEndDate] = useState('');
+  const [terminalEndTime, setTerminalEndTime] = useState('');
+  const [terminalWorkSchedule, setTerminalWorkSchedule] = useState('06:00 às 14:20 - Turno Manhã');
+  const [terminalIsTemporary, setTerminalIsTemporary] = useState(false);
   const [terminalSubmitting, setTerminalSubmitting] = useState(false);
   const [seedLoading, setSeedLoading] = useState(false);
 
@@ -551,6 +573,13 @@ export const Garagens: React.FC = () => {
     }
     setTerminalSubmitting(true);
     try {
+      const entryIso = terminalStartDate
+        ? `${terminalStartDate}T${terminalStartTime || '06:00'}:00`
+        : undefined;
+      const exitIso = terminalEndDate
+        ? `${terminalEndDate}T${terminalEndTime || '18:00'}:00`
+        : undefined;
+
       const payload: GarageCheckInInput = {
         vehicleId: terminalVehicleId,
         garageId: terminalGarageId,
@@ -559,6 +588,10 @@ export const Garagens: React.FC = () => {
         reason: terminalReason,
         reasonDetail: terminalDetail.trim() || undefined,
         kmReading: terminalKm,
+        entryTime: entryIso,
+        exitTime: exitIso,
+        workSchedule: terminalWorkSchedule.trim() || undefined,
+        isTemporary: terminalIsTemporary,
       };
       await garageService.checkIn(payload);
       toast({
@@ -586,12 +619,17 @@ export const Garagens: React.FC = () => {
     }
     setTerminalSubmitting(true);
     try {
+      const exitIso = terminalEndDate
+        ? `${terminalEndDate}T${terminalEndTime || new Date().toTimeString().slice(0, 5)}:00`
+        : undefined;
       const payload: GarageCheckOutInput = {
         vehicleId: terminalVehicleId,
         driverName: terminalDriver.trim() || undefined,
         reason: terminalReason,
         reasonDetail: terminalDetail.trim() || undefined,
         kmReading: terminalKm,
+        exitTime: exitIso,
+        workSchedule: terminalWorkSchedule.trim() || undefined,
       };
       await garageService.checkOut(payload);
       toast({
@@ -887,23 +925,334 @@ export const Garagens: React.FC = () => {
 
   const handleDeleteGarage = async () => {
     if (!deleteId) return;
+    const idToRemove = deleteId;
     try {
-      await garageService.delete(deleteId);
-      toast({ title: 'Sucesso', description: 'Garagem desativada' });
+      await garageService.delete(idToRemove);
+      setGarages(prev => prev.filter(g => g.id !== idToRemove));
+      if (selectedGarage?.id === idToRemove) {
+        setVehiclesDialogOpen(false);
+        setSelectedGarage(null);
+      }
+      toast({ title: 'Sucesso', description: 'Garagem excluída com sucesso' });
       loadData();
     } catch {
-      toast({ title: 'Erro', description: 'Erro ao desativar garagem', variant: 'destructive' });
+      toast({ title: 'Erro', description: 'Erro ao excluir garagem', variant: 'destructive' });
     } finally {
       setDeleteId(null);
     }
   };
 
+  // Extrai data (dd/MM/yyyy), hora (HH:mm), rawDate (YYYY-MM-DD) e rawTime (HH:mm) de string ISO ou data
+  const splitDateAndTime = useCallback((isoOrDate?: string | null) => {
+    if (!isoOrDate) {
+      return { dateBr: '—', timeBr: '—', rawDate: '', rawTime: '' };
+    }
+    const trimmed = String(isoOrDate).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      const [y, m, d] = trimmed.split('-');
+      return { dateBr: `${d}/${m}/${y}`, timeBr: '06:00', rawDate: trimmed, rawTime: '06:00' };
+    }
+    const parsed = new Date(trimmed);
+    if (isNaN(parsed.getTime())) {
+      return { dateBr: trimmed, timeBr: '—', rawDate: '', rawTime: '' };
+    }
+    const dd = String(parsed.getDate()).padStart(2, '0');
+    const mm = String(parsed.getMonth() + 1).padStart(2, '0');
+    const yyyy = parsed.getFullYear();
+    const hh = String(parsed.getHours()).padStart(2, '0');
+    const min = String(parsed.getMinutes()).padStart(2, '0');
+    return {
+      dateBr: `${dd}/${mm}/${yyyy}`,
+      timeBr: `${hh}:${min}`,
+      rawDate: `${yyyy}-${mm}-${dd}`,
+      rawTime: `${hh}:${min}`,
+    };
+  }, []);
+
+  /**
+   * Lista consolidada de todos os veículos de uma garagem (alocados fixos, temporários
+   * e registros de entrada/saída vinculados à garagem).
+   */
+  const getGarageCompleteVehicles = useCallback((garage?: Garage | null) => {
+    if (!garage) return [];
+    const gId = garage.id;
+    const gNameNorm = (garage.name || '').trim().toLowerCase();
+
+    const map = new Map<string, {
+      id: string;
+      plate: string;
+      brand?: string;
+      model?: string;
+      status?: string;
+      currentMileage?: number;
+      clientName: string;
+      driverName: string;
+      startDateBr: string;
+      startTimeBr: string;
+      endDateBr: string;
+      endTimeBr: string;
+      rawStartDate: string;
+      rawStartTime: string;
+      rawEndDate: string;
+      rawEndTime: string;
+      workSchedule: string;
+      isTemporary: boolean;
+      activeStay: boolean;
+      reason: string;
+      reasonLabel: string;
+      stayDurationFormatted: string;
+    }>();
+
+    // Movimentações relacionadas a esta garagem (ordenadas da mais recente para a mais antiga)
+    const garageMovements = [
+      ...activeStays.filter(m =>
+        m.toGarageId === gId ||
+        (m.toGarageName && m.toGarageName.trim().toLowerCase() === gNameNorm)
+      ),
+      ...movements.filter(m =>
+        m.toGarageId === gId ||
+        m.fromGarageId === gId ||
+        (m.toGarageName && m.toGarageName.trim().toLowerCase() === gNameNorm) ||
+        (m.fromGarageName && m.fromGarageName.trim().toLowerCase() === gNameNorm)
+      ),
+    ];
+
+    const latestMovByVehicle = new Map<string, GarageMovement>();
+    garageMovements.forEach(m => {
+      const key = m.vehicleId || m.vehiclePlate || m.id;
+      if (key && !latestMovByVehicle.has(key)) {
+        latestMovByVehicle.set(key, m);
+      }
+    });
+
+    const defaultScheduleByReason = (reason?: string) => {
+      const r = (reason || 'RECOLHIMENTO').toUpperCase();
+      if (r === 'ESCALA') return '06:00 às 14:20 - Turno Manhã';
+      if (r === 'MANUTENCAO') return 'Parada Técnica - Oficina';
+      if (r === 'RESERVA') return 'Plantão 24h - Reserva Técnica';
+      if (r === 'RECOLHIMENTO') return '22:00 às 06:00 - Pernoite / Recolhimento';
+      return '07:00 às 17:00 - Operacional Padrão';
+    };
+
+    // 1. Veículos retornados diretamente na garagem (garage.vehicles)
+    (garage.vehicles || []).forEach((gv: GarageVehicleSummary) => {
+      if (!gv || !gv.id) return;
+      const mov = latestMovByVehicle.get(gv.id) || activeStayMap.get(gv.id);
+      const fleetVeh = vehicles.find(v => v.id === gv.id);
+      const entrySource = gv.entryTime || mov?.entryTime || gv.entryDate || mov?.createdAt || fleetVeh?.operationEntryDate;
+      const exitSource = gv.exitTime || mov?.exitTime || gv.exitDate;
+      const entrySplit = splitDateAndTime(entrySource);
+      const exitSplit = splitDateAndTime(exitSource);
+      const reason = gv.reason || mov?.reason || 'RECOLHIMENTO';
+      const schedule = gv.workSchedule || mov?.workSchedule || defaultScheduleByReason(reason);
+      const driver = gv.driverName || mov?.driverName || gv.assignedDriver || fleetVeh?.assignedDriver || 'Não informado';
+      const client = gv.clientName || mov?.clientName || fleetVeh?.clientName || fleetVeh?.projectName || 'Reserva Operacional';
+
+      map.set(gv.id, {
+        id: gv.id,
+        plate: gv.plate,
+        brand: gv.brand || fleetVeh?.brand,
+        model: gv.model || fleetVeh?.model,
+        status: gv.status || fleetVeh?.status || 'ACTIVE',
+        currentMileage: gv.currentMileage ?? fleetVeh?.currentMileage,
+        clientName: client,
+        driverName: driver,
+        startDateBr: entrySplit.dateBr,
+        startTimeBr: entrySplit.timeBr,
+        endDateBr: exitSplit.dateBr,
+        endTimeBr: exitSplit.timeBr,
+        rawStartDate: entrySplit.rawDate,
+        rawStartTime: entrySplit.rawTime,
+        rawEndDate: exitSplit.rawDate,
+        rawEndTime: exitSplit.rawTime,
+        workSchedule: schedule,
+        isTemporary: Boolean(gv.isTemporary || mov?.isTemporary),
+        activeStay: gv.activeStay !== false,
+        reason,
+        reasonLabel: MOVEMENT_REASON_LABELS[reason] || reason,
+        stayDurationFormatted: gv.stayDurationFormatted || mov?.stayDurationFormatted || 'No pátio',
+      });
+    });
+
+    // 2. Veículos da frota cujo garageId ou garageName bate com esta garagem
+    vehicles.forEach(v => {
+      const matchesGarage =
+        v.garageId === gId ||
+        (!v.garageId && v.garageName && v.garageName.trim().toLowerCase() === gNameNorm);
+      if (!matchesGarage || map.has(v.id)) return;
+
+      const mov = latestMovByVehicle.get(v.id) || activeStayMap.get(v.id);
+      const entrySource = mov?.entryTime || mov?.createdAt || v.operationEntryDate;
+      const exitSource = mov?.exitTime;
+      const entrySplit = splitDateAndTime(entrySource);
+      const exitSplit = splitDateAndTime(exitSource);
+      const reason = mov?.reason || 'RECOLHIMENTO';
+      const schedule = mov?.workSchedule || defaultScheduleByReason(reason);
+
+      map.set(v.id, {
+        id: v.id,
+        plate: v.plate,
+        brand: v.brand,
+        model: v.model,
+        status: v.status,
+        currentMileage: v.currentMileage,
+        clientName: getVehicleClientName(v, mov),
+        driverName: getVehicleDriver(v, mov),
+        startDateBr: entrySplit.dateBr,
+        startTimeBr: entrySplit.timeBr,
+        endDateBr: exitSplit.dateBr,
+        endTimeBr: exitSplit.timeBr,
+        rawStartDate: entrySplit.rawDate,
+        rawStartTime: entrySplit.rawTime,
+        rawEndDate: exitSplit.rawDate,
+        rawEndTime: exitSplit.rawTime,
+        workSchedule: schedule,
+        isTemporary: Boolean(mov?.isTemporary),
+        activeStay: true,
+        reason,
+        reasonLabel: MOVEMENT_REASON_LABELS[reason] || reason,
+        stayDurationFormatted: mov?.stayDurationFormatted || 'No pátio',
+      });
+    });
+
+    // 3. Movimentações temporárias ou históricas desta garagem cujo veículo ainda não está no mapa
+    garageMovements.forEach(mov => {
+      const vId = mov.vehicleId || mov.id;
+      if (!vId || map.has(vId)) return;
+      const fleetVeh = vehicles.find(v => v.id === mov.vehicleId || v.plate === mov.vehiclePlate);
+      const entrySource = mov.entryTime || mov.createdAt;
+      const exitSource = mov.exitTime;
+      const entrySplit = splitDateAndTime(entrySource);
+      const exitSplit = splitDateAndTime(exitSource);
+      const reason = mov.reason || 'RECOLHIMENTO';
+      const schedule = mov.workSchedule || defaultScheduleByReason(reason);
+      const isCurrentlyHere = Boolean(mov.activeStay && (mov.toGarageId === gId || (mov.toGarageName || '').trim().toLowerCase() === gNameNorm));
+
+      map.set(vId, {
+        id: fleetVeh?.id || vId,
+        plate: fleetVeh?.plate || mov.vehiclePlate || '—',
+        brand: fleetVeh?.brand,
+        model: fleetVeh?.model,
+        status: fleetVeh?.status || 'ACTIVE',
+        currentMileage: mov.kmReading ?? fleetVeh?.currentMileage,
+        clientName: mov.clientName || fleetVeh?.clientName || fleetVeh?.projectName || 'Reserva Operacional',
+        driverName: mov.driverName || fleetVeh?.assignedDriver || 'Não informado',
+        startDateBr: entrySplit.dateBr,
+        startTimeBr: entrySplit.timeBr,
+        endDateBr: exitSplit.dateBr,
+        endTimeBr: exitSplit.timeBr,
+        rawStartDate: entrySplit.rawDate,
+        rawStartTime: entrySplit.rawTime,
+        rawEndDate: exitSplit.rawDate,
+        rawEndTime: exitSplit.rawTime,
+        workSchedule: schedule,
+        isTemporary: Boolean(mov.isTemporary || !isCurrentlyHere),
+        activeStay: isCurrentlyHere,
+        reason,
+        reasonLabel: MOVEMENT_REASON_LABELS[reason] || reason,
+        stayDurationFormatted: mov.stayDurationFormatted || (isCurrentlyHere ? 'No pátio' : 'Concluído'),
+      });
+    });
+
+    return Array.from(map.values());
+  }, [vehicles, activeStays, movements, activeStayMap, splitDateAndTime]);
+
+  const resetStayForm = useCallback(() => {
+    setStayEditingVehicleId(null);
+    setVehicleToAssign('');
+    setStayVehicleSearch('');
+    setStayDriverName('');
+    setStayStartDate(new Date().toISOString().slice(0, 10));
+    setStayStartTime(new Date().toTimeString().slice(0, 5));
+    setStayEndDate('');
+    setStayEndTime('');
+    setStayWorkSchedule('06:00 às 14:20 - Turno Manhã');
+    setStayIsTemporary(false);
+    setStayReason('RECOLHIMENTO');
+  }, []);
+
+  const openGarageDetailsModal = useCallback((garage: Garage) => {
+    setSelectedGarage(garage);
+    resetStayForm();
+    setStayFilterMode('all');
+    setStaySearchQuery('');
+    setVehiclesDialogOpen(true);
+  }, [resetStayForm]);
+
+  const handleEditVehicleStayInGarage = (item: ReturnType<typeof getGarageCompleteVehicles>[number]) => {
+    setStayEditingVehicleId(item.id);
+    setVehicleToAssign(item.id);
+    setStayDriverName(item.driverName === 'Não informado' || item.driverName === 'Não atribuído' ? '' : item.driverName);
+    setStayStartDate(item.rawStartDate || new Date().toISOString().slice(0, 10));
+    setStayStartTime(item.rawStartTime || '06:00');
+    setStayEndDate(item.rawEndDate || '');
+    setStayEndTime(item.rawEndTime || '');
+    setStayWorkSchedule(item.workSchedule || '06:00 às 14:20 - Turno Manhã');
+    setStayIsTemporary(Boolean(item.isTemporary));
+    setStayReason(item.reason || 'RECOLHIMENTO');
+  };
+
+  const handleSaveVehicleStayInGarage = async () => {
+    const targetVehicleId = stayEditingVehicleId || vehicleToAssign;
+    if (!selectedGarage || !targetVehicleId) {
+      toast({ title: 'Atenção', description: 'Selecione um veículo para registrar na garagem', variant: 'destructive' });
+      return;
+    }
+    setStaySaving(true);
+    try {
+      const entryIso = stayStartDate
+        ? `${stayStartDate}T${stayStartTime || '06:00'}:00`
+        : undefined;
+      const exitIso = stayEndDate
+        ? `${stayEndDate}T${stayEndTime || '18:00'}:00`
+        : undefined;
+
+      const payload: Partial<GarageCheckInInput> = {
+        vehicleId: targetVehicleId,
+        garageId: selectedGarage.id,
+        driverName: stayDriverName.trim() || undefined,
+        entryTime: entryIso,
+        exitTime: exitIso,
+        workSchedule: stayWorkSchedule.trim() || undefined,
+        isTemporary: stayIsTemporary,
+        reason: stayReason,
+      };
+
+      const updated = stayEditingVehicleId
+        ? await garageService.updateVehicleStay(selectedGarage.id, targetVehicleId, payload)
+        : await garageService.assignVehicle(selectedGarage.id, targetVehicleId, payload);
+
+      setSelectedGarage(updated);
+      resetStayForm();
+      toast({
+        title: stayEditingVehicleId ? '✅ Permanência Atualizada!' : '✅ Veículo Registrado na Garagem!',
+        description: stayEditingVehicleId
+          ? 'Dados de entrada, saída, motorista e escala atualizados.'
+          : 'Veículo vinculado à garagem com sucesso.',
+      });
+      loadData();
+    } catch (error: any) {
+      toast({
+        title: 'Erro',
+        description: error.response?.data?.message || 'Falha ao salvar veículo na garagem',
+        variant: 'destructive',
+      });
+    } finally {
+      setStaySaving(false);
+    }
+  };
+
   // Remanejamento entre garagens
   const openTransferModal = (vehicleId: string) => {
+    const v = vehicles.find(item => item.id === vehicleId);
+    const stay = activeStayMap.get(vehicleId);
     setTransferVehicleId(vehicleId);
     setTransferToGarageId('');
     setTransferReason('REMANEJAMENTO');
     setTransferDetail('');
+    setTransferDriverName(stay?.driverName || v?.assignedDriver || '');
+    setTransferWorkSchedule(stay?.workSchedule || '06:00 às 14:20 - Turno Manhã');
+    setTransferIsTemporary(false);
     setTransferDialogOpen(true);
   };
 
@@ -916,6 +1265,9 @@ export const Garagens: React.FC = () => {
         toGarageId: transferToGarageId,
         reason: transferReason,
         reasonDetail: transferDetail.trim() || undefined,
+        driverName: transferDriverName.trim() || undefined,
+        workSchedule: transferWorkSchedule.trim() || undefined,
+        isTemporary: transferIsTemporary,
       };
       const movement = await garageService.transferVehicle(payload);
       setTransferDialogOpen(false);
@@ -1356,16 +1708,21 @@ export const Garagens: React.FC = () => {
                         <div className="bg-seguranca-black/60 p-2.5 rounded-lg border border-gray-800 flex items-center gap-2">
                           <User size={15} className="text-purple-400 shrink-0" />
                           <div className="min-w-0 flex-1">
-                            <span className="text-gray-400 text-[10px] uppercase font-semibold block">Motorista Condutor</span>
+                            <span className="text-gray-400 text-[10px] uppercase font-semibold block">Motorista (Entrada na Garagem)</span>
                             <span className="text-gray-100 font-medium truncate block">{item.driver}</span>
                           </div>
+                          {item.stay?.isTemporary && (
+                            <Badge className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px] shrink-0">
+                              TEMPORÁRIO
+                            </Badge>
+                          )}
                         </div>
 
-                        {/* Data/Hora de Entrada e Tempo de Permanência */}
+                        {/* Data/Hora de Entrada, Saída e Escala */}
                         <div className="grid grid-cols-2 gap-2">
                           <div className="bg-seguranca-black/60 p-2.5 rounded-lg border border-gray-800">
                             <span className="text-gray-400 text-[10px] uppercase font-semibold block flex items-center gap-1">
-                              <Calendar size={11} /> Entrada
+                              <Calendar size={11} /> Data / Hora Início
                             </span>
                             <span className="text-gray-200 font-medium mt-0.5 block truncate text-[11px]">
                               {stay.entryFormatted}
@@ -1374,20 +1731,30 @@ export const Garagens: React.FC = () => {
 
                           <div className="bg-seguranca-black/60 p-2.5 rounded-lg border border-gray-800">
                             <span className="text-gray-400 text-[10px] uppercase font-semibold block flex items-center gap-1">
-                              <Clock size={11} /> Permanência
+                              <Clock size={11} /> Saída / Permanência
                             </span>
                             <span className={`font-bold mt-0.5 block truncate text-xs ${
                               stay.severity === 'alert' ? 'text-rose-400' : stay.severity === 'warning' ? 'text-amber-400' : 'text-emerald-400'
                             }`}>
-                              {stay.stayFormatted}
+                              {item.stay?.exitTime
+                                ? new Date(item.stay.exitTime).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                : stay.stayFormatted}
                             </span>
                           </div>
                         </div>
 
-                        {/* Motivo da Parada */}
-                        <div className="text-[11px] text-gray-300 flex items-center justify-between pt-1 border-t border-gray-800">
-                          <span className="text-gray-400">Motivo da parada:</span>
-                          <span className="font-semibold text-gray-200">{stay.reasonLabel}</span>
+                        {/* Escala e Motivo da Parada */}
+                        <div className="text-[11px] text-gray-300 space-y-1 pt-1 border-t border-gray-800">
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-400">Escala:</span>
+                            <span className="font-semibold text-seguranca-yellow truncate max-w-[180px]">
+                              {item.stay?.workSchedule || '06:00 às 14:20 - Turno Manhã'}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-400">Motivo da parada:</span>
+                            <span className="font-semibold text-gray-200">{stay.reasonLabel}</span>
+                          </div>
                         </div>
                       </div>
 
@@ -1607,6 +1974,74 @@ export const Garagens: React.FC = () => {
                         />
                       </div>
 
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs text-gray-400 mb-1 block font-semibold">Data Início (Entrada)</label>
+                          <Input
+                            type="date"
+                            value={terminalStartDate}
+                            onChange={e => setTerminalStartDate(e.target.value)}
+                            className="bg-seguranca-graphite border-gray-700 text-white text-xs sm:text-sm font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-400 mb-1 block font-semibold">Hora Início (Entrada)</label>
+                          <Input
+                            type="time"
+                            value={terminalStartTime}
+                            onChange={e => setTerminalStartTime(e.target.value)}
+                            className="bg-seguranca-graphite border-gray-700 text-white text-xs sm:text-sm font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs text-gray-400 mb-1 block font-semibold">Data da Saída</label>
+                          <Input
+                            type="date"
+                            value={terminalEndDate}
+                            onChange={e => setTerminalEndDate(e.target.value)}
+                            className="bg-seguranca-graphite border-gray-700 text-white text-xs sm:text-sm font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-400 mb-1 block font-semibold">Hora da Saída</label>
+                          <Input
+                            type="time"
+                            value={terminalEndTime}
+                            onChange={e => setTerminalEndTime(e.target.value)}
+                            className="bg-seguranca-graphite border-gray-700 text-white text-xs sm:text-sm font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-xs text-gray-400 mb-1 block font-semibold">Escala</label>
+                        <Input
+                          value={terminalWorkSchedule}
+                          onChange={e => setTerminalWorkSchedule(e.target.value)}
+                          placeholder="Ex.: 06:00 às 14:20 - Turno Manhã"
+                          className="bg-seguranca-graphite border-gray-700 text-white text-xs sm:text-sm"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs text-gray-400 mb-1 block font-semibold">Tipo de Permanência</label>
+                        <Select
+                          value={terminalIsTemporary ? 'TEMPORARY' : 'REGULAR'}
+                          onValueChange={val => setTerminalIsTemporary(val === 'TEMPORARY')}
+                        >
+                          <SelectTrigger className="bg-seguranca-graphite border-gray-700 text-white text-xs sm:text-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-seguranca-graphite border-gray-700 text-white">
+                            <SelectItem value="REGULAR">Alocado na Garagem (Base Fixa)</SelectItem>
+                            <SelectItem value="TEMPORARY">Temporário / Passagem na Garagem</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
                       <div className="sm:col-span-2">
                         <label className="text-xs text-gray-400 mb-1 block font-semibold">Motivo</label>
                         <Select value={terminalReason} onValueChange={setTerminalReason}>
@@ -1671,25 +2106,31 @@ export const Garagens: React.FC = () => {
         )}
 
         {/* ========================================================================= */}
-        {/* ABA 3: PÁTIOS & GARAGENS (CAPACIDADES, RESPONSÁVEL, CONTATO) */}
+        {/* ABA 3: PÁTIOS & GARAGENS (CAPACIDADES, RESPONSÁVEL, CONTATO, VEÍCULOS) */}
         {/* ========================================================================= */}
         {activeTab === 'garages' && (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {garages.map(garage => {
+              const allGarageVehicles = getGarageCompleteVehicles(garage);
+              const activeCount = allGarageVehicles.filter(v => v.activeStay).length;
+              const totalCount = Math.max(garage.vehicleCount || 0, activeCount);
               const occ = garage.capacity && garage.capacity > 0
-                ? Math.min(100, Math.round(((garage.vehicleCount || 0) / garage.capacity) * 100))
+                ? Math.min(100, Math.round((totalCount / garage.capacity) * 100))
                 : null;
 
               return (
                 <Card key={garage.id} className="bg-seguranca-graphite border-gray-700 p-4 hover:border-seguranca-yellow transition-all flex flex-col justify-between">
                   <div>
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-xl bg-seguranca-yellow/10 border border-seguranca-yellow/30 flex items-center justify-center flex-shrink-0 text-seguranca-yellow">
+                    <div className="flex items-start justify-between mb-3 gap-2">
+                      <div
+                        onClick={() => openGarageDetailsModal(garage)}
+                        className="flex items-center gap-3 min-w-0 cursor-pointer group"
+                      >
+                        <div className="w-10 h-10 rounded-xl bg-seguranca-yellow/10 border border-seguranca-yellow/30 flex items-center justify-center flex-shrink-0 text-seguranca-yellow group-hover:bg-seguranca-yellow group-hover:text-black transition-colors">
                           <Warehouse size={20} />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-white font-bold truncate text-base">{garage.name}</p>
+                          <p className="text-white font-bold truncate text-base group-hover:text-seguranca-yellow transition-colors">{garage.name}</p>
                           {garage.address && (
                             <p className="text-gray-400 text-xs truncate flex items-center gap-1 mt-0.5">
                               <MapPin size={11} className="shrink-0" /> {garage.address}
@@ -1698,18 +2139,36 @@ export const Garagens: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => openEditGarage(garage)} className="text-gray-400 hover:text-seguranca-yellow transition-colors p-1.5" title="Editar">
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => openGarageDetailsModal(garage)}
+                          className="text-gray-300 hover:text-cyan-400 transition-colors p-1.5 rounded-md hover:bg-gray-800"
+                          title="Visualizar informações e veículos da garagem"
+                        >
+                          <Eye size={15} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openEditGarage(garage)}
+                          className="text-gray-300 hover:text-seguranca-yellow transition-colors p-1.5 rounded-md hover:bg-gray-800"
+                          title="Editar garagem"
+                        >
                           <Pencil size={15} />
                         </button>
-                        <button onClick={() => setDeleteId(garage.id)} className="text-gray-500 hover:text-red-500 transition-colors p-1.5" title="Desativar">
+                        <button
+                          type="button"
+                          onClick={() => setDeleteId(garage.id)}
+                          className="text-gray-400 hover:text-red-500 transition-colors p-1.5 rounded-md hover:bg-gray-800"
+                          title="Excluir garagem"
+                        >
                           <Trash2 size={15} />
                         </button>
                       </div>
                     </div>
 
                     {/* Informações da Garagem */}
-                    <div className="space-y-2 text-xs text-gray-300 my-4 bg-seguranca-black/50 p-3 rounded-lg border border-gray-800">
+                    <div className="space-y-2 text-xs text-gray-300 my-3 bg-seguranca-black/50 p-3 rounded-lg border border-gray-800">
                       {garage.responsibleName && (
                         <p className="flex items-center gap-2">
                           <User size={13} className="text-seguranca-yellow shrink-0" />
@@ -1733,10 +2192,16 @@ export const Garagens: React.FC = () => {
                         </p>
                       )}
 
+                      {garage.notes && (
+                        <p className="text-[11px] text-gray-400 italic line-clamp-2 border-t border-gray-800/80 pt-1.5">
+                          {garage.notes}
+                        </p>
+                      )}
+
                       <div className="flex items-center justify-between pt-1 border-t border-gray-800">
-                        <span className="text-gray-400">Veículos Alocados:</span>
+                        <span className="text-gray-400">Veículos na Garagem:</span>
                         <span className="font-bold text-white">
-                          {garage.vehicleCount ?? 0} {garage.capacity ? `de ${garage.capacity} vagas` : ''}
+                          {totalCount} {garage.capacity ? `de ${garage.capacity} vagas` : ''}
                         </span>
                       </div>
 
@@ -1757,18 +2222,77 @@ export const Garagens: React.FC = () => {
                         </div>
                       )}
                     </div>
+
+                    {/* Prévia rápida dos veículos na garagem (incluindo temporários) */}
+                    {allGarageVehicles.length > 0 && (
+                      <div className="mb-3 space-y-1.5">
+                        <div className="flex items-center justify-between text-[10px] uppercase font-bold text-gray-400 px-0.5">
+                          <span>Veículos nesta Garagem ({allGarageVehicles.length})</span>
+                          <span className="text-seguranca-yellow">Motorista • Entrada • Escala</span>
+                        </div>
+                        <div className="max-h-36 overflow-y-auto space-y-1 pr-0.5">
+                          {allGarageVehicles.slice(0, 4).map(v => (
+                            <div
+                              key={`${garage.id}-${v.id}`}
+                              onClick={() => openGarageDetailsModal(garage)}
+                              className="bg-seguranca-black/70 border border-gray-800 hover:border-gray-700 rounded-lg px-2.5 py-1.5 text-[11px] cursor-pointer transition-colors"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <span className="font-mono font-bold text-seguranca-yellow">{v.plate}</span>
+                                  {v.isTemporary && (
+                                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-semibold">
+                                      Temp.
+                                    </span>
+                                  )}
+                                  <span className="text-gray-300 truncate">{v.driverName}</span>
+                                </div>
+                                <span className="text-[10px] text-gray-400 font-mono shrink-0">
+                                  {v.startDateBr} {v.startTimeBr !== '—' ? v.startTimeBr : ''}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between text-[10px] text-gray-400 mt-0.5">
+                                <span className="truncate">Escala: <strong className="text-gray-300">{v.workSchedule}</strong></span>
+                                <span className="shrink-0">
+                                  Saída: {v.endDateBr !== '—' ? `${v.endDateBr} ${v.endTimeBr !== '—' ? v.endTimeBr : ''}` : 'No pátio'}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
-                  <Button
-                    onClick={() => {
-                      setSelectedGarage(garage);
-                      setVehiclesDialogOpen(true);
-                    }}
-                    variant="outline"
-                    className="w-full border-gray-600 text-gray-200 hover:text-white hover:bg-gray-800 text-xs"
-                  >
-                    <Users size={14} className="mr-1.5" /> Gerenciar Veículos ({garage.vehicleCount ?? 0})
-                  </Button>
+                  <div className="grid grid-cols-3 gap-1.5 pt-1">
+                    <Button
+                      onClick={() => openGarageDetailsModal(garage)}
+                      variant="outline"
+                      className="col-span-2 border-seguranca-yellow/50 text-seguranca-yellow hover:bg-seguranca-yellow hover:text-black text-xs font-semibold h-9"
+                    >
+                      <Eye size={14} className="mr-1.5" /> Visualizar & Veículos ({allGarageVehicles.length})
+                    </Button>
+                    <div className="grid grid-cols-2 gap-1">
+                      <Button
+                        type="button"
+                        onClick={() => openEditGarage(garage)}
+                        variant="outline"
+                        className="border-gray-700 text-gray-300 hover:text-white hover:bg-gray-800 h-9 px-0"
+                        title="Editar Garagem"
+                      >
+                        <Pencil size={14} />
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={() => setDeleteId(garage.id)}
+                        variant="outline"
+                        className="border-rose-900/60 text-rose-400 hover:bg-rose-600 hover:text-white h-9 px-0"
+                        title="Excluir Garagem"
+                      >
+                        <Trash2 size={14} />
+                      </Button>
+                    </div>
+                  </div>
                 </Card>
               );
             })}
@@ -2103,102 +2627,449 @@ export const Garagens: React.FC = () => {
         </Dialog>
 
         {/* ========================================================================= */}
-        {/* MODAL: GERENCIAR VEÍCULOS DE UMA GARAGEM ESPECÍFICA */}
+        {/* MODAL: VISUALIZAR INFORMAÇÕES DA GARAGEM & LISTA COMPLETA DE VEÍCULOS */}
         {/* ========================================================================= */}
         <Dialog open={vehiclesDialogOpen} onOpenChange={setVehiclesDialogOpen}>
-          <DialogContent className="bg-seguranca-graphite border-gray-700 text-white max-h-[90vh] overflow-y-auto max-w-xl">
+          <DialogContent className="bg-seguranca-graphite border-gray-700 text-white max-h-[92vh] overflow-y-auto max-w-5xl">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Building2 size={18} className="text-seguranca-yellow" />
-                Veículos no Pátio — {selectedGarage?.name}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-3 text-xs sm:text-sm">
-              <div className="flex gap-2">
-                <Select value={vehicleToAssign} onValueChange={setVehicleToAssign}>
-                  <SelectTrigger className="bg-seguranca-black border-gray-700 text-white flex-1 text-xs sm:text-sm">
-                    <SelectValue placeholder="Selecione um veículo para alocar..." />
-                  </SelectTrigger>
-                  <SelectContent className="bg-seguranca-graphite border-gray-700 text-white max-h-56">
-                    {vehicles.filter(v => v.garageId !== selectedGarage?.id).map(v => (
-                      <SelectItem key={v.id} value={v.id}>
-                        {v.plate} - {v.brand || ''} {v.model}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  onClick={async () => {
-                    if (!selectedGarage || !vehicleToAssign) return;
-                    try {
-                      const updated = await garageService.assignVehicle(selectedGarage.id, vehicleToAssign);
-                      setSelectedGarage(updated);
-                      setVehicleToAssign('');
-                      toast({ title: 'Sucesso', description: 'Veículo recolhido no pátio' });
-                      loadData();
-                    } catch (error: any) {
-                      toast({ title: 'Erro', description: error.response?.data?.message || 'Falha ao alocar veículo', variant: 'destructive' });
-                    }
-                  }}
-                  disabled={!vehicleToAssign}
-                  className="bg-seguranca-yellow text-black hover:bg-yellow-500 font-bold"
-                >
-                  <Plus size={16} className="mr-1" /> Alocar
-                </Button>
+              <div className="flex flex-wrap items-center justify-between gap-2 pr-6">
+                <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+                  <Warehouse size={20} className="text-seguranca-yellow" />
+                  <span>Garagem: {selectedGarage?.name}</span>
+                </DialogTitle>
+                {selectedGarage && (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setVehiclesDialogOpen(false);
+                        openEditGarage(selectedGarage);
+                      }}
+                      className="border-gray-600 text-gray-200 hover:text-seguranca-yellow hover:border-seguranca-yellow h-8 text-xs"
+                    >
+                      <Pencil size={13} className="mr-1" /> Editar Garagem
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setDeleteId(selectedGarage.id)}
+                      className="border-rose-800 text-rose-400 hover:bg-rose-600 hover:text-white h-8 text-xs"
+                    >
+                      <Trash2 size={13} className="mr-1" /> Excluir Garagem
+                    </Button>
+                  </div>
+                )}
               </div>
+            </DialogHeader>
 
-              {(!selectedGarage?.vehicles || selectedGarage.vehicles.length === 0) ? (
-                <p className="text-center text-gray-400 py-8 text-xs">Nenhum veículo alocado nesta garagem no momento.</p>
-              ) : (
-                <div className="space-y-2">
-                  {selectedGarage.vehicles.map(v => (
-                    <div key={v.id} className="flex items-center justify-between gap-3 bg-seguranca-black/60 rounded-xl p-3 border border-gray-800">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono font-bold text-white text-xs">{v.plate}</span>
-                          <span className="text-gray-400 text-xs truncate">{[v.brand, v.model].filter(Boolean).join(' ')}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-[11px] text-gray-500 mt-0.5">
-                          {v.currentMileage != null && <span>{v.currentMileage.toLocaleString('pt-BR')} km</span>}
-                          {v.assignedDriver && <span>• Condutor: {v.assignedDriver}</span>}
+            {selectedGarage && (() => {
+              const allGarageVehicles = getGarageCompleteVehicles(selectedGarage);
+              const filteredGarageVehicles = allGarageVehicles.filter(v => {
+                if (stayFilterMode === 'active' && !v.activeStay) return false;
+                if (stayFilterMode === 'temporary' && !v.isTemporary) return false;
+                const q = staySearchQuery.trim().toLowerCase();
+                if (!q) return true;
+                return (
+                  v.plate.toLowerCase().includes(q) ||
+                  (v.model || '').toLowerCase().includes(q) ||
+                  (v.brand || '').toLowerCase().includes(q) ||
+                  v.driverName.toLowerCase().includes(q) ||
+                  v.workSchedule.toLowerCase().includes(q) ||
+                  v.clientName.toLowerCase().includes(q)
+                );
+              });
+
+              const assignableVehicles = vehicles.filter(v => {
+                if (!stayVehicleSearch || stayVehicleSearch.trim().length < 1) return true;
+                const q = stayVehicleSearch.trim().toLowerCase();
+                return (
+                  (v.plate || '').toLowerCase().includes(q) ||
+                  (v.model || '').toLowerCase().includes(q) ||
+                  (v.brand || '').toLowerCase().includes(q) ||
+                  (v.assignedDriver || '').toLowerCase().includes(q)
+                );
+              });
+
+              return (
+                <div className="space-y-5 py-2 text-xs sm:text-sm">
+                  {/* 1. Resumo das Informações da Garagem */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-seguranca-black/60 p-3.5 rounded-xl border border-gray-800">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-gray-400 block">Endereço da Garagem</span>
+                      <span className="text-gray-200 font-medium text-xs mt-0.5 block">
+                        {selectedGarage.address || 'Não informado'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-gray-400 block">Responsável Operacional</span>
+                      <span className="text-white font-semibold text-xs mt-0.5 block">
+                        {selectedGarage.responsibleName || 'Não atribuído'}
+                      </span>
+                      {selectedGarage.responsiblePhone && (
+                        <span className="text-emerald-400 font-mono text-[11px] block">
+                          {selectedGarage.responsiblePhone}
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-gray-400 block">Capacidade & Lotação</span>
+                      <span className="text-seguranca-yellow font-bold text-xs mt-0.5 block">
+                        {allGarageVehicles.filter(v => v.activeStay).length} no pátio
+                        {selectedGarage.capacity ? ` / ${selectedGarage.capacity} vagas` : ''}
+                      </span>
+                      <span className="text-gray-400 text-[11px] block">
+                        Total registrados (c/ temporários): {allGarageVehicles.length}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-gray-400 block">Instruções / Observações</span>
+                      <span className="text-gray-300 text-xs mt-0.5 block line-clamp-2">
+                        {selectedGarage.notes || 'Portaria operacional padrão.'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 2. Formulário de Entrada / Edição de Veículo na Garagem */}
+                  <div className="bg-seguranca-black/80 border border-gray-700/80 rounded-xl p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-bold text-white text-xs sm:text-sm flex items-center gap-2">
+                        <Bus size={16} className="text-seguranca-yellow" />
+                        {stayEditingVehicleId
+                          ? 'Editar Veículo na Garagem (Motorista, Entrada, Saída e Escala)'
+                          : 'Registrar / Alocar Veículo na Garagem (Fixo ou Temporário)'}
+                      </h4>
+                      {stayEditingVehicleId && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={resetStayForm}
+                          className="h-7 text-xs text-gray-400 hover:text-white"
+                        >
+                          Cancelar Edição
+                        </Button>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                      {/* Veículo */}
+                      <div className="sm:col-span-2">
+                        <label className="text-[11px] text-gray-400 mb-1 block font-semibold">
+                          Veículo (Digite 3 caracteres da placa/modelo ou selecione) *
+                        </label>
+                        <div className="flex gap-2">
+                          <Input
+                            value={stayVehicleSearch}
+                            onChange={e => {
+                              const val = e.target.value;
+                              setStayVehicleSearch(val);
+                              if (val.trim().length >= 3) {
+                                const q = val.trim().toLowerCase();
+                                const firstMatch = vehicles.find(v =>
+                                  (v.plate || '').toLowerCase().includes(q) ||
+                                  (v.model || '').toLowerCase().includes(q)
+                                );
+                                if (firstMatch && !stayEditingVehicleId) {
+                                  setVehicleToAssign(firstMatch.id);
+                                  if (!stayDriverName && firstMatch.assignedDriver) {
+                                    setStayDriverName(firstMatch.assignedDriver);
+                                  }
+                                }
+                              }
+                            }}
+                            disabled={Boolean(stayEditingVehicleId)}
+                            placeholder="Filtrar placa (ex: BRA)..."
+                            className="w-36 bg-seguranca-graphite border-gray-700 text-white text-xs font-mono"
+                          />
+                          <Select
+                            value={stayEditingVehicleId || vehicleToAssign}
+                            onValueChange={val => {
+                              setVehicleToAssign(val);
+                              const found = vehicles.find(v => v.id === val);
+                              if (found?.assignedDriver && !stayDriverName) {
+                                setStayDriverName(found.assignedDriver);
+                              }
+                            }}
+                            disabled={Boolean(stayEditingVehicleId)}
+                          >
+                            <SelectTrigger className="bg-seguranca-graphite border-gray-700 text-white flex-1 text-xs">
+                              <SelectValue placeholder="Selecione o veículo..." />
+                            </SelectTrigger>
+                            <SelectContent className="bg-seguranca-graphite border-gray-700 text-white max-h-60">
+                              {assignableVehicles.slice(0, 120).map(v => (
+                                <SelectItem key={v.id} value={v.id}>
+                                  {v.plate} — {v.brand || ''} {v.model}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1 shrink-0">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => openTransferModal(v.id)}
-                          className="h-8 text-gray-400 hover:text-seguranca-yellow"
-                          title="Remanejar"
+                      {/* Motorista que deu entrada */}
+                      <div className="sm:col-span-2">
+                        <label className="text-[11px] text-gray-400 mb-1 block font-semibold">
+                          Motorista que deu entrada na garagem
+                        </label>
+                        <DriverCombobox
+                          value={stayDriverName}
+                          onChange={(name) => setStayDriverName(name)}
+                          employees={employees}
+                          placeholder="Digite ou selecione o motorista..."
+                        />
+                      </div>
+
+                      {/* Data Início */}
+                      <div>
+                        <label className="text-[11px] text-gray-400 mb-1 block font-semibold">Data Início (Entrada)</label>
+                        <Input
+                          type="date"
+                          value={stayStartDate}
+                          onChange={e => setStayStartDate(e.target.value)}
+                          className="bg-seguranca-graphite border-gray-700 text-white text-xs font-mono"
+                        />
+                      </div>
+
+                      {/* Hora Início */}
+                      <div>
+                        <label className="text-[11px] text-gray-400 mb-1 block font-semibold">Hora Início (Entrada)</label>
+                        <Input
+                          type="time"
+                          value={stayStartTime}
+                          onChange={e => setStayStartTime(e.target.value)}
+                          className="bg-seguranca-graphite border-gray-700 text-white text-xs font-mono"
+                        />
+                      </div>
+
+                      {/* Data da Saída */}
+                      <div>
+                        <label className="text-[11px] text-gray-400 mb-1 block font-semibold">Data da Saída</label>
+                        <Input
+                          type="date"
+                          value={stayEndDate}
+                          onChange={e => setStayEndDate(e.target.value)}
+                          className="bg-seguranca-graphite border-gray-700 text-white text-xs font-mono"
+                        />
+                      </div>
+
+                      {/* Hora da Saída */}
+                      <div>
+                        <label className="text-[11px] text-gray-400 mb-1 block font-semibold">Hora da Saída</label>
+                        <Input
+                          type="time"
+                          value={stayEndTime}
+                          onChange={e => setStayEndTime(e.target.value)}
+                          className="bg-seguranca-graphite border-gray-700 text-white text-xs font-mono"
+                        />
+                      </div>
+
+                      {/* Escala */}
+                      <div className="sm:col-span-2">
+                        <label className="text-[11px] text-gray-400 mb-1 block font-semibold">Escala</label>
+                        <Input
+                          value={stayWorkSchedule}
+                          onChange={e => setStayWorkSchedule(e.target.value)}
+                          placeholder="Ex.: 06:00 às 14:20 - Turno Manhã / Escala 12x36"
+                          className="bg-seguranca-graphite border-gray-700 text-white text-xs"
+                        />
+                      </div>
+
+                      {/* Tipo de Permanência (Fixo ou Temporário) */}
+                      <div>
+                        <label className="text-[11px] text-gray-400 mb-1 block font-semibold">Permanência na Garagem</label>
+                        <Select
+                          value={stayIsTemporary ? 'TEMPORARY' : 'REGULAR'}
+                          onValueChange={val => setStayIsTemporary(val === 'TEMPORARY')}
                         >
-                          <ArrowLeftRight size={14} />
-                        </Button>
+                          <SelectTrigger className="bg-seguranca-graphite border-gray-700 text-white text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-seguranca-graphite border-gray-700 text-white">
+                            <SelectItem value="REGULAR">Alocado na Garagem</SelectItem>
+                            <SelectItem value="TEMPORARY">Temporário / Passagem</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Botão Salvar */}
+                      <div className="flex items-end">
                         <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={async () => {
-                            if (!selectedGarage) return;
-                            try {
-                              const updated = await garageService.unassignVehicle(selectedGarage.id, v.id);
-                              setSelectedGarage(updated);
-                              toast({ title: 'Saída Registrada', description: 'Veículo removido da garagem' });
-                              loadData();
-                            } catch {
-                              toast({ title: 'Erro', description: 'Erro ao registrar saída', variant: 'destructive' });
-                            }
-                          }}
-                          className="h-8 text-gray-500 hover:text-red-500"
-                          title="Liberar Saída"
+                          onClick={handleSaveVehicleStayInGarage}
+                          disabled={staySaving || !(stayEditingVehicleId || vehicleToAssign)}
+                          className="w-full bg-seguranca-yellow text-black hover:bg-yellow-500 font-bold h-10 text-xs"
                         >
-                          <LogOut size={14} />
+                          {staySaving ? (
+                            <Loader2 size={15} className="animate-spin mr-1.5" />
+                          ) : (
+                            <Plus size={15} className="mr-1.5" />
+                          )}
+                          {stayEditingVehicleId ? 'Salvar Alterações' : 'Confirmar na Garagem'}
                         </Button>
                       </div>
                     </div>
-                  ))}
+                  </div>
+
+                  {/* 3. Barra de Filtros da Lista de Veículos da Garagem */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setStayFilterMode('all')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                          stayFilterMode === 'all'
+                            ? 'bg-seguranca-yellow text-black border-seguranca-yellow'
+                            : 'bg-seguranca-black text-gray-300 border-gray-700 hover:text-white'
+                        }`}
+                      >
+                        Todos ({allGarageVehicles.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setStayFilterMode('active')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                          stayFilterMode === 'active'
+                            ? 'bg-emerald-500 text-black border-emerald-400'
+                            : 'bg-seguranca-black text-gray-300 border-gray-700 hover:text-white'
+                        }`}
+                      >
+                        No Pátio ({allGarageVehicles.filter(v => v.activeStay).length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setStayFilterMode('temporary')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                          stayFilterMode === 'temporary'
+                            ? 'bg-amber-500 text-black border-amber-400'
+                            : 'bg-seguranca-black text-gray-300 border-gray-700 hover:text-white'
+                        }`}
+                      >
+                        Temporários ({allGarageVehicles.filter(v => v.isTemporary).length})
+                      </button>
+                    </div>
+
+                    <div className="relative w-full sm:w-64">
+                      <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <Input
+                        value={staySearchQuery}
+                        onChange={e => setStaySearchQuery(e.target.value)}
+                        placeholder="Buscar placa, motorista, escala..."
+                        className="pl-8 h-8 bg-seguranca-black border-gray-700 text-white text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  {/* 4. Tabela Completa de Veículos da Garagem */}
+                  {filteredGarageVehicles.length === 0 ? (
+                    <div className="text-center text-gray-400 py-10 bg-seguranca-black/40 rounded-xl border border-gray-800 text-xs">
+                      Nenhum veículo encontrado nesta garagem para o filtro selecionado.
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto rounded-xl border border-gray-800 bg-seguranca-black/50">
+                      <table className="w-full text-left border-collapse text-xs">
+                        <thead>
+                          <tr className="border-b border-gray-800 bg-seguranca-black text-[10px] uppercase text-gray-400 font-bold">
+                            <th className="py-2.5 px-3">Veículo / Placa</th>
+                            <th className="py-2.5 px-3">Motorista (Entrada)</th>
+                            <th className="py-2.5 px-3">Data Início</th>
+                            <th className="py-2.5 px-3">Hora Início</th>
+                            <th className="py-2.5 px-3">Data da Saída</th>
+                            <th className="py-2.5 px-3">Hora da Saída</th>
+                            <th className="py-2.5 px-3">Escala</th>
+                            <th className="py-2.5 px-3 text-right">Ações</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-800/80">
+                          {filteredGarageVehicles.map(v => (
+                            <tr key={v.id} className="hover:bg-gray-800/40 transition-colors">
+                              <td className="py-2.5 px-3">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-mono font-bold text-seguranca-yellow">{v.plate}</span>
+                                  {v.isTemporary ? (
+                                    <Badge className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px] px-1.5 py-0">
+                                      Temporário
+                                    </Badge>
+                                  ) : (
+                                    <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[9px] px-1.5 py-0">
+                                      Fixo
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="text-[11px] text-gray-400 truncate max-w-[180px]">
+                                  {[v.brand, v.model].filter(Boolean).join(' ')}
+                                </div>
+                              </td>
+                              <td className="py-2.5 px-3 font-medium text-white">
+                                {v.driverName}
+                              </td>
+                              <td className="py-2.5 px-3 font-mono text-gray-200">
+                                {v.startDateBr}
+                              </td>
+                              <td className="py-2.5 px-3 font-mono text-gray-200">
+                                {v.startTimeBr}
+                              </td>
+                              <td className="py-2.5 px-3 font-mono text-gray-200">
+                                {v.endDateBr !== '—' ? (
+                                  v.endDateBr
+                                ) : (
+                                  <span className="text-emerald-400 font-sans font-semibold text-[11px]">No pátio</span>
+                                )}
+                              </td>
+                              <td className="py-2.5 px-3 font-mono text-gray-200">
+                                {v.endTimeBr}
+                              </td>
+                              <td className="py-2.5 px-3">
+                                <span className="text-amber-300 font-medium">{v.workSchedule}</span>
+                              </td>
+                              <td className="py-2.5 px-3 text-right">
+                                <div className="inline-flex items-center gap-1">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleEditVehicleStayInGarage(v)}
+                                    className="h-7 px-2 text-gray-300 hover:text-seguranca-yellow"
+                                    title="Editar motorista, entrada, saída e escala"
+                                  >
+                                    <Pencil size={13} />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => openTransferModal(v.id)}
+                                    className="h-7 px-2 text-gray-300 hover:text-cyan-400"
+                                    title="Remanejar para outra garagem"
+                                  >
+                                    <ArrowLeftRight size={13} />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={async () => {
+                                      if (!selectedGarage) return;
+                                      try {
+                                        const updated = await garageService.unassignVehicle(selectedGarage.id, v.id);
+                                        setSelectedGarage(updated);
+                                        toast({ title: 'Saída Registrada', description: `Saída de ${v.plate} registrada com sucesso.` });
+                                        loadData();
+                                      } catch {
+                                        toast({ title: 'Erro', description: 'Erro ao registrar saída do veículo', variant: 'destructive' });
+                                      }
+                                    }}
+                                    className="h-7 px-2 text-gray-400 hover:text-rose-400"
+                                    title="Registrar saída / remover da garagem"
+                                  >
+                                    <LogOut size={13} />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              );
+            })()}
           </DialogContent>
         </Dialog>
 
@@ -2268,20 +3139,20 @@ export const Garagens: React.FC = () => {
         </Dialog>
 
         {/* ========================================================================= */}
-        {/* CONFIRMAÇÃO DE DESATIVAÇÃO DE GARAGEM */}
+        {/* CONFIRMAÇÃO DE EXCLUSÃO DE GARAGEM */}
         {/* ========================================================================= */}
         <AlertDialog open={deleteId != null} onOpenChange={(open) => !open && setDeleteId(null)}>
           <AlertDialogContent className="bg-seguranca-graphite border-gray-700 text-white">
             <AlertDialogHeader>
-              <AlertDialogTitle>Desativar Garagem?</AlertDialogTitle>
+              <AlertDialogTitle>Excluir Garagem?</AlertDialogTitle>
               <AlertDialogDescription>
-                A garagem será desativada das operações do pátio. O histórico de movimentações e auditoria permanece seguro.
+                A garagem será removida da lista ativa de pátios e seus veículos serão liberados. O histórico de movimentações permanece preservado para auditoria.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel className="bg-transparent border-gray-600 text-gray-300">Cancelar</AlertDialogCancel>
               <AlertDialogAction onClick={handleDeleteGarage} className="bg-rose-600 hover:bg-rose-500 text-white">
-                Desativar
+                Excluir Garagem
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

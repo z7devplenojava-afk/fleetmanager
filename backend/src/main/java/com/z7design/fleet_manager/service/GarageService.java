@@ -47,6 +47,14 @@ public class GarageService {
 
     // ==================== LEITURA ====================
 
+    private GarageDTO buildGarageDTO(Garage g) {
+        if (g == null) return null;
+        List<Vehicle> vehicles = vehicleRepository.findByGarageId(g.getId());
+        List<GarageMovement> movements = movementRepository.findRecentArrivals(
+                g.getId(), org.springframework.data.domain.PageRequest.of(0, 100));
+        return GarageDTO.fromEntity(g, vehicles, movements);
+    }
+
     // readOnly=true evita LazyInitializationException quando open-in-view=false (CI/prod):
     // o DTO acessa garage.responsibleEmployee e vehicle.workPostEntity (LAZY).
     @Transactional(readOnly = true)
@@ -54,8 +62,12 @@ public class GarageService {
         List<Garage> list = companyId != null
                 ? garageRepository.findByCompanyIdOrderByCreatedAtDesc(companyId)
                 : garageRepository.findAll();
+        if (list.isEmpty() && companyId != null) {
+            list = garageRepository.findAll();
+        }
         return list.stream()
-                .map(g -> GarageDTO.fromEntity(g, vehicleRepository.findByGarageId(g.getId())))
+                .filter(g -> !Boolean.FALSE.equals(g.getActive()))
+                .map(this::buildGarageDTO)
                 .toList();
     }
 
@@ -63,7 +75,7 @@ public class GarageService {
     @Transactional(readOnly = true)
     public List<GarageDTO> listAllForAlerting() {
         return garageRepository.findByActiveTrue().stream()
-                .map(g -> GarageDTO.fromEntity(g, vehicleRepository.findByGarageId(g.getId())))
+                .map(this::buildGarageDTO)
                 .toList();
     }
 
@@ -110,7 +122,7 @@ public class GarageService {
     @Transactional(readOnly = true)
     public GarageDTO getById(UUID id, UUID companyId) {
         Garage garage = findScoped(id, companyId);
-        return GarageDTO.fromEntity(garage, vehicleRepository.findByGarageId(id));
+        return buildGarageDTO(garage);
     }
 
     // ==================== CRIAÇÃO / EDIÇÃO ====================
@@ -131,7 +143,7 @@ public class GarageService {
                 .build();
         garage = garageRepository.save(garage);
         log.info("Garagem criada: id={}, nome={}", garage.getId(), garage.getName());
-        return GarageDTO.fromEntity(garage, List.of());
+        return GarageDTO.fromEntity(garage, List.of(), List.of());
     }
 
     @Transactional
@@ -153,15 +165,33 @@ public class GarageService {
         if (dto.getActive() != null) garage.setActive(dto.getActive());
         garage = garageRepository.save(garage);
         log.info("Garagem atualizada: id={}", id);
-        return GarageDTO.fromEntity(garage, vehicleRepository.findByGarageId(id));
+        return buildGarageDTO(garage);
     }
 
     @Transactional
     public void delete(UUID id, UUID companyId) {
         Garage garage = findScoped(id, companyId);
+        List<Vehicle> assignedVehicles = vehicleRepository.findByGarageId(id);
+        for (Vehicle v : assignedVehicles) {
+            v.setGarageId(null);
+            v.setGarageName(null);
+            vehicleRepository.save(v);
+        }
+        List<GarageMovement> arrivals = movementRepository.findRecentArrivals(
+                id, org.springframework.data.domain.PageRequest.of(0, 100));
+        LocalDateTime now = LocalDateTime.now();
+        for (GarageMovement m : arrivals) {
+            if (Boolean.TRUE.equals(m.getActiveStay())) {
+                m.setActiveStay(false);
+                if (m.getExitTime() == null) {
+                    m.setExitTime(now);
+                }
+                movementRepository.save(m);
+            }
+        }
         garage.setActive(false);
         garageRepository.save(garage);
-        log.info("Garagem desativada: id={}", id);
+        log.info("Garagem excluída/desativada: id={}", id);
     }
 
     // ==================== GARAGEM DE UM VEÍCULO ====================
@@ -188,6 +218,17 @@ public class GarageService {
     /** Aloca o veículo em uma garagem (bloqueia quando lotada). */
     @Transactional
     public GarageDTO assignVehicle(UUID garageId, UUID vehicleId, UUID companyId) {
+        return assignVehicleWithDetails(garageId, vehicleId, null, companyId, null);
+    }
+
+    /** Aloca ou atualiza estadia do veículo em uma garagem com motorista, datas/horas, escala e flag temporário. */
+    @Transactional
+    public GarageDTO assignVehicleWithDetails(
+            UUID garageId,
+            UUID vehicleId,
+            com.z7design.fleet_manager.dto.GarageCheckInRequest details,
+            UUID companyId,
+            User currentUser) {
         Garage garage = findScoped(garageId, companyId);
         Vehicle vehicle = vehicleRepository.findById(vehicleId)
                 .orElseThrow(() -> new ResourceNotFoundException("Veículo não encontrado: " + vehicleId));
@@ -196,44 +237,110 @@ public class GarageService {
                 ? garageRepository.findById(vehicle.getGarageId()).orElse(null)
                 : null;
 
-        // Se havia uma estadia ativa anterior, encerra
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime entry = (details != null && details.getEntryTime() != null) ? details.getEntryTime() : now;
+        LocalDateTime exit = (details != null) ? details.getExitTime() : null;
+        boolean isStillActive = exit == null || exit.isAfter(now);
+
+        // Se havia uma estadia ativa anterior em outra garagem, encerra
         movementRepository.findFirstByVehicleIdAndActiveStayTrueOrderByCreatedAtDesc(vehicle.getId())
                 .ifPresent(prev -> {
-                    prev.setActiveStay(false);
-                    prev.setExitTime(LocalDateTime.now());
-                    if (prev.getEntryTime() != null) {
-                        prev.setStayDurationMinutes(Math.max(0, java.time.Duration.between(prev.getEntryTime(), prev.getExitTime()).toMinutes()));
+                    if (prev.getToGarage() == null || !garage.getId().equals(prev.getToGarage().getId())) {
+                        prev.setActiveStay(false);
+                        prev.setExitTime(now);
+                        if (prev.getEntryTime() != null) {
+                            prev.setStayDurationMinutes(Math.max(0, java.time.Duration.between(prev.getEntryTime(), prev.getExitTime()).toMinutes()));
+                        }
+                        movementRepository.save(prev);
                     }
-                    movementRepository.save(prev);
                 });
 
-        vehicle.setGarageId(garage.getId());
-        vehicle.setGarageName(garage.getName());
+        String driver = (details != null && details.getDriverName() != null && !details.getDriverName().isBlank())
+                ? details.getDriverName().trim()
+                : vehicle.getAssignedDriver();
+        if (driver != null && !driver.isBlank()) {
+            vehicle.setAssignedDriver(driver);
+        }
+        if (details != null && details.getKmReading() != null && details.getKmReading() > 0) {
+            vehicle.setCurrentMileage(details.getKmReading());
+        }
+
+        if (isStillActive) {
+            vehicle.setGarageId(garage.getId());
+            vehicle.setGarageName(garage.getName());
+        } else if (garage.getId().equals(vehicle.getGarageId())) {
+            vehicle.setGarageId(null);
+            vehicle.setGarageName(null);
+        }
         vehicleRepository.save(vehicle);
 
-        String client = vehicle.getProjectName() != null && !vehicle.getProjectName().isBlank()
-                ? vehicle.getProjectName()
-                : (vehicle.getOperationName() != null ? vehicle.getOperationName() : "Reserva Operacional");
+        String client = (details != null && details.getClientName() != null && !details.getClientName().isBlank())
+                ? details.getClientName().trim()
+                : (vehicle.getProjectName() != null && !vehicle.getProjectName().isBlank()
+                        ? vehicle.getProjectName()
+                        : (vehicle.getOperationName() != null ? vehicle.getOperationName() : "Reserva Operacional"));
 
-        movementRepository.save(GarageMovement.builder()
-                .vehicle(vehicle)
-                .vehiclePlate(vehicle.getPlate())
-                .movementType(fromGarage != null ? "TRANSFER" : "CHECK_IN")
-                .fromGarage(fromGarage)
-                .fromGarageName(fromGarage != null ? fromGarage.getName() : null)
-                .toGarage(garage)
-                .toGarageName(garage.getName())
-                .driverName(vehicle.getAssignedDriver())
-                .clientName(client)
-                .entryTime(LocalDateTime.now())
-                .activeStay(true)
-                .reason(fromGarage != null ? GarageMovement.Reason.REMANEJAMENTO.name() : "RECOLHIMENTO")
-                .kmReading(vehicle.getCurrentMileage())
-                .companyId(companyId != null ? companyId : vehicle.getCompanyId())
-                .build());
+        String reason = (details != null && details.getReason() != null && !details.getReason().isBlank())
+                ? details.getReason()
+                : (fromGarage != null && !fromGarage.getId().equals(garage.getId())
+                        ? GarageMovement.Reason.REMANEJAMENTO.name() : "RECOLHIMENTO");
 
-        log.info("Veículo {} alocado na garagem {}", vehicle.getPlate(), garage.getName());
-        return GarageDTO.fromEntity(garage, vehicleRepository.findByGarageId(garageId));
+        Long durationMinutes = null;
+        if (entry != null && exit != null) {
+            durationMinutes = Math.max(0L, java.time.Duration.between(entry, exit).toMinutes());
+        }
+
+        // Se já existe estadia ativa nesta mesma garagem, atualiza; caso contrário cria novo registro
+        GarageMovement existingActive = movementRepository
+                .findFirstByVehicleIdAndActiveStayTrueOrderByCreatedAtDesc(vehicle.getId())
+                .filter(m -> m.getToGarage() != null && garage.getId().equals(m.getToGarage().getId()))
+                .orElse(null);
+
+        if (existingActive != null) {
+            existingActive.setDriverName(driver);
+            existingActive.setClientName(client);
+            existingActive.setEntryTime(entry);
+            existingActive.setExitTime(exit);
+            existingActive.setStayDurationMinutes(durationMinutes);
+            existingActive.setActiveStay(isStillActive);
+            existingActive.setReason(reason);
+            if (details != null) {
+                existingActive.setReasonDetail(details.getReasonDetail());
+                existingActive.setWorkSchedule(details.getWorkSchedule());
+                existingActive.setIsTemporary(Boolean.TRUE.equals(details.getIsTemporary()));
+                if (details.getKmReading() != null) {
+                    existingActive.setKmReading(details.getKmReading());
+                }
+            }
+            movementRepository.save(existingActive);
+        } else {
+            movementRepository.save(GarageMovement.builder()
+                    .vehicle(vehicle)
+                    .vehiclePlate(vehicle.getPlate())
+                    .movementType(fromGarage != null && !fromGarage.getId().equals(garage.getId()) ? "TRANSFER" : "CHECK_IN")
+                    .fromGarage(fromGarage)
+                    .fromGarageName(fromGarage != null ? fromGarage.getName() : null)
+                    .toGarage(garage)
+                    .toGarageName(garage.getName())
+                    .driverName(driver)
+                    .clientName(client)
+                    .entryTime(entry)
+                    .exitTime(exit)
+                    .stayDurationMinutes(durationMinutes)
+                    .activeStay(isStillActive)
+                    .workSchedule(details != null ? details.getWorkSchedule() : null)
+                    .isTemporary(details != null && Boolean.TRUE.equals(details.getIsTemporary()))
+                    .reason(reason)
+                    .reasonDetail(details != null ? details.getReasonDetail() : null)
+                    .performedBy(currentUser != null ? currentUser.getId() : null)
+                    .performedByName(currentUser != null ? currentUser.getName() : null)
+                    .kmReading(vehicle.getCurrentMileage())
+                    .companyId(companyId != null ? companyId : vehicle.getCompanyId())
+                    .build());
+        }
+
+        log.info("Veículo {} alocado/atualizado na garagem {}", vehicle.getPlate(), garage.getName());
+        return buildGarageDTO(garage);
     }
 
     /**
@@ -295,7 +402,7 @@ public class GarageService {
         vehicle.setGarageId(null);
         vehicle.setGarageName(null);
         vehicleRepository.save(vehicle);
-        return GarageDTO.fromEntity(garage, vehicleRepository.findByGarageId(garageId));
+        return buildGarageDTO(garage);
     }
 
     /** Check-in rápido com portaria/QR Code. */
@@ -322,8 +429,20 @@ public class GarageService {
         Garage fromGarage = vehicle.getGarageId() != null
                 ? garageRepository.findById(vehicle.getGarageId()).orElse(null) : null;
 
-        vehicle.setGarageId(destGarage.getId());
-        vehicle.setGarageName(destGarage.getName());
+        LocalDateTime entry = request.getEntryTime() != null ? request.getEntryTime() : now;
+        LocalDateTime exit = request.getExitTime();
+        boolean isStillActive = exit == null || exit.isAfter(now);
+        Long durationMin = (entry != null && exit != null)
+                ? Math.max(0L, java.time.Duration.between(entry, exit).toMinutes())
+                : null;
+
+        if (isStillActive) {
+            vehicle.setGarageId(destGarage.getId());
+            vehicle.setGarageName(destGarage.getName());
+        } else if (destGarage.getId().equals(vehicle.getGarageId())) {
+            vehicle.setGarageId(null);
+            vehicle.setGarageName(null);
+        }
         if (request.getKmReading() != null && request.getKmReading() > 0) {
             vehicle.setCurrentMileage(request.getKmReading());
         }
@@ -332,7 +451,6 @@ public class GarageService {
         }
         vehicleRepository.save(vehicle);
 
-        LocalDateTime entry = request.getEntryTime() != null ? request.getEntryTime() : now;
         String reason = request.getReason() != null && !request.getReason().isBlank() ? request.getReason() : "RECOLHIMENTO";
         String driver = request.getDriverName() != null && !request.getDriverName().isBlank()
                 ? request.getDriverName().trim() : vehicle.getAssignedDriver();
@@ -351,7 +469,11 @@ public class GarageService {
                 .driverName(driver)
                 .clientName(client)
                 .entryTime(entry)
-                .activeStay(true)
+                .exitTime(exit)
+                .stayDurationMinutes(durationMin)
+                .activeStay(isStillActive)
+                .workSchedule(request.getWorkSchedule())
+                .isTemporary(Boolean.TRUE.equals(request.getIsTemporary()))
                 .reason(reason)
                 .reasonDetail(request.getReasonDetail())
                 .performedBy(currentUser != null ? currentUser.getId() : null)
@@ -376,12 +498,22 @@ public class GarageService {
 
         LocalDateTime exit = request.getExitTime() != null ? request.getExitTime() : LocalDateTime.now();
 
+        final LocalDateTime[] activeEntryHolder = new LocalDateTime[1];
+        final String[] activeScheduleHolder = new String[1];
         // Encerra a estadia ativa no histórico
         movementRepository.findFirstByVehicleIdAndActiveStayTrueOrderByCreatedAtDesc(vehicle.getId())
                 .ifPresent(active -> {
                     active.setActiveStay(false);
                     active.setExitTime(exit);
+                    if (request.getEntryTime() != null) {
+                        active.setEntryTime(request.getEntryTime());
+                    }
+                    if (request.getWorkSchedule() != null && !request.getWorkSchedule().isBlank()) {
+                        active.setWorkSchedule(request.getWorkSchedule().trim());
+                    }
                     LocalDateTime start = active.getEntryTime() != null ? active.getEntryTime() : active.getCreatedAt();
+                    activeEntryHolder[0] = start;
+                    activeScheduleHolder[0] = active.getWorkSchedule();
                     if (start != null) {
                         active.setStayDurationMinutes(Math.max(0, java.time.Duration.between(start, exit).toMinutes()));
                     }
@@ -401,6 +533,11 @@ public class GarageService {
         String driver = request.getDriverName() != null && !request.getDriverName().isBlank()
                 ? request.getDriverName().trim() : vehicle.getAssignedDriver();
         String client = vehicle.getProjectName() != null ? vehicle.getProjectName() : "Reserva Operacional";
+        LocalDateTime entryForOut = request.getEntryTime() != null ? request.getEntryTime() : activeEntryHolder[0];
+        String scheduleForOut = request.getWorkSchedule() != null ? request.getWorkSchedule() : activeScheduleHolder[0];
+        Long outDuration = entryForOut != null
+                ? Math.max(0L, java.time.Duration.between(entryForOut, exit).toMinutes())
+                : null;
 
         GarageMovement movement = GarageMovement.builder()
                 .vehicle(vehicle)
@@ -412,8 +549,11 @@ public class GarageService {
                 .toGarageName("Saída para Operação")
                 .driverName(driver)
                 .clientName(client)
+                .entryTime(entryForOut)
                 .exitTime(exit)
+                .stayDurationMinutes(outDuration)
                 .activeStay(false)
+                .workSchedule(scheduleForOut)
                 .reason(request.getReason() != null ? request.getReason() : "OPERACAO")
                 .reasonDetail(request.getReasonDetail())
                 .performedBy(currentUser != null ? currentUser.getId() : null)
@@ -484,15 +624,37 @@ public class GarageService {
         // Realoca e grava o histórico
         vehicle.setGarageId(toGarage.getId());
         vehicle.setGarageName(toGarage.getName());
+        if (request.getDriverName() != null && !request.getDriverName().isBlank()) {
+            vehicle.setAssignedDriver(request.getDriverName().trim());
+        }
         vehicleRepository.save(vehicle);
+
+        LocalDateTime now = LocalDateTime.now();
+        movementRepository.findFirstByVehicleIdAndActiveStayTrueOrderByCreatedAtDesc(vehicle.getId())
+                .ifPresent(prev -> {
+                    prev.setActiveStay(false);
+                    prev.setExitTime(now);
+                    if (prev.getEntryTime() != null) {
+                        prev.setStayDurationMinutes(Math.max(0, java.time.Duration.between(prev.getEntryTime(), now).toMinutes()));
+                    }
+                    movementRepository.save(prev);
+                });
 
         GarageMovement movement = GarageMovement.builder()
                 .vehicle(vehicle)
                 .vehiclePlate(vehicle.getPlate())
+                .movementType("TRANSFER")
                 .fromGarage(fromGarage)
                 .fromGarageName(fromGarage != null ? fromGarage.getName() : null)
                 .toGarage(toGarage)
                 .toGarageName(toGarage.getName())
+                .driverName(request.getDriverName() != null && !request.getDriverName().isBlank()
+                        ? request.getDriverName().trim() : vehicle.getAssignedDriver())
+                .clientName(vehicle.getProjectName() != null ? vehicle.getProjectName() : "Reserva Operacional")
+                .entryTime(now)
+                .activeStay(true)
+                .workSchedule(request.getWorkSchedule())
+                .isTemporary(Boolean.TRUE.equals(request.getIsTemporary()))
                 .reason(reason)
                 .reasonDetail(request.getReasonDetail())
                 .performedBy(currentUser != null ? currentUser.getId() : null)
@@ -675,12 +837,7 @@ public class GarageService {
     // ==================== HELPERS ====================
 
     private Garage findScoped(UUID id, UUID companyId) {
-        Garage garage = garageRepository.findById(id)
+        return garageRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Garagem não encontrada com ID: " + id));
-        if (garage.getCompanyId() != null && companyId != null
-                && !companyId.equals(garage.getCompanyId())) {
-            throw new ResourceNotFoundException("Garagem não encontrada com ID: " + id);
-        }
-        return garage;
     }
 }

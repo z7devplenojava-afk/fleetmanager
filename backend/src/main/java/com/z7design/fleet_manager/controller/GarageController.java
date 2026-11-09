@@ -84,13 +84,24 @@ public class GarageController {
         return ResponseEntity.ok(service.getById(id, user.getCompanyId()));
     }
 
-    /** Aloca um veículo na garagem. */
+    /** Aloca um veículo na garagem (suporta dados opcionais de motorista, entrada, saída, escala e temporário). */
     @PostMapping("/{id}/vehicles/{vehicleId}")
     public ResponseEntity<GarageDTO> assignVehicle(
             @PathVariable("id") UUID id,
             @PathVariable("vehicleId") UUID vehicleId,
+            @RequestBody(required = false) com.z7design.fleet_manager.dto.GarageCheckInRequest details,
             @AuthenticationPrincipal User user) {
-        return ResponseEntity.ok(service.assignVehicle(id, vehicleId, user.getCompanyId()));
+        return ResponseEntity.ok(service.assignVehicleWithDetails(id, vehicleId, details, user != null ? user.getCompanyId() : null, user));
+    }
+
+    /** Atualiza dados da permanência do veículo na garagem (motorista, data/hora início, data/hora saída, escala, temporário). */
+    @PutMapping("/{id}/vehicles/{vehicleId}")
+    public ResponseEntity<GarageDTO> updateVehicleStay(
+            @PathVariable("id") UUID id,
+            @PathVariable("vehicleId") UUID vehicleId,
+            @RequestBody com.z7design.fleet_manager.dto.GarageCheckInRequest details,
+            @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(service.assignVehicleWithDetails(id, vehicleId, details, user != null ? user.getCompanyId() : null, user));
     }
 
     /** Remove o veículo da garagem. */

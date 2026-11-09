@@ -39,4 +39,13 @@ public class GarageCheckInRequest {
 
     /** Horário da entrada (se omitido, usa momento atual) */
     private LocalDateTime entryTime;
+
+    /** Horário de saída previsto ou registrado (opcional) */
+    private LocalDateTime exitTime;
+
+    /** Escala do veículo/motorista (ex: 06:00 às 14:20 - Turno Manhã) */
+    private String workSchedule;
+
+    /** Indica se o veículo está na garagem temporariamente */
+    private Boolean isTemporary;
 }

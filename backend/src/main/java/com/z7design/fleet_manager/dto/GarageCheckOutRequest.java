@@ -33,4 +33,10 @@ public class GarageCheckOutRequest {
 
     /** Horário da saída (se omitido, usa momento atual) */
     private LocalDateTime exitTime;
+
+    /** Horário da entrada (opcional, para atualização conjunta) */
+    private LocalDateTime entryTime;
+
+    /** Escala do veículo/motorista */
+    private String workSchedule;
 }

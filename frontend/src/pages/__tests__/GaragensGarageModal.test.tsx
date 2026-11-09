@@ -26,6 +26,12 @@ jest.mock('@/services/garageService', () => ({
     create: jest.fn().mockResolvedValue({ id: 'g1' }),
     update: jest.fn().mockResolvedValue({ id: 'g1' }),
     delete: jest.fn().mockResolvedValue(undefined),
+    assignVehicle: jest.fn().mockResolvedValue({ id: 'g1' }),
+    updateVehicleStay: jest.fn().mockResolvedValue({ id: 'g1' }),
+    unassignVehicle: jest.fn().mockResolvedValue(undefined),
+    transfer: jest.fn().mockResolvedValue({ id: 'm1' }),
+    checkIn: jest.fn().mockResolvedValue({ id: 'm1' }),
+    checkOut: jest.fn().mockResolvedValue({ id: 'm1' }),
   },
   MOVEMENT_REASON_LABELS: {},
 }));

@@ -27,4 +27,13 @@ public class GarageTransferRequest {
 
     /** KM do veículo no momento da movimentação (opcional). */
     private Integer kmReading;
+
+    /** Motorista responsável pela transferência/entrada */
+    private String driverName;
+
+    /** Escala vinculada */
+    private String workSchedule;
+
+    /** Indica se a transferência para a garagem de destino é temporária */
+    private Boolean isTemporary;
 }

@@ -88,6 +88,14 @@ public class GarageMovement {
     @Column(name = "active_stay")
     private Boolean activeStay;
 
+    /** Escala de trabalho / viagem vinculada à entrada/saída do veículo */
+    @Column(name = "work_schedule", length = 150)
+    private String workSchedule;
+
+    /** Indica se a permanência na garagem é temporária / de passagem */
+    @Column(name = "is_temporary")
+    private Boolean isTemporary;
+
     /** Motivo: REMANEJAMENTO, MANUTENCAO, LIMPEZA, OPERACAO, ESCALA, RECOLHIMENTO, RESERVA, OUTROS. */
     @Column(name = "reason", length = 30)
     private String reason;

@@ -2,19 +2,27 @@ import api from '@/lib/axios';
 
 export interface GarageVehicleSummary {
   id: string;
+  movementId?: string;
   plate: string;
   model?: string;
   brand?: string;
   currentMileage?: number;
   status?: string;
   assignedDriver?: string;
+  driverName?: string;
   clientName?: string;
   vehicleType?: string;
   entryDate?: string;
   entryTime?: string;
+  exitDate?: string;
+  exitTime?: string;
+  workSchedule?: string;
+  isTemporary?: boolean;
+  activeStay?: boolean;
   stayDurationMinutes?: number;
   stayDurationFormatted?: string;
   reason?: string;
+  reasonDetail?: string;
 }
 
 export interface GarageOccupancyDashboard {
@@ -77,6 +85,8 @@ export interface GarageMovement {
   stayDurationMinutes?: number;
   stayDurationFormatted?: string;
   activeStay?: boolean;
+  workSchedule?: string;
+  isTemporary?: boolean;
   reason?: string;
   reasonDetail?: string;
   performedBy?: string;
@@ -92,6 +102,9 @@ export interface GarageTransferInput {
   reason?: string;
   reasonDetail?: string;
   kmReading?: number;
+  driverName?: string;
+  workSchedule?: string;
+  isTemporary?: boolean;
 }
 
 export interface GarageCheckInInput {
@@ -103,6 +116,9 @@ export interface GarageCheckInInput {
   reasonDetail?: string;
   kmReading?: number;
   entryTime?: string;
+  exitTime?: string;
+  workSchedule?: string;
+  isTemporary?: boolean;
 }
 
 export interface GarageCheckOutInput {
@@ -112,6 +128,8 @@ export interface GarageCheckOutInput {
   reasonDetail?: string;
   kmReading?: number;
   exitTime?: string;
+  entryTime?: string;
+  workSchedule?: string;
 }
 
 export const MOVEMENT_REASON_LABELS: Record<string, string> = {
@@ -163,8 +181,13 @@ class GarageService {
     return response.data;
   }
 
-  async assignVehicle(garageId: string, vehicleId: string): Promise<Garage> {
-    const response = await api.post(`/garages/${garageId}/vehicles/${vehicleId}`);
+  async assignVehicle(garageId: string, vehicleId: string, details?: Partial<GarageCheckInInput>): Promise<Garage> {
+    const response = await api.post(`/garages/${garageId}/vehicles/${vehicleId}`, details || {});
+    return response.data;
+  }
+
+  async updateVehicleStay(garageId: string, vehicleId: string, details: Partial<GarageCheckInInput>): Promise<Garage> {
+    const response = await api.put(`/garages/${garageId}/vehicles/${vehicleId}`, details);
     return response.data;
   }
 

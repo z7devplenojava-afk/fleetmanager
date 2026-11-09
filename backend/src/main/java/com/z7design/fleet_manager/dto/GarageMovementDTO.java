@@ -38,6 +38,8 @@ public class GarageMovementDTO {
     private Long stayDurationMinutes;
     private Boolean activeStay;
     private String stayDurationFormatted;
+    private String workSchedule;
+    private Boolean isTemporary;
 
     public static String formatDuration(Long minutes) {
         if (minutes == null || minutes < 0) return "—";
@@ -76,6 +78,8 @@ public class GarageMovementDTO {
                 .stayDurationMinutes(duration)
                 .stayDurationFormatted(formatDuration(duration))
                 .activeStay(m.getActiveStay())
+                .workSchedule(m.getWorkSchedule())
+                .isTemporary(m.getIsTemporary())
                 .reason(m.getReason())
                 .reasonDetail(m.getReasonDetail())
                 .performedBy(m.getPerformedBy())
