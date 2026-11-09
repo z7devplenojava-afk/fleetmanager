@@ -151,7 +151,7 @@ export const GestaoLaudosInspecao: React.FC = () => {
   return (
     <StandardLayout
       title="Laudos de Inspeção Técnica"
-      subtitle="Controle de vistorias, preventiva mensal, mosaico de 8 evidências fotográficas e liberação de veículos"
+      subtitle="Controle de vistorias, preventiva mensal, até 10 evidências fotográficas e liberação de veículos"
     >
       <div className="space-y-6 max-w-7xl mx-auto p-3 sm:p-6 pb-24">
         {/* Cabeçalho de Ações */}
@@ -336,7 +336,7 @@ export const GestaoLaudosInspecao: React.FC = () => {
                 <FileText className="h-12 w-12 mx-auto text-zinc-600 opacity-40" />
                 <p className="text-sm font-semibold text-zinc-300">Nenhum laudo de inspeção encontrado</p>
                 <p className="text-xs text-zinc-500 max-w-sm mx-auto">
-                  Clique no botão acima para cadastrar um novo laudo preventivo com as 8 fotos de evidências.
+                  Clique no botão acima para cadastrar um novo laudo preventivo com até 10 fotos de evidências.
                 </p>
                 <Button
                   size="sm"
@@ -398,13 +398,13 @@ export const GestaoLaudosInspecao: React.FC = () => {
                             <Badge
                               variant="outline"
                               className={`text-[10px] font-mono ${
-                                photoCount >= 8
+                                photoCount > 0
                                   ? 'border-emerald-500/40 text-emerald-300 bg-emerald-500/10'
                                   : 'border-zinc-700 text-zinc-400 bg-black/40'
                               }`}
                             >
                               <Camera className="h-3 w-3 mr-1" />
-                              {photoCount}/8 fotos
+                              {photoCount}/10 fotos
                             </Badge>
                           </td>
                           <td className="py-3 px-4 text-right whitespace-nowrap">

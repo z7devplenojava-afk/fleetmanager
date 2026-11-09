@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import { VehicleInspection } from '@/services/vehicleInspectionService';
-import { resolveCompanyLogoUrl } from '@/utils/logoUtils';
+import { resolveCompanyLogoUrl, getStoredCompanyBranding } from '@/utils/logoUtils';
 
 function formatDateBR(dateStr?: string): string {
   if (!dateStr) return '-';
@@ -11,31 +11,56 @@ function formatDateBR(dateStr?: string): string {
 }
 
 /**
- * Cria o logo institucional oficial da Viação São Silvestre em Base64
+ * Cria o selo institucional oficial da Viação São Silvestre em Base64 (fallback caso não haja arquivo de imagem)
  */
-function createVssLogoBadgeBase64(): string {
+function createVssLogoBadgeBase64(companyName = 'VIAÇÃO SÃO SILVESTRE'): string {
   try {
     const canvas = document.createElement('canvas');
-    canvas.width = 160;
-    canvas.height = 70;
+    canvas.width = 320;
+    canvas.height = 140;
     const ctx = canvas.getContext('2d');
     if (!ctx) return '';
 
-    // Fundo azul escuro da Viação São Silvestre
-    ctx.fillStyle = '#10162F';
+    const grad = ctx.createLinearGradient(0, 0, 320, 140);
+    grad.addColorStop(0, '#0f172a');
+    grad.addColorStop(0.5, '#1e3a8a');
+    grad.addColorStop(1, '#991b1b');
+    ctx.fillStyle = grad;
     ctx.beginPath();
-    ctx.roundRect(4, 4, 152, 62, 8);
+    ctx.roundRect(4, 4, 312, 132, 16);
     ctx.fill();
-    ctx.strokeStyle = '#D97706';
-    ctx.lineWidth = 2;
+
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 4;
     ctx.stroke();
 
+    // Círculo de destaque à esquerda
+    ctx.fillStyle = '#dc2626';
+    ctx.beginPath();
+    ctx.arc(48, 70, 30, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 18px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('VSS', 48, 70);
+
     // Texto institucional
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 11px Arial, sans-serif';
-    ctx.fillText('VIAÇÃO', 16, 26);
-    ctx.font = 'bold 13px Arial, sans-serif';
-    ctx.fillText('SÃO SILVESTRE', 16, 44);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#fde68a';
+    ctx.font = 'bold 16px Arial, sans-serif';
+    ctx.fillText('VIAÇÃO', 92, 52);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 22px Arial, sans-serif';
+    ctx.fillText(
+      companyName.toUpperCase().replace(/^VIA[CÇ][AÃ]O\s+/i, '').substring(0, 16) || 'SÃO SILVESTRE',
+      92,
+      82
+    );
 
     return canvas.toDataURL('image/png');
   } catch {
@@ -44,38 +69,106 @@ function createVssLogoBadgeBase64(): string {
 }
 
 /**
- * Carrega uma imagem de URL externa para DataURL base64 para inclusão segura no jsPDF
+ * Carrega uma imagem de URL ou DataURL para Base64 PNG/JPEG com suas dimensões originais
  */
-async function loadImageAsDataUrl(url: string): Promise<string | null> {
+async function loadImageWithDimensions(
+  url: string,
+  asPng = false
+): Promise<{ dataUrl: string; width: number; height: number } | null> {
   if (!url || typeof url !== 'string') return null;
-  if (url.startsWith('data:image/')) return url;
 
   return new Promise((resolve) => {
     const img = new Image();
-    img.crossOrigin = 'Anonymous';
+    if (!url.startsWith('data:')) {
+      img.crossOrigin = 'Anonymous';
+    }
+    const timer = window.setTimeout(() => resolve(null), 3500);
     img.onload = () => {
+      window.clearTimeout(timer);
       try {
+        const w = img.naturalWidth || img.width || 300;
+        const h = img.naturalHeight || img.height || 150;
         const canvas = document.createElement('canvas');
-        canvas.width = img.width || 300;
-        canvas.height = img.height || 300;
+        canvas.width = w;
+        canvas.height = h;
         const ctx = canvas.getContext('2d');
         if (!ctx) {
           resolve(null);
           return;
         }
         ctx.drawImage(img, 0, 0);
-        resolve(canvas.toDataURL('image/jpeg', 0.85));
+        const dataUrl = asPng ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 0.88);
+        resolve({ dataUrl, width: w, height: h });
       } catch {
         resolve(null);
       }
     };
-    img.onerror = () => resolve(null);
+    img.onerror = () => {
+      window.clearTimeout(timer);
+      resolve(null);
+    };
     img.src = url;
   });
 }
 
 /**
- * Gera o documento oficial do LAUDO DE INSPEÇÃO exatamente com o layout da imagem
+ * Resolve e carrega a Logomarca Oficial da Empresa cadastrada no sistema
+ * (priorizando `logoUrl` da empresa para relatórios horizontais, depois `iconUrl` e `/logo.png`)
+ */
+async function resolveAndLoadCompanyLogo(
+  explicitLogoUrl?: string | null
+): Promise<{ dataUrl: string; width: number; height: number }> {
+  const storedBranding = getStoredCompanyBranding();
+  let companyName = 'VIAÇÃO SÃO SILVESTRE';
+  const candidates: string[] = [];
+
+  if (explicitLogoUrl) candidates.push(explicitLogoUrl);
+  if (storedBranding.logoUrl) candidates.push(storedBranding.logoUrl);
+
+  try {
+    const rawEmpresa = localStorage.getItem('empresa') || localStorage.getItem('company');
+    if (rawEmpresa) {
+      const parsed = JSON.parse(rawEmpresa);
+      if (parsed?.name || parsed?.razaoSocial || parsed?.nomeFantasia) {
+        companyName = parsed.nomeFantasia || parsed.name || parsed.razaoSocial;
+      }
+      if (parsed?.logoUrl) candidates.push(parsed.logoUrl);
+      if (parsed?.logo) candidates.push(parsed.logo);
+      if (parsed?.logo_url) candidates.push(parsed.logo_url);
+      if (parsed?.iconUrl) candidates.push(parsed.iconUrl);
+    }
+  } catch {
+    // ignore
+  }
+
+  if (storedBranding.iconUrl) candidates.push(storedBranding.iconUrl);
+  if (typeof window !== 'undefined') {
+    candidates.push(`${window.location.origin}/logo.png`);
+  }
+
+  for (const rawCandidate of candidates) {
+    if (!rawCandidate) continue;
+    const resolved =
+      rawCandidate.startsWith('data:') || rawCandidate.startsWith('http')
+        ? rawCandidate
+        : resolveCompanyLogoUrl(rawCandidate) || rawCandidate;
+    if (!resolved) continue;
+
+    const loaded = await loadImageWithDimensions(resolved, true);
+    if (loaded && loaded.dataUrl) {
+      return loaded;
+    }
+  }
+
+  return {
+    dataUrl: createVssLogoBadgeBase64(companyName),
+    width: 320,
+    height: 140,
+  };
+}
+
+/**
+ * Gera o documento oficial do LAUDO DE INSPEÇÃO com a logomarca da empresa e até 10 evidências
  */
 export async function generateVehicleInspectionPDF(
   inspection: VehicleInspection,
@@ -96,35 +189,35 @@ export async function generateVehicleInspectionPDF(
   doc.setLineWidth(0.35);
 
   // ==========================================
-  // 1. CABEÇALHO (LOGO | TÍTULO | REGISTRO & KM)
+  // 1. CABEÇALHO (LOGOMARCA DA EMPRESA | TÍTULO | REGISTRO & KM)
   // ==========================================
   const headerHeight = 20;
-  const colLogoWidth = 42;
-  const colTitleWidth = 88;
+  const colLogoWidth = 44;
+  const colTitleWidth = 86;
   const colRegWidth = 60;
 
-  // Caixa esquerda: Logo
+  // Caixa esquerda: Logomarca da Empresa
   doc.rect(marginX, currentY, colLogoWidth, headerHeight);
-  let resolvedLogo = companyLogoUrl ? resolveCompanyLogoUrl(companyLogoUrl) : null;
-  let logoBase64: string | null = null;
-  if (resolvedLogo) {
-    logoBase64 = await loadImageAsDataUrl(resolvedLogo);
-  }
-  if (!logoBase64) {
-    logoBase64 = createVssLogoBadgeBase64();
-  }
-  if (logoBase64) {
+  const logoObj = await resolveAndLoadCompanyLogo(companyLogoUrl);
+  if (logoObj && logoObj.dataUrl) {
     try {
-      doc.addImage(logoBase64, 'PNG', marginX + 3, currentY + 2.5, colLogoWidth - 6, headerHeight - 5);
+      const maxW = colLogoWidth - 4;
+      const maxH = headerHeight - 3;
+      const ratio = logoObj.width / Math.max(1, logoObj.height);
+      let drawW = maxW;
+      let drawH = drawW / ratio;
+      if (drawH > maxH) {
+        drawH = maxH;
+        drawW = drawH * ratio;
+      }
+      const offsetX = marginX + (colLogoWidth - drawW) / 2;
+      const offsetY = currentY + (headerHeight - drawH) / 2;
+      doc.addImage(logoObj.dataUrl, 'PNG', offsetX, offsetY, drawW, drawH);
     } catch {
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.text('VIAÇÃO\nSÃO SILVESTRE', marginX + 5, currentY + 8);
+      doc.setFontSize(9.5);
+      doc.text('VIAÇÃO\nSÃO SILVESTRE', marginX + 4, currentY + 8);
     }
-  } else {
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.text('VIAÇÃO SÃO SILVESTRE', marginX + 5, currentY + 11);
   }
 
   // Caixa central: Título "LAUDO DE INSPEÇÃO"
@@ -246,7 +339,7 @@ export async function generateVehicleInspectionPDF(
   currentY += clientHeight;
 
   // ==========================================
-  // 6. SERVIÇO REALIZADO (COM DESTAQUES CONFORME IMAGEM)
+  // 6. SERVIÇO REALIZADO
   // ==========================================
   const servHeight = 35;
   doc.rect(marginX, currentY, contentWidth, servHeight);
@@ -259,7 +352,6 @@ export async function generateVehicleInspectionPDF(
     inspection.servicesPerformed ||
     'conferiu barras e ponteiras de direção, conferiu coifa e mangas de eixo, conferiu vazamentos hidraulicos, conferiu fixação dos mangotes, conferiu óleo motor, caixa e diferencial, conferiu cuícas, lonas e catracas de freio, regulou freio em geral, conferiu folgas do eixo S, conferiu vazamentos pneumáticos, conferiu cubos, conferiu freio de estacionamento, conferiu amortecedores e estabilizadores, lubrificou todo veiculo, conferiu pinos de centro e feixe de molas, conferiu rolamento de centro, conferiu flange da caixa de cambio, conferiu cruzeta, conferiu embreagem, conferiu eixo cardan, conferiu níveis de óleo e água, trocou filtro de ar, conferiu parte eletrica, conferiu sistema de registro de velocidade, conferiu pneus e calibração e aperto dos parafusos, conferiu sistema de fechamento de porta malas, conferiu motor, conferiu carroceria, conferiu ar condicionado.';
 
-  // Quebra linhas mantendo legibilidade profissional
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.8);
   const splitServ = doc.splitTextToSize(servText, contentWidth - 6);
@@ -280,7 +372,7 @@ export async function generateVehicleInspectionPDF(
   currentY += pecasHeight;
 
   // ==========================================
-  // 8. EVIDÊNCIAS FOTOGRÁFICAS (MOSAICO 2x4 - 8 FOTOS)
+  // 8. EVIDÊNCIAS FOTOGRÁFICAS (ATÉ 10 FOTOS)
   // ==========================================
   const evidTitleHeight = 6.5;
   doc.rect(marginX, currentY, contentWidth, evidTitleHeight);
@@ -289,25 +381,29 @@ export async function generateVehicleInspectionPDF(
   doc.text('EVIDÊNCIAS', marginX + contentWidth / 2, currentY + 4.5, { align: 'center' });
   currentY += evidTitleHeight;
 
-  // Processa as 8 fotos
   let photosArray: string[] = [];
   if (inspection.evidencesUrls) {
     try {
       const parsed = JSON.parse(inspection.evidencesUrls);
       if (Array.isArray(parsed)) {
-        photosArray = parsed;
+        photosArray = parsed.filter(Boolean).slice(0, 10);
       } else if (typeof parsed === 'string') {
         photosArray = [parsed];
       }
     } catch {
-      photosArray = inspection.evidencesUrls.split(',').map((u) => u.trim()).filter(Boolean);
+      photosArray = inspection.evidencesUrls
+        .split(',')
+        .map((u) => u.trim())
+        .filter(Boolean)
+        .slice(0, 10);
     }
   }
 
-  const gridCols = 4;
+  // Se houver mais de 8 fotos (9 ou 10), usa grade 5x2; caso contrário 4x2
+  const gridCols = photosArray.length > 8 ? 5 : 4;
   const gridRows = 2;
-  const photoW = contentWidth / gridCols; // 47.5 mm
-  const photoH = 34; // 34 mm cada foto -> total 68 mm
+  const photoW = contentWidth / gridCols;
+  const photoH = 34;
 
   for (let row = 0; row < gridRows; row++) {
     for (let col = 0; col < gridCols; col++) {
@@ -318,14 +414,14 @@ export async function generateVehicleInspectionPDF(
       doc.rect(x, y, photoW, photoH);
 
       const rawPhoto = photosArray[index];
-      let photoDataUrl: string | null = null;
+      let loadedPhoto: { dataUrl: string; width: number; height: number } | null = null;
       if (rawPhoto) {
-        photoDataUrl = await loadImageAsDataUrl(rawPhoto);
+        loadedPhoto = await loadImageWithDimensions(rawPhoto, false);
       }
 
-      if (photoDataUrl) {
+      if (loadedPhoto && loadedPhoto.dataUrl) {
         try {
-          doc.addImage(photoDataUrl, 'JPEG', x + 0.5, y + 0.5, photoW - 1, photoH - 1);
+          doc.addImage(loadedPhoto.dataUrl, 'JPEG', x + 0.5, y + 0.5, photoW - 1, photoH - 1);
         } catch {
           drawPlaceholderPhoto(doc, x, y, photoW, photoH, index + 1);
         }
@@ -390,7 +486,7 @@ export async function generateVehicleInspectionPDF(
   currentY += restrHeight;
 
   // ==========================================
-  // 11. ASSINATURAS (GERENTE MANUTENÇÃO | ENGENHEIRO MECÂNICO)
+  // 11. ASSINATURAS (ENCARREGADO DE MANUTENÇÃO | MECÂNICO)
   // ==========================================
   const signHeight = 16;
   const colSignWidth = 95;
@@ -400,11 +496,11 @@ export async function generateVehicleInspectionPDF(
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
-  const gerenteText = `GERENTE MANUTENÇÃO: ${inspection.managerName || inspection.supervisorName || ''}`;
-  doc.text(gerenteText, marginX + 3, currentY + 6);
+  const encarregadoText = `ENCARREGADO DE MANUTENÇÃO: ${inspection.managerName || inspection.supervisorName || ''}`;
+  doc.text(encarregadoText, marginX + 3, currentY + 6);
 
-  const engText = `ENGENHEIRO MECÂNICO: ${inspection.engineerName || inspection.inspectorName || ''}`;
-  doc.text(engText, marginX + colSignWidth + 3, currentY + 6);
+  const mecanicoText = `MECÂNICO: ${inspection.engineerName || inspection.inspectorName || ''}`;
+  doc.text(mecanicoText, marginX + colSignWidth + 3, currentY + 6);
 
   return doc.output('blob');
 }
@@ -420,7 +516,7 @@ function drawPlaceholderPhoto(
   doc.setFillColor(245, 245, 245);
   doc.rect(x + 0.5, y + 0.5, w - 1, h - 1, 'F');
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7);
+  doc.setFontSize(6.5);
   doc.setTextColor(120, 120, 120);
   doc.text(`[ Evidência Fotográfica ${num} ]`, x + w / 2, y + h / 2, { align: 'center' });
   doc.setTextColor(0, 0, 0);
@@ -458,4 +554,3 @@ export async function downloadVehicleInspectionPDF(
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
-
