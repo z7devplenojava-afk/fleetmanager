@@ -278,14 +278,14 @@ const ControleHoras: React.FC = () => {
 
                                 <div className="flex items-center gap-1.5 bg-seguranca-black border border-gray-700 rounded-md px-2 py-1">
                                     <span className="text-xs text-gray-400">De:</span>
-                                    <input
+                                    <Input
                                         type="date"
                                         value={startDate}
                                         onChange={(e) => setStartDate(e.target.value)}
                                         className="bg-transparent text-xs text-seguranca-lightgray focus:outline-none"
                                     />
                                     <span className="text-xs text-gray-400 ml-1">Até:</span>
-                                    <input
+                                    <Input
                                         type="date"
                                         value={endDate}
                                         onChange={(e) => setEndDate(e.target.value)}

@@ -365,7 +365,7 @@
     /* Inputs, Textareas e Selects no tema Grafite */
     input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),
     textarea,
-    select,
+    select:not(.smart-dp-select),
     button[role="combobox"] {
       background-color: #1e222b !important;
       color: #f8fafc !important;
@@ -832,6 +832,26 @@
     .border-white\/20 {
       border-color: #cbd5e1 !important;
     }
+  }
+
+  /* Protege o Popup de Calendário (SmartDatePicker) em todos os temas (Dark, Grafite, Branco) */
+  [data-smart-datepicker-popup="true"] {
+    background-color: #ffffff !important;
+    color: #111827 !important;
+  }
+
+  [data-smart-datepicker-popup="true"] select.smart-dp-select {
+    background-color: #ffffff !important;
+    color: #111827 !important;
+    -webkit-text-fill-color: #111827 !important;
+    border-color: #d1d5db !important;
+  }
+
+  [data-smart-datepicker-popup="true"] button.smart-dp-selected-day {
+    background-color: #1d68a7 !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    font-weight: 700 !important;
   }
 
   /* Animações suaves */

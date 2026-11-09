@@ -6,9 +6,7 @@ import { ptBR } from "date-fns/locale";
 import { Calendar as CalendarIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { EnhancedCalendar } from "@/components/ui/enhanced-calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { SmartReactDatePicker } from "@/components/ui/smart-date-picker";
 
 interface EnhancedDatePickerProps {
   date?: Date;
@@ -22,44 +20,22 @@ interface EnhancedDatePickerProps {
 export function EnhancedDatePicker({
   date,
   onDateChange,
-  placeholder = "Selecione uma data",
+  placeholder = "dd/mm/aaaa",
   disabled = false,
   className,
   error = false
 }: EnhancedDatePickerProps) {
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          className={cn(
-            "w-full justify-start text-left font-normal",
-            !date && "text-gray-500",
-            error && "border-red-500 text-red-600",
-            disabled && "bg-gray-100 cursor-not-allowed",
-            className
-          )}
-          disabled={disabled}
-        >
-          <CalendarIcon className="mr-2 h-4 w-4 text-blue-600" />
-          {date ? format(date, "dd/MM/yyyy", { locale: ptBR }) : placeholder}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent 
-        className="w-auto p-0 bg-white border border-gray-200 shadow-2xl rounded-lg overflow-hidden" 
-        align="start"
-        sideOffset={8}
-      >
-        <EnhancedCalendar
-          mode="single"
-          selected={date}
-          onSelect={onDateChange}
-          initialFocus
-          locale={ptBR}
-          className="rounded-lg"
-        />
-      </PopoverContent>
-    </Popover>
+    <SmartReactDatePicker
+      selected={date || null}
+      onChange={(d) => onDateChange?.(d || undefined)}
+      placeholderText={placeholder}
+      disabled={disabled}
+      className={cn(
+        error && "border-red-500 text-red-600",
+        className
+      )}
+    />
   );
 }
 

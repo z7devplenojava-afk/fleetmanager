@@ -318,7 +318,7 @@ const RemanejamentoPage: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label className="block text-seguranca-lightgray mb-2 text-sm font-medium">Data de Início</label>
-                <input
+                <Input
                   type="date"
                   className="w-full rounded bg-seguranca-black text-seguranca-lightgray p-3 text-sm border border-gray-600 focus:border-seguranca-yellow focus:outline-none"
                   value={filters.dataInicio}
@@ -327,7 +327,7 @@ const RemanejamentoPage: React.FC = () => {
               </div>
               <div>
                 <label className="block text-seguranca-lightgray mb-2 text-sm font-medium">Data de Fim</label>
-                <input
+                <Input
                   type="date"
                   className="w-full rounded bg-seguranca-black text-seguranca-lightgray p-3 text-sm border border-gray-600 focus:border-seguranca-yellow focus:outline-none"
                   value={filters.dataFim}

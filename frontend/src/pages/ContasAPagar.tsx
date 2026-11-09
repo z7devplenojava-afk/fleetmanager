@@ -1884,7 +1884,7 @@ const ContasAPagar: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                   <div>
                     <label className="text-sm font-medium text-seguranca-lightgray mb-3 block">Data Início</label>
-                    <input
+                    <Input
                       type="date"
                       value={format(reportFilters.startDate, 'yyyy-MM-dd')}
                       onChange={(e) => setReportFilters(prev => ({ ...prev, startDate: new Date(e.target.value) }))}
@@ -1893,7 +1893,7 @@ const ContasAPagar: React.FC = () => {
                   </div>
                   <div>
                     <label className="text-sm font-medium text-seguranca-lightgray mb-3 block">Data Fim</label>
-                    <input
+                    <Input
                       type="date"
                       value={format(reportFilters.endDate, 'yyyy-MM-dd')}
                       onChange={(e) => setReportFilters(prev => ({ ...prev, endDate: new Date(e.target.value) }))}

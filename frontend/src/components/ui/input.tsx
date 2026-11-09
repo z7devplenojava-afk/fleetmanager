@@ -1,9 +1,14 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
+import { SmartDateInput } from "@/components/ui/smart-date-picker"
 
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
   ({ className, type, ...props }, ref) => {
+    if (type === "date") {
+      return <SmartDateInput ref={ref} className={className} {...props} />
+    }
+
     return (
       <input
         type={type}

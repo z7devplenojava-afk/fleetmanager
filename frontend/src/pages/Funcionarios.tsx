@@ -1125,7 +1125,7 @@ Confirma a exclusão?`)) {
                     <span>Admissão</span>
                   </div>
                   <div className="h-3.5 w-px bg-gray-700 shrink-0 mx-0.5" />
-                  <input
+                  <Input
                     type="date"
                     value={hireStart}
                     onChange={(e) => setHireStart(e.target.value)}
@@ -1133,7 +1133,7 @@ Confirma a exclusão?`)) {
                     className="flex-1 min-w-0 bg-transparent text-[11px] text-gray-200 focus:outline-none [color-scheme:dark] cursor-pointer"
                   />
                   <span className="text-gray-500 text-[10px] shrink-0 font-medium select-none">a</span>
-                  <input
+                  <Input
                     type="date"
                     value={hireEnd}
                     onChange={(e) => setHireEnd(e.target.value)}
@@ -1166,7 +1166,7 @@ Confirma a exclusão?`)) {
                     <span>Demissão</span>
                   </div>
                   <div className="h-3.5 w-px bg-gray-700 shrink-0 mx-0.5" />
-                  <input
+                  <Input
                     type="date"
                     value={termStart}
                     onChange={(e) => setTermStart(e.target.value)}
@@ -1174,7 +1174,7 @@ Confirma a exclusão?`)) {
                     className="flex-1 min-w-0 bg-transparent text-[11px] text-gray-200 focus:outline-none [color-scheme:dark] cursor-pointer"
                   />
                   <span className="text-gray-500 text-[10px] shrink-0 font-medium select-none">a</span>
-                  <input
+                  <Input
                     type="date"
                     value={termEnd}
                     onChange={(e) => setTermEnd(e.target.value)}

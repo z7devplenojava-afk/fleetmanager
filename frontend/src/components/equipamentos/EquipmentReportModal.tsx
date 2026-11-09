@@ -1,3 +1,4 @@
+import { Input } from '@/components/ui/input';
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -392,7 +393,7 @@ const EquipmentReportModal: React.FC<EquipmentReportModalProps> = ({
                         <label className="block text-sm font-medium text-gray-300 mb-2">
                           Data Inicial
                         </label>
-                        <input
+                        <Input
                           type="date"
                           className="w-full px-3 py-2 bg-seguranca-graphite border border-gray-600 rounded-md text-seguranca-lightgray focus:ring-seguranca-red focus:border-seguranca-red"
                         />
@@ -401,7 +402,7 @@ const EquipmentReportModal: React.FC<EquipmentReportModalProps> = ({
                         <label className="block text-sm font-medium text-gray-300 mb-2">
                           Data Final
                         </label>
-                        <input
+                        <Input
                           type="date"
                           className="w-full px-3 py-2 bg-seguranca-graphite border border-gray-600 rounded-md text-seguranca-lightgray focus:ring-seguranca-red focus:border-seguranca-red"
                         />

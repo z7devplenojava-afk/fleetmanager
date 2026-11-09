@@ -30,7 +30,7 @@ import {
   X,
   FileCheck
 } from 'lucide-react';
-import DatePicker from 'react-datepicker';
+import DatePicker from '@/components/ui/smart-date-picker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { ptBR } from 'date-fns/locale';
 

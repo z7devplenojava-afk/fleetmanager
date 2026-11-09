@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PurchaseRequestReportFilters } from '@/utils/purchaseRequestReportGenerator';
-import DatePicker from 'react-datepicker';
+import DatePicker from '@/components/ui/smart-date-picker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { ptBR } from 'date-fns/locale';
 import { formatDateForBackend } from '@/utils/dateUtils';

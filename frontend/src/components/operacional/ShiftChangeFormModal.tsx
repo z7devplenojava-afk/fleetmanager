@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { User, Clock, Building2 } from 'lucide-react';
-import DatePicker from 'react-datepicker';
+import DatePicker from '@/components/ui/smart-date-picker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { formatDateForBackend, DEFAULT_DATE_PICKER_PROPS } from '@/utils/dateUtils';
 import { ShiftChangeFormDTO } from '@/services/shiftChangeService';

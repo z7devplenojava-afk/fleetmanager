@@ -1,3 +1,4 @@
+import { Input } from '@/components/ui/input';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Dialog,
@@ -437,14 +438,14 @@ const EmployeeReportFiltersModal: React.FC<EmployeeReportFiltersModalProps> = ({
               <div className="space-y-2 sm:col-span-2">
                 <span className={fieldLabel}>Intervalo de Admissão (início / fim)</span>
                 <div className="grid grid-cols-2 gap-2">
-                  <input
+                  <Input
                     type="date"
                     value={filters.hireStart}
                     onChange={e => setField('hireStart', e.target.value)}
                     className={dateInput}
                     placeholder="Data Inicial"
                   />
-                  <input
+                  <Input
                     type="date"
                     value={filters.hireEnd}
                     onChange={e => setField('hireEnd', e.target.value)}
@@ -455,13 +456,13 @@ const EmployeeReportFiltersModal: React.FC<EmployeeReportFiltersModalProps> = ({
               <div className="space-y-2 sm:col-span-2">
                 <span className={fieldLabel}>Intervalo de Rescisão (início / fim)</span>
                 <div className="grid grid-cols-2 gap-2">
-                  <input
+                  <Input
                     type="date"
                     value={filters.termStart}
                     onChange={e => setField('termStart', e.target.value)}
                     className={dateInput}
                   />
-                  <input
+                  <Input
                     type="date"
                     value={filters.termEnd}
                     onChange={e => setField('termEnd', e.target.value)}

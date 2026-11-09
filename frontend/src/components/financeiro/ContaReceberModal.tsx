@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, TrendingUp, Upload } from 'lucide-react';
-import DatePicker from 'react-datepicker';
+import DatePicker from '@/components/ui/smart-date-picker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { financialService, FinancialTransaction } from '@/services/financialService';
 import { unitService, Unit } from '@/services/unitService';

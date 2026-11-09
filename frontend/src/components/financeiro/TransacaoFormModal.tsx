@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { Plus, DollarSign, Upload } from 'lucide-react';
 import CurrencyInput from 'react-currency-input-field';
-import DatePicker from 'react-datepicker';
+import DatePicker from '@/components/ui/smart-date-picker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { financialService, FinancialTransaction } from '@/services/financialService';
 import { unitService, Unit } from '@/services/unitService';

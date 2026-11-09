@@ -33,7 +33,7 @@ import NovoCargoModal from '@/components/funcionarios/NovoCargoModal';
 import FuncionarioEditModal from '@/components/funcionarios/FuncionarioEditModal';
 import { ordemServicoPDFGenerator } from '@/utils/ordemServicoPDFGenerator';
 import { Search, Plus, AlertCircle, CalendarDays, Loader2, Building, User, Briefcase, MapPin, Edit, FileText, RefreshCw } from 'lucide-react';
-import DatePicker from 'react-datepicker';
+import DatePicker from '@/components/ui/smart-date-picker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { ptBR } from 'date-fns/locale';
 import { formatDateForBackend, parseDateFromBackend } from '@/utils/dateUtils';

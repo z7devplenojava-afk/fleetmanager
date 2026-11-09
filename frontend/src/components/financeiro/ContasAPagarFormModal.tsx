@@ -9,7 +9,7 @@ import {
   Search, X, Warehouse, FileSignature, CheckCircle2, Sparkles, Store, UserCheck, User,
   FileText, Download, Receipt, GitBranch, ArrowRight, Link2, Wrench, Truck
 } from 'lucide-react';
-import DatePicker from 'react-datepicker';
+import DatePicker from '@/components/ui/smart-date-picker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { ptBR } from 'date-fns/locale';
 import { formatDateForBackend, parseDateFromBackend } from '@/utils/dateUtils';

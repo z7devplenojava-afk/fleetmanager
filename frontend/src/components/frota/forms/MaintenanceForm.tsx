@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar, Wrench, DollarSign, FileText, AlertTriangle, Save, Loader2, X, PlusCircle, Image as ImageIcon } from 'lucide-react';
 import { MaintenanceFormData } from './types';
-import DatePicker from 'react-datepicker';
+import DatePicker from '@/components/ui/smart-date-picker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { ptBR } from 'date-fns/locale';
 import { DEFAULT_DATE_PICKER_PROPS } from '@/utils/dateUtils';

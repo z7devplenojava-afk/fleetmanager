@@ -1,3 +1,4 @@
+import { Input } from '@/components/ui/input';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { feriasService } from '../../services/feriasService';
 import { employeeService, Employee } from '../../services/employeeService';
@@ -424,7 +425,7 @@ const FeriasFormModal: React.FC<Props> = ({ onSuccess, onClose, editingId, initi
                 <label className="block text-seguranca-lightgray mb-1 text-sm font-medium">
                   Data de Início
                 </label>
-                <input
+                <Input
                   type="date"
                   name="dataInicio"
                   value={form.dataInicio}
@@ -438,7 +439,7 @@ const FeriasFormModal: React.FC<Props> = ({ onSuccess, onClose, editingId, initi
                 <label className="block text-seguranca-lightgray mb-1 text-sm font-medium">
                   Data de Fim
                 </label>
-                <input
+                <Input
                   type="date"
                   name="dataFim"
                   value={form.dataFim}
@@ -483,7 +484,7 @@ const FeriasFormModal: React.FC<Props> = ({ onSuccess, onClose, editingId, initi
                     <div key={index} className="grid grid-cols-12 gap-2 items-end">
                       <div className="col-span-5">
                         <label className="text-gray-400 text-xs">Bloco {index + 1} — Início</label>
-                        <input
+                        <Input
                           type="date"
                           value={bloco.inicio}
                           onChange={(e) => handleBlocoChange(index, 'inicio', e.target.value)}
@@ -492,7 +493,7 @@ const FeriasFormModal: React.FC<Props> = ({ onSuccess, onClose, editingId, initi
                       </div>
                       <div className="col-span-5">
                         <label className="text-gray-400 text-xs">Bloco {index + 1} — Fim</label>
-                        <input
+                        <Input
                           type="date"
                           value={bloco.fim}
                           onChange={(e) => handleBlocoChange(index, 'fim', e.target.value)}

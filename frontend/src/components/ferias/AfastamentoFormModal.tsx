@@ -1,3 +1,4 @@
+import { Input } from '@/components/ui/input';
 import React, { useState, useEffect } from 'react';
 import { feriasService } from '../../services/feriasService';
 import { employeeService, Employee } from '../../services/employeeService';
@@ -197,7 +198,7 @@ const AfastamentoFormModal: React.FC<Props> = ({ onSuccess, onClose, editingId, 
                 <label className="block text-seguranca-lightgray mb-1 text-sm font-medium">
                   Data de Início
                 </label>
-                <input 
+                <Input 
                   type="date" 
                   name="dataInicio" 
                   value={form.dataInicio} 
@@ -210,7 +211,7 @@ const AfastamentoFormModal: React.FC<Props> = ({ onSuccess, onClose, editingId, 
                 <label className="block text-seguranca-lightgray mb-1 text-sm font-medium">
                   Data de Fim
                 </label>
-                <input 
+                <Input 
                   type="date" 
                   name="dataFim" 
                   value={form.dataFim} 

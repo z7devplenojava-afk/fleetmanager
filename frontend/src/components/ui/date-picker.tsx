@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { SmartReactDatePicker } from "@/components/ui/smart-date-picker";
 
 interface DatePickerProps {
   date?: Date;
@@ -21,37 +22,18 @@ interface DatePickerProps {
 export function DatePicker({
   date,
   onDateChange,
-  placeholder = "Selecione uma data",
+  placeholder = "dd/mm/aaaa",
   disabled = false,
   className
 }: DatePickerProps) {
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          className={cn(
-            "w-full justify-start text-left font-normal",
-            !date && "text-muted-foreground",
-            className
-          )}
-          disabled={disabled}
-        >
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {date ? format(date, "PPP", { locale: ptBR }) : placeholder}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[252px] p-0 bg-popover border border-border shadow-lg" align="start">
-        <Calendar
-          mode="single"
-          selected={date}
-          onSelect={onDateChange}
-          initialFocus
-          locale={ptBR}
-          className="rounded-md w-[252px]"
-        />
-      </PopoverContent>
-    </Popover>
+    <SmartReactDatePicker
+      selected={date || null}
+      onChange={(d) => onDateChange?.(d || undefined)}
+      placeholderText={placeholder}
+      disabled={disabled}
+      className={className}
+    />
   );
 }
 

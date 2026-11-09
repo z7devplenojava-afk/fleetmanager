@@ -21,7 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import { pagamentosService, Pagamento, CreatePagamentoRequest, UpdatePagamentoRequest } from '@/services/pagamentosService';
 import { Supplier, contasAPagarService } from '@/services/contasAPagarService';
 import SupplierFormModal from '@/components/estoque/SupplierFormModal';
-import DatePicker from 'react-datepicker';
+import DatePicker from '@/components/ui/smart-date-picker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { DEFAULT_DATE_PICKER_PROPS } from '@/utils/dateUtils';
 import { formatCurrency as formatCurrencyBRL } from '@/utils/formatters';

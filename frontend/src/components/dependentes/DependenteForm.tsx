@@ -1,3 +1,4 @@
+import { Input } from '@/components/ui/input';
 import React, { useState, useEffect } from 'react';
 import { Dependent, DependentCreateRequest, DependentUpdateRequest, RELATIONSHIP_OPTIONS } from '@/types/dependent';
 import dependentService from '@/services/dependentService';
@@ -193,7 +194,7 @@ const DependenteForm: React.FC<DependenteFormProps> = ({
             <span>Data de Nascimento</span>
             <span className="text-red-500 text-lg">*</span>
           </label>
-          <input
+          <Input
             type="date"
             id="birthDate"
             name="birthDate"

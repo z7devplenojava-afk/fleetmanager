@@ -1,3 +1,4 @@
+import { Input } from '@/components/ui/input';
 import React, { useState, useEffect } from 'react';
 import { feriasService } from '../../services/feriasService';
 import { departmentService, Department } from '../../services/departmentService';
@@ -157,7 +158,7 @@ const FeriasColetivasModal: React.FC<Props> = ({ onSuccess, onClose, editingId, 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-seguranca-lightgray mb-1 text-sm font-medium">Inicio</label>
-              <input
+              <Input
                 type="date"
                 name="dataInicio"
                 value={form.dataInicio}
@@ -169,7 +170,7 @@ const FeriasColetivasModal: React.FC<Props> = ({ onSuccess, onClose, editingId, 
             </div>
             <div>
               <label className="block text-seguranca-lightgray mb-1 text-sm font-medium">Fim</label>
-              <input
+              <Input
                 type="date"
                 name="dataFim"
                 value={form.dataFim}

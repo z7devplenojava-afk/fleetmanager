@@ -21,7 +21,7 @@ import {
 import { financialService, FinancialTransaction, Invoice } from '@/services/financialService';
 import { unitService, Unit } from '@/services/unitService';
 import { contasAPagarService, Supplier } from '@/services/contasAPagarService';
-import DatePicker from 'react-datepicker';
+import DatePicker from '@/components/ui/smart-date-picker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { format, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale/pt-BR';

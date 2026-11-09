@@ -1,3 +1,4 @@
+import { Input } from '@/components/ui/input';
 import React, { useState, useEffect } from 'react';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Button } from '@/components/ui/button';
@@ -284,7 +285,7 @@ const AdmissaoDemissao: React.FC = () => {
               
               <div>
                 <label className="block text-seguranca-lightgray mb-2 text-sm font-medium">Data de Início</label>
-                <input
+                <Input
                   type="date"
                   className="w-full rounded bg-seguranca-black text-seguranca-lightgray p-2 sm:p-3 text-sm border border-gray-600 focus:border-seguranca-yellow focus:outline-none"
                   value={filters.dataInicio}
@@ -294,7 +295,7 @@ const AdmissaoDemissao: React.FC = () => {
               
               <div>
                 <label className="block text-seguranca-lightgray mb-2 text-sm font-medium">Data de Fim</label>
-                <input
+                <Input
                   type="date"
                   className="w-full rounded bg-seguranca-black text-seguranca-lightgray p-2 sm:p-3 text-sm border border-gray-600 focus:border-seguranca-yellow focus:outline-none"
                   value={filters.dataFim}

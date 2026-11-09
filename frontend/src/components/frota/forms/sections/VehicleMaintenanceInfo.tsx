@@ -3,7 +3,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Wrench, CalendarDays, CheckCircle2, AlertTriangle, Clock, Plus, Sparkles, FileText, UserCheck, DollarSign, RefreshCw } from 'lucide-react';
 import { VehicleFormSectionProps } from '../types';
-import DatePicker from 'react-datepicker';
+import DatePicker from '@/components/ui/smart-date-picker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { ptBR } from 'date-fns/locale';
 import { DEFAULT_DATE_PICKER_PROPS } from '@/utils/dateUtils';

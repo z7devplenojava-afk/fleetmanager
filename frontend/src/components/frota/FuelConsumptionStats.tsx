@@ -1,3 +1,4 @@
+import { Input } from '@/components/ui/input';
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -352,7 +353,7 @@ export const FuelConsumptionStats: React.FC<FuelConsumptionStatsProps> = ({ vehi
             <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1">
               Data Inicial
             </label>
-            <input
+            <Input
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
@@ -365,7 +366,7 @@ export const FuelConsumptionStats: React.FC<FuelConsumptionStatsProps> = ({ vehi
             <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1">
               Data Final
             </label>
-            <input
+            <Input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}

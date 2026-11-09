@@ -13,7 +13,7 @@ import unitService from '@/services/unitService';
 import { workPostService, type WorkPost } from '@/services/workPostService';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CalendarDays, DollarSign, FileText, Upload, Plus, Users, Building2, Tag, Briefcase, AlertCircle, X, Clock, User, ExternalLink } from 'lucide-react';
-import DatePicker from 'react-datepicker';
+import DatePicker from '@/components/ui/smart-date-picker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { ptBR } from 'date-fns/locale';
 import { DEFAULT_DATE_PICKER_PROPS } from '@/utils/dateUtils';

@@ -1,3 +1,4 @@
+import { Input } from '@/components/ui/input';
 import React, { useState, useEffect } from 'react';
 import { remanejamentoService, Remanejamento, CreateRemanejamentoDTO } from '../../services/remanejamentoService';
 import { employeeService, Employee } from '../../services/employeeService';
@@ -343,7 +344,7 @@ const RemanejamentoFormModal: React.FC<Props> = ({ onSuccess, onClose, initialRe
               </div>
               <div>
                 <label className="block text-seguranca-lightgray mb-1 text-sm font-medium">Data do Remanejamento</label>
-                <input 
+                <Input 
                   type="date" 
                   name="dataRemanejamento" 
                   value={form.dataRemanejamento} 
