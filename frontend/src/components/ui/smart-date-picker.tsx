@@ -1001,3 +1001,4 @@ export const SmartReactDatePicker: React.FC<SmartReactDatePickerProps> = ({
 };
 
 export default SmartReactDatePicker;
+
