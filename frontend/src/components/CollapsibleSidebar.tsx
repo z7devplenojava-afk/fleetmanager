@@ -1872,6 +1872,20 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
       if (item.id === 'email-module') {
         return true;
       }
+      // Comunicação Interna e Atendimento completos liberados para todos os usuários internos
+      // (Manutenção, Operacional, Comercial, Financeiro, SST, Administradores, Almoxarifados, Compras, Gestão de Tráfego, RH e DP)
+      const isCommsOrAtendimento = 
+        item.id === 'chat-interno' ||
+        item.id === 'mensagens' ||
+        item.id === 'gestao-mensagens-grupos' ||
+        item.id === 'gestao-mensagens-notificacoes' ||
+        item.id.startsWith('gestao-atendimento');
+      if (isCommsOrAtendimento) {
+        const isExternalClient = userRoles.length > 0 && userRoles.every(r => r === 'CLIENTE' || r === 'CLIENT_USER');
+        if (!isExternalClient) {
+          return true;
+        }
+      }
       return allowedItemIds.has(item.id);
     });
   }, [allowedItemIds, userRoles]);
@@ -1976,13 +1990,8 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
   const filteredComprasItems = useMemo(() => filterItemsForRole(comprasMenuItems), [filterItemsForRole]);
   const filteredEmailItems = useMemo(() => filterItemsForRole(emailMenuItems), [filterItemsForRole]);
   const filteredComunicacaoInternaItems = useMemo(
-    () => comunicacaoInternaMenuItems.filter(item => {
-      if (item.id === 'gestao-mensagens-grupos' || item.id === 'gestao-mensagens-notificacoes') {
-        return hasPermission('MESSAGES_MANAGE');
-      }
-      return true;
-    }),
-    [hasPermission]
+    () => (isMotorista ? [] : filterItemsForRole(comunicacaoInternaMenuItems)),
+    [isMotorista, filterItemsForRole]
   );
   const filteredAtendimentoItems = useMemo(
     () => (isMotorista ? [] : filterItemsForRole(atendimentoMenuItems)),

@@ -621,14 +621,14 @@ function App() {
                       } />
                       {/* Módulo de Gestão de Mensagens com rotas aninhadas */}
                       <Route path="/gestao-mensagens" element={
-                        <ProtectedRoute requiredPermissions={['MESSAGES_MANAGE']}>
+                        <ProtectedRoute>
                           <Suspense fallback={<LoadingSpinner />}>
                             <GestaoMensagens />
                           </Suspense>
                         </ProtectedRoute>
                       } />
                       <Route path="/gestao-mensagens/:page" element={
-                        <ProtectedRoute requiredPermissions={['MESSAGES_MANAGE']}>
+                        <ProtectedRoute>
                           <Suspense fallback={<LoadingSpinner />}>
                             <GestaoMensagens />
                           </Suspense>
