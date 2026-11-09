@@ -1139,6 +1139,16 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
         // Removido: dependents - não enviar dependentes no payload do funcionário
       } as any;
 
+      // Garantir empresa e documento vinculados corretamente
+      const resolvedCompanyId = selectedCompany?.id || form.company?.id || authEmpresa?.id || (authUser as any)?.companyId || (authUser as any)?.company?.id;
+      if (resolvedCompanyId) {
+        employeeData.company = { id: resolvedCompanyId };
+      }
+      if (form.cpf) {
+        employeeData.cpf = form.cpf.trim();
+        employeeData.document = form.cpf.trim();
+      }
+
       // Sincronizar vínculo de usuário explicitamente
       if (selectedUser?.id) {
         employeeData.user = { id: selectedUser.id };

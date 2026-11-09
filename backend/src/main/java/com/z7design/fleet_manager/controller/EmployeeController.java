@@ -296,10 +296,16 @@ public class EmployeeController {
                 if (searchTerm != null && !searchTerm.trim().isEmpty()) {
                     System.out.println(" EmployeeController.getAll - Buscando por termo: " + searchTerm);
                     data = employeeService.findBasicDataBySearchTerm(searchTerm.trim());
+                    if (data == null || data.isEmpty()) {
+                        data = employeeRepository.findBasicDataBySearchTermGlobal(searchTerm.trim());
+                    }
                 } else {
                     data = employeeService.findBasicData();
+                    if (data == null || data.isEmpty()) {
+                        data = employeeRepository.findBasicDataGlobal();
+                    }
                 }
-                System.out.println(" Encontrados " + data.size() + " funcionarios no banco");
+                System.out.println(" Encontrados " + (data != null ? data.size() : 0) + " funcionarios no banco");
             } catch (Exception queryEx) {
                 System.err.println(" WARN Falha na query nativa findBasicData: " + queryEx.getMessage() + ". Executando fallback via findAll.");
                 queryEx.printStackTrace();
@@ -310,6 +316,7 @@ public class EmployeeController {
                     simple.put("id", emp.getId());
                     simple.put("name", emp.getName());
                     simple.put("document", emp.getDocument());
+                    simple.put("cpf", emp.getDocument());
                     simple.put("email", emp.getEmail());
                     simple.put("phone", emp.getPhone());
                     simple.put("status", emp.getStatus() != null ? emp.getStatus().name() : null);
@@ -346,6 +353,7 @@ public class EmployeeController {
                     employee.put("id", row[0]);
                     employee.put("name", row[1]);
                     employee.put("document", row[2]);
+                    employee.put("cpf", row[2]);
                     employee.put("birthDate", row[3]);
                     employee.put("registrationNumber", row[4]);
                     employee.put("hireDate", row[5]);

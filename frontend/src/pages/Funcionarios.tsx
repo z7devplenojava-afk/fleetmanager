@@ -335,10 +335,11 @@ const Funcionarios: React.FC = () => {
       const nameMatch = (employee.name || '').toLowerCase().includes(normalizedSearch);
       const emailMatch = (employee.email || '').toLowerCase().includes(normalizedSearch);
       const registrationMatch = (employee.registrationNumber || '').toLowerCase().includes(normalizedSearch);
-      const documentDigits = (employee.document || employee.cpf || '').replace(/\D/g, '');
+      const documentRaw = (employee.document || employee.cpf || '').toLowerCase();
+      const documentDigits = documentRaw.replace(/\D/g, '');
       const cpfMatch = searchDigits
-        ? documentDigits.includes(searchDigits)
-        : (employee.document || employee.cpf || '').toLowerCase().includes(normalizedSearch);
+        ? (documentDigits.includes(searchDigits) || documentRaw.includes(normalizedSearch))
+        : documentRaw.includes(normalizedSearch);
 
       return nameMatch || emailMatch || registrationMatch || cpfMatch;
     })();

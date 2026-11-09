@@ -66,7 +66,7 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID>, JpaSp
                         + "LEFT JOIN companies c ON e.company_id = c.id "
                         + "LEFT JOIN work_posts wp ON e.work_post_id = wp.id "
                         + "LEFT JOIN departments d ON e.department_id = d.id "
-                        + "WHERE e.company_id = :companyId", nativeQuery = true)
+                        + "WHERE (e.company_id = :companyId OR e.company_id IS NULL)", nativeQuery = true)
         List<Object[]> findBasicDataByCompanyId(@Param("companyId") UUID companyId);
 
         @Query(value = "SELECT e.id, e.name, e.document, e.birth_date, e.registration_number, e.hire_date, e.termination_date, e.status, e.notes, e.address, e.phone, e.email, e.cnh_number, e.ctps, e.cbo, e.pis, e.salario, e.created_at, e.updated_at, p.name as position_name, u.name as unit_name, c.sigla as company_sigla, e.user_id, wp.name as work_post_name, d.name as department_name "
@@ -97,10 +97,15 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID>, JpaSp
                         + "LEFT JOIN companies c ON e.company_id = c.id "
                         + "LEFT JOIN work_posts wp ON e.work_post_id = wp.id "
                         + "LEFT JOIN departments d ON e.department_id = d.id "
-                        + "WHERE (UPPER(e.name) LIKE UPPER(CONCAT('%', :searchTerm, '%')) "
-                        + "OR REGEXP_REPLACE(COALESCE(e.document, ''), '[^0-9]', '', 'g') LIKE CONCAT('%', REGEXP_REPLACE(:searchTerm, '[^0-9]', '', 'g'), '%') "
-                        + "OR UPPER(COALESCE(e.email, '')) LIKE UPPER(CONCAT('%', :searchTerm, '%'))) "
-                        + "AND e.company_id = :companyId", nativeQuery = true)
+                        + "WHERE ("
+                        + "   UPPER(e.name) LIKE UPPER(CONCAT('%', :searchTerm, '%')) "
+                        + "   OR UPPER(COALESCE(e.document, '')) LIKE UPPER(CONCAT('%', :searchTerm, '%')) "
+                        + "   OR (LENGTH(REGEXP_REPLACE(:searchTerm, '[^0-9]', '', 'g')) > 0 "
+                        + "       AND REGEXP_REPLACE(COALESCE(e.document, ''), '[^0-9]', '', 'g') LIKE CONCAT('%', REGEXP_REPLACE(:searchTerm, '[^0-9]', '', 'g'), '%')) "
+                        + "   OR UPPER(COALESCE(e.email, '')) LIKE UPPER(CONCAT('%', :searchTerm, '%')) "
+                        + "   OR UPPER(COALESCE(e.registration_number, '')) LIKE UPPER(CONCAT('%', :searchTerm, '%')) "
+                        + ") "
+                        + "AND (e.company_id = :companyId OR e.company_id IS NULL)", nativeQuery = true)
         List<Object[]> findBasicDataBySearchTermAndCompanyId(@Param("searchTerm") String searchTerm,
                         @Param("companyId") UUID companyId);
 
@@ -111,9 +116,14 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID>, JpaSp
                         + "LEFT JOIN companies c ON e.company_id = c.id "
                         + "LEFT JOIN work_posts wp ON e.work_post_id = wp.id "
                         + "LEFT JOIN departments d ON e.department_id = d.id "
-                        + "WHERE (UPPER(e.name) LIKE UPPER(CONCAT('%', :searchTerm, '%')) "
-                        + "OR REGEXP_REPLACE(COALESCE(e.document, ''), '[^0-9]', '', 'g') LIKE CONCAT('%', REGEXP_REPLACE(:searchTerm, '[^0-9]', '', 'g'), '%') "
-                        + "OR UPPER(COALESCE(e.email, '')) LIKE UPPER(CONCAT('%', :searchTerm, '%')))", nativeQuery = true)
+                        + "WHERE ("
+                        + "   UPPER(e.name) LIKE UPPER(CONCAT('%', :searchTerm, '%')) "
+                        + "   OR UPPER(COALESCE(e.document, '')) LIKE UPPER(CONCAT('%', :searchTerm, '%')) "
+                        + "   OR (LENGTH(REGEXP_REPLACE(:searchTerm, '[^0-9]', '', 'g')) > 0 "
+                        + "       AND REGEXP_REPLACE(COALESCE(e.document, ''), '[^0-9]', '', 'g') LIKE CONCAT('%', REGEXP_REPLACE(:searchTerm, '[^0-9]', '', 'g'), '%')) "
+                        + "   OR UPPER(COALESCE(e.email, '')) LIKE UPPER(CONCAT('%', :searchTerm, '%')) "
+                        + "   OR UPPER(COALESCE(e.registration_number, '')) LIKE UPPER(CONCAT('%', :searchTerm, '%')) "
+                        + ")", nativeQuery = true)
         List<Object[]> findBasicDataBySearchTermGlobal(@Param("searchTerm") String searchTerm);
 
         default List<Object[]> findBasicDataBySearchTermScoped(String searchTerm, UUID companyId) {

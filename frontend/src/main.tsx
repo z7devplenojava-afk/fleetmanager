@@ -51,6 +51,11 @@ if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
       event.preventDefault();
       safeCleanupWorkers();
     } else if (
+      str.includes('message channel closed before a response was received') ||
+      str.includes('A listener indicated an asynchronous response')
+    ) {
+      event.preventDefault();
+    } else if (
       str.includes('Failed to fetch dynamically imported module') ||
       str.includes('Importing a module script failed')
     ) {
