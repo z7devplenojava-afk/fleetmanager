@@ -2465,6 +2465,7 @@ export const scheduleService = {
     payload: {
       finalKm: number;
       endTime?: string;
+      routeCode?: string;
       passengersCount?: number;
       photos?: string[];
       observations?: string;
@@ -2505,6 +2506,7 @@ export const scheduleService = {
     saveExecutionOverlay(id, {
       finalKm: payload.finalKm,
       endTime: resolvedEndTime,
+      ...(payload.routeCode ? { routeCode: payload.routeCode } : {}),
       ...(payload.passengersCount != null ? { passengersCount: payload.passengersCount } : {}),
       tripPhotosJson: photosJson,
       endLatitude: endGeo.latitude,
@@ -2532,6 +2534,7 @@ export const scheduleService = {
         {
           finalKm: payload.finalKm,
           endTime: resolvedEndTime,
+          routeCode: payload.routeCode || existingOv.routeCode,
           passengersCount: payload.passengersCount ?? existingOv.passengersCount,
           tripPhotosJson: photosJson,
           observations: payload.observations,
