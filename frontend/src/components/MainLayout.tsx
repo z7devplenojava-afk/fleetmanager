@@ -25,6 +25,7 @@ import ThemeToggle from './ThemeToggle';
 import Logo from './Logo';
 import WelcomeModal from './WelcomeModal';
 import HelpModal from './HelpModal';
+import { CalendarModal } from './CalendarModal';
 import { BiliFluxAssistant } from './BiliFluxAssistant';
 import chatIntegrationService from '@/services/chatIntegrationService';
 
@@ -47,6 +48,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
+  const [isCalendarModalOpen, setIsCalendarModalOpen] = useState(false);
   const [unreadChats, setUnreadChats] = useState(0);
   const navigate = useNavigate();
 
@@ -186,12 +188,17 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
               </div>
             </div>
 
-            {/* Centro: Data do dia formatada */}
+            {/* Centro: Data do dia formatada (Abre Modal com Calendário) */}
             <div className="hidden sm:flex items-center gap-2 min-w-0">
-              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted/80 border border-border text-[11px] text-foreground font-medium shadow-sm shrink-0">
-                <CalendarDays className="h-3.5 w-3.5 text-red-600 dark:text-red-400 shrink-0" />
+              <button
+                type="button"
+                onClick={() => setIsCalendarModalOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted/80 hover:bg-muted border border-border text-[11px] text-foreground font-medium shadow-sm shrink-0 transition-all hover:border-red-500/50 hover:shadow cursor-pointer active:scale-95 group"
+                title="Clique para abrir o calendário do sistema"
+              >
+                <CalendarDays className="h-3.5 w-3.5 text-red-600 dark:text-red-400 shrink-0 group-hover:scale-110 transition-transform" />
                 <span>{formattedDate}</span>
-              </div>
+              </button>
             </div>
 
             {/* Lado direito: Ações, Perfil e Notificações */}
@@ -342,6 +349,12 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         isOpen={isHelpModalOpen}
         onClose={() => setIsHelpModalOpen(false)}
         onOpenWelcomeTour={() => setIsWelcomeModalOpen(true)}
+      />
+
+      {/* Modal do Calendário do Sistema */}
+      <CalendarModal
+        isOpen={isCalendarModalOpen}
+        onClose={() => setIsCalendarModalOpen(false)}
       />
 
       {/* Modal de Confirmação de Saída */}

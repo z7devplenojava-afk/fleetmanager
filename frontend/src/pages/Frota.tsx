@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Car, Fuel, Search, AlertTriangle, Loader2, Wrench, Calendar, DollarSign, Settings, FileText, Filter, RefreshCw, TrendingUp, Users, UserCheck, FileSpreadsheet, FileCheck } from 'lucide-react';
+import { Plus, Car, Fuel, Search, AlertTriangle, Loader2, Wrench, Calendar, CalendarClock, DollarSign, Settings, FileText, Filter, RefreshCw, TrendingUp, Users, UserCheck, FileSpreadsheet, FileCheck } from 'lucide-react';
 import { VehicleImportModal } from '@/components/frota/VehicleImportModal';
 import { VehicleCrlvImportModal } from '@/components/frota/VehicleCrlvImportModal';
 import { CrlvUploadTab } from '@/components/frota/CrlvUploadTab';
@@ -31,6 +32,7 @@ import { FuelConsumptionOverview } from '@/components/frota/FuelConsumptionOverv
 import { DriverFuelConsumptionStats } from '@/components/frota/DriverFuelConsumptionStats';
 import { DriverRankingStats } from '@/components/frota/DriverRankingStats';
 import { ManutencoesTable } from '@/components/frota/ManutencoesTable';
+import GestaoPlanoManutencaoFrota from '@/components/frota/GestaoPlanoManutencaoFrota';
 import ManutencaoFormModal from '@/components/frota/ManutencaoFormModal';
 import OrdensServicoTable from '@/components/frota/OrdensServicoTable';
 import { ManutencaoViewModal } from '@/components/frota/ManutencaoViewModal';
@@ -211,10 +213,19 @@ const mapFuelRecordToComponent = (record: FuelRecord): AbastecimentoComponent =>
 });
 
 const Frota: React.FC = () => {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState('veiculos');
+  const [activeTab, setActiveTab] = useState(() => searchParams.get('tab') || 'veiculos');
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
   const [vehicleTypeFilter, setVehicleTypeFilter] = useState<string>('ALL');
   const [maintenanceAlertFilter, setMaintenanceAlertFilter] = useState<string>('ALL');
   const [isVeiculoModalOpen, setIsVeiculoModalOpen] = useState(false);
@@ -1363,6 +1374,9 @@ const Frota: React.FC = () => {
             <TabsTrigger value="manutencoes" className="flex-shrink-0 min-w-max px-4 py-2 data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow">
               Manutenções
             </TabsTrigger>
+            <TabsTrigger value="plano-manutencao" className="flex-shrink-0 min-w-max px-4 py-2 data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow flex items-center gap-1.5 font-semibold text-amber-300">
+              <CalendarClock size={15} /> Plano de Manutenção
+            </TabsTrigger>
             <TabsTrigger value="controle-km" className="flex-shrink-0 min-w-max px-4 py-2 data-[state='active']:bg-seguranca-black data-[state='active']:text-seguranca-yellow">
               Controle de KM
             </TabsTrigger>
@@ -1663,6 +1677,15 @@ const Frota: React.FC = () => {
             />
             </>
             )}
+          </TabsContent>
+
+          <TabsContent value="plano-manutencao" className="mt-6 space-y-4">
+            <GestaoPlanoManutencaoFrota
+              veiculos={vehicles || []}
+              onOpenOs={(placa, taskName) => {
+                navigate(`/frota/ordens-servico?placa=${placa}&servico=${encodeURIComponent(taskName)}`);
+              }}
+            />
           </TabsContent>
 
           <TabsContent value="controle-km" className="mt-6 space-y-4">
