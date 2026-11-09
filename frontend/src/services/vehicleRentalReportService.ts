@@ -646,3 +646,4 @@ export class VehicleRentalReportService {
     XLSX.writeFile(wb, `relatorio-locacao-despesas-${cleanPlate}.xlsx`);
   }
 }
+

@@ -28,6 +28,9 @@ interface SearchableSelectProps {
   disabled?: boolean;
   size?: 'default' | 'lg';
   className?: string;
+  allowCustomValue?: boolean;
+  customValuePrefix?: string;
+  onCreateCustomOption?: (customValue: string) => void;
 }
 
 // Normaliza texto removendo acentos para busca flexível
@@ -53,6 +56,9 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   disabled = false,
   size = 'default',
   className,
+  allowCustomValue = false,
+  customValuePrefix = 'Usar / Cadastrar',
+  onCreateCustomOption,
 }) => {
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -177,6 +183,12 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
             setOpen(prev => !prev);
           }
         }}
+        onKeyDown={(e) => {
+          if (!disabled && !open && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+            setOpen(true);
+            setSearchQuery(e.key);
+          }
+        }}
         className={cn(
           'w-full min-w-0 max-w-full overflow-hidden rounded-md border transition-all flex items-center justify-between gap-2 text-left',
           size === 'lg'
@@ -249,10 +261,20 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && filteredOptions.length > 0) {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleSelect(filteredOptions[0]);
+                if (e.key === 'Enter') {
+                  if (filteredOptions.length > 0) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleSelect(filteredOptions[0]);
+                  } else if (allowCustomValue && searchQuery.trim().length > 0) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const customVal = searchQuery.trim();
+                    onChange(customVal, { value: customVal, label: customVal });
+                    if (onCreateCustomOption) onCreateCustomOption(customVal);
+                    setOpen(false);
+                    setSearchQuery('');
+                  }
                 }
               }}
               placeholder={searchPlaceholder}
@@ -354,6 +376,41 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
                 <p>{emptyText}</p>
               </div>
             )}
+
+            {allowCustomValue &&
+              searchQuery.trim().length > 0 &&
+              !options.some(o => normalizeText(o.label) === normalizeText(searchQuery.trim())) && (
+                <div
+                  role="option"
+                  tabIndex={0}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const customVal = searchQuery.trim();
+                    onChange(customVal, { value: customVal, label: customVal });
+                    if (onCreateCustomOption) onCreateCustomOption(customVal);
+                    setOpen(false);
+                    setSearchQuery('');
+                  }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const customVal = searchQuery.trim();
+                    onChange(customVal, { value: customVal, label: customVal });
+                    if (onCreateCustomOption) onCreateCustomOption(customVal);
+                    setOpen(false);
+                    setSearchQuery('');
+                  }}
+                  className="px-3 py-2.5 flex items-center justify-between gap-2 cursor-pointer bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-300 border-t border-emerald-700/40 text-xs font-semibold select-none"
+                >
+                  <span className="truncate">
+                    ➕ {customValuePrefix}: <strong className="text-white">"{searchQuery.trim()}"</strong>
+                  </span>
+                  <Badge className="text-[10px] bg-emerald-500/20 text-emerald-300 border-emerald-500/30 shrink-0">
+                    Manual
+                  </Badge>
+                </div>
+              )}
           </div>
 
           {/* Rodapé com contagem de opções */}

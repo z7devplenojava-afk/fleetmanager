@@ -67,3 +67,4 @@ FROM (
 ) wp_sub
 WHERE v.client_id = wp_sub.client_id
   AND v.work_post_id IS NULL;
+

@@ -14,3 +14,4 @@ public interface VehicleRentalExpenseRepository extends JpaRepository<VehicleRen
 
     List<VehicleRentalExpense> findByClientIdOrderByExpenseDateDescCreatedAtDesc(UUID clientId);
 }
+

@@ -1,12 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Save, Loader2, Gauge, AlertCircle, CheckCircle2, Route, Calendar, Clock, Car, MapPin, UserCheck, ShieldAlert } from 'lucide-react';
+import { Save, Loader2, Gauge, CheckCircle2, Route as RouteIcon, Calendar, Clock, Car, MapPin, UserCheck, ShieldAlert } from 'lucide-react';
 import dailyLogService, { DailyLog } from '@/services/dailyLogService';
 import { clientService, Client } from '@/services/clientService';
+import { contractService, Contract } from '@/services/contractService';
+import { workPostService, WorkPost } from '@/services/workPostService';
+import { routeService, Route } from '@/services/routeService';
+import { SearchableSelect, SearchableOption } from '@/components/frota/SearchableSelect';
+import api from '@/lib/axios';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { VehicleCombobox } from '@/components/ui/vehicle-combobox';
@@ -15,6 +20,50 @@ interface DailyLogFormProps {
     open: boolean;
     onClose: () => void;
     selectedLog?: DailyLog;
+}
+
+const GENERIC_WORDS = new Set([
+    'ltda', 'sa', 's/a', 's.a.', 's.a', 'me', 'epp', 'eireli', 'construtora', 'contrutora',
+    'engenharia', 'mineracao', 'logistica', 'transportes', 'transporte', 'servicos',
+    'comercio', 'industria', 'grupo', 'companhia', 'cia', 'de', 'da', 'do', 'das', 'dos', 'e'
+]);
+
+function normalizeStr(val?: string): string {
+    if (!val) return '';
+    return String(val)
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
+}
+
+function getClientKeywords(clientName?: string): string[] {
+    const norm = normalizeStr(clientName);
+    if (!norm) return [];
+    const tokens = norm
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .split(/\s+/)
+        .filter(t => t.length >= 3 && !GENERIC_WORDS.has(t));
+    if (tokens.includes('fm2c') && !tokens.includes('fmqc')) tokens.push('fmqc');
+    if (tokens.includes('fmqc') && !tokens.includes('fm2c')) tokens.push('fm2c');
+    return tokens;
+}
+
+function isImportedRoute(r: Partial<Route>): boolean {
+    const name = normalizeStr(r.name);
+    const desc = normalizeStr(r.description);
+    const orig = normalizeStr(r.originAddress);
+    const dest = normalizeStr(r.destinationAddress);
+    return (
+        name.endsWith('.kmz') ||
+        name.endsWith('.kml') ||
+        desc.includes('.kmz') ||
+        desc.includes('.kml') ||
+        desc.includes('google earth') ||
+        desc.includes('importad') ||
+        orig.includes('kml') ||
+        dest.includes('kml')
+    );
 }
 
 const DailyLogForm: React.FC<DailyLogFormProps> = ({ open, onClose, selectedLog }) => {
@@ -29,16 +78,86 @@ const DailyLogForm: React.FC<DailyLogFormProps> = ({ open, onClose, selectedLog 
         notes: ''
     });
     const [clients, setClients] = useState<Client[]>([]);
+    const [allContracts, setAllContracts] = useState<Contract[]>([]);
+    const [clientContracts, setClientContracts] = useState<any[]>([]);
+    const [workPosts, setWorkPosts] = useState<WorkPost[]>([]);
+    const [routes, setRoutes] = useState<Route[]>([]);
+    const [clientPassengerRouteIds, setClientPassengerRouteIds] = useState<Set<string>>(new Set());
+    const [clientPassengerRouteNames, setClientPassengerRouteNames] = useState<Set<string>>(new Set());
+    const [selectedContractId, setSelectedContractId] = useState<string>('NONE');
+
+    const loadBaseData = useCallback(async () => {
+        try {
+            const [clientsData, contractsData, workPostsData, routesData] = await Promise.all([
+                clientService.getAllClients().catch(() => []),
+                contractService.getAllContracts().catch(() => []),
+                workPostService.getAllWorkPosts().catch(() => []),
+                routeService.findAllRoutes().catch(() => [])
+            ]);
+            setClients(Array.isArray(clientsData) ? clientsData : []);
+            setAllContracts(Array.isArray(contractsData) ? contractsData : []);
+            setClientContracts(Array.isArray(contractsData) ? contractsData : []);
+            setWorkPosts(Array.isArray(workPostsData) ? workPostsData : []);
+            setRoutes(Array.isArray(routesData) ? routesData : []);
+        } catch (error) {
+            console.error('Erro ao carregar dados da Parte Diária:', error);
+        }
+    }, []);
+
+    const loadContractsAndRoutesForClient = useCallback(
+        async (clientId?: string) => {
+            if (!clientId || clientId === 'ALL') {
+                setClientContracts(allContracts);
+                setClientPassengerRouteIds(new Set());
+                setClientPassengerRouteNames(new Set());
+                return;
+            }
+
+            try {
+                const data = await contractService.getContractsByClient(clientId);
+                if (Array.isArray(data) && data.length > 0) {
+                    setClientContracts(data);
+                } else {
+                    setClientContracts(allContracts.filter((c: any) => String(c.clientId || c.client?.id) === String(clientId)));
+                }
+            } catch {
+                setClientContracts(allContracts.filter((c: any) => String(c.clientId || c.client?.id) === String(clientId)));
+            }
+
+            try {
+                const res = await api.get(`/passengers/client/${clientId}`).catch(() => ({ data: [] }));
+                const raw = res.data;
+                const list = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : [];
+                const rIds = new Set<string>();
+                const rNames = new Set<string>();
+                list.forEach((p: any) => {
+                    if (p.routeId) rIds.add(String(p.routeId));
+                    if (p.returnRouteId) rIds.add(String(p.returnRouteId));
+                    if (p.routeName) rNames.add(normalizeStr(p.routeName));
+                });
+                setClientPassengerRouteIds(rIds);
+                setClientPassengerRouteNames(rNames);
+            } catch {
+                setClientPassengerRouteIds(new Set());
+                setClientPassengerRouteNames(new Set());
+            }
+        },
+        [allContracts]
+    );
 
     useEffect(() => {
         if (open) {
-            loadClients();
+            loadBaseData();
         }
-    }, [open]);
+    }, [open, loadBaseData]);
 
     useEffect(() => {
+        if (!open) return;
         if (selectedLog) {
             setFormData(selectedLog);
+            if (selectedLog.clientId) {
+                loadContractsAndRoutesForClient(selectedLog.clientId);
+            }
         } else {
             setFormData({
                 date: new Date().toISOString().split('T')[0],
@@ -49,15 +168,245 @@ const DailyLogForm: React.FC<DailyLogFormProps> = ({ open, onClose, selectedLog 
                 allowance: 0,
                 notes: ''
             });
+            setSelectedContractId('NONE');
         }
-    }, [selectedLog, open]);
+    }, [selectedLog, open, loadContractsAndRoutesForClient]);
 
-    const loadClients = async () => {
+    const selectedClient = useMemo(
+        () => clients.find(c => String(c.id) === String(formData.clientId)),
+        [clients, formData.clientId]
+    );
+
+    const clientOptions: SearchableOption[] = useMemo(() => {
+        const opts: SearchableOption[] = [
+            {
+                value: 'ALL',
+                label: '🏢 Todos os Clientes (Sem Filtro)',
+                subtitle: 'Exibir veículos, obras e rotas de toda a base',
+                badge: 'Geral',
+                badgeColor: 'bg-slate-700 text-slate-200 border-slate-600',
+                keywords: ['todos', 'sem filtro', 'geral']
+            }
+        ];
+
+        clients.forEach(c => {
+            const cnpj = (c as any).cnpj || '';
+            const city = (c as any).city || '';
+            const state = (c as any).state || '';
+            const subtitleParts = [cnpj ? `CNPJ: ${cnpj}` : '', city ? `${city}${state ? `/${state}` : ''}` : ''].filter(Boolean);
+            opts.push({
+                value: c.id,
+                label: c.name,
+                subtitle: subtitleParts.join(' · ') || 'Cliente Ativo',
+                badge: 'Cliente',
+                badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+                keywords: [c.name, (c as any).nomeFantasia || '', cnpj, city].filter(Boolean)
+            });
+        });
+
+        return opts;
+    }, [clients]);
+
+    const obraContratoOptions: SearchableOption[] = useMemo(() => {
+        const opts: SearchableOption[] = [
+            {
+                value: 'NONE',
+                label: 'Sem Obra Específica',
+                subtitle: 'Operação avulsa ou sem vínculo de obra específica',
+                keywords: ['sem obra', 'nenhuma', 'avulso']
+            }
+        ];
+
+        const seenIds = new Set<string>();
+        const targetClientId = formData.clientId && formData.clientId !== 'ALL' ? String(formData.clientId) : '';
+        const clientKeywords = getClientKeywords(selectedClient?.name);
+
+        const relevantWorkPosts = workPosts.filter((wp: any) => {
+            if (!targetClientId) return true;
+            const wpClientId = String(wp.clientId || wp.client?.id || '');
+            if (wpClientId === targetClientId) return true;
+            const wpClientName = normalizeStr(wp.clientName || wp.client?.name || wp.name);
+            return clientKeywords.some(kw => wpClientName.includes(kw));
+        });
+
+        relevantWorkPosts.forEach((wp: any) => {
+            const valKey = `wp:${wp.id}`;
+            if (seenIds.has(valKey)) return;
+            seenIds.add(valKey);
+            opts.push({
+                value: valKey,
+                label: `🏗️ ${wp.name}`,
+                subtitle: [wp.city, wp.clientName || selectedClient?.name].filter(Boolean).join(' · ') || 'Obra / Posto de Trabalho',
+                badge: 'Obra / Posto',
+                badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+                keywords: [wp.name, wp.city || '', wp.address || '', wp.clientName || ''].filter(Boolean)
+            });
+        });
+
+        const contractsSource = targetClientId
+            ? clientContracts.length > 0
+                ? clientContracts
+                : allContracts.filter((ct: any) => {
+                      const cId = String(ct.clientId || ct.client?.id || '');
+                      if (cId === targetClientId) return true;
+                      const cName = normalizeStr(ct.clientName || ct.obraName || ct.description);
+                      return clientKeywords.some(kw => cName.includes(kw));
+                  })
+            : allContracts;
+
+        contractsSource.forEach((ct: any) => {
+            const valKey = String(ct.id || ct.contractNumber);
+            if (!valKey || seenIds.has(valKey)) return;
+            seenIds.add(valKey);
+            const title = ct.obraName
+                ? `🏗️ ${ct.obraName}`
+                : `📄 ${ct.contractNumber || 'Contrato'}${ct.description ? ` - ${ct.description}` : ''}`;
+            opts.push({
+                value: valKey,
+                label: title,
+                subtitle: [ct.contractNumber, ct.description, ct.clientName].filter(Boolean).join(' · '),
+                badge: 'Contrato',
+                badgeColor: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
+                keywords: [ct.contractNumber || '', ct.obraName || '', ct.description || '', ct.clientName || ''].filter(Boolean)
+            });
+        });
+
+        return opts;
+    }, [workPosts, clientContracts, allContracts, formData.clientId, selectedClient]);
+
+    const routeOptions: SearchableOption[] = useMemo(() => {
+        const targetClientId = formData.clientId && formData.clientId !== 'ALL' ? String(formData.clientId) : '';
+        const clientKeywords = getClientKeywords(selectedClient?.name);
+
+        const clientObraKeywords = workPosts
+            .filter((wp: any) => String(wp.clientId || wp.client?.id || '') === targetClientId)
+            .flatMap(wp => [normalizeStr(wp.name), normalizeStr(wp.city)])
+            .filter(Boolean);
+
+        const matchesSelectedClient = (r: Route): boolean => {
+            if (!targetClientId) return true;
+            const rClientId = String((r as any).client?.id || (r as any).clientId || r.unit?.id || '');
+            if (rClientId && rClientId === targetClientId) return true;
+            if (r.id && clientPassengerRouteIds.has(String(r.id))) return true;
+            if (r.name && clientPassengerRouteNames.has(normalizeStr(r.name))) return true;
+
+            const hay = normalizeStr(
+                [
+                    (r as any).client?.name,
+                    r.unit?.name,
+                    r.location?.name,
+                    r.name,
+                    r.description,
+                    r.originAddress,
+                    r.destinationAddress
+                ]
+                    .filter(Boolean)
+                    .join(' ')
+            );
+
+            if (clientKeywords.some(kw => hay.includes(kw))) return true;
+            if (clientObraKeywords.some(okw => okw.length >= 3 && hay.includes(okw))) return true;
+            return false;
+        };
+
+        const clientMatchedRoutes: SearchableOption[] = [];
+        const otherAvailableRoutes: SearchableOption[] = [];
+        const seenNames = new Set<string>();
+
+        routes.forEach(r => {
+            const name = (r.name || '').trim();
+            if (!name) return;
+            const normName = normalizeStr(name);
+            if (seenNames.has(normName)) return;
+            seenNames.add(normName);
+
+            const imported = isImportedRoute(r);
+            const isClientMatch = matchesSelectedClient(r);
+            const rClientId = String((r as any).client?.id || (r as any).clientId || r.unit?.id || '');
+            const belongsToAnotherClient = Boolean(
+                targetClientId && rClientId && rClientId !== targetClientId && !isClientMatch
+            );
+
+            const subtitleParts = [
+                r.originAddress && r.destinationAddress ? `${r.originAddress} ➔ ${r.destinationAddress}` : r.description || '',
+                r.distanceKm ? `${r.distanceKm} km` : '',
+                (r as any).client?.name || r.unit?.name || ''
+            ].filter(Boolean);
+
+            const option: SearchableOption = {
+                value: name,
+                label: name,
+                subtitle: subtitleParts.join(' · ') || (imported ? 'Rota Importada (KML/KMZ)' : 'Rota Cadastrada Manualmente'),
+                badge: imported
+                    ? isClientMatch && targetClientId
+                        ? 'Importada · Cliente'
+                        : 'Importada (KMZ/KML)'
+                    : isClientMatch && targetClientId
+                        ? 'Cadastrada · Cliente'
+                        : 'Cadastrada',
+                badgeColor: imported
+                    ? 'bg-purple-500/20 text-purple-300 border-purple-500/30'
+                    : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+                keywords: [
+                    name,
+                    r.code || '',
+                    r.description || '',
+                    r.originAddress || '',
+                    r.destinationAddress || '',
+                    (r as any).client?.name || '',
+                    imported ? 'importada kmz kml' : 'cadastrada manual'
+                ].filter(Boolean)
+            };
+
+            if (isClientMatch) {
+                clientMatchedRoutes.push(option);
+            } else if (!belongsToAnotherClient) {
+                otherAvailableRoutes.push(option);
+            }
+        });
+
+        workPosts
+            .filter((wp: any) => !targetClientId || String(wp.clientId || wp.client?.id || '') === targetClientId)
+            .forEach(wp => {
+                const name = (wp.name || '').trim();
+                const normName = normalizeStr(name);
+                if (name && !seenNames.has(normName)) {
+                    seenNames.add(normName);
+                    clientMatchedRoutes.push({
+                        value: name,
+                        label: name,
+                        subtitle: [wp.address, wp.city].filter(Boolean).join(' · ') || 'Trajeto / Obra do Cliente',
+                        badge: 'Obra / Trajeto',
+                        badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+                        keywords: [name, wp.city || '', wp.address || ''].filter(Boolean)
+                    });
+                }
+            });
+
+        return [...clientMatchedRoutes, ...otherAvailableRoutes];
+    }, [routes, workPosts, formData.clientId, selectedClient, clientPassengerRouteIds, clientPassengerRouteNames]);
+
+    const handleRegisterManualRoute = async (customRouteName: string) => {
+        const trimmed = customRouteName.trim();
+        if (trimmed.length < 3) return;
         try {
-            const data = await clientService.getAllClients();
-            setClients(data || []);
-        } catch (error) {
-            console.error('Erro ao carregar clientes:', error);
+            const payload: Record<string, any> = {
+                name: trimmed,
+                description: selectedClient ? `Rota cadastrada manualmente para ${selectedClient.name}` : 'Rota cadastrada manualmente na Parte Diária',
+                status: 'ATIVA',
+                checkpointsRequired: false,
+                geofenceEnabled: false
+            };
+            if (formData.clientId && formData.clientId !== 'ALL') {
+                payload.client = { id: formData.clientId };
+            }
+            const created = await routeService.createRoute(payload);
+            if (created) {
+                setRoutes(prev => [created, ...prev]);
+                toast.success(`Rota "${trimmed}" cadastrada na lista do cliente!`);
+            }
+        } catch {
+            // Mantém o valor no campo
         }
     };
 
@@ -81,7 +430,6 @@ const DailyLogForm: React.FC<DailyLogFormProps> = ({ open, onClose, selectedLog 
         mutation.mutate(formData);
     };
 
-    // Calculate derived metrics for display
     const totalKm = Math.max(0, (formData.finalKm || 0) - (formData.initialKm || 0));
     const consideredKm = Math.max(0, totalKm - (formData.discountedKm || 0));
     const excessKm = Math.max(0, consideredKm - (formData.allowance || 0));
@@ -136,34 +484,25 @@ const DailyLogForm: React.FC<DailyLogFormProps> = ({ open, onClose, selectedLog 
 
                     {/* Cliente & Veículo / Placa em Grid */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                        {/* Seleção de Cliente da Tabela de Clientes */}
                         <div className="space-y-1.5">
                             <Label className="text-xs uppercase text-slate-300 font-semibold tracking-wider flex items-center gap-1.5">
                                 <UserCheck className="w-3.5 h-3.5 text-amber-400" />
                                 Cliente (Alocação)
                             </Label>
-                            <Select
+                            <SearchableSelect
                                 value={formData.clientId || 'ALL'}
-                                onValueChange={(val) => {
-                                    const selectedId = val === 'ALL' ? undefined : val;
-                                    setFormData({ ...formData, clientId: selectedId });
+                                options={clientOptions}
+                                placeholder="🏢 Todos os Clientes (Sem Filtro)"
+                                searchPlaceholder="Digite os 3 primeiros caracteres do cliente..."
+                                emptyText="Nenhum cliente encontrado."
+                                onChange={(val) => {
+                                    const selectedId = !val || val === 'ALL' ? undefined : val;
+                                    setFormData(prev => ({ ...prev, clientId: selectedId }));
+                                    loadContractsAndRoutesForClient(selectedId);
                                 }}
-                            >
-                                <SelectTrigger className="bg-slate-950 border-slate-700/80 text-white font-medium focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 rounded-xl h-10 px-3 text-sm shadow-inner">
-                                    <SelectValue placeholder="Selecione um cliente..." />
-                                </SelectTrigger>
-                                <SelectContent className="bg-slate-900 border-slate-700 text-white max-h-[220px]">
-                                    <SelectItem value="ALL">🏢 Todos os Clientes (Sem Filtro)</SelectItem>
-                                    {clients.map((c) => (
-                                        <SelectItem key={c.id} value={c.id}>
-                                            {c.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            />
                         </div>
 
-                        {/* Veículo / Placa Filtrado por Cliente */}
                         <div className="space-y-1.5">
                             <Label className="text-xs uppercase text-slate-300 font-semibold tracking-wider flex items-center gap-1.5">
                                 <Car className="w-3.5 h-3.5 text-amber-400" />
@@ -172,38 +511,117 @@ const DailyLogForm: React.FC<DailyLogFormProps> = ({ open, onClose, selectedLog 
                             <VehicleCombobox
                                 value={formData.vehicleId}
                                 clientId={formData.clientId}
+                                clientName={selectedClient?.name}
                                 onChange={(id, selectedVehicle) => {
                                     const vClientId = selectedVehicle?.clientId || selectedVehicle?.client?.id;
+                                    const currKm = selectedVehicle?.currentMileage || selectedVehicle?.mileage || selectedVehicle?.quilometragem;
                                     setFormData(prev => ({
                                         ...prev,
                                         vehicleId: id,
-                                        clientId: prev.clientId || vClientId
+                                        vehiclePlate: selectedVehicle?.plate || selectedVehicle?.placa || prev.vehiclePlate,
+                                        clientId: prev.clientId || vClientId,
+                                        route: prev.route || selectedVehicle?.routeName || prev.route,
+                                        initialKm: (!prev.initialKm || prev.initialKm === 0) && currKm ? Number(currKm) : prev.initialKm,
+                                        finalKm: (!prev.finalKm || prev.finalKm === 0) && currKm ? Number(currKm) : prev.finalKm
                                     }));
+                                    if (vClientId && !formData.clientId) {
+                                        loadContractsAndRoutesForClient(vClientId);
+                                    }
+                                    if (selectedVehicle?.workPostId) {
+                                        setSelectedContractId(`wp:${selectedVehicle.workPostId}`);
+                                    }
                                 }}
                             />
                         </div>
                     </div>
 
-                    {/* Rota / Trajeto */}
-                    <div className="space-y-1.5">
-                        <Label htmlFor="route" className="text-xs uppercase text-slate-300 font-semibold tracking-wider flex items-center gap-1.5">
-                            <MapPin className="w-3.5 h-3.5 text-amber-400" />
-                            Rota / Trajeto
-                        </Label>
-                        <Input
-                            id="route"
-                            className="bg-slate-950 border-slate-700/80 text-white placeholder:text-slate-500 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 rounded-xl h-10 px-3 text-sm font-medium shadow-inner"
-                            placeholder="Ex: Rota 01"
-                            value={formData.route || ''}
-                            onChange={(e) => setFormData({ ...formData, route: e.target.value })}
-                        />
+                    {/* Obra / Contrato & Rota / Trajeto */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                        <div className="space-y-1.5">
+                            <Label className="text-xs uppercase text-slate-300 font-semibold tracking-wider flex items-center gap-1.5">
+                                <RouteIcon className="w-3.5 h-3.5 text-amber-400" />
+                                Obra / Contrato
+                            </Label>
+                            <SearchableSelect
+                                value={selectedContractId || 'NONE'}
+                                options={obraContratoOptions}
+                                placeholder="Sem Obra Específica"
+                                searchPlaceholder="Digite os 3 primeiros caracteres da obra ou contrato..."
+                                emptyText="Nenhuma obra ou contrato encontrado."
+                                allowCustomValue={true}
+                                customValuePrefix="Usar obra/contrato"
+                                onChange={(val, option) => {
+                                    if (!val || val === 'NONE') {
+                                        setSelectedContractId('NONE');
+                                    } else {
+                                        setSelectedContractId(val);
+                                        if (val.startsWith('wp:')) {
+                                            const wpId = val.replace('wp:', '');
+                                            const foundWp = workPosts.find(w => String(w.id) === wpId);
+                                            if (foundWp) {
+                                                if (foundWp.clientId && !formData.clientId) {
+                                                    setFormData(prev => ({ ...prev, clientId: foundWp.clientId, route: prev.route || foundWp.name }));
+                                                    loadContractsAndRoutesForClient(foundWp.clientId);
+                                                } else if (!formData.route) {
+                                                    setFormData(prev => ({ ...prev, route: foundWp.name }));
+                                                }
+                                            }
+                                        } else {
+                                            const foundCt = allContracts.find((c: any) => String(c.id || c.contractNumber) === val);
+                                            if (foundCt) {
+                                                const obra = (foundCt as any).obraName || foundCt.description || '';
+                                                if (obra && !formData.route) {
+                                                    setFormData(prev => ({ ...prev, route: obra }));
+                                                }
+                                            } else if (option && !formData.route) {
+                                                setFormData(prev => ({ ...prev, route: option.label.replace(/^[🏗️📄]\s*/, '') }));
+                                            }
+                                        }
+                                    }
+                                }}
+                            />
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <Label htmlFor="route" className="text-xs uppercase text-slate-300 font-semibold tracking-wider flex items-center justify-between gap-1.5">
+                                <span className="flex items-center gap-1.5">
+                                    <MapPin className="w-3.5 h-3.5 text-amber-400" />
+                                    Rota / Trajeto
+                                </span>
+                                <span className="text-[10px] text-emerald-400 font-normal normal-case">
+                                    {routeOptions.length} rota(s) (importadas + manuais)
+                                </span>
+                            </Label>
+                            <SearchableSelect
+                                value={formData.route || ''}
+                                fallbackLabel={formData.route || undefined}
+                                options={routeOptions}
+                                placeholder="Selecione ou digite os 3 primeiros caracteres da rota..."
+                                searchPlaceholder="Digite os 3 primeiros caracteres da rota (importada ou manual)..."
+                                emptyText="Nenhuma rota encontrada. Digite para cadastrar manualmente."
+                                allowCustomValue={true}
+                                customValuePrefix="Cadastrar / Usar rota manual"
+                                onCreateCustomOption={handleRegisterManualRoute}
+                                onChange={(val) => {
+                                    const matchedRoute = routes.find(r => normalizeStr(r.name) === normalizeStr(val));
+                                    setFormData(prev => {
+                                        const initKm = Number(prev.initialKm) || 0;
+                                        const nextFinalKm =
+                                            matchedRoute?.distanceKm && matchedRoute.distanceKm > 0 && initKm > 0 && (!prev.finalKm || prev.finalKm === initKm)
+                                                ? Math.round(initKm + matchedRoute.distanceKm)
+                                                : prev.finalKm;
+                                        return { ...prev, route: val, finalKm: nextFinalKm };
+                                    });
+                                }}
+                            />
+                        </div>
                     </div>
 
                     {/* Bloco de Leitura de Odômetro */}
                     <div className="bg-slate-950/80 p-4 rounded-xl border border-slate-800 space-y-3.5 shadow-inner">
                         <div className="flex items-center justify-between">
                             <span className="text-xs uppercase font-bold text-amber-400 tracking-wider flex items-center gap-1.5">
-                                <Route className="w-4 h-4 text-amber-400" /> Apuração do Odômetro
+                                <RouteIcon className="w-4 h-4 text-amber-400" /> Apuração do Odômetro
                             </span>
                             <span className="text-[11px] text-slate-400">Leitura Automática</span>
                         </div>

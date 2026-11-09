@@ -17,6 +17,8 @@ export interface Route {
     description?: string;
     unit: { id: string; name?: string };
     location: { id: string; name?: string };
+    client?: { id: string; name?: string };
+    clientId?: string;
     estimatedDuration: number; // Seconds
     checkpointsRequired: boolean;
     geofenceEnabled: boolean;

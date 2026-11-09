@@ -1375,18 +1375,22 @@ const RoutesAndPoints: React.FC = () => {
 
             const routeTitle = parsedData.name || primaryRoute?.name || file.name.replace(/\.(kml|kmz)$/i, '');
             const generatedCode = `ROTA-${routeTitle.replace(/[^a-zA-Z0-9]/g, '').substring(0, 8).toUpperCase()}-${Math.floor(100 + Math.random() * 900)}`;
+            const resolvedClientId = importRouteFormData.clientId || formData.clientId;
+            const resolvedDescription = parsedData.description || `Rota importada de arquivo Google Earth (${file.name})`;
+            const resolvedOriginAddress = originAddress || generatedPoints[0]?.name || 'Origem traçada via KML';
+            const resolvedDestinationAddress = destinationAddress || generatedPoints[generatedPoints.length - 1]?.name || 'Destino traçado via KML';
 
             // Atualiza o formulário com todos os dados: CEPs, endereços, distância e duração
             setFormData(prev => ({
                 ...prev,
                 name: routeTitle,
                 code: generatedCode,
-                description: parsedData.description || `Rota importada de arquivo Google Earth (${file.name})`,
-                clientId: importRouteFormData.clientId || prev.clientId,
+                description: resolvedDescription,
+                clientId: resolvedClientId,
                 originCep: originCep || prev.originCep,
-                originAddress: originAddress || generatedPoints[0]?.name || 'Origem traçada via KML',
+                originAddress: resolvedOriginAddress,
                 destinationCep: destinationCep || prev.destinationCep,
-                destinationAddress: destinationAddress || generatedPoints[generatedPoints.length - 1]?.name || 'Destino traçado via KML',
+                destinationAddress: resolvedDestinationAddress,
                 distanceKm: distanceKm,
                 estimatedDuration: durationMinutes,
                 status: 'ATIVA',
@@ -1394,14 +1398,54 @@ const RoutesAndPoints: React.FC = () => {
 
             setRoutePoints(generatedPoints);
 
+            // Persiste automaticamente a rota importada vinculada ao cliente selecionado
+            let createdRoute: any = null;
+            try {
+                const hours = Math.floor(durationMinutes / 60);
+                const mins = durationMinutes % 60;
+                const isoDuration = hours > 0 ? `PT${hours}H${mins > 0 ? mins + 'M' : ''}` : `PT${mins}M`;
+                const autoSavePayload: Record<string, any> = {
+                    name: routeTitle.length >= 3 ? routeTitle.substring(0, 100) : `${routeTitle} - Rota`,
+                    code: generatedCode,
+                    description: resolvedDescription.substring(0, 500),
+                    originCep: originCep || undefined,
+                    originAddress: resolvedOriginAddress.substring(0, 500),
+                    destinationCep: destinationCep || undefined,
+                    destinationAddress: resolvedDestinationAddress.substring(0, 500),
+                    distanceKm: distanceKm || 0,
+                    estimatedDuration: isoDuration as any,
+                    checkpointsRequired: false,
+                    geofenceEnabled: false,
+                    defaultRadiusMeters: 50,
+                    color: '#15803d',
+                    status: 'ATIVA',
+                    direction: 'IDA',
+                    checkinType: 'CHECKIN_LIVRE',
+                    returnSamePassengers: true,
+                    points: generatedPoints.map((p, idx) => ({ ...p, order: idx })),
+                };
+                if (resolvedClientId) {
+                    autoSavePayload.client = { id: resolvedClientId };
+                }
+                createdRoute = await routeService.createRoute(autoSavePayload);
+                await loadData();
+            } catch (saveErr) {
+                console.warn('Auto-save de rota KML/KMZ pendente de revisão manual:', saveErr);
+            }
+
             toast({
                 title: '🎉 Rota Importada com Sucesso!',
-                description: `CEPs, endereços, ${generatedPoints.length} pontos de parada e ${distanceKm} km preenchidos automaticamente.`,
+                description: `CEPs, endereços, ${generatedPoints.length} pontos de parada e ${distanceKm} km preenchidos e vinculados ao cliente.`,
             });
 
-            // Fecha modal e vai para a aba de cadastro
+            // Fecha modal e vai para a aba de cadastro (em modo edição se já foi salva no banco)
             setImportModalOpen(false);
-            setModalMode('create');
+            if (createdRoute?.id) {
+                setSelectedRoute(createdRoute);
+                setModalMode('edit');
+            } else {
+                setModalMode('create');
+            }
             setActiveTab('form');
         } catch (error: any) {
             console.error('Erro na importação KML/KMZ:', error);
