@@ -12,31 +12,48 @@ window.addEventListener('vite:preloadError', (event) => {
 
 // Gerenciamento e desregistro automático de Service Workers com cache antigo/quebrado (bad-precaching-response)
 if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
-  if (import.meta.env.DEV) {
-    void navigator.serviceWorker.getRegistrations().then((regs) => {
-      regs.forEach((r) => void r.unregister());
-    });
-  }
-
-  // Monitorar erros não tratados de workers e scripts legados
-  const cleanupCorruptedWorkers = () => {
-    void navigator.serviceWorker.getRegistrations().then((regs) => {
-      regs.forEach((r) => void r.unregister());
-    });
+  const safeCleanupWorkers = () => {
+    void navigator.serviceWorker
+      .getRegistrations()
+      .then((regs) => {
+        regs.forEach((r) => {
+          void r.unregister().catch(() => {});
+        });
+      })
+      .catch(() => {});
     if ('caches' in window) {
-      void caches.keys().then((names) => {
-        names.forEach((name) => void caches.delete(name));
-      });
+      void caches
+        .keys()
+        .then((names) => {
+          names.forEach((name) => {
+            void caches.delete(name).catch(() => {});
+          });
+        })
+        .catch(() => {});
     }
   };
 
+  if (import.meta.env.DEV) {
+    safeCleanupWorkers();
+  }
+
   window.addEventListener('unhandledrejection', (event) => {
-    const reason = typeof event.reason === 'string' ? event.reason : event.reason?.message;
+    const reason =
+      typeof event.reason === 'string'
+        ? event.reason
+        : event.reason?.message || String(event.reason || '');
     const str = typeof reason === 'string' ? reason : '';
-    if (str.includes('bad-precaching-response') || str.includes('workbox') || str.includes('importScripts')) {
+    if (
+      str.includes('bad-precaching-response') ||
+      str.includes('workbox') ||
+      str.includes('importScripts')
+    ) {
       event.preventDefault();
-      cleanupCorruptedWorkers();
-    } else if (str.includes('Failed to fetch dynamically imported module') || str.includes('Importing a module script failed')) {
+      safeCleanupWorkers();
+    } else if (
+      str.includes('Failed to fetch dynamically imported module') ||
+      str.includes('Importing a module script failed')
+    ) {
       event.preventDefault();
       const hasReloaded = sessionStorage.getItem('chunk_reload');
       if (!hasReloaded) {
@@ -49,28 +66,39 @@ if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
   window.addEventListener('error', (event) => {
     const filename = event.filename || '';
     const message = event.message || '';
-    if (filename.includes('sw.js') || filename.includes('workbox') || message.includes('workbox') || message.includes('importScripts')) {
-      cleanupCorruptedWorkers();
+    if (
+      filename.includes('sw.js') ||
+      filename.includes('workbox') ||
+      message.includes('workbox') ||
+      message.includes('importScripts')
+    ) {
+      safeCleanupWorkers();
     }
   });
 }
 
 // Ignorar rejeições conhecidas de extensões do Chrome (ruído no console, não é bug da app).
-window.addEventListener("unhandledrejection", (event) => {
-  const reason =
-    typeof event.reason === "string"
-      ? event.reason
-      : event.reason?.message;
-  const str = typeof reason === "string" ? reason : "";
+window.addEventListener(
+  'unhandledrejection',
+  (event) => {
+    const reason =
+      typeof event.reason === 'string'
+        ? event.reason
+        : event.reason?.message || String(event.reason || '');
+    const str = (typeof reason === 'string' ? reason : '').toLowerCase();
 
-  if (
-    str.includes("message channel closed before a response was received") ||
-    str.includes("asynchronous response by returning true") ||
-    str.includes("A listener indicated an asynchronous response")
-  ) {
-    event.preventDefault();
-  }
-});
+    if (
+      str.includes('message channel closed before a response was received') ||
+      str.includes('asynchronous response by returning true') ||
+      str.includes('a listener indicated an asynchronous response') ||
+      str.includes('extension context invalidated')
+    ) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }
+  },
+  true
+);
 
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'

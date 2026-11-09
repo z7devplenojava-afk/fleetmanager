@@ -292,18 +292,32 @@ function App() {
   useEffect(() => {
     // Tratamento global para erros de message channel (extensões do browser)
     const handleMessageChannelError = (event: ErrorEvent) => {
-      if (event.message && event.message.includes('message channel closed')) {
-        console.warn('[App] Erro de message channel ignorado (provavelmente extensão do browser):', event.message);
+      const msg = (event.message || event.error?.message || '').toLowerCase();
+      if (
+        msg.includes('message channel closed') ||
+        msg.includes('asynchronous response by returning true') ||
+        msg.includes('a listener indicated an asynchronous response')
+      ) {
         event.preventDefault();
+        event.stopImmediatePropagation();
         return false;
       }
     };
 
     // Tratamento global para promises rejeitadas
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
-      if (event.reason && event.reason.message && event.reason.message.includes('message channel closed')) {
-        console.warn('[App] Promise rejeitada por message channel ignorada:', event.reason.message);
+      const raw =
+        typeof event.reason === 'string'
+          ? event.reason
+          : event.reason?.message || String(event.reason || '');
+      const msg = raw.toLowerCase();
+      if (
+        msg.includes('message channel closed') ||
+        msg.includes('asynchronous response by returning true') ||
+        msg.includes('a listener indicated an asynchronous response')
+      ) {
         event.preventDefault();
+        event.stopImmediatePropagation();
         return false;
       }
     };

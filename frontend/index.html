@@ -4,26 +4,44 @@
     <meta charset="UTF-8" />
     <script>
       (function () {
+        function extractMessage(val) {
+          if (!val) return '';
+          if (typeof val === 'string') return val;
+          if (typeof val.message === 'string') return val.message;
+          try {
+            return String(val);
+          } catch (_) {
+            return '';
+          }
+        }
         function isExtensionChannelError(msg) {
-          return typeof msg === 'string' && (
-            msg.indexOf('message channel closed before a response was received') !== -1 ||
-            msg.indexOf('asynchronous response by returning true') !== -1 ||
-            msg.indexOf('A listener indicated an asynchronous response') !== -1
+          if (typeof msg !== 'string' || !msg) return false;
+          var lower = msg.toLowerCase();
+          return (
+            lower.indexOf('message channel closed before a response was received') !== -1 ||
+            lower.indexOf('asynchronous response by returning true') !== -1 ||
+            lower.indexOf('a listener indicated an asynchronous response') !== -1 ||
+            lower.indexOf('extension context invalidated') !== -1
           );
         }
-        window.addEventListener('unhandledrejection', function (e) {
+        function handleRejection(e) {
           var r = e && e.reason;
-          var m = typeof r === 'string' ? r : (r && r.message) || '';
+          var m = extractMessage(r) || extractMessage(e);
           if (isExtensionChannelError(m)) {
-            e.preventDefault();
-            e.stopImmediatePropagation();
+            if (e && typeof e.preventDefault === 'function') e.preventDefault();
+            if (e && typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+            return true;
           }
-        }, true);
+          return false;
+        }
+        window.addEventListener('unhandledrejection', handleRejection, true);
+        window.onunhandledrejection = handleRejection;
         window.addEventListener('error', function (e) {
-          var m = (e && e.message) || (e && e.error && e.error.message) || '';
+          var m = extractMessage(e && e.message) || extractMessage(e && e.error);
           if (isExtensionChannelError(m)) {
-            e.preventDefault();
-            e.stopImmediatePropagation();
+            if (e && typeof e.preventDefault === 'function') e.preventDefault();
+            if (e && typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+            return true;
           }
         }, true);
       })();
