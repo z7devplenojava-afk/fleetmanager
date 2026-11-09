@@ -630,7 +630,7 @@ export const VehicleInspectionModal: React.FC<VehicleInspectionModalProps> = ({
   };
 
   // Adição de fotos via Upload do Dispositivo ou Captura Nativa (até 10 fotos)
-  const handleFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFilesSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
