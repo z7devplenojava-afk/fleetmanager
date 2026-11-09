@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -2018,8 +2018,11 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
         }
       }
     }}>
-      <DialogContent className="max-w-4xl w-full max-h-[90vh] overflow-y-auto p-0 mx-4 sm:mx-0 bg-seguranca-graphite border-gray-600">
-        <DialogHeader className="bg-gradient-to-r from-seguranca-red to-seguranca-yellow p-4 sm:p-6 text-white sticky top-0 z-10">
+      <DialogContent 
+        className="max-w-4xl w-full max-h-[90vh] flex flex-col p-0 mx-4 sm:mx-0 bg-seguranca-graphite border-gray-600 overflow-hidden" 
+        hideCloseButton
+      >
+        <DialogHeader className="bg-gradient-to-r from-seguranca-red to-seguranca-yellow p-4 sm:p-6 text-white shrink-0 relative pr-14 sm:pr-16">
           <DialogTitle className="flex items-center gap-2 sm:gap-3 text-lg sm:text-xl md:text-2xl font-bold">
             <div className="p-1.5 sm:p-2 bg-white/20 rounded-lg">
               <UserIcon className="h-4 w-4 sm:h-6 sm:w-6" />
@@ -2032,9 +2035,19 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
               : 'Preencha os dados do funcionário. Campos marcados com * são obrigatórios.'
             }
           </DialogDescription>
+
+          {/* Botão de Fechar fixo no cabeçalho - não se move com scroll */}
+          <DialogClose
+            className="absolute right-3.5 top-3.5 sm:right-5 sm:top-5 z-20 rounded-full bg-black/40 hover:bg-black/70 text-white p-1.5 sm:p-2 transition-all border border-white/30 shadow-md focus:outline-none focus:ring-2 focus:ring-white/80 active:scale-95 cursor-pointer disabled:pointer-events-none"
+            title="Fechar"
+            aria-label="Fechar"
+          >
+            <X className="h-4 w-4 sm:h-5 sm:w-5" />
+            <span className="sr-only">Fechar</span>
+          </DialogClose>
         </DialogHeader>
         
-        <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
           {/* Botão de Importação de PDF */}
           <div className="flex justify-end mt-4">
             <Button
