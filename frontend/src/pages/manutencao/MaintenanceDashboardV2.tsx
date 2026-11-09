@@ -55,7 +55,7 @@ const MaintenanceDashboardV2: React.FC = () => {
     // Queries com dados reais
     const { data: vehicles = [], isLoading: isLoadingVehicles } = useQuery({
         queryKey: ['vehicles'],
-        queryFn: fleetService.getVehicles,
+        queryFn: () => fleetService.getVehicles(),
         retry: 1
     });
 

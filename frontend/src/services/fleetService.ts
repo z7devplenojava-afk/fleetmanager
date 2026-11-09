@@ -220,17 +220,22 @@ class FleetService {
   private vehiclesInFlight: Promise<Vehicle[]> | null = null;
   private readonly CACHE_TTL_MS = 30000; // 30 segundos de cache de alta performance
 
+  constructor() {
+    this.getVehicles = this.getVehicles.bind(this);
+    this.invalidateVehiclesCache = this.invalidateVehiclesCache.bind(this);
+  }
+
   public invalidateVehiclesCache(): void {
     this.vehiclesCache = null;
     this.vehiclesInFlight = null;
   }
 
   // Veículos
-  async getVehicles(forceRefresh = false): Promise<Vehicle[]> {
-    if (!forceRefresh && this.vehiclesCache && Date.now() - this.vehiclesCache.timestamp < this.CACHE_TTL_MS) {
+  getVehicles = async (forceRefresh = false): Promise<Vehicle[]> => {
+    if (!forceRefresh && this?.vehiclesCache && Date.now() - this.vehiclesCache.timestamp < this.CACHE_TTL_MS) {
       return this.vehiclesCache.data;
     }
-    if (!forceRefresh && this.vehiclesInFlight) {
+    if (!forceRefresh && this?.vehiclesInFlight) {
       return this.vehiclesInFlight;
     }
 
@@ -254,18 +259,22 @@ class FleetService {
         }
 
         console.log('✅ FleetService - Veículos carregados:', list.length);
-        this.vehiclesCache = { data: list, timestamp: Date.now() };
+        if (this) {
+          this.vehiclesCache = { data: list, timestamp: Date.now() };
+        }
         return list;
       } catch (error: any) {
         console.error('❌ FleetService - Erro ao buscar veículos, aplicando fallback padrão:', error);
         return DEFAULT_FLEET_VEHICLES;
       } finally {
-        this.vehiclesInFlight = null;
+        if (this) {
+          this.vehiclesInFlight = null;
+        }
       }
     })();
 
     return this.vehiclesInFlight;
-  }
+  };
 
   async getVehicle(id: string): Promise<Vehicle | null> {
     const response = await api.get(`/api/frota/vehicles/${id}`);
