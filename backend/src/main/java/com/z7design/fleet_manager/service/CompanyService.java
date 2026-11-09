@@ -198,6 +198,7 @@ public class CompanyService {
         if (dto.getEmail() != null) existingCompany.setEmail(dto.getEmail());
         if (dto.getWebsite() != null) existingCompany.setWebsite(dto.getWebsite());
         if (dto.getLogoUrl() != null) existingCompany.setLogoUrl(dto.getLogoUrl());
+        if (dto.getIconUrl() != null) existingCompany.setIconUrl(dto.getIconUrl());
         if (dto.getBannerUrls() != null) {
             try {
                 com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
@@ -232,6 +233,26 @@ public class CompanyService {
         existingCompany = companyRepository.findByIdWithDefaultEpis(existingCompany.getId())
                 .orElse(existingCompany);
 
+        return CompanyDTO.fromEntity(existingCompany);
+    }
+
+    /**
+     * Atualizar apenas ícone e/ou logomarca da empresa de forma independente
+     */
+    @Transactional
+    public CompanyDTO updateCompanyBranding(UUID id, String logoUrl, String iconUrl) {
+        Company existingCompany = companyRepository.findByIdWithDefaultEpis(id)
+                .orElseGet(() -> companyRepository.findById(id)
+                        .orElseThrow(() -> new ResourceNotFoundException("Empresa nao encontrada com ID: " + id)));
+
+        if (logoUrl != null) {
+            existingCompany.setLogoUrl(logoUrl.trim().isEmpty() ? null : logoUrl.trim());
+        }
+        if (iconUrl != null) {
+            existingCompany.setIconUrl(iconUrl.trim().isEmpty() ? null : iconUrl.trim());
+        }
+
+        existingCompany = companyRepository.save(existingCompany);
         return CompanyDTO.fromEntity(existingCompany);
     }
 

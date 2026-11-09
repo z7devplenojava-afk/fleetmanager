@@ -50,6 +50,13 @@ import { contasAReceberService } from '@/services/contasAReceberService';
 import { clientService } from '@/services/clientService';
 import { measurementService } from '@/services/measurementService';
 import { ContractMeasurementPdfService } from '@/services/contractMeasurementPdfService';
+import { companyService } from '@/services/companyService';
+import {
+  resolveCompanyLogoUrl,
+  resolveCompanyIconUrl,
+  getStoredCompanyBranding,
+  saveStoredCompanyBranding,
+} from '@/utils/logoUtils';
 import { fleetService } from '@/services/fleetService';
 import { SearchableSelect, SearchableOption } from '@/components/frota/SearchableSelect';
 import { routeService, Route } from '@/services/routeService';
@@ -347,8 +354,145 @@ export const ClientContractMeasurementManager: React.FC = () => {
   const [selectedClientId, setSelectedClientId] = useState('cli-01');
   const [activeTab, setActiveTab] = useState('leased-vehicles');
   const { toast } = useToast();
-  const { company } = useAuth();
-  const defaultProviderCompany = (company?.name || 'VIAÇÃO SÃO SILVESTRE LTDA').toUpperCase();
+  const { empresa, user } = useAuth();
+  const company = empresa as any;
+  const defaultProviderCompany = (empresa?.nome || (company as any)?.name || 'VIAÇÃO SÃO SILVESTRE LTDA').toUpperCase();
+
+  // Estado para Upload independente do Ícone da Empresa (Sidebar recolhida & Selo PDF) e da Logomarca da Empresa (Sidebar expandida & Topo)
+  const [companyBranding, setCompanyBranding] = useState<{
+    iconUrl: string | null;
+    logoUrl: string | null;
+  }>(() => {
+    const stored = getStoredCompanyBranding(empresa?.id || user?.companyId);
+    return {
+      iconUrl: stored.iconUrl || empresa?.iconUrl || null,
+      logoUrl: stored.logoUrl || empresa?.logoUrl || null,
+    };
+  });
+  const [uploadingCompanyIcon, setUploadingCompanyIcon] = useState(false);
+  const [uploadingCompanyLogo, setUploadingCompanyLogo] = useState(false);
+
+  useEffect(() => {
+    const stored = getStoredCompanyBranding(empresa?.id || user?.companyId);
+    setCompanyBranding({
+      iconUrl: stored.iconUrl ?? empresa?.iconUrl ?? null,
+      logoUrl: stored.logoUrl ?? empresa?.logoUrl ?? null,
+    });
+  }, [empresa?.id, empresa?.iconUrl, empresa?.logoUrl, user?.companyId]);
+
+  const handleUploadCompanyIcon = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    setUploadingCompanyIcon(true);
+    try {
+      const res = await companyService.uploadIcon(file);
+      const newIconUrl = res.url;
+      const targetCompanyId = empresa?.id || user?.companyId || null;
+      saveStoredCompanyBranding({
+        companyId: targetCompanyId,
+        iconUrl: newIconUrl,
+      });
+      setCompanyBranding((prev) => ({ ...prev, iconUrl: newIconUrl }));
+
+      if (targetCompanyId && targetCompanyId !== 'default') {
+        companyService
+          .getCompanyById(targetCompanyId)
+          .then((existing) => {
+            if (existing) {
+              return companyService.updateCompany(targetCompanyId, {
+                name: existing.name || empresa?.nome || 'VIAÇÃO SÃO SILVESTRE LTDA',
+                cnpj: existing.cnpj || '71.055.644/0001-25',
+                iconUrl: newIconUrl,
+                logoUrl: companyBranding.logoUrl || existing.logoUrl,
+              });
+            }
+          })
+          .catch(() => {});
+      }
+
+      toast({
+        title: 'Ícone da Empresa atualizado!',
+        description: 'O ícone foi salvo para a sidebar recolhida e selo do PDF, mantendo a logomarca intacta.',
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao enviar ícone',
+        description: err?.message || 'Não foi possível carregar o ícone da empresa.',
+        variant: 'destructive',
+      });
+    } finally {
+      setUploadingCompanyIcon(false);
+    }
+  };
+
+  const handleUploadCompanyLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    setUploadingCompanyLogo(true);
+    try {
+      const res = await companyService.uploadLogo(file);
+      const newLogoUrl = res.url;
+      const targetCompanyId = empresa?.id || user?.companyId || null;
+      saveStoredCompanyBranding({
+        companyId: targetCompanyId,
+        logoUrl: newLogoUrl,
+      });
+      setCompanyBranding((prev) => ({ ...prev, logoUrl: newLogoUrl }));
+
+      if (targetCompanyId && targetCompanyId !== 'default') {
+        companyService
+          .getCompanyById(targetCompanyId)
+          .then((existing) => {
+            if (existing) {
+              return companyService.updateCompany(targetCompanyId, {
+                name: existing.name || empresa?.nome || 'VIAÇÃO SÃO SILVESTRE LTDA',
+                cnpj: existing.cnpj || '71.055.644/0001-25',
+                logoUrl: newLogoUrl,
+                iconUrl: companyBranding.iconUrl || existing.iconUrl,
+              });
+            }
+          })
+          .catch(() => {});
+      }
+
+      toast({
+        title: 'Logomarca da Empresa atualizada!',
+        description: 'A logomarca foi salva para o topo e sidebar expandida, mantendo o ícone intacto.',
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao enviar logomarca',
+        description: err?.message || 'Não foi possível carregar a logomarca da empresa.',
+        variant: 'destructive',
+      });
+    } finally {
+      setUploadingCompanyLogo(false);
+    }
+  };
+
+  const handleRemoveCompanyIcon = () => {
+    const targetCompanyId = empresa?.id || user?.companyId || null;
+    saveStoredCompanyBranding({ companyId: targetCompanyId, iconUrl: '' });
+    setCompanyBranding((prev) => ({ ...prev, iconUrl: null }));
+    toast({
+      title: 'Ícone removido',
+      description: 'O ícone da sidebar recolhida foi removido. A logomarca principal foi mantida.',
+    });
+  };
+
+  const handleRemoveCompanyLogo = () => {
+    const targetCompanyId = empresa?.id || user?.companyId || null;
+    saveStoredCompanyBranding({ companyId: targetCompanyId, logoUrl: '' });
+    setCompanyBranding((prev) => ({ ...prev, logoUrl: null }));
+    toast({
+      title: 'Logomarca removida',
+      description: 'A logomarca principal foi removida. O ícone da empresa foi mantido.',
+    });
+  };
 
   const currentClient = CLIENT_CONTRACTS_MOCK.find(c => c.id === selectedClientId) || CLIENT_CONTRACTS_MOCK[0];
 
@@ -1150,7 +1294,8 @@ export const ClientContractMeasurementManager: React.FC = () => {
       },
       companyName: `${defaultProviderCompany} / FLUXBUS`,
       companyCnpj: (company as any)?.cnpj || '33.592.510/0001-54',
-      companyLogoUrl: company?.logoUrl || null,
+      companyLogoUrl: companyBranding.logoUrl || empresa?.logoUrl || company?.logoUrl || null,
+      companyIconUrl: companyBranding.iconUrl || empresa?.iconUrl || null,
       statusLabel: statusLabelMap[med.status] || 'REVISADA / LIBERADA',
       elaboratedBy: med.elaboratedBy || 'José Ramos',
       validatedBy: med.validatedBy || 'Diretoria / Faturamento',
@@ -2605,6 +2750,163 @@ export const ClientContractMeasurementManager: React.FC = () => {
                 >
                   <DollarSign className="w-3.5 h-3.5 mr-1" /> Enviar p/ Contas a Receber
                 </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Identidade Visual da Empresa no Mesmo Card: Upload separado do Ícone (Sidebar Recolhida & Selo PDF) e da Logomarca (Sidebar Expandida & Topo) */}
+          <div className="mt-5 pt-4 border-t border-zinc-800/90 grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* 1. Upload somente do Ícone da Empresa */}
+            <div className="flex items-center justify-between gap-3 bg-zinc-900/80 border border-zinc-800 hover:border-amber-500/40 rounded-xl p-3 transition-colors">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="relative w-12 h-12 rounded-xl bg-zinc-950 border border-zinc-700 flex items-center justify-center overflow-hidden shrink-0 p-1">
+                  {resolveCompanyLogoUrl(companyBranding.iconUrl) ? (
+                    <img
+                      src={resolveCompanyLogoUrl(companyBranding.iconUrl)!}
+                      alt="Ícone da Empresa"
+                      className="w-full h-full object-contain rounded-lg"
+                    />
+                  ) : (
+                    <img
+                      src="/fluxbus-icon.png"
+                      alt="Ícone Padrão"
+                      className="w-8 h-8 object-contain opacity-80"
+                    />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-amber-400">
+                      Ícone da Empresa (Sidebar Recolhida & Selo PDF)
+                    </span>
+                    {companyBranding.iconUrl && (
+                      <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 text-[10px] px-1.5 py-0">
+                        Ativo
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-zinc-400 truncate">
+                    Exibido quando a sidebar é recolhida e no selo quadrado do relatório (mantém a logomarca).
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5 shrink-0">
+                <label
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all shadow ${
+                    uploadingCompanyIcon
+                      ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
+                      : 'bg-amber-500 hover:bg-amber-400 text-zinc-950'
+                  }`}
+                >
+                  {uploadingCompanyIcon ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Enviando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>{companyBranding.iconUrl ? 'Trocar Ícone' : 'Upload Ícone'}</span>
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept=".png,.jpg,.jpeg,.svg,.webp,.ico"
+                    onChange={handleUploadCompanyIcon}
+                    disabled={uploadingCompanyIcon}
+                  />
+                </label>
+                {companyBranding.iconUrl && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleRemoveCompanyIcon}
+                    title="Remover apenas o ícone (mantém a logomarca)"
+                    className="h-7 w-7 p-0 text-zinc-400 hover:text-red-400 hover:bg-red-500/10"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* 2. Upload da Logomarca da Empresa */}
+            <div className="flex items-center justify-between gap-3 bg-zinc-900/80 border border-zinc-800 hover:border-blue-500/40 rounded-xl p-3 transition-colors">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="relative w-24 h-12 rounded-xl bg-zinc-950 border border-zinc-700 flex items-center justify-center overflow-hidden shrink-0 px-2 py-1">
+                  {resolveCompanyLogoUrl(companyBranding.logoUrl) ? (
+                    <img
+                      src={resolveCompanyLogoUrl(companyBranding.logoUrl)!}
+                      alt="Logomarca da Empresa"
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <img
+                      src="/fluxbus-logo.png"
+                      alt="Logomarca Padrão"
+                      className="w-full h-full object-contain opacity-80"
+                    />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-blue-400">
+                      Logomarca da Empresa (Sidebar Expandida & Topo)
+                    </span>
+                    {companyBranding.logoUrl && (
+                      <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 text-[10px] px-1.5 py-0">
+                        Ativa
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-zinc-400 truncate">
+                    Mantida no cabeçalho e na sidebar aberta mesmo ao alterar o ícone.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5 shrink-0">
+                <label
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all shadow ${
+                    uploadingCompanyLogo
+                      ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
+                      : 'bg-blue-600 hover:bg-blue-500 text-white'
+                  }`}
+                >
+                  {uploadingCompanyLogo ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Enviando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>{companyBranding.logoUrl ? 'Trocar Logo' : 'Upload Logomarca'}</span>
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept=".png,.jpg,.jpeg,.svg,.webp,.ico"
+                    onChange={handleUploadCompanyLogo}
+                    disabled={uploadingCompanyLogo}
+                  />
+                </label>
+                {companyBranding.logoUrl && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleRemoveCompanyLogo}
+                    title="Remover apenas a logomarca (mantém o ícone)"
+                    className="h-7 w-7 p-0 text-zinc-400 hover:text-red-400 hover:bg-red-500/10"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </Button>
+                )}
               </div>
             </div>
           </div>

@@ -18,6 +18,7 @@ public class EmpresaResponse {
     private String id;
     private String nome;
     private String logoUrl;
+    private String iconUrl;
     private String temaCor;
     private String branchName;
     private String unitName;

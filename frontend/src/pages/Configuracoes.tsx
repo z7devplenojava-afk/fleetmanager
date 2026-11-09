@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { resolveCompanyLogoUrl } from '@/utils/logoUtils';
+import {
+  resolveCompanyLogoUrl,
+  getStoredCompanyBranding,
+  saveStoredCompanyBranding,
+} from '@/utils/logoUtils';
 import { 
   Card, 
   CardContent, 
@@ -104,6 +108,7 @@ const Configuracoes = () => {
     sigla: '',
     description: '',
     logoUrl: '',
+    iconUrl: '',
     status: 'ACTIVE'
   });
 
@@ -143,6 +148,7 @@ const Configuracoes = () => {
       const company = await companyService.getCompanyById(companyId);
       console.log('🔍 DEBUG: Empresa carregada:', company);
       
+      const stored = getStoredCompanyBranding(company.id);
       setEmpresaForm({
         id: company.id || '',
         name: company.name || '',
@@ -156,7 +162,8 @@ const Configuracoes = () => {
         website: company.website || '',
         sigla: company.sigla || '',
         description: company.description || '',
-        logoUrl: company.logoUrl || '',
+        logoUrl: company.logoUrl || stored.logoUrl || '',
+        iconUrl: company.iconUrl || stored.iconUrl || '',
         status: company.status || 'ACTIVE'
       });
       
@@ -186,6 +193,7 @@ const Configuracoes = () => {
   };
 
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingIcon, setUploadingIcon] = useState(false);
 
   const handleEmpresaChange = (field: string, value: string) => {
     setEmpresaForm(prev => ({
@@ -223,9 +231,61 @@ const Configuracoes = () => {
     try {
       const data = await companyService.uploadLogo(file);
       setEmpresaForm(prev => ({ ...prev, logoUrl: data.url }));
+      saveStoredCompanyBranding({
+        companyId: empresaForm.id || selectedEmpresaId || null,
+        logoUrl: data.url,
+      });
+      toast({
+        title: 'Logomarca enviada',
+        description: 'Logomarca da empresa atualizada mantendo o ícone intacto.',
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Erro no envio',
+        description: err.response?.data?.error || 'Não foi possível enviar a logomarca.',
+        variant: 'destructive'
+      });
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const handleIconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    const validExtensions = ['.png', '.jpg', '.jpeg', '.svg', '.webp', '.ico'];
+    const hasValidExt = validExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
+    if (!file.type.startsWith('image/') && !hasValidExt) {
+      toast({
+        title: 'Tipo de arquivo inválido',
+        description: 'Apenas arquivos de imagem (PNG, JPG, JPEG, SVG, WEBP, ICO) são permitidos.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: 'Arquivo muito grande',
+        description: 'O arquivo deve ter no máximo 5MB.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setUploadingIcon(true);
+    try {
+      const data = await companyService.uploadIcon(file);
+      setEmpresaForm(prev => ({ ...prev, iconUrl: data.url }));
+      saveStoredCompanyBranding({
+        companyId: empresaForm.id || selectedEmpresaId || null,
+        iconUrl: data.url,
+      });
       toast({
         title: 'Ícone enviado',
-        description: 'Ícone da empresa atualizado com sucesso.',
+        description: 'Ícone da empresa (exibido quando a sidebar está recolhida) atualizado mantendo a logomarca.',
       });
     } catch (err: any) {
       toast({
@@ -234,7 +294,7 @@ const Configuracoes = () => {
         variant: 'destructive'
       });
     } finally {
-      setUploadingLogo(false);
+      setUploadingIcon(false);
     }
   };
 
@@ -263,6 +323,7 @@ const Configuracoes = () => {
           sigla: empresaForm.sigla,
           description: empresaForm.description,
           logoUrl: empresaForm.logoUrl,
+          iconUrl: empresaForm.iconUrl,
           status: empresaForm.status as any
         });
         
@@ -282,6 +343,7 @@ const Configuracoes = () => {
           sigla: empresaForm.sigla,
           description: empresaForm.description,
           logoUrl: empresaForm.logoUrl,
+          iconUrl: empresaForm.iconUrl,
           status: empresaForm.status as any
         });
         
@@ -779,76 +841,136 @@ const Configuracoes = () => {
                   )}
                 </div>
 
-                {/* Logo da Empresa */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-seguranca-lightgray flex items-center gap-2">
-                      <ImageIcon className="w-4 h-4 text-seguranca-yellow" />
-                      Ícone / Logomarca da Empresa
-                    </Label>
-                    <label className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg cursor-pointer transition-all ${
-                      uploadingLogo 
-                        ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                        : 'bg-seguranca-red hover:bg-seguranca-darkred text-white'
-                    }`}>
-                      {uploadingLogo ? (
-                        <>
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          <span>Enviando...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="w-3.5 h-3.5" />
-                          <span>{empresaForm.logoUrl ? 'Alterar Ícone' : 'Fazer Upload do Ícone'}</span>
-                        </>
-                      )}
-                      <input
-                        type="file"
-                        className="hidden"
-                        accept=".png,.jpg,.jpeg,.svg,.webp,.ico"
-                        onChange={handleLogoUpload}
-                        disabled={uploadingLogo}
-                      />
-                    </label>
-                  </div>
+                {/* Ícone e Logomarca da Empresa no Mesmo Card */}
+                <div className="p-4 rounded-xl bg-seguranca-black/40 border border-gray-700 space-y-3">
+                  <Label className="text-seguranca-lightgray flex items-center gap-2">
+                    <ImageIcon className="w-4 h-4 text-seguranca-yellow" />
+                    Identidade Visual: Ícone (Sidebar Recolhida) & Logomarca da Empresa
+                  </Label>
 
-                  {resolveCompanyLogoUrl(empresaForm.logoUrl) ? (
-                    <div className="flex items-start gap-4 p-4 bg-seguranca-black/50 rounded-lg border border-gray-700">
-                      <div className="relative flex-shrink-0">
-                        <img 
-                          src={resolveCompanyLogoUrl(empresaForm.logoUrl)!} 
-                          alt={`Logo ${empresaForm.name || 'Empresa'}`}
-                          className="max-h-28 max-w-28 object-contain rounded-lg border border-gray-600 bg-gray-900 p-2"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
-                            const errorMsg = target.nextElementSibling as HTMLElement;
-                            if (errorMsg) errorMsg.style.display = 'block';
-                          }}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* 1. Upload do Ícone */}
+                    <div className="p-3 bg-seguranca-black/60 rounded-lg border border-gray-700 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="relative w-16 h-16 rounded-lg border border-gray-600 bg-gray-900 flex items-center justify-center p-1.5 shrink-0">
+                          {resolveCompanyLogoUrl(empresaForm.iconUrl) ? (
+                            <>
+                              <img
+                                src={resolveCompanyLogoUrl(empresaForm.iconUrl)!}
+                                alt="Ícone da Empresa"
+                                className="w-full h-full object-contain rounded"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEmpresaForm(prev => ({ ...prev, iconUrl: '' }));
+                                  saveStoredCompanyBranding({ companyId: empresaForm.id, iconUrl: '' });
+                                }}
+                                className="absolute -top-2 -right-2 bg-red-600 hover:bg-red-700 text-white rounded-full p-1 shadow-md"
+                                title="Remover ícone"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </>
+                          ) : (
+                            <ImageIcon className="w-6 h-6 text-gray-500" />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-amber-400">1. Ícone da Empresa</p>
+                          <p className="text-[11px] text-gray-400">
+                            Exibido quando a sidebar é recolhida (mantém a logomarca).
+                          </p>
+                        </div>
+                      </div>
+
+                      <label className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg cursor-pointer transition-all shrink-0 ${
+                        uploadingIcon
+                          ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                          : 'bg-amber-500 hover:bg-amber-400 text-black font-bold'
+                      }`}>
+                        {uploadingIcon ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>Enviando...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-3.5 h-3.5" />
+                            <span>{empresaForm.iconUrl ? 'Alterar Ícone' : 'Upload Ícone'}</span>
+                          </>
+                        )}
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept=".png,.jpg,.jpeg,.svg,.webp,.ico"
+                          onChange={handleIconUpload}
+                          disabled={uploadingIcon}
                         />
-                        <p className="text-xs text-red-400 mt-2 hidden">Erro ao carregar imagem</p>
-                        <button
-                          type="button"
-                          onClick={() => setEmpresaForm(prev => ({ ...prev, logoUrl: '' }))}
-                          className="absolute -top-2 -right-2 bg-red-600 hover:bg-red-700 text-white rounded-full p-1 shadow-md"
-                          title="Remover ícone"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-emerald-400 font-medium mb-1">Ícone carregado</p>
-                        <p className="text-xs text-gray-400 font-mono break-all">{empresaForm.logoUrl}</p>
-                        <p className="text-[11px] text-gray-500 mt-2">Formatos suportados: PNG, JPG, SVG, WEBP, ICO (máx. 5MB)</p>
-                      </div>
+                      </label>
                     </div>
-                  ) : (
-                    <div className="p-6 bg-seguranca-black/30 rounded-lg border border-dashed border-gray-600 text-center flex flex-col items-center justify-center">
-                      <ImageIcon className="w-8 h-8 text-gray-500 mb-2" />
-                      <p className="text-sm text-gray-300 font-medium">Nenhum ícone cadastrado</p>
-                      <p className="text-xs text-gray-500 mt-1">Clique no botão acima para selecionar um arquivo PNG, JPG, SVG, WEBP ou ICO.</p>
+
+                    {/* 2. Upload da Logomarca */}
+                    <div className="p-3 bg-seguranca-black/60 rounded-lg border border-gray-700 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="relative w-24 h-16 rounded-lg border border-gray-600 bg-gray-900 flex items-center justify-center p-1.5 shrink-0">
+                          {resolveCompanyLogoUrl(empresaForm.logoUrl) ? (
+                            <>
+                              <img
+                                src={resolveCompanyLogoUrl(empresaForm.logoUrl)!}
+                                alt="Logomarca da Empresa"
+                                className="w-full h-full object-contain rounded"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEmpresaForm(prev => ({ ...prev, logoUrl: '' }));
+                                  saveStoredCompanyBranding({ companyId: empresaForm.id, logoUrl: '' });
+                                }}
+                                className="absolute -top-2 -right-2 bg-red-600 hover:bg-red-700 text-white rounded-full p-1 shadow-md"
+                                title="Remover logomarca"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </>
+                          ) : (
+                            <ImageIcon className="w-6 h-6 text-gray-500" />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-blue-400">2. Logomarca da Empresa</p>
+                          <p className="text-[11px] text-gray-400">
+                            Mantida na sidebar expandida, topo e relatórios.
+                          </p>
+                        </div>
+                      </div>
+
+                      <label className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg cursor-pointer transition-all shrink-0 ${
+                        uploadingLogo
+                          ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                          : 'bg-seguranca-red hover:bg-seguranca-darkred text-white font-bold'
+                      }`}>
+                        {uploadingLogo ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>Enviando...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-3.5 h-3.5" />
+                            <span>{empresaForm.logoUrl ? 'Alterar Logo' : 'Upload Logo'}</span>
+                          </>
+                        )}
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept=".png,.jpg,.jpeg,.svg,.webp,.ico"
+                          onChange={handleLogoUpload}
+                          disabled={uploadingLogo}
+                        />
+                      </label>
                     </div>
-                  )}
+                  </div>
                 </div>
 
                 {loadingCompany ? (

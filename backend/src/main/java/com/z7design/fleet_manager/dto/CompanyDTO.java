@@ -78,6 +78,9 @@ public class CompanyDTO {
     
     @Size(max = 500, message = "Logo URL must not exceed 500 characters")
     private String logoUrl;
+
+    @Size(max = 500, message = "Icon URL must not exceed 500 characters")
+    private String iconUrl;
     
     private List<String> bannerUrls;
     
@@ -121,6 +124,10 @@ public class CompanyDTO {
         if (safeLogoUrl != null && safeLogoUrl.contains("e9654118-53a8-4dd8-b57c-bc50997f081b")) {
             safeLogoUrl = null;
         }
+        String safeIconUrl = company.getIconUrl();
+        if (safeIconUrl != null && safeIconUrl.contains("e9654118-53a8-4dd8-b57c-bc50997f081b")) {
+            safeIconUrl = null;
+        }
 
         return CompanyDTO.builder()
                 .id(company.getId())
@@ -140,6 +147,7 @@ public class CompanyDTO {
                 .email(company.getEmail())
                 .website(company.getWebsite())
                 .logoUrl(safeLogoUrl)
+                .iconUrl(safeIconUrl)
                 .bannerUrls(banners)
                 .status(company.getStatus())
                 .defaultEpis(mapDefaultEpisSafely(company))
@@ -180,6 +188,7 @@ public class CompanyDTO {
         company.setEmail(this.email);
         company.setWebsite(this.website);
         company.setLogoUrl(this.logoUrl);
+        company.setIconUrl(this.iconUrl);
         if (this.bannerUrls != null) {
             try {
                 com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();

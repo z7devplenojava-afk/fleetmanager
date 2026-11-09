@@ -474,6 +474,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                     .id(c.getId() != null ? c.getId().toString() : null)
                     .nome(c.getName())
                     .logoUrl(c.getLogoUrl())
+                    .iconUrl(c.getIconUrl())
                     .temaCor(c.getTemaCor() != null ? c.getTemaCor() : "dark")
                     .enabledFeatures(enabledFeatures);
 

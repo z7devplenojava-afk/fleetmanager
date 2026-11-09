@@ -1137,6 +1137,37 @@ export function checkPointTolerance(
   };
 }
 
+export function isDriverNameMatch(
+  targetName?: string | null,
+  candidateText?: string | null
+): boolean {
+  const normTarget = normalizeName(targetName);
+  const normCandidate = normalizeName(candidateText);
+  if (!normTarget || !normCandidate || normTarget.length < 3 || normCandidate.length < 3) {
+    return false;
+  }
+  if (
+    normTarget === normCandidate ||
+    normCandidate.includes(normTarget) ||
+    normTarget.includes(normCandidate)
+  ) {
+    return true;
+  }
+
+  const targetParts = normTarget.split(/\s+/).filter((p) => p.length > 2);
+  const candidateParts = normCandidate.split(/\s+/).filter((p) => p.length > 2);
+  if (targetParts.length >= 2 && candidateParts.length >= 2) {
+    const firstMatch = targetParts[0] === candidateParts[0];
+    const secondOrLastMatch =
+      targetParts[1] === candidateParts[1] ||
+      targetParts[targetParts.length - 1] === candidateParts[candidateParts.length - 1];
+    if (firstMatch && secondOrLastMatch) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function isSameDriverMatch(
   idA?: string | null,
   nameA?: string | null,
@@ -1210,6 +1241,7 @@ const persistedSyncFingerprints = new Map<string, string>();
 export const scheduleService = {
   emitDriverRecordsUpdated,
   checkPointTolerance,
+  isDriverNameMatch,
 
   /**
    * Busca todas as escalas de trabalho (integrando em tempo real com Ponto Eletrônico,

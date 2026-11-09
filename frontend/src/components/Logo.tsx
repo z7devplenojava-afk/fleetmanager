@@ -11,7 +11,7 @@ interface LogoProps {
   forceDefault?: boolean;
 }
 
-import { resolveCompanyLogoUrl } from '@/utils/logoUtils';
+import { resolveCompanyLogoUrl, getStoredCompanyBranding } from '@/utils/logoUtils';
 export { resolveCompanyLogoUrl };
 
 const Logo: React.FC<LogoProps> = ({
@@ -32,10 +32,12 @@ const Logo: React.FC<LogoProps> = ({
     xl: 'h-16 sm:h-20 md:h-24'
   };
 
-  // Determinar fonte da imagem sem mutação de estado global
+  // Determinar fonte da imagem (Logomarca da Empresa) sem mutação de estado global
+  const storedBranding = getStoredCompanyBranding(empresa?.id || (user as any)?.companyId);
   const rawCompanyLogo = !forceDefault
     ? propSrc ||
       empresa?.logoUrl ||
+      storedBranding.logoUrl ||
       (user as any)?.company?.logoUrl ||
       (user as any)?.empresa?.logoUrl ||
       (user as any)?.companyLogo ||

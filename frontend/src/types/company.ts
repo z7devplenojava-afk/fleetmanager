@@ -28,6 +28,7 @@ export interface Company {
   email?: string;
   website?: string;
   logoUrl?: string;
+  iconUrl?: string;
   bannerUrls?: string[];
   defaultEpis?: CompanyDefaultEPI[];
   contactPerson?: string;
@@ -97,6 +98,7 @@ export interface CompanyBranding {
   nome: string;
   sigla: string;
   logoUrl?: string;
+  iconUrl?: string;
   theme: string; // 'white', 'gray', ou 'dark'
   enabledFeatures: string[]; // Funcionalidades habilitadas
 }

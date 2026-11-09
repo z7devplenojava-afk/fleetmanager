@@ -60,6 +60,94 @@ export function resolveCompanyLogoUrl(logoUrl?: string | null): string | null {
   return `${origin}/api/uploads/companies/logos/${trimmed.replace(/^\/+/, '')}`;
 }
 
+export const COMPANY_BRANDING_STORAGE_KEY = 'fluxbus_company_branding_v1';
+
+export interface StoredCompanyBranding {
+  companyId?: string | null;
+  iconUrl?: string | null;
+  logoUrl?: string | null;
+  updatedAt?: string;
+}
+
+export function getStoredCompanyBranding(companyId?: string | null): StoredCompanyBranding {
+  if (typeof window === 'undefined') return {};
+  try {
+    const rawMap = localStorage.getItem(COMPANY_BRANDING_STORAGE_KEY);
+    const map: Record<string, StoredCompanyBranding> = rawMap ? JSON.parse(rawMap) : {};
+    const rawEmpresa = localStorage.getItem('empresa');
+    const parsedEmpresa = rawEmpresa ? JSON.parse(rawEmpresa) : null;
+    const targetId = companyId || parsedEmpresa?.id || 'default';
+    const entry = map[targetId] || map.default || {};
+    return {
+      companyId: targetId,
+      iconUrl: entry.iconUrl !== undefined ? entry.iconUrl : (parsedEmpresa?.iconUrl ?? null),
+      logoUrl: entry.logoUrl !== undefined ? entry.logoUrl : (parsedEmpresa?.logoUrl ?? null),
+      updatedAt: entry.updatedAt,
+    };
+  } catch {
+    return {};
+  }
+}
+
+export function saveStoredCompanyBranding(patch: {
+  companyId?: string | null;
+  iconUrl?: string | null;
+  logoUrl?: string | null;
+}): StoredCompanyBranding {
+  if (typeof window === 'undefined') return patch;
+  try {
+    const rawEmpresa = localStorage.getItem('empresa');
+    const parsedEmpresa = rawEmpresa ? JSON.parse(rawEmpresa) : null;
+    const targetId = patch.companyId || parsedEmpresa?.id || 'default';
+
+    const rawMap = localStorage.getItem(COMPANY_BRANDING_STORAGE_KEY);
+    const map: Record<string, StoredCompanyBranding> = rawMap ? JSON.parse(rawMap) : {};
+    const prev = map[targetId] || map.default || {};
+
+    const next: StoredCompanyBranding = {
+      companyId: targetId,
+      iconUrl: patch.iconUrl !== undefined ? patch.iconUrl : (prev.iconUrl ?? parsedEmpresa?.iconUrl ?? null),
+      logoUrl: patch.logoUrl !== undefined ? patch.logoUrl : (prev.logoUrl ?? parsedEmpresa?.logoUrl ?? null),
+      updatedAt: new Date().toISOString(),
+    };
+
+    map[targetId] = next;
+    map.default = next;
+    localStorage.setItem(COMPANY_BRANDING_STORAGE_KEY, JSON.stringify(map));
+
+    if (parsedEmpresa) {
+      const updatedEmpresa = {
+        ...parsedEmpresa,
+        ...(patch.iconUrl !== undefined ? { iconUrl: patch.iconUrl } : {}),
+        ...(patch.logoUrl !== undefined ? { logoUrl: patch.logoUrl } : {}),
+      };
+      localStorage.setItem('empresa', JSON.stringify(updatedEmpresa));
+    }
+
+    window.dispatchEvent(new CustomEvent('fluxbus:company-branding-updated', { detail: next }));
+    return next;
+  } catch {
+    return patch;
+  }
+}
+
+/**
+ * Normaliza e resolve a URL do Ícone da empresa (exibido quando a sidebar está recolhida e em selos quadrados),
+ * mantendo a logomarca separada.
+ */
+export function resolveCompanyIconUrl(
+  iconUrl?: string | null,
+  fallbackLogoUrl?: string | null
+): string | null {
+  const stored = getStoredCompanyBranding();
+  const candidateIcon = iconUrl !== undefined ? iconUrl : stored.iconUrl;
+  const resolvedIcon = resolveCompanyLogoUrl(candidateIcon);
+  if (resolvedIcon) return resolvedIcon;
+
+  const candidateLogo = fallbackLogoUrl !== undefined ? fallbackLogoUrl : stored.logoUrl;
+  return resolveCompanyLogoUrl(candidateLogo);
+}
+
 /**
  * Normaliza e resolve a URL completa de banner motivacional para exibição no frontend.
  */

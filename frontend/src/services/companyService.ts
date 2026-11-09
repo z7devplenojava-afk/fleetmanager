@@ -29,6 +29,7 @@ export interface CreateCompanyRequest {
   website?: string;
   status?: 'ACTIVE' | 'INACTIVE' | 'PENDING' | 'SUSPENDED';
   logoUrl?: string;
+  iconUrl?: string;
   bannerUrls?: string[];
   defaultEpis?: CompanyDefaultEPI[];
 }
@@ -97,14 +98,60 @@ export const companyService = {
       console.warn('Falha na compressão client-side da logo, usando arquivo original:', e);
       fileToUpload = file;
     }
-    const formData = new FormData();
-    formData.append('file', fileToUpload, fileToUpload.name || file.name || 'logo.png');
-    const response = await api.post('/api/uploads/companies/logo', formData, {
-      headers: {
-        'Content-Type': undefined
-      }
-    });
-    return response.data;
+    try {
+      const formData = new FormData();
+      formData.append('file', fileToUpload, fileToUpload.name || file.name || 'logo.png');
+      const response = await api.post('/api/uploads/companies/logo', formData, {
+        headers: {
+          'Content-Type': undefined
+        }
+      });
+      return response.data;
+    } catch (err) {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(err);
+        reader.readAsDataURL(fileToUpload);
+      });
+      return {
+        url: dataUrl,
+        filename: fileToUpload.name || 'logo.png',
+        originalName: file.name || 'logo.png'
+      };
+    }
+  },
+
+  async uploadIcon(file: File): Promise<{ url: string; filename: string; originalName: string }> {
+    let fileToUpload = file;
+    try {
+      fileToUpload = await compressImageIfNeeded(file, 512, 512, 0.9);
+    } catch (e) {
+      console.warn('Falha na compressão client-side do ícone, usando arquivo original:', e);
+      fileToUpload = file;
+    }
+    try {
+      const formData = new FormData();
+      formData.append('file', fileToUpload, fileToUpload.name || file.name || 'icon.png');
+      const response = await api.post('/api/uploads/companies/logo', formData, {
+        headers: {
+          'Content-Type': undefined
+        }
+      });
+      return response.data;
+    } catch (err) {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(err);
+        reader.readAsDataURL(fileToUpload);
+      });
+      return {
+        url: dataUrl,
+        filename: fileToUpload.name || 'icon.png',
+        originalName: file.name || 'icon.png'
+      };
+    }
   },
 
   async uploadBanner(file: File): Promise<{ url: string; filename: string; originalName: string }> {

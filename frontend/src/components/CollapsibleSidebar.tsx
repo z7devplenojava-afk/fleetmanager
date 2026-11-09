@@ -10,7 +10,7 @@ import Logo from './Logo';
 import { UserRole } from '@/types/user';
 import { isDriverUser } from '@/utils/roleRouting';
 import { getRoleDisplayName } from '@/utils/permissions';
-import { resolveCompanyLogoUrl } from '@/utils/logoUtils';
+import { resolveCompanyLogoUrl, resolveCompanyIconUrl } from '@/utils/logoUtils';
 import {
   BarChart3,
   FileText,
@@ -2222,9 +2222,13 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
           >
             {collapsed && !isMobile ? (
               <img
-                src={hasSelectedCompany && empresa?.logoUrl ? (resolveCompanyLogoUrl(empresa.logoUrl) || '/fluxbus-icon.png') : '/fluxbus-icon.png'}
-                alt="FluxBus Icon"
-                className="h-8 w-8 object-contain drop-shadow-md transition-transform hover:scale-105 mx-auto"
+                src={
+                  hasSelectedCompany
+                    ? resolveCompanyIconUrl(empresa?.iconUrl, empresa?.logoUrl) || '/fluxbus-icon.png'
+                    : '/fluxbus-icon.png'
+                }
+                alt="Ícone da Empresa"
+                className="h-9 w-9 object-contain rounded-lg drop-shadow-md transition-transform hover:scale-105 mx-auto"
               />
             ) : (
               <Logo size="md" forceDefault={!hasSelectedCompany} className="max-w-[170px]" />

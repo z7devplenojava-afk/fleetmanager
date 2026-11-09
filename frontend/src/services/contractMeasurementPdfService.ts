@@ -8,7 +8,7 @@ import {
   ContractDeductionItem,
 } from '../data/measurementContractMockData';
 import { ParteDiaria } from '../types/measurement';
-import { resolveCompanyLogoUrl } from '../utils/logoUtils';
+import { resolveCompanyLogoUrl, getStoredCompanyBranding } from '../utils/logoUtils';
 
 export interface GenerateMeasurementPdfOptions {
   client: ClientContractMock;
@@ -44,6 +44,7 @@ export interface GenerateMeasurementPdfOptions {
   companyName?: string;
   companyCnpj?: string;
   companyLogoUrl?: string | null;
+  companyIconUrl?: string | null;
   statusLabel?: string;
   elaboratedBy?: string;
   validatedBy?: string;
@@ -123,20 +124,33 @@ function generateInstitutionalLogoBadgeBase64(companyName: string): string {
 }
 
 /**
- * Carrega a logo da empresa logada (ou URL informada) em Base64 PNG para o jsPDF.
+ * Carrega o ícone ou logomarca da empresa logada em Base64 PNG para o jsPDF,
+ * preservando as dimensões originais (width / height) para não achatar imagens horizontais.
  */
 async function loadCompanyLogoBase64(
   explicitLogoUrl?: string | null,
-  companyName = 'VIAÇÃO SÃO SILVESTRE LTDA'
-): Promise<string> {
-  let candidateUrl = explicitLogoUrl || null;
+  companyName = 'VIAÇÃO SÃO SILVESTRE LTDA',
+  explicitIconUrl?: string | null
+): Promise<{ dataUrl: string; width: number; height: number }> {
+  const storedBranding = getStoredCompanyBranding();
+  let candidateUrl =
+    explicitIconUrl ||
+    storedBranding.iconUrl ||
+    explicitLogoUrl ||
+    storedBranding.logoUrl ||
+    null;
 
   if (!candidateUrl) {
     try {
       const rawEmpresa = localStorage.getItem('empresa') || localStorage.getItem('company');
       if (rawEmpresa) {
         const parsed = JSON.parse(rawEmpresa);
-        candidateUrl = parsed?.logoUrl || parsed?.logo || parsed?.logo_url || null;
+        candidateUrl =
+          parsed?.iconUrl ||
+          parsed?.logoUrl ||
+          parsed?.logo ||
+          parsed?.logo_url ||
+          null;
       }
     } catch {
       // ignore
@@ -147,23 +161,25 @@ async function loadCompanyLogoBase64(
 
   if (resolvedUrl) {
     try {
-      const dataUrl = await new Promise<string | null>((resolve) => {
+      const loaded = await new Promise<{ dataUrl: string; width: number; height: number } | null>((resolve) => {
         const img = new Image();
         img.crossOrigin = 'Anonymous';
         const timer = window.setTimeout(() => resolve(null), 2500);
         img.onload = () => {
           window.clearTimeout(timer);
           try {
+            const w = img.naturalWidth || 160;
+            const h = img.naturalHeight || 160;
             const canvas = document.createElement('canvas');
-            canvas.width = img.naturalWidth || 160;
-            canvas.height = img.naturalHeight || 160;
+            canvas.width = w;
+            canvas.height = h;
             const ctx = canvas.getContext('2d');
             if (!ctx) {
               resolve(null);
               return;
             }
             ctx.drawImage(img, 0, 0);
-            resolve(canvas.toDataURL('image/png'));
+            resolve({ dataUrl: canvas.toDataURL('image/png'), width: w, height: h });
           } catch {
             resolve(null);
           }
@@ -175,13 +191,17 @@ async function loadCompanyLogoBase64(
         img.src = resolvedUrl;
       });
 
-      if (dataUrl) return dataUrl;
+      if (loaded) return loaded;
     } catch {
       // fallback to badge
     }
   }
 
-  return generateInstitutionalLogoBadgeBase64(companyName);
+  return {
+    dataUrl: generateInstitutionalLogoBadgeBase64(companyName),
+    width: 160,
+    height: 160,
+  };
 }
 
 export class ContractMeasurementPdfService {
@@ -226,7 +246,11 @@ export class ContractMeasurementPdfService {
       // ignore
     }
 
-    const logoBase64 = await loadCompanyLogoBase64(options.companyLogoUrl, savedCompanyName);
+    const logoLoaded = await loadCompanyLogoBase64(
+      options.companyLogoUrl,
+      savedCompanyName,
+      options.companyIconUrl
+    );
 
     const doc = new jsPDF({
       orientation: 'portrait',
@@ -251,14 +275,28 @@ export class ContractMeasurementPdfService {
       doc.setFillColor(234, 179, 8);
       doc.rect(0, 28, pageWidth, 1.5, 'F');
 
-      // Logo da Empresa no canto superior esquerdo do cabeçalho
+      // Ícone / Logo da Empresa no canto superior esquerdo do cabeçalho (preservando proporção sem achatar)
       let textLeftX = margin;
-      if (logoBase64) {
+      if (logoLoaded?.dataUrl) {
         try {
+          const ratio = (logoLoaded.width || 1) / (logoLoaded.height || 1);
+          const boxH = 19.6;
+          const boxW = ratio > 1.35 ? Math.min(36, Math.max(19.6, boxH * ratio * 0.85)) : 19.6;
           doc.setFillColor(255, 255, 255);
-          doc.roundedRect(margin, 4.2, 19.6, 19.6, 2.5, 2.5, 'F');
-          doc.addImage(logoBase64, 'PNG', margin + 0.6, 4.8, 18.4, 18.4);
-          textLeftX = margin + 23;
+          doc.roundedRect(margin, 4.2, boxW, boxH, 2.5, 2.5, 'F');
+
+          const innerMaxW = boxW - 1.4;
+          const innerMaxH = boxH - 1.4;
+          let drawW = innerMaxW;
+          let drawH = innerMaxW / ratio;
+          if (drawH > innerMaxH) {
+            drawH = innerMaxH;
+            drawW = innerMaxH * ratio;
+          }
+          const imgX = margin + (boxW - drawW) / 2;
+          const imgY = 4.2 + (boxH - drawH) / 2;
+          doc.addImage(logoLoaded.dataUrl, 'PNG', imgX, imgY, drawW, drawH);
+          textLeftX = margin + boxW + 3.4;
         } catch {
           textLeftX = margin;
         }

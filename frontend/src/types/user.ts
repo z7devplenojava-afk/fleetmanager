@@ -235,11 +235,13 @@ export interface User {
   disabilityDescription?: string;
 }
 
-/** Dados da empresa para exibição (logo, nome, tema) */
+/** Dados da empresa para exibição (logo, ícone, nome, tema) */
 export interface EmpresaInfo {
   id: string;
   nome: string;
+  sigla?: string;
   logoUrl?: string;
+  iconUrl?: string;
   temaCor?: string;
   branchName?: string;
   unitName?: string;

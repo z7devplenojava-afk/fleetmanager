@@ -8,6 +8,7 @@ import { getDashboardRouteForRole, isDriverUser } from '@/utils/roleRouting';
 import { groupService } from '@/services/groupService';
 import { companyService } from '@/services/companyService';
 import { getApiUrl } from '@/config/environment';
+import { getStoredCompanyBranding } from '@/utils/logoUtils';
 
 const AuthContext = (globalThis as any).__AUTH_CONTEXT__ ||
   ((globalThis as any).__AUTH_CONTEXT__ = createContext<AuthContextType | undefined>(undefined));
@@ -86,13 +87,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const userData = JSON.parse(savedUser);
           const savedEmpresa = localStorage.getItem('empresa');
           const empresaData = savedEmpresa ? JSON.parse(savedEmpresa) : null;
+          const storedBranding = getStoredCompanyBranding(userData.companyId || empresaData?.id);
           if (empresaData) {
             if (empresaData.logoUrl && empresaData.logoUrl.includes('e9654118-53a8-4dd8-b57c-bc50997f081b')) {
               empresaData.logoUrl = null;
-              try {
-                localStorage.setItem('empresa', JSON.stringify(empresaData));
-              } catch (_) { }
             }
+            if (storedBranding.logoUrl && !empresaData.logoUrl) {
+              empresaData.logoUrl = storedBranding.logoUrl;
+            }
+            if (storedBranding.iconUrl && !empresaData.iconUrl) {
+              empresaData.iconUrl = storedBranding.iconUrl;
+            }
+            try {
+              localStorage.setItem('empresa', JSON.stringify(empresaData));
+            } catch (_) { }
             console.log('🔍 AuthContext: Empresa carregada do localStorage:', empresaData);
             setEmpresa(empresaData);
           }
@@ -105,11 +113,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             companyService.getCompanyById(userData.companyId)
               .then((comp) => {
                 if (comp) {
+                  const latestBranding = getStoredCompanyBranding(comp.id || userData.companyId);
                   const cleanLogoUrl = (comp.logoUrl && comp.logoUrl.includes('e9654118-53a8-4dd8-b57c-bc50997f081b')) ? null : comp.logoUrl;
                   const fetchedEmpresa: EmpresaInfo = {
                     id: comp.id || userData.companyId,
                     nome: comp.name || comp.nome || '',
-                    logoUrl: cleanLogoUrl,
+                    sigla: comp.sigla || empresaData?.sigla,
+                    logoUrl: cleanLogoUrl || latestBranding.logoUrl || empresaData?.logoUrl,
+                    iconUrl: comp.iconUrl || latestBranding.iconUrl || empresaData?.iconUrl,
                     temaCor: comp.temaCor,
                     branchName: comp.branchName,
                     unitName: comp.unitName,
@@ -193,6 +204,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
 
     loadUser();
+
+    const handleBrandingUpdated = (evt: Event) => {
+      const detail = (evt as CustomEvent)?.detail;
+      setEmpresa((prev) => {
+        const savedEmpresa = localStorage.getItem('empresa');
+        const parsed = savedEmpresa ? JSON.parse(savedEmpresa) : null;
+        const base: EmpresaInfo = prev || parsed || {
+          id: detail?.companyId || 'default',
+          nome: 'VIAÇÃO SÃO SILVESTRE LTDA',
+        };
+        return {
+          ...base,
+          ...(detail?.logoUrl !== undefined ? { logoUrl: detail.logoUrl || undefined } : {}),
+          ...(detail?.iconUrl !== undefined ? { iconUrl: detail.iconUrl || undefined } : {}),
+        };
+      });
+    };
+
+    window.addEventListener('fluxbus:company-branding-updated', handleBrandingUpdated);
+    return () => {
+      window.removeEventListener('fluxbus:company-branding-updated', handleBrandingUpdated);
+    };
   }, []);
 
   const loadUserGroups = async (userId: string) => {
@@ -426,10 +459,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       localStorage.setItem('user', JSON.stringify(userData));
       if (response.data.empresa) {
         const emp = response.data.empresa;
+        const latestBranding = getStoredCompanyBranding(emp.id);
         const empresaData: EmpresaInfo = {
           id: emp.id || '',
           nome: emp.nome || '',
-          logoUrl: emp.logoUrl,
+          sigla: emp.sigla,
+          logoUrl: emp.logoUrl || latestBranding.logoUrl || undefined,
+          iconUrl: emp.iconUrl || latestBranding.iconUrl || undefined,
           temaCor: emp.temaCor,
           branchName: emp.branchName,
           unitName: emp.unitName,

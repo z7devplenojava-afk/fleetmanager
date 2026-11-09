@@ -97,6 +97,10 @@ public class Company {
     @Column(name = "logo_url", length = 500)
     private String logoUrl;
 
+    @Size(max = 500, message = "Icon URL must not exceed 500 characters")
+    @Column(name = "icon_url", length = 500)
+    private String iconUrl;
+
     @Column(name = "banner_urls", columnDefinition = "TEXT")
     private String bannerUrls;
 
