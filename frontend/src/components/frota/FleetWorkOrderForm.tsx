@@ -3090,10 +3090,24 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
 
                 {/* ── Seção 7: Responsáveis e Assinaturas Digitais ──────────────────────── */}
                 <Section id="os-sec-assinaturas" title="Responsáveis & Assinaturas" icon={<UserCheck className="h-4 w-4 text-purple-400" />}>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
                         {/* Card Responsável Técnico / Mecânico */}
-                        <div className="p-4 border border-gray-800 rounded-xl bg-gray-950/90 space-y-3">
-                            <Field label="Responsável Técnico / Mecânico">
+                        <div className="p-4 border border-gray-800 rounded-xl bg-gray-950/90 flex flex-col gap-3">
+                            <div className="space-y-1.5">
+                                <div className="flex items-center justify-between gap-2">
+                                    <Label className="text-xs text-gray-300 font-semibold uppercase tracking-wide">
+                                        1. Responsável Técnico / Mecânico
+                                    </Label>
+                                    {formData.responsibleSignature?.startsWith('data:image/') ? (
+                                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                                            Assinado
+                                        </span>
+                                    ) : (
+                                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-gray-800 text-gray-400 border border-gray-700">
+                                            Opcional
+                                        </span>
+                                    )}
+                                </div>
                                 <SearchableSelect
                                     value={formData.responsibleId || ''}
                                     fallbackLabel={formData.responsibleName || undefined}
@@ -3110,7 +3124,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                     searchPlaceholder="Buscar funcionário ou mecânico..."
                                     emptyText="Nenhum colaborador encontrado."
                                 />
-                            </Field>
+                            </div>
 
                             {(formData.responsibleId || formData.responsibleName || formData.responsibleSignature?.startsWith('data:image/')) ? (
                                 formData.responsibleSignature?.startsWith('data:image/') && !showResignResp ? (
@@ -3157,16 +3171,17 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="space-y-2 pt-1">
+                                    <div className="space-y-2.5 p-3 rounded-lg bg-black/50 border border-gray-800">
                                         <div className="flex items-center justify-between text-[11px] text-gray-400">
-                                            <span className="flex items-center gap-1.5 text-purple-300 font-medium">
-                                                <PenLine className="h-3.5 w-3.5" /> Assinatura Digital ({formData.responsibleName || 'Técnico'})
+                                            <span className="flex items-center gap-1.5 text-purple-300 font-medium truncate">
+                                                <PenLine className="h-3.5 w-3.5 shrink-0" />
+                                                <span className="truncate">Assinatura Digital — {formData.responsibleName || 'Técnico'}</span>
                                             </span>
                                             {showResignResp && (
                                                 <button
                                                     type="button"
                                                     onClick={() => setShowResignResp(false)}
-                                                    className="text-xs text-gray-400 hover:text-white underline"
+                                                    className="text-xs text-gray-400 hover:text-white underline shrink-0 ml-2"
                                                 >
                                                     Cancelar
                                                 </button>
@@ -3188,21 +3203,35 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                                 setFormData(p => ({ ...p, responsibleSignature: '', responsibleSignatureDate: undefined }));
                                             }}
                                         />
-                                        <p className="text-[10px] text-gray-500">
-                                            Opcional: assine com o dedo no celular/tablet e confirme. Sem assinatura digital, o PDF manterá a linha em branco para assinatura manual.
+                                        <p className="text-[10px] text-gray-500 leading-relaxed">
+                                            Opcional: assine com o dedo no celular/tablet e clique em Confirmar. Se não assinar, a linha sairá em branco no PDF.
                                         </p>
                                     </div>
                                 )
                             ) : (
                                 <div className="p-3 rounded-lg border border-dashed border-gray-800 bg-black/30 text-center text-xs text-gray-500">
-                                    Selecione o funcionário/mecânico acima para habilitar a assinatura digital no celular/tablet (ou deixe em branco para assinar no PDF impresso).
+                                    Selecione o funcionário/mecânico acima para habilitar a assinatura digital (ou deixe sem assinar para linha em branco no PDF).
                                 </div>
                             )}
                         </div>
 
                         {/* Card Supervisor / Gerente / Encarregado */}
-                        <div className="p-4 border border-gray-800 rounded-xl bg-gray-950/90 space-y-3">
-                            <Field label="Assinatura / Supervisor">
+                        <div className="p-4 border border-gray-800 rounded-xl bg-gray-950/90 flex flex-col gap-3">
+                            <div className="space-y-1.5">
+                                <div className="flex items-center justify-between gap-2">
+                                    <Label className="text-xs text-gray-300 font-semibold uppercase tracking-wide">
+                                        2. Assinatura / Supervisor
+                                    </Label>
+                                    {formData.supervisorSignature?.startsWith('data:image/') ? (
+                                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                                            Assinado
+                                        </span>
+                                    ) : (
+                                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-gray-800 text-gray-400 border border-gray-700">
+                                            Opcional
+                                        </span>
+                                    )}
+                                </div>
                                 <SearchableSelect
                                     value={formData.supervisorId || ''}
                                     fallbackLabel={formData.supervisorName || undefined}
@@ -3219,7 +3248,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                     searchPlaceholder="Buscar por nome ou cargo..."
                                     emptyText="Nenhum responsável encontrado."
                                 />
-                            </Field>
+                            </div>
 
                             {(formData.supervisorId || formData.supervisorName || formData.supervisorSignature?.startsWith('data:image/')) ? (
                                 formData.supervisorSignature?.startsWith('data:image/') && !showResignSup ? (
@@ -3266,16 +3295,17 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="space-y-2 pt-1">
+                                    <div className="space-y-2.5 p-3 rounded-lg bg-black/50 border border-gray-800">
                                         <div className="flex items-center justify-between text-[11px] text-gray-400">
-                                            <span className="flex items-center gap-1.5 text-purple-300 font-medium">
-                                                <PenLine className="h-3.5 w-3.5" /> Assinatura Digital ({formData.supervisorName || 'Supervisor'})
+                                            <span className="flex items-center gap-1.5 text-purple-300 font-medium truncate">
+                                                <PenLine className="h-3.5 w-3.5 shrink-0" />
+                                                <span className="truncate">Assinatura Digital — {formData.supervisorName || 'Supervisor'}</span>
                                             </span>
                                             {showResignSup && (
                                                 <button
                                                     type="button"
                                                     onClick={() => setShowResignSup(false)}
-                                                    className="text-xs text-gray-400 hover:text-white underline"
+                                                    className="text-xs text-gray-400 hover:text-white underline shrink-0 ml-2"
                                                 >
                                                     Cancelar
                                                 </button>
@@ -3297,8 +3327,8 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                                 setFormData(p => ({ ...p, supervisorSignature: '', supervisorSignatureDate: undefined }));
                                             }}
                                         />
-                                        <p className="text-[10px] text-gray-500">
-                                            Opcional: assine com o dedo no celular/tablet e confirme. Sem assinatura digital, o PDF manterá a linha em branco para assinatura manual.
+                                        <p className="text-[10px] text-gray-500 leading-relaxed">
+                                            Opcional: assine com o dedo no celular/tablet e clique em Confirmar. Se não assinar, a linha sairá em branco no PDF.
                                         </p>
                                     </div>
                                 )
@@ -3571,8 +3601,8 @@ const Section: React.FC<{ id?: string; title: string; icon?: React.ReactNode; ac
 );
 
 const Field: React.FC<{ label: string; children: React.ReactNode; className?: string }> = ({ label, children, className }) => (
-    <div className={`flex flex-col justify-end space-y-1.5 h-full ${className || ''}`}>
-        <Label className="text-xs text-gray-400 uppercase tracking-wide leading-tight">{label}</Label>
+    <div className={`space-y-1.5 ${className || ''}`}>
+        <Label className="text-xs text-gray-400 uppercase tracking-wide leading-tight block">{label}</Label>
         {children}
     </div>
 );
