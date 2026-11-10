@@ -1567,8 +1567,6 @@ const Frota: React.FC = () => {
                   fuelRecords={fuelRecords || []}
                   veiculos={veiculosComponent}
                   onRefresh={refetchFuelRecords}
-                  activeSubTab="lancamentos"
-                  onSubTabChange={() => {}}
                 />
               </TabsContent>
             </Tabs>

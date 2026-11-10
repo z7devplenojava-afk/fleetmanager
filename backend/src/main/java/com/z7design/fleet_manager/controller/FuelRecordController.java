@@ -321,6 +321,46 @@ public class FuelRecordController {
                             "VeÃ­culo nÃ£o encontrado com ID: " + createFuelRecordDTO.getVehicleId()));
             log.info("VeÃ­culo encontrado: {}", vehicle.getId());
 
+            // Bloquear importação duplicada da mesma Nota Fiscal (por Chave de Acesso de 44 dígitos ou Nº NF + Posto/CNPJ)
+            String incomingNotes = createFuelRecordDTO.getNotes();
+            if (incomingNotes != null && !incomingNotes.isBlank()) {
+                java.util.regex.Matcher keyMatcher = java.util.regex.Pattern.compile("Chave:\\s*(\\d{44})").matcher(incomingNotes);
+                if (keyMatcher.find()) {
+                    String accessKey = keyMatcher.group(1);
+                    List<FuelRecord> existingByKey = fuelRecordRepository.findByNotesContainingIgnoreCase(accessKey);
+                    if (!existingByKey.isEmpty()) {
+                        throw new com.z7design.fleet_manager.exception.BusinessException(
+                                "Esta Nota Fiscal (Chave " + accessKey + ") já foi importada anteriormente no Controle de Abastecimento.");
+                    }
+                }
+                java.util.regex.Matcher nfMatcher = java.util.regex.Pattern.compile("(?i)(?:NF|NOTA|NFE)[:\\s#-]*0*(\\d+)").matcher(incomingNotes);
+                if (nfMatcher.find()) {
+                    String nfClean = nfMatcher.group(1);
+                    String incomingStation = createFuelRecordDTO.getStation() != null ? createFuelRecordDTO.getStation().trim() : "";
+                    java.util.regex.Matcher cnpjMatcher = java.util.regex.Pattern.compile("CNPJ:\\s*([\\d./-]+)").matcher(incomingNotes);
+                    String incomingCnpjDigits = cnpjMatcher.find() ? cnpjMatcher.group(1).replaceAll("\\D", "") : "";
+                    String incomingCnpjRoot = incomingCnpjDigits.length() >= 8 ? incomingCnpjDigits.substring(0, 8) : "";
+
+                    List<FuelRecord> existingByNf = fuelRecordRepository.findByNotesContainingIgnoreCase(nfClean);
+                    java.util.regex.Pattern frNfPattern = java.util.regex.Pattern.compile("(?i)(?:NF|NOTA|NFE)[:\\s#-]*0*" + java.util.regex.Pattern.quote(nfClean) + "(?!\\d)");
+                    for (FuelRecord fr : existingByNf) {
+                        String frNotes = fr.getNotes() != null ? fr.getNotes() : "";
+                        java.util.regex.Matcher frNfMatcher = frNfPattern.matcher(frNotes);
+                        if (frNfMatcher.find()) {
+                            String frDigits = frNotes.replaceAll("\\D", "");
+                            boolean sameCnpj = !incomingCnpjDigits.isEmpty() && (frDigits.contains(incomingCnpjDigits)
+                                    || (!incomingCnpjRoot.isEmpty() && frDigits.contains(incomingCnpjRoot)));
+                            boolean sameStation = !incomingStation.isEmpty() && fr.getStation() != null
+                                    && fr.getStation().trim().equalsIgnoreCase(incomingStation);
+                            if (sameCnpj || sameStation) {
+                                throw new com.z7design.fleet_manager.exception.BusinessException(
+                                        "A Nota Fiscal nº " + nfClean + " do fornecedor " + (incomingStation.isEmpty() ? "informado" : incomingStation) + " já foi importada anteriormente.");
+                            }
+                        }
+                    }
+                }
+            }
+
             Driver driver = null;
             if (createFuelRecordDTO.getDriverId() != null) {
                 driver = driverRepository.findById(createFuelRecordDTO.getDriverId())

@@ -1,7 +1,28 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="dark">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      (function () {
+        try {
+          var root = document.documentElement;
+          var saved = localStorage.getItem('theme');
+          var resolved = 'dark';
+          if (saved === 'white' || saved === 'graphite' || saved === 'dark') {
+            resolved = saved;
+          } else if (saved === 'system') {
+            resolved = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'white';
+          } else {
+            localStorage.setItem('theme', 'dark');
+          }
+          root.classList.remove('dark', 'graphite', 'white');
+          root.classList.add(resolved);
+          if (resolved === 'graphite') {
+            root.classList.add('dark');
+          }
+        } catch (_) {}
+      })();
+    </script>
     <script>
       (function () {
         function extractMessage(val) {

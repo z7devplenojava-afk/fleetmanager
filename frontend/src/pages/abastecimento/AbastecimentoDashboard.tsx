@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Fuel, Plus, Droplets, RefreshCw, Layers, Gauge, ShoppingCart, Settings, BarChart3, MapPin, Sparkles, Building2, LayoutDashboard, Receipt } from 'lucide-react';
+import { Fuel, Plus, Droplets, RefreshCw, Layers, Gauge, ShoppingCart, Settings, BarChart3, MapPin, Sparkles, Building2, LayoutDashboard, Receipt, Upload } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import fleetService from '@/services/fleetService';
 import { FuelConsumptionStats } from '@/components/frota/FuelConsumptionStats';
@@ -20,12 +20,14 @@ import { FuelReadingManagement } from '@/components/abastecimento/FuelReadingMan
 import FuelReportsDashboard from '@/components/frota/FuelReportsDashboard';
 import EfficiencyAlerts from '@/components/frota/EfficiencyAlerts';
 import AbastecimentoExternoFormModal from '@/components/frota/AbastecimentoExternoFormModal';
+import AbastecimentoExternoBatchImportModal from '@/components/frota/AbastecimentoExternoBatchImportModal';
 import AbastecimentoExternoReport, { AbastExternoSubTab } from '@/components/frota/AbastecimentoExternoReport';
 import { FuelExpensesTab } from '@/components/abastecimento/FuelExpensesTab';
 
 const AbastecimentoDashboard: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isExternoModalOpen, setIsExternoModalOpen] = useState(false);
+    const [isExternoBatchModalOpen, setIsExternoBatchModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState('dashboard-geral');
     const [externoSubTab, setExternoSubTab] = useState<AbastExternoSubTab>('lancamentos');
     const queryClient = useQueryClient();
@@ -64,11 +66,11 @@ const AbastecimentoDashboard: React.FC = () => {
                         <TabsTrigger value="dashboard-geral" className="shrink-0 whitespace-nowrap px-3.5 py-2 text-xs sm:text-sm text-seguranca-lightgray rounded-lg data-[state='active']:bg-seguranca-red data-[state='active']:text-white">
                             <LayoutDashboard size={16} className="mr-2 shrink-0" /> Dashboard Geral
                         </TabsTrigger>
-                        <TabsTrigger value="interno" className="shrink-0 whitespace-nowrap px-3.5 py-2 text-xs sm:text-sm text-seguranca-lightgray rounded-lg data-[state='active']:bg-blue-600 data-[state='active']:text-white">
-                            <Building2 size={16} className="mr-2 shrink-0" /> Abastecimento Interno
-                        </TabsTrigger>
                         <TabsTrigger value="vehicles" className="shrink-0 whitespace-nowrap px-3.5 py-2 text-xs sm:text-sm text-seguranca-lightgray rounded-lg data-[state='active']:bg-seguranca-red data-[state='active']:text-white">
                             <Fuel size={16} className="mr-2 shrink-0" /> Veículos
+                        </TabsTrigger>
+                        <TabsTrigger value="interno" className="shrink-0 whitespace-nowrap px-3.5 py-2 text-xs sm:text-sm text-seguranca-lightgray rounded-lg data-[state='active']:bg-blue-600 data-[state='active']:text-white">
+                            <Building2 size={16} className="mr-2 shrink-0" /> Abastecimento Interno
                         </TabsTrigger>
                         <TabsTrigger value="externo" className="shrink-0 whitespace-nowrap px-3.5 py-2 text-xs sm:text-sm text-seguranca-lightgray rounded-lg data-[state='active']:bg-green-600 data-[state='active']:text-white">
                             <MapPin size={16} className="mr-2 shrink-0" /> Abast. Externo
@@ -206,7 +208,15 @@ const AbastecimentoDashboard: React.FC = () => {
                                     Registros de abastecimento realizados em postos externos, com vínculo ao cliente e contrato.
                                 </p>
                             </div>
-                            <div className="flex items-center gap-2.5 w-full md:w-auto">
+                            <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setExternoSubTab('fornecedores')}
+                                    className="flex-1 md:flex-none border-emerald-500/50 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-950/30 font-semibold text-xs h-9 shadow-sm"
+                                >
+                                    <Building2 size={16} className="mr-2 text-emerald-400" />
+                                    Por Fornecedor
+                                </Button>
                                 <Button
                                     variant="outline"
                                     onClick={() => setExternoSubTab('relatorio-inteligente')}
@@ -216,8 +226,15 @@ const AbastecimentoDashboard: React.FC = () => {
                                     Relatório Inteligente
                                 </Button>
                                 <Button
+                                    onClick={() => setIsExternoBatchModalOpen(true)}
+                                    className="flex-1 md:flex-none bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-900/20 text-xs h-9 font-semibold"
+                                >
+                                    <Upload size={16} className="mr-2" />
+                                    Importar Notas em Lote (XML/PDF)
+                                </Button>
+                                <Button
                                     onClick={() => setIsExternoModalOpen(true)}
-                                    className="flex-1 md:flex-none bg-green-600 hover:bg-green-700 shadow-lg shadow-green-900/20 text-xs h-9 font-semibold"
+                                    className="flex-1 md:flex-none bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-900/20 text-xs h-9 font-semibold"
                                 >
                                     <Plus size={18} className="mr-2" />
                                     Novo Abastecimento Externo
@@ -266,6 +283,15 @@ const AbastecimentoDashboard: React.FC = () => {
               <AbastecimentoExternoFormModal
                   isOpen={isExternoModalOpen}
                   onClose={() => setIsExternoModalOpen(false)}
+                  onSuccess={handleSuccess}
+                  veiculos={vehicles}
+              />
+            )}
+
+            {isExternoBatchModalOpen && (
+              <AbastecimentoExternoBatchImportModal
+                  isOpen={isExternoBatchModalOpen}
+                  onClose={() => setIsExternoBatchModalOpen(false)}
                   onSuccess={handleSuccess}
                   veiculos={vehicles}
               />

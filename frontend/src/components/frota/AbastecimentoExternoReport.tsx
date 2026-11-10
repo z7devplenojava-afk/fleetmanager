@@ -21,13 +21,14 @@ import {
   ArrowUp, ArrowDown, FileText, Gauge, Droplets, Truck, Printer,
   Sparkles, Download, Eye, Search, Filter, RefreshCw, Layers,
   BarChart3, AlertTriangle, Lightbulb, ChevronRight, ChevronLeft,
-  X, CheckCircle2, ChevronDown, Award, Edit, Trash2
+  X, CheckCircle2, ChevronDown, Award, Edit, Trash2, Upload
 } from 'lucide-react';
 import { FuelRecord, Vehicle } from '@/types/fleet';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { resolveCompanyLogoUrl } from '@/utils/logoUtils';
 import AbastecimentoExternoFormModal from '@/components/frota/AbastecimentoExternoFormModal';
+import AbastecimentoExternoBatchImportModal from '@/components/frota/AbastecimentoExternoBatchImportModal';
 import AbastecimentoDeleteDialog from '@/components/frota/AbastecimentoDeleteDialog';
 import {
   downloadAbastecimentoExternoPDF,
@@ -35,7 +36,29 @@ import {
   AbastecimentoExternoPDFOptions,
 } from '@/utils/abastecimentoExternoPDFGenerator';
 
-export type AbastExternoSubTab = 'lancamentos' | 'indicadores' | 'relatorio-inteligente';
+export type AbastExternoSubTab = 'lancamentos' | 'fornecedores' | 'indicadores' | 'relatorio-inteligente';
+
+function extractInvoiceMeta(r: FuelRecord) {
+  const notes = r.notes || '';
+  const nfMatch = notes.match(/NF:\s*([^|\n]+)/i);
+  const origMatch = notes.match(/Origem:\s*([^|\n]+)/i);
+  const cnpjMatch = notes.match(/CNPJ:\s*([^|\n]+)/i);
+  const compMatch = notes.match(/Competência:\s*([^|\n]+)/i);
+  const invoiceNumber = (r as any).invoiceNumber || (nfMatch ? nfMatch[1].trim() : '');
+  const origin = origMatch ? origMatch[1].trim() : invoiceNumber ? 'Importado NF' : 'Manual';
+  const isImported =
+    origin.toLowerCase().includes('lote') ||
+    origin.toLowerCase().includes('xml') ||
+    origin.toLowerCase().includes('pdf') ||
+    Boolean(nfMatch);
+  const cnpj = cnpjMatch ? cnpjMatch[1].trim() : '';
+  const competence = compMatch
+    ? compMatch[1].trim()
+    : r.date && r.date.length >= 7
+    ? `${r.date.slice(5, 7)}/${r.date.slice(0, 4)}`
+    : '';
+  return { invoiceNumber, origin, isImported, cnpj, competence };
+}
 
 interface AbastecimentoExternoReportProps {
   fuelRecords: FuelRecord[];
@@ -105,11 +128,13 @@ const AbastecimentoExternoReport: React.FC<AbastecimentoExternoReportProps> = ({
   // Modal de Detalhes de Lançamento
   const [selectedRecordForDetail, setSelectedRecordForDetail] = useState<FuelRecord | null>(null);
 
-  // Ações (Editar / Excluir)
+  // Ações (Editar / Excluir / Importar Lote / Expandir Fornecedor)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<FuelRecord | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deletingRecord, setDeletingRecord] = useState<FuelRecord | null>(null);
+  const [isBatchImportOpen, setIsBatchImportOpen] = useState(false);
+  const [expandedSupplier, setExpandedSupplier] = useState<string | null>(null);
 
   const handleEditRecord = (r: FuelRecord) => {
     setEditingRecord(r);
@@ -125,12 +150,22 @@ const AbastecimentoExternoReport: React.FC<AbastecimentoExternoReportProps> = ({
   const [selectedReportType, setSelectedReportType] = useState<ReportPdfType>('executive');
   const [generatingPdf, setGeneratingPdf] = useState(false);
 
-  // Filtragem de registros externos
+  // Filtragem de registros externos (manuais e notas importadas em lote)
   const externalRecords = useMemo(() => {
     return fuelRecords.filter(r => {
       const hasClient = !!(r.clientName || r.contractNumber || r.obraName);
-      const hasNotes = r.notes?.toLowerCase().includes('externo') || r.notes?.toLowerCase().includes('posto');
-      return hasClient || hasNotes;
+      const notesLower = (r.notes || '').toLowerCase();
+      const hasNotes =
+        notesLower.includes('externo') ||
+        notesLower.includes('posto') ||
+        notesLower.includes('nf:') ||
+        notesLower.includes('lote');
+      const hasStation = !!(
+        r.station &&
+        !notesLower.includes('abastecimento interno') &&
+        !notesLower.includes('tanque interno')
+      );
+      return hasClient || hasNotes || Boolean((r as any).isExternal) || hasStation;
     });
   }, [fuelRecords]);
 
@@ -275,14 +310,43 @@ const AbastecimentoExternoReport: React.FC<AbastecimentoExternoReportProps> = ({
   }, [filteredRecords]);
 
   const stationSummary = useMemo(() => {
-    const map = new Map<string, { count: number; cost: number; liters: number; vehicles: Set<string> }>();
+    const map = new Map<
+      string,
+      {
+        count: number;
+        importedCount: number;
+        manualCount: number;
+        cost: number;
+        liters: number;
+        vehicles: Set<string>;
+        cnpjs: Set<string>;
+        competences: Set<string>;
+        records: FuelRecord[];
+      }
+    >();
     filteredRecords.forEach(r => {
       const key = r.station || 'Não Informado';
-      const cur = map.get(key) || { count: 0, cost: 0, liters: 0, vehicles: new Set<string>() };
+      const cur = map.get(key) || {
+        count: 0,
+        importedCount: 0,
+        manualCount: 0,
+        cost: 0,
+        liters: 0,
+        vehicles: new Set<string>(),
+        cnpjs: new Set<string>(),
+        competences: new Set<string>(),
+        records: [],
+      };
+      const meta = extractInvoiceMeta(r);
       cur.count += 1;
+      if (meta.isImported) cur.importedCount += 1;
+      else cur.manualCount += 1;
       cur.cost += r.cost || 0;
       cur.liters += r.quantity || 0;
       if (r.vehiclePlate) cur.vehicles.add(r.vehiclePlate);
+      if (meta.cnpj) cur.cnpjs.add(meta.cnpj);
+      if (meta.competence) cur.competences.add(meta.competence);
+      cur.records.push(r);
       map.set(key, cur);
     });
 
@@ -290,10 +354,15 @@ const AbastecimentoExternoReport: React.FC<AbastecimentoExternoReportProps> = ({
       .map(([station, data]) => ({
         station,
         count: data.count,
+        importedCount: data.importedCount,
+        manualCount: data.manualCount,
         cost: data.cost,
         liters: data.liters,
         avgPricePerLiter: data.liters > 0 ? data.cost / data.liters : 0,
         vehicles: Array.from(data.vehicles).join(', ') || '—',
+        cnpj: Array.from(data.cnpjs)[0] || '',
+        competences: Array.from(data.competences).join(', ') || '—',
+        records: data.records,
       }))
       .sort((a, b) => b.cost - a.cost);
   }, [filteredRecords]);
@@ -621,40 +690,51 @@ const AbastecimentoExternoReport: React.FC<AbastecimentoExternoReportProps> = ({
   return (
     <div className="space-y-6">
       {/* BARRA DE NAVEGAÇÃO POR SUB-ABAS (FLUIDA, CLEAN E RESPONSIVA) */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-zinc-950/80 p-2 rounded-2xl border border-zinc-800 backdrop-blur-md shadow-lg">
-        <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full sm:w-auto">
-          <TabsList className="grid grid-cols-3 w-full sm:w-[500px] h-11 bg-zinc-900/80 border border-zinc-700/60 p-1 rounded-xl">
+      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-zinc-950/80 p-2 rounded-2xl border border-zinc-800 backdrop-blur-md shadow-lg">
+        <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full lg:w-auto">
+          <TabsList className="grid grid-cols-2 sm:grid-cols-4 w-full lg:w-[680px] h-auto sm:h-11 bg-zinc-900/80 border border-zinc-700/60 p-1 rounded-xl gap-1">
             <TabsTrigger
               value="lancamentos"
-              className="flex items-center justify-center gap-2 text-xs font-semibold text-zinc-400 data-[state=active]:bg-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-lg transition-all"
+              className="flex items-center justify-center gap-1.5 text-xs font-semibold text-zinc-400 data-[state=active]:bg-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-lg py-2 transition-all"
             >
-              <FileText className="w-3.5 h-3.5" />
-              <span>Lançamentos</span>
+              <FileText className="w-3.5 h-3.5 shrink-0" />
+              <span>Lista Geral</span>
               <span className="hidden md:inline-block px-1.5 py-0.2 text-[10px] bg-black/40 rounded-full font-mono">
                 {filteredRecords.length}
               </span>
             </TabsTrigger>
 
             <TabsTrigger
-              value="indicadores"
-              className="flex items-center justify-center gap-2 text-xs font-semibold text-zinc-400 data-[state=active]:bg-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-lg transition-all"
+              value="fornecedores"
+              className="flex items-center justify-center gap-1.5 text-xs font-semibold text-zinc-400 data-[state=active]:bg-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-lg py-2 transition-all"
             >
-              <BarChart3 className="w-3.5 h-3.5" />
+              <Building2 className="w-3.5 h-3.5 shrink-0" />
+              <span>Por Fornecedor</span>
+              <span className="hidden md:inline-block px-1.5 py-0.2 text-[10px] bg-black/40 rounded-full font-mono">
+                {stationSummary.length}
+              </span>
+            </TabsTrigger>
+
+            <TabsTrigger
+              value="indicadores"
+              className="flex items-center justify-center gap-1.5 text-xs font-semibold text-zinc-400 data-[state=active]:bg-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-lg py-2 transition-all"
+            >
+              <BarChart3 className="w-3.5 h-3.5 shrink-0" />
               <span>Gráficos & KPIs</span>
             </TabsTrigger>
 
             <TabsTrigger
               value="relatorio-inteligente"
-              className="flex items-center justify-center gap-2 text-xs font-semibold text-zinc-400 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-emerald-500 data-[state=active]:text-zinc-950 data-[state=active]:font-black rounded-lg transition-all shadow-md"
+              className="flex items-center justify-center gap-1.5 text-xs font-semibold text-zinc-400 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-emerald-500 data-[state=active]:text-zinc-950 data-[state=active]:font-black rounded-lg py-2 transition-all shadow-md"
             >
-              <Sparkles className="w-3.5 h-3.5" />
+              <Sparkles className="w-3.5 h-3.5 shrink-0" />
               <span>Relatório Inteligente</span>
             </TabsTrigger>
           </TabsList>
         </Tabs>
 
         {/* Ações Rápidas no Header */}
-        <div className="flex items-center gap-2 justify-end">
+        <div className="flex flex-wrap items-center gap-2 justify-end">
           <Button
             variant="outline"
             size="sm"
@@ -929,101 +1009,125 @@ const AbastecimentoExternoReport: React.FC<AbastecimentoExternoReportProps> = ({
                         Data {sortDir === 'desc' ? <ArrowDown className="h-3 w-3 text-emerald-400" /> : <ArrowUp className="h-3 w-3 text-emerald-400" />}
                       </button>
                     </TableHead>
+                    <TableHead className="text-zinc-400 text-xs py-3">Nota Fiscal / Origem</TableHead>
                     <TableHead className="text-zinc-400 text-xs py-3">Veículo</TableHead>
+                    <TableHead className="text-zinc-400 text-xs py-3">Posto / Fornecedor</TableHead>
                     <TableHead className="text-zinc-400 text-xs py-3">Cliente / Obra</TableHead>
                     <TableHead className="text-zinc-400 text-xs py-3">Combustível</TableHead>
                     <TableHead className="text-zinc-400 text-xs py-3 text-right">Litros</TableHead>
                     <TableHead className="text-zinc-400 text-xs py-3 text-right">R$ / L</TableHead>
                     <TableHead className="text-zinc-400 text-xs py-3 text-right">Total</TableHead>
                     <TableHead className="text-zinc-400 text-xs py-3 text-right">Odômetro</TableHead>
-                    <TableHead className="text-zinc-400 text-xs py-3">Posto</TableHead>
                     <TableHead className="text-zinc-400 text-xs py-3 text-center">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {paginatedRecords.length > 0 ? (
-                    paginatedRecords.map(r => (
-                      <TableRow
-                        key={r.id}
-                        className="border-zinc-800/60 hover:bg-zinc-800/40 transition-colors group cursor-pointer"
-                        onClick={() => setSelectedRecordForDetail(r)}
-                      >
-                        <TableCell className="text-zinc-300 text-xs whitespace-nowrap font-medium">
-                          {new Date(r.date + 'T12:00:00').toLocaleDateString('pt-BR')}
-                        </TableCell>
-                        <TableCell className="text-zinc-100 text-xs">
-                          <span className="px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700 font-mono font-bold tracking-wider text-emerald-400">
-                            {r.vehiclePlate}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-zinc-300 text-xs max-w-[200px] truncate">
-                          <div className="font-medium text-zinc-200">{r.clientName || '—'}</div>
-                          {r.obraName && <div className="text-[11px] text-zinc-500 truncate">{r.obraName}</div>}
-                        </TableCell>
-                        <TableCell className="text-xs">
-                          <span
-                            className="px-2 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center gap-1"
-                            style={{
-                              backgroundColor: (FUEL_COLORS[r.fuelType] || '#6b7280') + '25',
-                              color: FUEL_COLORS[r.fuelType] || '#9ca3af',
-                              border: `1px solid ${(FUEL_COLORS[r.fuelType] || '#6b7280')}50`,
-                            }}
-                          >
-                            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: FUEL_COLORS[r.fuelType] || '#9ca3af' }} />
-                            {r.fuelType === 'DIESEL' ? 'Diesel' : r.fuelType === 'GASOLINE' ? 'Gasolina' : r.fuelType === 'ETHANOL' ? 'Etanol' : 'Flex'}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-zinc-300 text-xs text-right font-mono">
-                          {r.quantity.toLocaleString('pt-BR', { minimumFractionDigits: 1 })} L
-                        </TableCell>
-                        <TableCell className="text-zinc-400 text-xs text-right font-mono">
-                          {(r.pricePerLiter || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </TableCell>
-                        <TableCell className="text-emerald-400 text-xs font-bold text-right font-mono">
-                          {formatCurrency(r.cost)}
-                        </TableCell>
-                        <TableCell className="text-zinc-400 text-xs text-right font-mono">
-                          {r.mileage ? `${r.mileage.toLocaleString('pt-BR')} km` : '—'}
-                        </TableCell>
-                        <TableCell className="text-zinc-300 text-xs max-w-[180px] truncate">
-                          {r.station || '—'}
-                        </TableCell>
-                        <TableCell className="text-center" onClick={e => e.stopPropagation()}>
-                          <div className="flex items-center justify-center gap-1">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setSelectedRecordForDetail(r)}
-                              className="h-7 w-7 p-0 border-emerald-500 text-emerald-400 hover:bg-emerald-500 hover:text-white"
-                              title="Visualizar detalhes"
+                    paginatedRecords.map(r => {
+                      const meta = extractInvoiceMeta(r);
+                      return (
+                        <TableRow
+                          key={r.id}
+                          className="border-zinc-800/60 hover:bg-zinc-800/40 transition-colors group cursor-pointer"
+                          onClick={() => setSelectedRecordForDetail(r)}
+                        >
+                          <TableCell className="text-zinc-300 text-xs whitespace-nowrap font-medium">
+                            {new Date(r.date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                            {meta.competence && (
+                              <div className="text-[10px] text-zinc-500 font-mono">Comp: {meta.competence}</div>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-xs whitespace-nowrap">
+                            {meta.invoiceNumber ? (
+                              <div className="flex flex-col gap-0.5">
+                                <span className="font-mono font-bold text-zinc-100">
+                                  NF {meta.invoiceNumber}
+                                </span>
+                                <Badge className="bg-blue-600 text-white text-[10px] px-1.5 py-0 h-4 w-fit">
+                                  {meta.origin}
+                                </Badge>
+                              </div>
+                            ) : (
+                              <Badge variant="outline" className="border-zinc-700 text-zinc-400 text-[10px] px-1.5 py-0 h-4">
+                                Manual
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-zinc-100 text-xs">
+                            <span className="px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700 font-mono font-bold tracking-wider text-emerald-400">
+                              {r.vehiclePlate}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-zinc-300 text-xs max-w-[190px] truncate">
+                            <div className="font-semibold text-zinc-200 truncate">{r.station || '—'}</div>
+                            {meta.cnpj && <div className="text-[10px] text-zinc-500 font-mono truncate">{meta.cnpj}</div>}
+                          </TableCell>
+                          <TableCell className="text-zinc-300 text-xs max-w-[180px] truncate">
+                            <div className="font-medium text-zinc-200">{r.clientName || '—'}</div>
+                            {r.obraName && <div className="text-[11px] text-zinc-500 truncate">{r.obraName}</div>}
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            <span
+                              className="px-2 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center gap-1"
+                              style={{
+                                backgroundColor: (FUEL_COLORS[r.fuelType] || '#6b7280') + '25',
+                                color: FUEL_COLORS[r.fuelType] || '#9ca3af',
+                                border: `1px solid ${(FUEL_COLORS[r.fuelType] || '#6b7280')}50`,
+                              }}
                             >
-                              <Eye className="w-3.5 h-3.5" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleEditRecord(r)}
-                              className="h-7 w-7 p-0 border-amber-500 text-amber-400 hover:bg-amber-500 hover:text-white"
-                              title="Editar"
-                            >
-                              <Edit className="w-3.5 h-3.5" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDeleteRecord(r)}
-                              className="h-7 w-7 p-0 border-red-500 text-red-400 hover:bg-red-500 hover:text-white"
-                              title="Excluir"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                              <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: FUEL_COLORS[r.fuelType] || '#9ca3af' }} />
+                              {r.fuelType === 'DIESEL' ? 'Diesel' : r.fuelType === 'GASOLINE' ? 'Gasolina' : r.fuelType === 'ETHANOL' ? 'Etanol' : 'Flex'}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-zinc-300 text-xs text-right font-mono">
+                            {r.quantity.toLocaleString('pt-BR', { minimumFractionDigits: 1 })} L
+                          </TableCell>
+                          <TableCell className="text-zinc-400 text-xs text-right font-mono">
+                            {(r.pricePerLiter || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </TableCell>
+                          <TableCell className="text-emerald-400 text-xs font-bold text-right font-mono">
+                            {formatCurrency(r.cost)}
+                          </TableCell>
+                          <TableCell className="text-zinc-400 text-xs text-right font-mono">
+                            {r.mileage ? `${r.mileage.toLocaleString('pt-BR')} km` : '—'}
+                          </TableCell>
+                          <TableCell className="text-center" onClick={e => e.stopPropagation()}>
+                            <div className="flex items-center justify-center gap-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setSelectedRecordForDetail(r)}
+                                className="h-7 w-7 p-0 border-emerald-500 text-emerald-400 hover:bg-emerald-500 hover:text-white"
+                                title="Visualizar detalhes"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEditRecord(r)}
+                                className="h-7 w-7 p-0 border-amber-500 text-amber-400 hover:bg-amber-500 hover:text-white"
+                                title="Editar"
+                              >
+                                <Edit className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDeleteRecord(r)}
+                                className="h-7 w-7 p-0 border-red-500 text-red-400 hover:bg-red-500 hover:text-white"
+                                title="Excluir"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={10} className="text-center text-zinc-500 py-12">
+                      <TableCell colSpan={11} className="text-center text-zinc-500 py-12">
                         <Fuel className="w-8 h-8 mx-auto mb-2 text-zinc-600 opacity-40" />
                         <p className="text-sm">Nenhum abastecimento externo encontrado para os filtros selecionados.</p>
                       </TableCell>
@@ -1067,6 +1171,228 @@ const AbastecimentoExternoReport: React.FC<AbastecimentoExternoReportProps> = ({
                 </div>
               </div>
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ========================================================================= */}
+      {/* ABA 1.5: 🏢 POR FORNECEDOR (FECHAMENTO E TOTAIS POR POSTO)                */}
+      {/* ========================================================================= */}
+      {currentTab === 'fornecedores' && (
+        <Card className="bg-zinc-900/60 border-zinc-800 rounded-2xl shadow-xl overflow-hidden backdrop-blur-md">
+          <CardHeader className="p-4 border-b border-zinc-800 bg-zinc-950/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <CardTitle className="text-sm font-bold text-zinc-100 flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-emerald-400" />
+                Fechamento e Totais por Fornecedor de Abastecimento Externo
+              </CardTitle>
+              <p className="text-xs text-zinc-400 mt-0.5">
+                Consolidação de todas as notas fiscais importadas em lote e lançamentos manuais agrupados por posto/fornecedor. Clique em um fornecedor para listar cada nota individualmente.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => setIsBatchImportOpen(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-9 font-semibold shrink-0"
+            >
+              <Upload className="h-3.5 w-3.5 mr-1.5" />
+              Importar Notas em Lote (XML/PDF)
+            </Button>
+          </CardHeader>
+
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader className="bg-zinc-950/60">
+                  <TableRow className="border-zinc-800 hover:bg-transparent">
+                    <TableHead className="text-zinc-400 text-xs py-3">Fornecedor / Posto de Gasolina</TableHead>
+                    <TableHead className="text-zinc-400 text-xs py-3">Competência(s)</TableHead>
+                    <TableHead className="text-zinc-400 text-xs py-3 text-center">Qtd. Notas / Lançamentos</TableHead>
+                    <TableHead className="text-zinc-400 text-xs py-3">Veículos Atendidos</TableHead>
+                    <TableHead className="text-zinc-400 text-xs py-3 text-right">Volume Total</TableHead>
+                    <TableHead className="text-zinc-400 text-xs py-3 text-right">Preço Médio / L</TableHead>
+                    <TableHead className="text-zinc-400 text-xs py-3 text-right">Total do Fornecedor</TableHead>
+                    <TableHead className="text-zinc-400 text-xs py-3 text-center">Notas</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {stationSummary.length > 0 ? (
+                    stationSummary.map((sup) => {
+                      const isExpanded = expandedSupplier === sup.station;
+                      return (
+                        <React.Fragment key={sup.station}>
+                          <TableRow
+                            className="border-zinc-800/60 hover:bg-zinc-800/40 transition-colors cursor-pointer"
+                            onClick={() => setExpandedSupplier(isExpanded ? null : sup.station)}
+                          >
+                            <TableCell className="text-xs py-3">
+                              <div className="font-bold text-zinc-100 flex items-center gap-2">
+                                <Building2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                                <span>{sup.station}</span>
+                              </div>
+                              {sup.cnpj && (
+                                <div className="text-[11px] text-zinc-400 font-mono ml-6">
+                                  CNPJ: {sup.cnpj}
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-xs text-zinc-300 font-mono">
+                              {sup.competences}
+                            </TableCell>
+                            <TableCell className="text-xs text-center">
+                              <div className="inline-flex items-center gap-1.5">
+                                <Badge className="bg-emerald-600 text-white font-mono text-xs">
+                                  {sup.count} {sup.count === 1 ? 'lançamento' : 'lançamentos'}
+                                </Badge>
+                                {sup.importedCount > 0 && (
+                                  <Badge className="bg-blue-600 text-white text-[10px]">
+                                    {sup.importedCount} NF(s)
+                                  </Badge>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-xs text-zinc-300 max-w-[200px] truncate font-mono">
+                              {sup.vehicles}
+                            </TableCell>
+                            <TableCell className="text-xs text-blue-400 font-bold text-right font-mono">
+                              {sup.liters.toLocaleString('pt-BR', { minimumFractionDigits: 1 })} L
+                            </TableCell>
+                            <TableCell className="text-xs text-zinc-300 text-right font-mono">
+                              R$ {sup.avgPricePerLiter.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 3 })}
+                            </TableCell>
+                            <TableCell className="text-sm text-emerald-400 font-extrabold text-right font-mono">
+                              {formatCurrency(sup.cost)}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs border-emerald-500/50 text-emerald-400 hover:bg-emerald-600 hover:text-white"
+                              >
+                                {isExpanded ? 'Ocultar Notas' : 'Ver Notas'}
+                                <ChevronDown
+                                  className={`ml-1 h-3.5 w-3.5 transition-transform ${
+                                    isExpanded ? 'rotate-180' : ''
+                                  }`}
+                                />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+
+                          {isExpanded && (
+                            <TableRow className="bg-zinc-950/60 border-zinc-800">
+                              <TableCell colSpan={8} className="p-4">
+                                <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 overflow-hidden">
+                                  <div className="px-4 py-2.5 bg-zinc-950/80 border-b border-zinc-800 flex items-center justify-between">
+                                    <span className="text-xs font-bold text-zinc-200 flex items-center gap-2">
+                                      <FileText className="h-3.5 w-3.5 text-emerald-400" />
+                                      Notas Fiscais e Lançamentos de {sup.station} ({sup.records.length})
+                                    </span>
+                                    <span className="text-xs font-mono font-bold text-emerald-400">
+                                      Total do Fornecedor: {formatCurrency(sup.cost)} ({sup.liters.toLocaleString('pt-BR', { minimumFractionDigits: 1 })} L)
+                                    </span>
+                                  </div>
+                                  <Table>
+                                    <TableHeader>
+                                      <TableRow className="border-zinc-800">
+                                        <TableHead className="text-[11px] py-2">Data</TableHead>
+                                        <TableHead className="text-[11px] py-2">Nº Nota Fiscal / Origem</TableHead>
+                                        <TableHead className="text-[11px] py-2">Veículo</TableHead>
+                                        <TableHead className="text-[11px] py-2">Cliente / Obra</TableHead>
+                                        <TableHead className="text-[11px] py-2">Combustível</TableHead>
+                                        <TableHead className="text-[11px] py-2 text-right">Litros</TableHead>
+                                        <TableHead className="text-[11px] py-2 text-right">R$ / L</TableHead>
+                                        <TableHead className="text-[11px] py-2 text-right">Valor da Nota</TableHead>
+                                        <TableHead className="text-[11px] py-2 text-center">Ações</TableHead>
+                                      </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                      {sup.records.map((rec) => {
+                                        const m = extractInvoiceMeta(rec);
+                                        return (
+                                          <TableRow key={rec.id} className="border-zinc-800/50">
+                                            <TableCell className="text-xs py-2 font-medium">
+                                              {new Date(rec.date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                                            </TableCell>
+                                            <TableCell className="text-xs py-2">
+                                              {m.invoiceNumber ? (
+                                                <div className="flex items-center gap-1.5">
+                                                  <span className="font-mono font-bold text-zinc-100">
+                                                    NF {m.invoiceNumber}
+                                                  </span>
+                                                  <Badge className="bg-blue-600 text-white text-[10px] px-1.5 py-0 h-4">
+                                                    {m.origin}
+                                                  </Badge>
+                                                </div>
+                                              ) : (
+                                                <Badge variant="outline" className="border-zinc-700 text-zinc-400 text-[10px]">
+                                                  Lançamento Manual
+                                                </Badge>
+                                              )}
+                                            </TableCell>
+                                            <TableCell className="text-xs py-2 font-mono font-bold text-emerald-400">
+                                              {rec.vehiclePlate}
+                                            </TableCell>
+                                            <TableCell className="text-xs py-2 text-zinc-300">
+                                              {rec.clientName || '—'}
+                                            </TableCell>
+                                            <TableCell className="text-xs py-2 text-zinc-300">
+                                              {rec.fuelType}
+                                            </TableCell>
+                                            <TableCell className="text-xs py-2 text-right font-mono">
+                                              {rec.quantity.toLocaleString('pt-BR', { minimumFractionDigits: 1 })} L
+                                            </TableCell>
+                                            <TableCell className="text-xs py-2 text-right font-mono">
+                                              R$ {(rec.pricePerLiter || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                            </TableCell>
+                                            <TableCell className="text-xs py-2 text-right font-mono font-bold text-emerald-400">
+                                              {formatCurrency(rec.cost)}
+                                            </TableCell>
+                                            <TableCell className="text-xs py-2 text-center">
+                                              <div className="flex items-center justify-center gap-1">
+                                                <Button
+                                                  variant="outline"
+                                                  size="sm"
+                                                  onClick={() => setSelectedRecordForDetail(rec)}
+                                                  className="h-6 w-6 p-0 border-emerald-500 text-emerald-400"
+                                                  title="Detalhes"
+                                                >
+                                                  <Eye className="w-3 h-3" />
+                                                </Button>
+                                                <Button
+                                                  variant="outline"
+                                                  size="sm"
+                                                  onClick={() => handleEditRecord(rec)}
+                                                  className="h-6 w-6 p-0 border-amber-500 text-amber-400"
+                                                  title="Editar"
+                                                >
+                                                  <Edit className="w-3 h-3" />
+                                                </Button>
+                                              </div>
+                                            </TableCell>
+                                          </TableRow>
+                                        );
+                                      })}
+                                    </TableBody>
+                                  </Table>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </React.Fragment>
+                      );
+                    })
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center text-zinc-500 py-12">
+                        <Building2 className="w-8 h-8 mx-auto mb-2 text-zinc-600 opacity-40" />
+                        <p className="text-sm">Nenhum fornecedor de abastecimento externo registrado no período.</p>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -1630,7 +1956,19 @@ const AbastecimentoExternoReport: React.FC<AbastecimentoExternoReportProps> = ({
         </div>
       )}
 
-      {/* MODAIS DE AÇÃO (Editar / Excluir) */}
+      {/* MODAIS DE AÇÃO (Importar em Lote / Editar / Excluir) */}
+      {isBatchImportOpen && (
+        <AbastecimentoExternoBatchImportModal
+          isOpen={isBatchImportOpen}
+          onClose={() => setIsBatchImportOpen(false)}
+          onSuccess={() => {
+            setIsBatchImportOpen(false);
+            onRefresh?.();
+          }}
+          veiculos={veiculos}
+        />
+      )}
+
       {isEditModalOpen && (
         <AbastecimentoExternoFormModal
           isOpen={isEditModalOpen}

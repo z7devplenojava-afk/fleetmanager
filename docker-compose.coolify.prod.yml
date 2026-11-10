@@ -65,6 +65,9 @@ services:
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD:-redispassword}
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
+      - UPLOAD_DIR=/var/www/fluxbus/uploads
+    volumes:
+      - uploads_prod_data:/var/www/fluxbus/uploads
     networks:
       - fluxbus_prod
     expose:
@@ -93,6 +96,7 @@ volumes:
   redis_prod_data:
   whatsapp_prod_data:
   whatsapp_prod_cache:
+  uploads_prod_data:
 
 networks:
   fluxbus_prod:

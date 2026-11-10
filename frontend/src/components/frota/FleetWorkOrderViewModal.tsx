@@ -23,6 +23,7 @@ interface FleetWorkOrderViewModalProps {
     onClose: () => void;
     order?: FleetWorkOrder | null;
     pdfBlob?: Blob | null;
+    initialBlankMode?: boolean;
 }
 
 export const FleetWorkOrderViewModal: React.FC<FleetWorkOrderViewModalProps> = ({
@@ -30,6 +31,7 @@ export const FleetWorkOrderViewModal: React.FC<FleetWorkOrderViewModalProps> = (
     onClose,
     order,
     pdfBlob: initialBlob,
+    initialBlankMode = false,
 }) => {
     const { toast } = useToast();
     const [pdfBlob, setPdfBlob] = useState<Blob | null>(initialBlob || null);
@@ -37,20 +39,22 @@ export const FleetWorkOrderViewModal: React.FC<FleetWorkOrderViewModalProps> = (
     const [isLoading, setIsLoading] = useState(false);
     const [zoom, setZoom] = useState(1);
     const [rotation, setRotation] = useState(0);
+    const [isBlankMode, setIsBlankMode] = useState(initialBlankMode);
 
     const osNumber = order?.osNumber || (order?.id ? order.id.slice(0, 8) : 'OS');
-    const fileName = `ordem-servico-${osNumber.replace(/[^a-zA-Z0-9-_]/g, '')}.pdf`;
+    const fileName = `ordem-servico-${osNumber.replace(/[^a-zA-Z0-9-_]/g, '')}${isBlankMode ? '-em-branco' : ''}.pdf`;
 
     // Carrega o Blob se não foi passado diretamente
     useEffect(() => {
         let isMounted = true;
 
         if (isOpen) {
+            setIsBlankMode(initialBlankMode);
             if (initialBlob) {
                 setPdfBlob(initialBlob);
             } else if (order?.id) {
                 setIsLoading(true);
-                generateFleetWorkOrderPDFBlob(order)
+                generateFleetWorkOrderPDFBlob(order, { blank: initialBlankMode })
                     .then(blob => {
                         if (isMounted) setPdfBlob(blob);
                     })
@@ -78,7 +82,7 @@ export const FleetWorkOrderViewModal: React.FC<FleetWorkOrderViewModalProps> = (
         return () => {
             isMounted = false;
         };
-    }, [isOpen, initialBlob, order?.id, toast]);
+    }, [isOpen, initialBlob, initialBlankMode, order?.id, toast]);
 
     // Cria e gerencia a URL do Blob
     useEffect(() => {
@@ -135,19 +139,30 @@ export const FleetWorkOrderViewModal: React.FC<FleetWorkOrderViewModalProps> = (
         }
     };
 
-    const handleReload = () => {
+    const handleReload = (overrideBlank?: boolean) => {
+        const targetBlank = overrideBlank !== undefined ? overrideBlank : isBlankMode;
         if (order?.id) {
             setIsLoading(true);
-            generateFleetWorkOrderPDFBlob(order)
+            generateFleetWorkOrderPDFBlob(order, { blank: targetBlank })
                 .then(blob => {
                     setPdfBlob(blob);
-                    toast({ title: 'PDF Atualizado', description: 'O documento foi regenerado com os dados mais recentes.' });
+                    toast({
+                        title: targetBlank ? 'PDF em Branco Gerado' : 'PDF Atualizado',
+                        description: targetBlank
+                            ? 'Campos do checklist em branco prontos para preenchimento manual.'
+                            : 'O documento foi regenerado com os dados mais recentes.'
+                    });
                 })
                 .catch(() => {
                     toast({ title: 'Erro', description: 'Falha ao recarregar PDF.', variant: 'destructive' });
                 })
                 .finally(() => setIsLoading(false));
         }
+    };
+
+    const handleSwitchMode = (blank: boolean) => {
+        setIsBlankMode(blank);
+        handleReload(blank);
     };
 
     const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.2, 2.5));
@@ -209,7 +224,7 @@ export const FleetWorkOrderViewModal: React.FC<FleetWorkOrderViewModalProps> = (
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={handleReload}
+                                onClick={() => handleReload()}
                                 disabled={isLoading}
                                 title="Recarregar PDF"
                                 className="text-gray-400 hover:text-white hover:bg-gray-800 h-8 w-8 p-0"
@@ -266,7 +281,37 @@ export const FleetWorkOrderViewModal: React.FC<FleetWorkOrderViewModalProps> = (
                         </Button>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                        {order?.id && (
+                            <div className="flex items-center bg-gray-900 border border-gray-700 rounded-md p-0.5 mr-1">
+                                <button
+                                    type="button"
+                                    onClick={() => handleSwitchMode(false)}
+                                    disabled={isLoading}
+                                    className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all ${
+                                        !isBlankMode
+                                            ? 'bg-emerald-600 !text-white shadow-sm'
+                                            : 'text-gray-400 hover:text-white'
+                                    }`}
+                                    title="PDF com os itens preenchidos no sistema"
+                                >
+                                    ✓ Preenchido
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleSwitchMode(true)}
+                                    disabled={isLoading}
+                                    className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all ${
+                                        isBlankMode
+                                            ? 'bg-amber-600 !text-white shadow-sm'
+                                            : 'text-gray-400 hover:text-white'
+                                    }`}
+                                    title="Gerar PDF com os campos do checklist em branco para preenchimento manual em papel"
+                                >
+                                    ⬜ Em Branco (Manual)
+                                </button>
+                            </div>
+                        )}
                         <Button
                             variant="outline"
                             size="sm"
@@ -333,7 +378,7 @@ export const FleetWorkOrderViewModal: React.FC<FleetWorkOrderViewModalProps> = (
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={handleReload}
+                                    onClick={() => handleReload()}
                                     className="border-red-500/50 text-red-400 mt-2"
                                 >
                                     Tentar Novamente

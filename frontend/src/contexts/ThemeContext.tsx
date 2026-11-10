@@ -27,7 +27,7 @@ interface ThemeProviderProps {
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const [theme, setTheme] = useState<Theme>(() => {
-    // Forçar tema Dark como padrão
+    // Contraste padrão do sistema é sempre Dark
     const savedTheme = localStorage.getItem('theme') as Theme;
     if (savedTheme && ['dark', 'graphite', 'white', 'system'].includes(savedTheme)) {
       return savedTheme;
@@ -36,7 +36,14 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     return 'dark';
   });
 
-  const [isDark, setIsDark] = useState(false);
+  const [isDark, setIsDark] = useState<boolean>(() => {
+    const saved = localStorage.getItem('theme');
+    if (saved === 'white') return false;
+    if (saved === 'system' && typeof window !== 'undefined') {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return true;
+  });
   const [empresaColor, setEmpresaColorState] = useState<string | null>(() => {
     try {
       const emp = localStorage.getItem('empresa');

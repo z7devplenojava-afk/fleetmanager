@@ -182,12 +182,14 @@ public class FleetWorkOrderController {
         }
     }
 
-    /** Gera o PDF da OS para impressão / entrega ao mecânico */
+    /** Gera o PDF da OS para impressão / entrega ao mecânico (suporta ?blank=true para checklist em branco) */
     @GetMapping(value = "/{id}/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
-    public ResponseEntity<byte[]> generatePdf(@PathVariable("id") UUID id) {
+    public ResponseEntity<byte[]> generatePdf(
+            @PathVariable("id") UUID id,
+            @RequestParam(value = "blank", required = false, defaultValue = "false") boolean blank) {
         try {
-            byte[] pdfBytes = pdfService.generatePdf(id);
-            String fileName = "ordem-servico-" + id + ".pdf";
+            byte[] pdfBytes = pdfService.generatePdf(id, blank);
+            String fileName = "ordem-servico-" + id + (blank ? "-em-branco" : "") + ".pdf";
             return ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_PDF_VALUE)
                     .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName + "\"")

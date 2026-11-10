@@ -110,10 +110,10 @@ export function ResponsiveDrawer({
                         {modalTrigger}
                     </DrawerTrigger>
                 )}
-                <DrawerContent className={cn("max-h-[92vh] flex flex-col bg-[#111319] dark:bg-[#0c0e14] text-foreground border-border/60", className)} style={{ maxWidth: '100vw' }}>
-                    <DrawerHeader className="text-left px-4 pt-4 pb-2 border-b border-border/40 shrink-0">
-                        <DrawerTitle className="text-lg font-bold">{title}</DrawerTitle>
-                        {description && <DrawerDescription className="text-xs text-muted-foreground">{description}</DrawerDescription>}
+                <DrawerContent className={cn("max-h-[92vh] flex flex-col bg-seguranca-graphite text-white border-gray-800", className)} style={{ maxWidth: '100vw' }}>
+                    <DrawerHeader className="text-left px-4 pt-4 pb-2 border-b border-gray-800/60 shrink-0">
+                        <DrawerTitle className="text-lg font-bold text-white">{title}</DrawerTitle>
+                        {description && <DrawerDescription className="text-xs text-gray-400">{description}</DrawerDescription>}
                     </DrawerHeader>
                     <div className="px-3 sm:px-4 py-3 overflow-y-auto overflow-x-hidden max-h-[75vh] min-w-0 flex-1">
                         {modalContent}
@@ -144,15 +144,15 @@ export function ResponsiveDrawer({
             )}
             <DialogContent
                 className={cn(
-                    "max-h-[90vh] overflow-y-auto w-full max-w-[calc(100vw-2rem)] bg-[#111319] dark:bg-[#0c0e14] border-border/60",
+                    "max-h-[90vh] overflow-y-auto w-full max-w-[calc(100vw-2rem)] bg-seguranca-graphite text-white border-gray-800",
                     !hasCustomMaxWidth && "sm:max-w-[500px]",
                     className
                 )}
                 style={{ overflowX: 'hidden' }}
             >
-                <DialogHeader className="pb-2 border-b border-border/40">
-                    <DialogTitle className="text-xl font-bold tracking-tight">{title}</DialogTitle>
-                    {description && <DialogDescription className="text-xs sm:text-sm text-muted-foreground">{description}</DialogDescription>}
+                <DialogHeader className="pb-2 border-b border-gray-800/60">
+                    <DialogTitle className="text-xl font-bold tracking-tight text-white">{title}</DialogTitle>
+                    {description && <DialogDescription className="text-xs sm:text-sm text-gray-400">{description}</DialogDescription>}
                 </DialogHeader>
                 <div className="py-2 min-w-0">
                     {modalContent}

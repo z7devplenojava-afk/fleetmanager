@@ -8,9 +8,11 @@ import { SidebarTrigger } from '@/components/ui/sidebar';
 import NotificationBell from './NotificationBell';
 import ThemeToggle from './ui/theme-toggle';
 import { resolveCompanyLogoUrl } from '@/utils/logoUtils';
+import { useTheme } from '@/contexts/ThemeContext';
 
 const Header: React.FC = () => {
   const { profile, empresa, user } = useAuth();
+  const { isDark } = useTheme();
   const username = profile?.full_name || profile?.username || 'Usuário';
   const [logoError, setLogoError] = React.useState(false);
 
@@ -83,7 +85,7 @@ const Header: React.FC = () => {
         ) : (
           <div className="flex items-center gap-2 group cursor-pointer active:scale-95 transition-all">
             <img
-              src="/fluxbus-logo.png"
+              src={isDark ? '/fluxbus-logo.png' : '/fluxbus-logo-light.png'}
               alt="FluxBus - Gestão de Fretamento e Turismo"
               className="h-8 sm:h-12 md:h-16 w-auto object-contain drop-shadow-md group-hover:scale-105 transition-transform"
             />

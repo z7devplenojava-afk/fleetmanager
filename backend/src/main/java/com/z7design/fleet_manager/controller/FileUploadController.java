@@ -27,19 +27,27 @@ import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import com.z7design.fleet_manager.model.StoredUpload;
+import com.z7design.fleet_manager.service.StoredUploadService;
+import org.springframework.core.io.ByteArrayResource;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @RestController
-@RequestMapping("/api/uploads")
+@RequestMapping({"/api/uploads", "/uploads"})
 @RequiredArgsConstructor
 @Tag(name = "Upload de Arquivos", description = "Endpoints para upload e download de comprovantes e documentos")
 public class FileUploadController {
 
     private static final Logger log = LoggerFactory.getLogger(FileUploadController.class);
+    private final StoredUploadService storedUploadService;
 
     @Value("${app.upload.dir:uploads}")
     private String uploadDir;
+
+    @Value("${app.file.upload-dir:./uploads/maintenance}")
+    private String maintenanceUploadDir;
 
     @PostMapping("/atestados")
     @Operation(summary = "Upload de atestado mÃ©dico", description = "Faz upload de atestado mÃ©dico para registro de falta")
@@ -84,7 +92,9 @@ public class FileUploadController {
 
             // Salvar arquivo
             Path filePath = uploadPath.resolve(uniqueFilename);
-            Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+            byte[] fileBytes = file.getBytes();
+            Files.write(filePath, fileBytes);
+            storedUploadService.save("atestados", uniqueFilename, contentType, fileBytes);
 
             // Retornar informaÃ§Ãµes do arquivo
             Map<String, String> response = new HashMap<>();
@@ -146,7 +156,9 @@ public class FileUploadController {
 
             // Salvar arquivo
             Path filePath = uploadPath.resolve(uniqueFilename);
-            Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+            byte[] fileBytes = file.getBytes();
+            Files.write(filePath, fileBytes);
+            storedUploadService.save("comprovantes", uniqueFilename, contentType, fileBytes);
 
             // Retornar informaÃ§Ãµes do arquivo
             Map<String, String> response = new HashMap<>();
@@ -343,11 +355,17 @@ public class FileUploadController {
             }
             log.info("✅ Diretório verificado/criado: {}", uploadPath);
 
-            // Salvar arquivo
+            // Salvar arquivo em disco + persistir no banco de dados (sobrevive a deploys/rebuilds)
             Path filePath = uploadPath.resolve(uniqueFilename);
             log.info("💾 Salvando arquivo em: {}", filePath);
-            
-            Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+
+            byte[] logoBytes = file.getBytes();
+            Files.write(filePath, logoBytes);
+            storedUploadService.save(
+                    "companies/logos",
+                    uniqueFilename,
+                    contentType != null ? contentType : "image/" + fileExtension,
+                    logoBytes);
             
             // Verificar se o arquivo foi salvo corretamente
             if (!Files.exists(filePath)) {
@@ -434,7 +452,22 @@ public class FileUploadController {
                 }
             }
 
-            // Retornar 204 No Content se o arquivo não existe em disco para evitar 404 no console
+            // Fallback persistente no PostgreSQL (evita perda da logomarca após novo deploy)
+            Optional<StoredUpload> dbLogo = storedUploadService.find("companies/logos", filename);
+            if (dbLogo.isPresent() && dbLogo.get().getData() != null && dbLogo.get().getData().length > 0) {
+                StoredUpload stored = dbLogo.get();
+                try {
+                    Files.createDirectories(uploadPath.getParent());
+                    Files.write(uploadPath, stored.getData());
+                } catch (Exception ignored) {}
+                String ct = stored.getContentType() != null ? stored.getContentType() : "image/png";
+                return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(ct))
+                    .header(HttpHeaders.CACHE_CONTROL, "public, max-age=86400")
+                    .body(new ByteArrayResource(stored.getData()));
+            }
+
+            // Retornar 204 No Content se o arquivo não existe em disco nem no banco
             return ResponseEntity.noContent().build();
         } catch (Exception e) {
             return ResponseEntity.noContent().build();
@@ -488,9 +521,72 @@ public class FileUploadController {
                 }
             }
 
+            Optional<StoredUpload> dbBanner = storedUploadService.find("companies/banners", filename);
+            if (dbBanner.isPresent() && dbBanner.get().getData() != null && dbBanner.get().getData().length > 0) {
+                StoredUpload stored = dbBanner.get();
+                try {
+                    Files.createDirectories(uploadPath.getParent());
+                    Files.write(uploadPath, stored.getData());
+                } catch (Exception ignored) {}
+                String ct = stored.getContentType() != null ? stored.getContentType() : "image/png";
+                return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(ct))
+                    .header(HttpHeaders.CACHE_CONTROL, "public, max-age=86400")
+                    .body(new ByteArrayResource(stored.getData()));
+            }
+
             return ResponseEntity.noContent().build();
         } catch (Exception e) {
             return ResponseEntity.noContent().build();
+        }
+    }
+
+    @GetMapping({
+        "/maintenance/{filename:.+}",
+        "/maintenance/{filename}",
+        "/uploads/maintenance/{filename:.+}"
+    })
+    @Operation(summary = "Obter foto/evidência de manutenção", description = "Retorna foto de evidência de OS de disco ou banco de dados")
+    public ResponseEntity<Resource> getMaintenancePhoto(@PathVariable("filename") String filename) {
+        try {
+            if (filename == null || filename.isBlank() || filename.contains("..")) {
+                return ResponseEntity.notFound().build();
+            }
+            Path[] candidates = new Path[] {
+                Paths.get(maintenanceUploadDir).resolve(filename).toAbsolutePath().normalize(),
+                Paths.get(uploadDir, "maintenance").resolve(filename).toAbsolutePath().normalize(),
+                Paths.get("uploads", "maintenance").resolve(filename).toAbsolutePath().normalize(),
+                Paths.get("..", "uploads", "maintenance").resolve(filename).toAbsolutePath().normalize(),
+                Paths.get("/app/uploads/maintenance").resolve(filename).toAbsolutePath().normalize(),
+                Paths.get("/var/www/fluxbus/uploads/maintenance").resolve(filename).toAbsolutePath().normalize()
+            };
+            for (Path candidate : candidates) {
+                if (Files.exists(candidate) && Files.isRegularFile(candidate) && Files.isReadable(candidate)) {
+                    String contentType = Files.probeContentType(candidate);
+                    return ResponseEntity.ok()
+                        .contentType(MediaType.parseMediaType(contentType != null ? contentType : "image/jpeg"))
+                        .header(HttpHeaders.CACHE_CONTROL, "public, max-age=86400")
+                        .body(new UrlResource(candidate.toUri()));
+                }
+            }
+
+            Optional<StoredUpload> dbPhoto = storedUploadService.find("maintenance", filename);
+            if (dbPhoto.isPresent() && dbPhoto.get().getData() != null && dbPhoto.get().getData().length > 0) {
+                StoredUpload stored = dbPhoto.get();
+                try {
+                    Path cachePath = Paths.get(maintenanceUploadDir).toAbsolutePath().normalize();
+                    Files.createDirectories(cachePath);
+                    Files.write(cachePath.resolve(filename), stored.getData());
+                } catch (Exception ignored) {}
+                String ct = stored.getContentType() != null ? stored.getContentType() : "image/jpeg";
+                return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(ct))
+                    .header(HttpHeaders.CACHE_CONTROL, "public, max-age=86400")
+                    .body(new ByteArrayResource(stored.getData()));
+            }
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
         }
     }
 
@@ -550,7 +646,13 @@ public class FileUploadController {
             }
 
             Path filePath = uploadPath.resolve(uniqueFilename);
-            Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+            byte[] bannerBytes = file.getBytes();
+            Files.write(filePath, bannerBytes);
+            storedUploadService.save(
+                    "companies/banners",
+                    uniqueFilename,
+                    contentType != null ? contentType : "image/" + fileExtension,
+                    bannerBytes);
             
             if (!Files.exists(filePath)) {
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

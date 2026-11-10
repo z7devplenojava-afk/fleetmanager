@@ -266,6 +266,15 @@
       border: 1px solid #e0e0e0;
     }
 
+    .status-blank {
+      color: #222;
+      background-color: #ffffff;
+      border: 1px solid #888;
+      font-size: 6px;
+      padding: 1px 3px;
+      letter-spacing: -0.2px;
+    }
+
     .secao-checklist {
       page-break-inside: avoid;
     }
@@ -428,6 +437,17 @@
       color: #666;
       margin-top: 1px;
     }
+
+    .assinatura-digital-img {
+      max-height: 36px;
+      max-width: 170px;
+      margin: 0 auto -3px auto;
+      display: block;
+    }
+
+    .assinatura-espaco-vazio {
+      height: 32px;
+    }
     
     .footer {
       margin-top: 10px;
@@ -569,7 +589,8 @@
                   <span class="badge-status status-ok" th:if="${cItem.situacao == 'OK'}">[OK]</span>
                   <span class="badge-status status-nok" th:if="${cItem.situacao == 'NAO_OK'}">[NÃO OK]</span>
                   <span class="badge-status status-trocar" th:if="${cItem.situacao == 'TROCAR'}">[TROCAR]</span>
-                  <span class="badge-status status-na" th:if="${cItem.situacao == 'NAO_APLICA' or (cItem.situacao != 'OK' and cItem.situacao != 'NAO_OK' and cItem.situacao != 'TROCAR')}">[N/A]</span>
+                  <span class="badge-status status-na" th:if="${cItem.situacao == 'NAO_APLICA'}">[N/A]</span>
+                  <span class="badge-status status-blank" th:if="${cItem.situacao == 'BLANK' or (cItem.situacao != 'OK' and cItem.situacao != 'NAO_OK' and cItem.situacao != 'TROCAR' and cItem.situacao != 'NAO_APLICA')}">[&nbsp;&nbsp;] OK &nbsp;[&nbsp;&nbsp;] NOK &nbsp;[&nbsp;&nbsp;] TR</span>
                 </td>
               </tr>
             </tbody>
@@ -602,7 +623,8 @@
                   <span class="badge-status status-ok" th:if="${cItem.situacao == 'OK'}">[OK]</span>
                   <span class="badge-status status-nok" th:if="${cItem.situacao == 'NAO_OK'}">[NÃO OK]</span>
                   <span class="badge-status status-trocar" th:if="${cItem.situacao == 'TROCAR'}">[TROCAR]</span>
-                  <span class="badge-status status-na" th:if="${cItem.situacao == 'NAO_APLICA' or (cItem.situacao != 'OK' and cItem.situacao != 'NAO_OK' and cItem.situacao != 'TROCAR')}">[N/A]</span>
+                  <span class="badge-status status-na" th:if="${cItem.situacao == 'NAO_APLICA'}">[N/A]</span>
+                  <span class="badge-status status-blank" th:if="${cItem.situacao == 'BLANK' or (cItem.situacao != 'OK' and cItem.situacao != 'NAO_OK' and cItem.situacao != 'TROCAR' and cItem.situacao != 'NAO_APLICA')}">[&nbsp;&nbsp;] OK &nbsp;[&nbsp;&nbsp;] NOK &nbsp;[&nbsp;&nbsp;] TR</span>
                 </td>
               </tr>
             </tbody>
@@ -629,7 +651,8 @@
             <span class="badge-status status-ok" th:if="${cItem.situacao == 'OK'}">[OK]</span>
             <span class="badge-status status-nok" th:if="${cItem.situacao == 'NAO_OK'}">[NÃO OK]</span>
             <span class="badge-status status-trocar" th:if="${cItem.situacao == 'TROCAR'}">[TROCAR]</span>
-            <span class="badge-status status-na" th:if="${cItem.situacao == 'NAO_APLICA' or (cItem.situacao != 'OK' and cItem.situacao != 'NAO_OK' and cItem.situacao != 'TROCAR')}">[N/A]</span>
+            <span class="badge-status status-na" th:if="${cItem.situacao == 'NAO_APLICA'}">[N/A]</span>
+            <span class="badge-status status-blank" th:if="${cItem.situacao == 'BLANK' or (cItem.situacao != 'OK' and cItem.situacao != 'NAO_OK' and cItem.situacao != 'TROCAR' and cItem.situacao != 'NAO_APLICA')}">[&nbsp;&nbsp;] OK &nbsp;[&nbsp;&nbsp;] NOK &nbsp;[&nbsp;&nbsp;] TR</span>
           </td>
           <td>
             <span th:if="${cItem.observacao != null and cItem.observacao != ''}" th:text="'Obs: ' + ${cItem.observacao}"></span>
@@ -644,6 +667,14 @@
   <div class="secao" th:if="${maintenancePerformed != null and maintenancePerformed != ''}">
     <div class="secao-titulo">Descrição das Manutenções / Reparos Realizados</div>
     <div class="descricao-box" th:text="${maintenancePerformed}">—</div>
+  </div>
+  <div class="secao" th:if="${(maintenancePerformed == null or maintenancePerformed == '') and blankChecklist == true}">
+    <div class="secao-titulo">Descrição das Manutenções / Reparos Realizados (Preenchimento Manual)</div>
+    <div class="descricao-box" style="min-height: 44px; line-height: 18px; color: #bbb;">
+      ____________________________________________________________________________________________________________________________________________<br/>
+      ____________________________________________________________________________________________________________________________________________<br/>
+      ____________________________________________________________________________________________________________________________________________
+    </div>
   </div>
 
   <!-- Itens / Peças e Serviços -->
@@ -736,19 +767,27 @@
     </div>
     <table class="assinatura-table" style="margin-top: 4px; border: 1px solid #333; border-top: none;">
       <tr>
-        <td style="border-right: 1px solid #333; padding: 12px 10px 6px 10px;">
+        <td style="border-right: 1px solid #333; padding: 8px 14px 6px 14px;">
+          <div th:if="${supervisorSignatureImg != null and supervisorSignatureImg != ''}">
+            <img class="assinatura-digital-img" th:src="${supervisorSignatureImg}" alt="Assinatura Digital do Supervisor" />
+          </div>
+          <div class="assinatura-espaco-vazio" th:unless="${supervisorSignatureImg != null and supervisorSignatureImg != ''}"></div>
           <div class="linha-assinatura">
-            <div class="assinatura-nome" th:text="${supervisorSignature ?: 'GERENTE DE MANUTENÇÃO'}">GERENTE DE MANUTENÇÃO</div>
-            <div class="assinatura-info">GERENTE DE MANUTENÇÃO</div>
-            <div class="assinatura-info" th:if="${supervisorSignatureDate != null and supervisorSignatureDate != ''}" th:text="'Data: ' + ${supervisorSignatureDate}">Data: _____ / _____ / _____</div>
+            <div class="assinatura-nome" th:if="${supervisorDisplayName != null and supervisorDisplayName != ''}" th:text="${supervisorDisplayName}">Nome do Supervisor</div>
+            <div class="assinatura-info">SUPERVISOR / GERENTE DE MANUTENÇÃO</div>
+            <div class="assinatura-info" th:if="${supervisorSignatureDate != null and supervisorSignatureDate != ''}" th:text="'Assinado em: ' + ${supervisorSignatureDate}">Data: _____ / _____ / _____</div>
             <div class="assinatura-info" th:unless="${supervisorSignatureDate != null and supervisorSignatureDate != ''}">Data: _____ / _____ / _____</div>
           </div>
         </td>
-        <td style="padding: 12px 10px 6px 10px;">
+        <td style="padding: 8px 14px 6px 14px;">
+          <div th:if="${responsibleSignatureImg != null and responsibleSignatureImg != ''}">
+            <img class="assinatura-digital-img" th:src="${responsibleSignatureImg}" alt="Assinatura Digital do Responsável Técnico" />
+          </div>
+          <div class="assinatura-espaco-vazio" th:unless="${responsibleSignatureImg != null and responsibleSignatureImg != ''}"></div>
           <div class="linha-assinatura">
-            <div class="assinatura-nome" th:text="${responsibleSignature ?: mechanicName ?: 'ENGENHEIRO MECÂNICO / RESPONSÁVEL TÉCNICO'}">ENGENHEIRO MECÂNICO</div>
-            <div class="assinatura-info">ENGENHEIRO MECÂNICO / RESP. TÉCNICO</div>
-            <div class="assinatura-info" th:if="${responsibleSignatureDate != null and responsibleSignatureDate != ''}" th:text="'Data: ' + ${responsibleSignatureDate}">Data: _____ / _____ / _____</div>
+            <div class="assinatura-nome" th:if="${responsibleDisplayName != null and responsibleDisplayName != ''}" th:text="${responsibleDisplayName}">Nome do Responsável</div>
+            <div class="assinatura-info">RESPONSÁVEL TÉCNICO / MECÂNICO</div>
+            <div class="assinatura-info" th:if="${responsibleSignatureDate != null and responsibleSignatureDate != ''}" th:text="'Assinado em: ' + ${responsibleSignatureDate}">Data: _____ / _____ / _____</div>
             <div class="assinatura-info" th:unless="${responsibleSignatureDate != null and responsibleSignatureDate != ''}">Data: _____ / _____ / _____</div>
           </div>
         </td>

@@ -39,9 +39,11 @@ import QuoteModal from '@/components/QuoteModal';
 import WhatsAppChatbot from '@/components/WhatsAppChatbot';
 import ContactModal from '@/components/ContactModal';
 import SpecialistModal from '@/components/SpecialistModal';
+import { useTheme } from '@/contexts/ThemeContext';
 
 const PortalHome = () => {
   const animate = useGSAP();
+  const { isDark } = useTheme();
   
   // Fallback de segurança: garantir que o conteúdo sempre apareça
   useEffect(() => {
@@ -529,7 +531,7 @@ const PortalHome = () => {
               <div className="sm:col-span-2 lg:col-span-1">
                 <a href="/" className="inline-block mb-4">
                   <img
-                    src="/fluxbus-logo.png"
+                    src={isDark ? '/fluxbus-logo.png' : '/fluxbus-logo-light.png'}
                     alt="FluxBus - Gestão de Fretamento e Turismo"
                     className="h-16 w-auto object-contain drop-shadow-xl"
                   />

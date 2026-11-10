@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useTheme } from '@/contexts/ThemeContext';
 
 const ThemeToggle: React.FC = () => {
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, isDark } = useTheme();
 
   const getThemeIcon = () => {
     switch (theme) {
@@ -45,14 +45,19 @@ const ThemeToggle: React.FC = () => {
 
   return (
     <Button
+      type="button"
       variant="outline"
       size="sm"
       onClick={cycleTheme}
-      className="flex items-center space-x-2"
-      title={`Tema atual: ${getThemeLabel()}. Clique para alternar.`}
+      className={`flex items-center gap-2 rounded-full px-3 transition-colors ${
+        isDark
+          ? 'bg-slate-900/90 border-slate-700 text-slate-100 hover:bg-slate-800 hover:text-white'
+          : 'bg-slate-100 border-slate-300 text-slate-900 hover:bg-slate-200 hover:text-slate-950'
+      }`}
+      title={`Contraste atual: ${getThemeLabel()}. Clique para alternar (Dark / Grafite / Branco).`}
     >
       {getThemeIcon()}
-      <span className="hidden sm:inline">{getThemeLabel()}</span>
+      <span className="text-xs font-semibold">{getThemeLabel()}</span>
     </Button>
   );
 };

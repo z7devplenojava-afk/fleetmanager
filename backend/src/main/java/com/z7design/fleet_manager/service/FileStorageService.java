@@ -18,8 +18,8 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Primary;
-import org.springframework.stereotype.Service;
 
 @Service
 @Primary
@@ -28,9 +28,16 @@ public class FileStorageService {
 
     private final Path fileStorageLocation;
     private final String baseUrl = "/uploads/maintenance"; // Base URL para acesso aos arquivos
+    private final String storageCategory;
 
+    @Autowired(required = false)
+    private StoredUploadService storedUploadService;
+
+    @Autowired
     public FileStorageService(@Value("${app.file.upload-dir:./uploads/maintenance}") String uploadDir) {
         this.fileStorageLocation = Paths.get(uploadDir).toAbsolutePath().normalize();
+        String norm = uploadDir != null ? uploadDir.replace("\\", "/").toLowerCase() : "";
+        this.storageCategory = norm.contains("receipt") ? "receipts" : "maintenance";
         try {
             Files.createDirectories(this.fileStorageLocation);
         } catch (Exception ex) {
@@ -98,7 +105,12 @@ public class FileStorageService {
                 throw new SecurityException("Caminho de gravação inválido.");
             }
 
-            Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
+            byte[] fileBytes = file.getBytes();
+            Files.write(targetLocation, fileBytes);
+
+            if (storedUploadService != null) {
+                storedUploadService.save(storageCategory, safeFileName, file.getContentType(), fileBytes);
+            }
 
             log.info("✅ Arquivo {} armazenado com sucesso como {}", originalFileName, safeFileName);
             return baseUrl + "/" + safeFileName;
@@ -146,6 +158,9 @@ public class FileStorageService {
                 log.info("Arquivo {} excluÃ­do com sucesso.", fileName);
             } else {
                 log.warn("Tentativa de excluir arquivo que nÃ£o existe: {}", fileName);
+            }
+            if (storedUploadService != null) {
+                storedUploadService.delete(storageCategory, fileName);
             }
         } catch (Exception ex) {
             log.error("Erro ao excluir arquivo {}: {}", fileUrl, ex.getMessage());

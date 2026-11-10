@@ -45,15 +45,8 @@ public class WebConfig implements WebMvcConfigurer {
                 )
                 .setCachePeriod(3600); // Cache por 1 hora
                 
-        // Servir arquivos de manutenção especificamente
-        registry.addResourceHandler("/uploads/maintenance/**", "/api/uploads/maintenance/**")
-                .addResourceLocations(
-                    "file:" + baseUploadPath + "maintenance/",
-                    "file:" + parentUploadPath + "maintenance/",
-                    "file:uploads/maintenance/",
-                    "file:../uploads/maintenance/"
-                )
-                .setCachePeriod(3600);
+        // Fotos de manutenção (/api/uploads/maintenance/** e /uploads/maintenance/**) são servidas
+        // pelo FileUploadController com fallback persistente no PostgreSQL (sobrevive a deploys).
                 
         // Servir arquivos de holerites
         registry.addResourceHandler("/holerites/**", "/api/holerites/**")
@@ -137,8 +130,7 @@ public class WebConfig implements WebMvcConfigurer {
                 // Adicionar headers CORS para arquivos estáticos
                 if (request.getRequestURI().startsWith("/uploads/") || 
                     request.getRequestURI().startsWith("/holerites/") ||
-                    request.getRequestURI().startsWith("/api/uploads/companies/logos/") ||
-                    request.getRequestURI().startsWith("/api/uploads/companies/banners/")) {
+                    request.getRequestURI().startsWith("/api/uploads/")) {
                     response.setHeader("Access-Control-Allow-Origin", "*");
                     response.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
                     response.setHeader("Access-Control-Allow-Headers", "*");

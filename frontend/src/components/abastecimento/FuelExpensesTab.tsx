@@ -192,25 +192,33 @@ export const FuelExpensesTab: React.FC = () => {
             }
         });
 
-        // C. Abastecimentos Externos com valor registrado
+        // C. Abastecimentos Externos com valor registrado (Manuais e Notas Importadas em Lote)
         fuelRecords
-            .filter((r) => r.isExternal || (r as any).type === 'EXTERNO')
+            .filter((r) => {
+                const notesLower = (r.notes || '').toLowerCase();
+                const hasClient = !!(r.clientName || r.contractNumber || r.obraName);
+                const hasNotes = notesLower.includes('externo') || notesLower.includes('posto') || notesLower.includes('nf:') || notesLower.includes('lote');
+                const hasStation = !!(r.station && !notesLower.includes('abastecimento interno'));
+                return r.isExternal || (r as any).type === 'EXTERNO' || hasClient || hasNotes || hasStation;
+            })
             .forEach((rec) => {
-                const doc = (rec as any).invoiceNumber || (rec as any).receiptNumber || `CUPOM-${rec.id.slice(0, 6)}`;
-                const alreadyExists = list.some((item) => item.invoiceNumber === doc);
+                const nfMatch = (rec.notes || '').match(/NF:\s*([^|\n]+)/i);
+                const compMatch = (rec.notes || '').match(/Competência:\s*([^|\n]+)/i);
+                const doc = (rec as any).invoiceNumber || (nfMatch ? nfMatch[1].trim() : '') || (rec as any).receiptNumber || `ABAST-${rec.id.slice(0, 6)}`;
+                const alreadyExists = list.some((item) => item.invoiceNumber === doc && item.supplier === (rec.station || (rec as any).gasStation || (rec as any).posto));
                 if (!alreadyExists && (rec.cost || 0) > 0) {
                     list.push({
                         id: `record-${rec.id}`,
                         invoiceNumber: doc,
                         origin: 'EXTERNO',
-                        originLabel: 'Abast. Externo',
-                        supplier: (rec as any).gasStation || (rec as any).posto || 'Posto Credenciado',
-                        installmentText: 'À Vista',
+                        originLabel: nfMatch ? 'NF Abast. Externo' : 'Abast. Externo',
+                        supplier: rec.station || (rec as any).gasStation || (rec as any).posto || 'Posto Credenciado',
+                        installmentText: compMatch ? `Comp. ${compMatch[1].trim()}` : 'À Vista / Fechamento',
                         amount: rec.cost || 0,
                         issueDate: rec.date || rec.createdAt || '',
                         dueDate: rec.date || rec.createdAt || '',
                         status: 'PAGA',
-                        details: `Veículo: ${(rec as any).vehiclePlate || 'Frota'} • ${rec.quantity || rec.liters || 0} L`
+                        details: `Veículo: ${rec.vehiclePlate || 'Frota'} • ${(rec.quantity || (rec as any).liters || 0).toLocaleString('pt-BR')} L`
                     });
                 }
             });
@@ -567,7 +575,7 @@ export const FuelExpensesTab: React.FC = () => {
                 amount={viewingBoleto.amount}
                 dueDate={viewingBoleto.dueDate}
                 barcode={viewingBoleto.barcode}
-                linhaDigitavel={viewingBoleto.linhaDigitavel}
+                linhaDigitavel={viewingBoleto.linhaDigitavel || ''}
             />
         </div>
     );

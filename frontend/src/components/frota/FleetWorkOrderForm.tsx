@@ -13,7 +13,7 @@ import {
     Wrench, Trash2, Plus, ClipboardList, Clock, History,
     Gauge, AlertTriangle, Send, ChevronDown, ChevronUp, CheckCircle, XCircle, MinusCircle, UserCheck,
     Camera, UploadCloud, Image as LucideImage, Package, ShieldCheck, Tag, FileText, Check, AlertCircle,
-    Timer, Edit, PlayCircle, StopCircle, RefreshCw, Zap, Sparkles, Car
+    Timer, Edit, PlayCircle, StopCircle, RefreshCw, Zap, Sparkles, Car, PenLine, Eraser
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -35,6 +35,7 @@ import { Vehicle } from '@/types/fleet';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { SearchableSelect, SearchableOption } from '@/components/frota/SearchableSelect';
 import { FleetWorkOrderViewModal } from '@/components/frota/FleetWorkOrderViewModal';
+import SignaturePad from '@/components/SignaturePad';
 import { generateFleetWorkOrderPDFBlob } from '@/utils/fleetWorkOrderPDFGenerator';
 
 interface Props {
@@ -83,16 +84,19 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
     const queryClient     = useQueryClient();
     const isEdit          = !!order?.id;
 
-    // Modo Abertura Rápida (ativo por padrão para novas manutenções)
-    const [isExpressMode, setIsExpressMode] = useState(!isEdit);
+    // Aba padrão: Formulário Completo sempre primeiro e ativo por padrão
+    const [isExpressMode, setIsExpressMode] = useState(false);
 
     const [isLoading, setIsLoading]         = useState(false);
     const [newNote, setNewNote]             = useState('');
+    const [showResignResp, setShowResignResp] = useState(false);
+    const [showResignSup, setShowResignSup]   = useState(false);
     const [showHistory, setShowHistory]     = useState(false);
     const [isPdfModalOpen, setIsPdfModalOpen]       = useState(false);
     const [pdfPreviewOrder, setPdfPreviewOrder]     = useState<FleetWorkOrder | null>(null);
     const [pdfPreviewBlob, setPdfPreviewBlob]       = useState<Blob | null>(null);
     const [isGeneratingPdf, setIsGeneratingPdf]     = useState(false);
+    const [isBlankPdfMode, setIsBlankPdfMode]       = useState(false);
 
     const [formData, setFormData] = useState<Partial<FleetWorkOrder>>({
         vehicleId: '',
@@ -397,6 +401,83 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         });
     }, [isOpen, mechanicsList]);
 
+    const normalizeRoleText = (text: string) =>
+        text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+    // Opções de Responsável Técnico (prioriza mecânicos e técnicos, mantendo todos os funcionários pesquisáveis)
+    const technicalResponsibleOptions = React.useMemo<SearchableOption[]>(() => {
+        if (!isOpen || !employees || employees.length === 0) return [];
+        const scoreEmp = (e: any) => {
+            const pos = normalizeRoleText([
+                e.positionDescription, e.position?.name, e.position?.description,
+                e.cargo, e.funcao, e.jobTitle, e.department?.name
+            ].filter(Boolean).join(' '));
+            if (pos.includes('mecanic') || pos.includes('engenh')) return 2;
+            if (pos.includes('manuten') || pos.includes('oficina') || pos.includes('tecnic') || pos.includes('eletric')) return 1;
+            return 0;
+        };
+        return [...employees]
+            .sort((a: any, b: any) => scoreEmp(b) - scoreEmp(a) || (a.name || '').localeCompare(b.name || ''))
+            .map((emp: any) => {
+                const empName = emp.name || emp.fullName || 'Colaborador';
+                const pos = emp.positionDescription || emp.position?.name || emp.cargo || emp.funcao || '';
+                const norm = normalizeRoleText(pos);
+                const isMec = norm.includes('mecanic') || norm.includes('tecnic') || norm.includes('engenh');
+                return {
+                    value: emp.id,
+                    label: empName,
+                    subtitle: pos || 'Colaborador',
+                    badge: isMec ? (norm.includes('engenh') ? 'Eng. / Técnico' : 'Mecânico') : undefined,
+                    badgeColor: 'bg-emerald-950/60 text-emerald-300 border-emerald-700/50',
+                    keywords: [emp.registrationNumber, emp.cpf, emp.matricula, empName, pos].filter(Boolean) as string[],
+                };
+            });
+    }, [isOpen, employees]);
+
+    // Opções de Supervisor: Encarregado, Gestor, Encarregado Mecânico, Mecânico, Engenheiro Mecânico, Gerente Mecânica
+    const supervisorOptions = React.useMemo<SearchableOption[]>(() => {
+        if (!isOpen || !employees || employees.length === 0) return [];
+        const isAllowedSupervisorRole = (e: any) => {
+            const pos = normalizeRoleText([
+                e.positionDescription, e.position?.name, e.position?.description,
+                e.cargo, e.funcao, e.jobTitle, e.cbo, e.department?.name, e.departamento
+            ].filter(Boolean).join(' '));
+            return (
+                pos.includes('encarregad') ||
+                pos.includes('gestor') ||
+                pos.includes('mecanic') ||
+                pos.includes('engenh') ||
+                pos.includes('gerente') ||
+                pos.includes('supervis') ||
+                pos.includes('manutenc') ||
+                pos.includes('coordenad') ||
+                pos.includes('lider')
+            );
+        };
+        const matching = employees.filter(isAllowedSupervisorRole);
+        const list = matching.length > 0 ? matching : employees;
+        return list.map((emp: any) => {
+            const empName = emp.name || emp.fullName || 'Colaborador';
+            const pos = emp.positionDescription || emp.position?.name || emp.cargo || emp.funcao || '';
+            const norm = normalizeRoleText(pos);
+            let badge: string | undefined;
+            if (norm.includes('gerente')) badge = 'Gerente';
+            else if (norm.includes('engenh')) badge = 'Eng. Mecânico';
+            else if (norm.includes('encarregad')) badge = 'Encarregado';
+            else if (norm.includes('gestor') || norm.includes('supervis')) badge = 'Gestor / Sup.';
+            else if (norm.includes('mecanic')) badge = 'Mecânico';
+
+            return {
+                value: emp.id,
+                label: empName,
+                subtitle: pos || 'Liderança / Oficina',
+                badge,
+                badgeColor: 'bg-purple-950/60 text-purple-300 border-purple-700/50',
+                keywords: [emp.registrationNumber, emp.cpf, emp.matricula, empName, pos].filter(Boolean) as string[],
+            };
+        });
+    }, [isOpen, employees]);
+
     const clientOptions = React.useMemo<SearchableOption[]>(() => {
         if (!isOpen) return [];
         return clients.map((c: any) => ({
@@ -557,10 +638,31 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
 
         setIsUploadingPhotos(true);
         try {
-            const fileList = Array.from(files);
+            const rawFiles = Array.from(files);
+            // Normaliza imagens (especialmente .webp ou fotos pesadas de câmera) para JPEG padrão compatível com gerador PDF
+            const normalizedFiles: File[] = [];
+            for (const file of rawFiles) {
+                const isWebpOrLarge = file.type === 'image/webp' || file.name.toLowerCase().endsWith('.webp') || file.size > 1_500_000;
+                if (isWebpOrLarge) {
+                    try {
+                        const jpegDataUrl = await compressImage(file, 1400, 1400, 0.82);
+                        if (jpegDataUrl && jpegDataUrl.startsWith('data:image/jpeg')) {
+                            const res = await fetch(jpegDataUrl);
+                            const blob = await res.blob();
+                            const safeName = file.name.replace(/\.[^.]+$/, '') + '.jpg';
+                            normalizedFiles.push(new File([blob], safeName, { type: 'image/jpeg' }));
+                            continue;
+                        }
+                    } catch {
+                        // fallback para o arquivo original
+                    }
+                }
+                normalizedFiles.push(file);
+            }
+
             // Tenta upload direto para o servidor (retorna /uploads/maintenance/uuid_foto.jpg)
             try {
-                const uploadedUrls = await fleetWorkOrderService.uploadPhotos(fileList);
+                const uploadedUrls = await fleetWorkOrderService.uploadPhotos(normalizedFiles);
                 if (uploadedUrls && uploadedUrls.length > 0) {
                     setFormData(p => ({
                         ...p,
@@ -575,7 +677,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
 
             // Fallback: compressão com tamanho máximo reduzido (evita 413)
             const compressedList: string[] = [];
-            for (const file of fileList) {
+            for (const file of rawFiles) {
                 const compressed = await compressImage(file, 1024, 1024, 0.65);
                 if (compressed) {
                     compressedList.push(compressed);
@@ -655,7 +757,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
 
     const [isLoadingChecklist, setIsLoadingChecklist] = useState(false);
 
-    const handleLoadDefaultChecklist = async (overrideVehicleId?: string) => {
+    const handleLoadDefaultChecklist = async (overrideVehicleId?: string, initialStatus: ChecklistStatus | null = null) => {
         setIsLoadingChecklist(true);
         try {
             const targetVehId = overrideVehicleId || formData.vehicleId;
@@ -687,21 +789,23 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                 checklistItemId: m.id,
                 checklistItemDescricao: m.descricao,
                 checklistItemCategoria: m.categoria,
-                situacao: ChecklistStatus.OK,
+                situacao: initialStatus,
                 observacao: '',
                 reparoRealizado: ''
             }));
             setFormData(p => ({ ...p, checklistItems: initialChecklist }));
             const labelTipo = filterType === 'VAN' ? 'Van' : (vType.includes('MINI') || modelStr.includes('MICRO') || modelStr.includes('VOLARE') ? 'Micro-ônibus' : 'Ônibus');
             toast({
-                title: `Checklist Preventivo (${labelTipo})`,
-                description: `${initialChecklist.length} itens de inspeção adicionados à OS.`,
+                title: initialStatus === ChecklistStatus.OK ? `Todos os itens marcados como OK (${labelTipo})` : `Checklist Preventivo (${labelTipo})`,
+                description: initialStatus === ChecklistStatus.OK
+                    ? `${initialChecklist.length} itens de inspeção preenchidos com OK.`
+                    : `${initialChecklist.length} itens de inspeção adicionados à OS.`,
             });
         } catch {
             const fallbackChecklist: FleetWorkOrderChecklist[] = DEFAULT_CHECKLIST_FALLBACK.map(m => ({
                 checklistItemDescricao: m.descricao,
                 checklistItemCategoria: m.categoria,
-                situacao: ChecklistStatus.OK,
+                situacao: initialStatus,
                 observacao: '',
                 reparoRealizado: ''
             }));
@@ -715,22 +819,74 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         }
     };
 
+    const handleMarkAllChecklistOk = async () => {
+        if (!formData.checklistItems || formData.checklistItems.length === 0) {
+            await handleLoadDefaultChecklist(undefined, ChecklistStatus.OK);
+            return;
+        }
+        setFormData(p => ({
+            ...p,
+            checklistItems: (p.checklistItems || []).map(item => ({
+                ...item,
+                situacao: ChecklistStatus.OK
+            }))
+        }));
+        toast({
+            title: 'Todos os campos preenchidos com OK!',
+            description: `${formData.checklistItems.length} itens do checklist preventivo marcados como OK em verde.`
+        });
+    };
+
+    const handleClearAllChecklist = () => {
+        if (!formData.checklistItems || formData.checklistItems.length === 0) return;
+        setFormData(p => ({
+            ...p,
+            checklistItems: (p.checklistItems || []).map(item => ({
+                ...item,
+                situacao: null,
+                observacao: '',
+                reparoRealizado: ''
+            }))
+        }));
+        toast({
+            title: 'Checklist em Branco',
+            description: 'Marcações limpas. Você pode preencher individualmente ou gerar o PDF em branco.'
+        });
+    };
+
+    const handleMarkCategoryOk = (category: string) => {
+        setFormData(p => ({
+            ...p,
+            checklistItems: (p.checklistItems || []).map(item =>
+                (item.checklistItemCategoria || 'GERAL') === category
+                    ? { ...item, situacao: ChecklistStatus.OK }
+                    : item
+            )
+        }));
+    };
+
     // Carregar itens mestre de checklist caso selecione PREVENTIVA e ainda não tenha itens
     useEffect(() => {
         if (formData.maintenanceType === MaintenanceType.PREVENTIVA && (!formData.checklistItems || formData.checklistItems.length === 0)) {
-            handleLoadDefaultChecklist();
+            handleLoadDefaultChecklist(undefined, null);
         }
     }, [formData.maintenanceType, formData.vehicleId]);
 
-    // Popular form ao abrir
+    // Popular form ao abrir (Formulário Completo sempre como aba padrão)
     useEffect(() => {
         if (order) {
             const resp = getOrderResponsibleDisplay(order);
             setFormData({
                 ...order,
                 mechanicName: (order.mechanicName && order.mechanicName.trim()) ? order.mechanicName : (resp !== 'Não atribuído' ? resp : ''),
-                responsibleName: (order.responsibleName && order.responsibleName.trim()) ? order.responsibleName : (resp !== 'Não atribuído' ? resp : '')
+                responsibleName: (order.responsibleName && order.responsibleName.trim())
+                    ? order.responsibleName
+                    : (order.responsibleId ? resp : undefined),
+                responsibleId: order.responsibleId || order.mechanicId || undefined,
+                responsibleSignature: order.responsibleSignature?.startsWith('data:image/') ? order.responsibleSignature : '',
+                supervisorSignature: order.supervisorSignature?.startsWith('data:image/') ? order.supervisorSignature : '',
             });
+            setIsExpressMode(false);
         } else {
             const today = new Date().toISOString().split('T')[0];
             const nowTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -748,17 +904,23 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                 laborCost: 0, partsCost: 0, totalCost: 0,
                 stopReason: isDriver ? 'Abertura de Chamado pelo Condutor/Motorista' : '',
                 mechanicName: defaultResponsible,
-                responsibleName: user?.name,
                 requesterName: user?.name,
-                responsibleId: (user as any)?.employeeId || (user?.id ? String(user.id) : undefined),
                 requesterId: (user as any)?.employeeId || (user?.id ? String(user.id) : undefined),
+                responsibleId: undefined,
+                responsibleName: undefined,
+                supervisorId: undefined,
+                supervisorName: undefined,
+                responsibleSignature: '',
+                supervisorSignature: '',
                 notes: isDriver ? `OS aberta pelo Motorista: ${user?.name || 'Condutor'} via Sistema` : '',
                 items: [], checklistItems: [],
                 anomaliesDescription: '', otherDescription: '', maintenancePerformed: ''
             });
-            setIsExpressMode(true);
+            setIsExpressMode(false);
         }
         setShowHistory(false);
+        setShowResignResp(false);
+        setShowResignSup(false);
         setNewNote('');
     }, [order, isOpen, initialVehicleId]);
 
@@ -1182,7 +1344,8 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
     const handleChecklistStatusChange = (idx: number, status: ChecklistStatus) => {
         setFormData(p => {
             const list = [...(p.checklistItems || [])];
-            list[idx] = { ...list[idx], situacao: status };
+            const current = list[idx]?.situacao;
+            list[idx] = { ...list[idx], situacao: current === status ? null : status };
             return { ...p, checklistItems: list };
         });
     };
@@ -1265,8 +1428,8 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         }
     };
 
-    // ── Gerar e Visualizar a OS em PDF ──────────────────────────────────────────
-    const handleGenerateAndPreviewOS = async () => {
+    // ── Gerar e Visualizar a OS em PDF (Preenchido ou Em Branco p/ Preenchimento Manual) ──
+    const handleGenerateAndPreviewOS = async (blankChecklist: boolean = false) => {
         if (!formData.vehicleId) {
             toast({
                 title: 'Veículo Obrigatório',
@@ -1300,6 +1463,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         }
 
         setIsGeneratingPdf(true);
+        setIsBlankPdfMode(blankChecklist);
         try {
             const today = new Date().toISOString().split('T')[0];
             const nowTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -1340,13 +1504,15 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
             onSuccess();
 
             // Gera e carrega o Blob do PDF para visualização imediata
-            const blob = await generateFleetWorkOrderPDFBlob(savedOrder);
+            const blob = await generateFleetWorkOrderPDFBlob(savedOrder, { blank: blankChecklist });
             setPdfPreviewBlob(blob);
             setPdfPreviewOrder(savedOrder);
             setIsPdfModalOpen(true);
             toast({
-                title: 'OS Gerada com Sucesso!',
-                description: `Ordem de Serviço #${savedOrder.osNumber || savedOrder.id.slice(0, 8)} pronta para visualização e impressão.`
+                title: blankChecklist ? 'OS em Branco Gerada!' : 'OS Gerada com Sucesso!',
+                description: blankChecklist
+                    ? `OS #${savedOrder.osNumber || savedOrder.id.slice(0, 8)} gerada com campos em branco para preenchimento manual.`
+                    : `Ordem de Serviço #${savedOrder.osNumber || savedOrder.id.slice(0, 8)} pronta para visualização e impressão.`
             });
         } catch (err: any) {
             const msg = err?.response?.data?.message || 'Falha ao salvar e gerar documento PDF da OS.';
@@ -1372,68 +1538,113 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         }
     };
 
+    const scrollToSection = (sectionId: string) => {
+        const el = document.getElementById(sectionId);
+        if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    };
+
     const footer = (
-        <div className="flex w-full justify-between items-center gap-3 flex-wrap">
-            <Button variant="outline" onClick={onClose} className="border-gray-600 text-gray-300">Cancelar</Button>
-            <div className="flex gap-2 flex-wrap justify-end items-center">
+        <div className="w-full flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2.5 pt-1">
+            {/* Esquerda: Cancelar / alternar modo */}
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+                <Button
+                    type="button"
+                    variant="outline"
+                    onClick={onClose}
+                    className="flex-1 sm:flex-none h-9 px-3.5 border-gray-600/80 text-gray-300 hover:text-white hover:bg-gray-800 text-xs font-medium"
+                >
+                    Cancelar
+                </Button>
                 {isExpressMode && (
                     <Button
                         type="button"
                         variant="outline"
                         onClick={() => setIsExpressMode(false)}
-                        className="border-gray-700 text-gray-300 hover:text-white hover:bg-gray-800 text-xs"
+                        className="flex-1 sm:flex-none h-9 px-3 border-gray-700 text-gray-300 hover:text-white hover:bg-gray-800 text-xs whitespace-nowrap"
                     >
                         <ClipboardList className="mr-1.5 h-3.5 w-3.5 text-blue-400" />
-                        Modo Completo / Peças
+                        Modo Completo
                     </Button>
                 )}
-                <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleGenerateAndPreviewOS}
-                    disabled={isLoading || isGeneratingPdf}
-                    className="border-red-500/80 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 font-bold"
-                >
-                    <FileText className="mr-2 h-4 w-4 text-red-400" />
-                    {isGeneratingPdf ? 'Gerando OS...' : 'Gerar e Visualizar OS'}
-                </Button>
+            </div>
+
+            {/* Direita: Ações de PDF + Ações Principais de Fluxo */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+                {/* Grupo Documentos (PDF) */}
+                <div className={`grid ${formData.maintenanceType === MaintenanceType.PREVENTIVA ? 'grid-cols-2' : 'grid-cols-1'} sm:flex sm:items-center gap-2`}>
+                    {formData.maintenanceType === MaintenanceType.PREVENTIVA && (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => handleGenerateAndPreviewOS(true)}
+                            disabled={isLoading || isGeneratingPdf}
+                            className="h-9 px-2.5 border-amber-500/70 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 hover:text-amber-200 font-semibold text-xs whitespace-nowrap"
+                            title="Gera o PDF com todos os campos do checklist em branco para preenchimento manual em papel"
+                        >
+                            <FileText className="mr-1.5 h-3.5 w-3.5 text-amber-400 shrink-0" />
+                            PDF em Branco
+                        </Button>
+                    )}
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => handleGenerateAndPreviewOS(false)}
+                        disabled={isLoading || isGeneratingPdf}
+                        className="h-9 px-3 border-red-500/70 bg-red-500/10 hover:bg-red-500/20 text-red-300 hover:text-red-200 font-semibold text-xs whitespace-nowrap"
+                    >
+                        <FileText className="mr-1.5 h-3.5 w-3.5 text-red-400 shrink-0" />
+                        {isGeneratingPdf ? 'Gerando...' : 'Visualizar PDF'}
+                    </Button>
+                </div>
+
+                {/* Separador visual no desktop */}
+                <div className="hidden sm:block h-6 w-px bg-gray-700/80 mx-0.5" />
+
+                {/* Grupo Salvar / Status */}
                 {isExpressMode ? (
                     <Button
                         type="button"
                         onClick={() => handleSubmit(WorkOrderStatus.OPEN)}
                         disabled={isLoading || isGeneratingPdf}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-lg shadow-emerald-950/50"
+                        className="h-9 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-lg shadow-emerald-950/50 whitespace-nowrap w-full sm:w-auto"
                     >
-                        <Zap className="mr-2 h-4 w-4 text-amber-300" /> Abrir OS Imediatamente
+                        <Zap className="mr-1.5 h-3.5 w-3.5 text-amber-300 shrink-0" />
+                        Abrir OS Agora
                     </Button>
                 ) : (
-                    <>
+                    <div className="grid grid-cols-3 sm:flex sm:items-center gap-1.5 sm:gap-2">
                         <Button
                             type="button"
                             variant="outline"
                             onClick={() => handleSubmit(WorkOrderStatus.OPEN)}
                             disabled={isLoading || isGeneratingPdf}
-                            className="border-blue-500 text-blue-400 hover:bg-blue-500/10"
+                            className="h-9 px-2.5 sm:px-3 border-blue-500/80 text-blue-300 hover:bg-blue-500/15 font-semibold text-xs whitespace-nowrap"
+                            title="Salvar OS com status Aberta / Rascunho"
                         >
-                            <Clock className="mr-2 h-4 w-4" /> Salvar Rascunho / Aberta
+                            <Clock className="mr-1 sm:mr-1.5 h-3.5 w-3.5 shrink-0" />
+                            <span className="truncate">Salvar</span>
                         </Button>
                         <Button
                             type="button"
                             onClick={() => handleSubmit(WorkOrderStatus.IN_PROGRESS)}
                             disabled={isLoading || isGeneratingPdf}
-                            className="bg-orange-600 hover:bg-orange-700 text-white font-bold"
+                            className="h-9 px-2.5 sm:px-3 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs whitespace-nowrap"
                         >
-                            <Wrench className="mr-2 h-4 w-4" /> Em Andamento
+                            <Wrench className="mr-1 sm:mr-1.5 h-3.5 w-3.5 shrink-0" />
+                            <span className="truncate">Em Andam.</span>
                         </Button>
                         <Button
                             type="button"
                             onClick={() => handleSubmit(WorkOrderStatus.COMPLETED)}
                             disabled={isLoading || isGeneratingPdf}
-                            className="bg-green-600 hover:bg-green-700 text-white font-bold"
+                            className="h-9 px-2.5 sm:px-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm whitespace-nowrap"
                         >
-                            <CheckCircle className="mr-2 h-4 w-4" /> Concluir OS
+                            <CheckCircle className="mr-1 sm:mr-1.5 h-3.5 w-3.5 shrink-0" />
+                            <span className="truncate">Concluir OS</span>
                         </Button>
-                    </>
+                    </div>
                 )}
             </div>
         </div>
@@ -1475,82 +1686,83 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
             title={currentOsNumber ? `OS #${currentOsNumber} — ${isEdit ? 'Editar' : 'Ordem de Serviço'}` : 'Nova Ordem de Serviço'}
             description="Cadastre manutenções corretivas e preventivas com controle completo de checklist e execução."
             footer={footer}
-            className="sm:max-w-4xl bg-[#0a0a0b] border-gray-800/50 z-[10050]">
+            className="sm:max-w-4xl bg-seguranca-graphite border-gray-800 z-[10050]">
             <div className="space-y-6 py-2 pb-10">
 
-                {/* ── Barra Superior de Ações Rápidas ── */}
-                <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-seguranca-black/90 border border-gray-800 rounded-xl">
-                    <div className="flex items-center gap-2">
-                        <Badge className={`${currentOsNumber ? 'bg-red-600' : 'bg-gray-700'} text-white font-mono text-xs px-2.5 py-1`}>
-                            {currentOsNumber ? `OS #${currentOsNumber}` : 'NOVA OS'}
-                        </Badge>
-                        {formData.status && (
-                            <Badge className="bg-gray-800 text-gray-300 border border-gray-700 text-xs">
-                                Status: {formData.status}
+                {/* ── Barra Superior + Seletor de Modo + Navegação Rápida ── */}
+                <div className="space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-3 bg-seguranca-black/90 border border-gray-800 rounded-xl">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Badge className={`${currentOsNumber ? 'bg-red-600' : 'bg-gray-700'} text-white font-mono text-xs px-2.5 py-1`}>
+                                {currentOsNumber ? `OS #${currentOsNumber}` : 'NOVA OS'}
                             </Badge>
-                        )}
-                        {formData.vehicleId && (
-                            <span className="text-xs text-gray-400 hidden sm:inline">
-                                Veículo selecionado
-                            </span>
-                        )}
-                    </div>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={handleGenerateAndPreviewOS}
-                        disabled={isLoading || isGeneratingPdf}
-                        className="border-red-500/80 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 font-bold text-xs shadow-sm transition-all"
-                    >
-                        <FileText className="mr-1.5 h-3.5 w-3.5 text-red-400" />
-                        {isGeneratingPdf ? 'Gerando OS...' : 'Gerar e Visualizar OS'}
-                    </Button>
-                </div>
+                            {formData.status && (
+                                <Badge className="bg-gray-800 text-gray-300 border border-gray-700 text-xs">
+                                    Status: {formData.status}
+                                </Badge>
+                            )}
+                            {selectedVehicle && (
+                                <span className="text-xs text-emerald-400 font-mono hidden sm:inline">
+                                    {selectedVehicle.plate}
+                                </span>
+                            )}
+                        </div>
 
-                {/* ── Seletor de Modo: Abertura Expressa vs Formulário Completo ── */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-gradient-to-r from-gray-900/90 via-black to-gray-900/90 border border-gray-800 rounded-xl">
-                    <div className="flex items-center gap-2">
-                        <div className="flex items-center p-1 bg-black/80 rounded-lg border border-gray-800">
+                        {/* Seletor segmentado responsivo: Formulário Completo (1º) vs Abertura Expressa (2º) */}
+                        <div className="grid grid-cols-2 sm:inline-flex p-1 bg-black/90 rounded-lg border border-gray-800 w-full sm:w-auto">
+                            <button
+                                type="button"
+                                onClick={() => setIsExpressMode(false)}
+                                className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                                    !isExpressMode
+                                        ? 'bg-blue-600 !text-white shadow-md'
+                                        : 'text-gray-400 hover:text-white'
+                                }`}
+                            >
+                                <ClipboardList className="h-3.5 w-3.5 shrink-0" />
+                                <span className="truncate">Formulário Completo</span>
+                            </button>
                             <button
                                 type="button"
                                 onClick={() => setIsExpressMode(true)}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                                className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
                                     isExpressMode
                                         ? 'bg-amber-500 text-black shadow-md'
                                         : 'text-gray-400 hover:text-white'
                                 }`}
                             >
-                                <Zap className="h-3.5 w-3.5" />
-                                ⚡ Abertura Expressa
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setIsExpressMode(false)}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                                    !isExpressMode
-                                        ? 'bg-blue-600 text-white shadow-md'
-                                        : 'text-gray-400 hover:text-white'
-                                }`}
-                            >
-                                <ClipboardList className="h-3.5 w-3.5" />
-                                📋 Formulário Completo
+                                <Zap className="h-3.5 w-3.5 shrink-0" />
+                                <span className="truncate">Abertura Expressa</span>
                             </button>
                         </div>
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-gray-400">
-                        {isExpressMode ? (
-                            <span className="flex items-center gap-1.5 text-amber-400 font-medium">
-                                <Zap className="h-3.5 w-3.5 text-amber-400" />
-                                Modo Rápido: apenas campos essenciais para entrada na oficina
-                            </span>
-                        ) : (
-                            <span className="flex items-center gap-1.5 text-blue-400 font-medium">
-                                <ClipboardList className="h-3.5 w-3.5 text-blue-400" />
-                                Modo Detalhado: gestão de peças, orçamentos e checklist de 33 itens
-                            </span>
-                        )}
-                    </div>
+
+                    {/* Navegação rápida entre seções no modo Formulário Completo */}
+                    {!isExpressMode && (
+                        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 px-1 bg-black/40 border border-gray-800/80 rounded-lg">
+                            {[
+                                { id: 'os-sec-identificacao', label: '1. Identificação' },
+                                { id: 'os-sec-parada', label: '2. Parada & KM' },
+                                { id: 'os-sec-execucao', label: '3. Execução' },
+                                {
+                                    id: 'os-sec-diagnostico',
+                                    label: formData.maintenanceType === MaintenanceType.CORRETIVA ? '4. Anomalias' : '4. Checklist'
+                                },
+                                { id: 'os-sec-itens', label: '5. Peças & Serviços' },
+                                { id: 'os-sec-custos', label: '6. Custos' },
+                                { id: 'os-sec-assinaturas', label: '7. Assinaturas' },
+                            ].map((nav) => (
+                                <button
+                                    key={nav.id}
+                                    type="button"
+                                    onClick={() => scrollToSection(nav.id)}
+                                    className="px-2.5 py-1 rounded-md text-[11px] font-semibold text-gray-300 hover:text-white bg-gray-900/70 hover:bg-gray-800 border border-gray-800 hover:border-gray-600 transition-colors shrink-0 whitespace-nowrap"
+                                >
+                                    {nav.label}
+                                </button>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 {isExpressMode ? (
@@ -1695,7 +1907,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                 </div>
 
                                 <div className="pt-1">
-                                    <span className="text-[11px] text-gray-400 block mb-1.5 uppercase font-medium">Mecânico / Responsável da Oficina</span>
+                                    <span className="text-[11px] text-gray-400 block mb-1.5 uppercase font-medium">Mecânico / Responsável da Oficina (Opcional)</span>
                                     <SearchableSelect
                                         value={formData.mechanicId || ''}
                                         fallbackLabel={formData.mechanicName || undefined}
@@ -1788,7 +2000,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                 ) : (
                     <div className="space-y-6 animate-in fade-in duration-200">
                         {/* ── Seção 1: Tipo & Identificação ──────────────────────────── */}
-                        <Section title="Identificação da OS" icon={<ClipboardList className="h-4 w-4 text-red-500" />}>
+                        <Section id="os-sec-identificacao" title="Identificação da OS" icon={<ClipboardList className="h-4 w-4 text-red-500" />}>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                 <Field label="Tipo de Manutenção *">
                                     <Select value={formData.maintenanceType || MaintenanceType.CORRETIVA}
@@ -1825,7 +2037,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                 </SelectContent>
                             </Select>
                         </Field>
-                        <Field label="Mecânico / Responsável *">
+                        <Field label="Mecânico / Responsável (Opcional)">
                             <SearchableSelect
                                 value={formData.mechanicId || ''}
                                 fallbackLabel={formData.mechanicName || undefined}
@@ -1837,7 +2049,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                     }));
                                 }}
                                 options={mechanicOptions}
-                                placeholder={formData.mechanicName || "Selecione o mecânico..."}
+                                placeholder={formData.mechanicName || "Selecione o mecânico / responsável (opcional)..."}
                                 searchPlaceholder="Buscar mecânico por nome..."
                                 emptyText="Nenhum mecânico encontrado."
                             />
@@ -1856,7 +2068,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                         </Field>
 
                         {/* PRD §6 §20 §21 §22 — Cliente, Setor (Obra do Cliente), Requerente */}
-                        <Field label="Cliente *">
+                        <Field label="Cliente (Opcional)">
                             <SearchableSelect
                                 value={formData.clientId || ''}
                                 onChange={(v) => {
@@ -1878,7 +2090,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                 emptyText="Nenhum cliente encontrado."
                             />
                         </Field>
-                        <Field label="Setor / Obra *">
+                        <Field label="Setor / Obra (Opcional)">
                             <SearchableSelect
                                 value={formData.sectorId || formData.workPostId || ''}
                                 fallbackLabel={formData.workPostName || undefined}
@@ -1898,17 +2110,17 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                 emptyText={formData.clientId ? "Nenhuma obra cadastrada para este cliente." : "Nenhum setor/obra encontrado."}
                             />
                         </Field>
-                        <Field label="Requerente *">
+                        <Field label="Requerente (Opcional)">
                             <SearchableSelect
                                 value={formData.requesterId || ''}
                                 onChange={(v) => setFormData(p => ({ ...p, requesterId: v }))}
                                 options={requesterOptions}
-                                placeholder="Selecione o requerente…"
+                                placeholder="Selecione o requerente (opcional)…"
                                 searchPlaceholder="Buscar requerente por nome..."
                                 emptyText="Nenhum colaborador encontrado."
                             />
                         </Field>
-                        <Field label="Garagem (onde o serviço será executado) *">
+                        <Field label="Garagem de Execução">
                             <SearchableSelect
                                 value={formData.garageId || ''}
                                 fallbackLabel={formData.garageName || undefined}
@@ -1925,15 +2137,15 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                 </Section>
 
                 {/* ── Seção 2: Dados de Parada e Saída ────────────────────────────── */}
-                <Section title="Dados da Parada & Saída" icon={<Gauge className="h-4 w-4 text-yellow-500" />}>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Section id="os-sec-parada" title="Dados da Parada & Saída" icon={<Gauge className="h-4 w-4 text-yellow-500" />}>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 items-end">
                         <Field label="Data da Parada *">
                             <Input type="date" value={formData.stopDate || ''} onChange={e => setFormData(p => ({ ...p, stopDate: e.target.value }))} className="bg-seguranca-black border-gray-600" />
                         </Field>
                         <Field label="Hora da Parada *">
                             <Input type="time" value={formData.stopTime || ''} onChange={e => setFormData(p => ({ ...p, stopTime: e.target.value }))} className="bg-seguranca-black border-gray-600" />
                         </Field>
-                        <Field label="Data de Saída (Encerramento)">
+                        <Field label="Data de Saída">
                             <Input type="date" value={formData.exitDate || ''} onChange={e => setFormData(p => ({ ...p, exitDate: e.target.value }))} className="bg-seguranca-black border-gray-600" />
                         </Field>
                         <Field label="Hora de Saída">
@@ -1941,7 +2153,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                         </Field>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3 items-end">
                         <Field label="Odômetro / KM Parada">
                             <Input type="number" min={0} value={formData.odometerIn ?? ''} onChange={e => setFormData(p => ({ ...p, odometerIn: parseInt(e.target.value) || undefined }))} placeholder="Ex: 120500" className="bg-seguranca-black border-gray-600" />
                         </Field>
@@ -1953,6 +2165,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
 
                 {/* ── Seção 3: Tempo de Execução do Serviço ───────────────────────── */}
                 <Section
+                    id="os-sec-execucao"
                     title="Tempo de Execução do Serviço"
                     icon={<Timer className="h-4 w-4 text-emerald-400" />}
                     action={
@@ -2089,7 +2302,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
 
                 {/* ── Seção Dinâmica Corretiva vs Preventiva ──────────────────────── */}
                 {formData.maintenanceType === MaintenanceType.CORRETIVA ? (
-                    <Section title="Manutenção Corretiva — Anomalias" icon={<AlertTriangle className="h-4 w-4 text-orange-500" />}>
+                    <Section id="os-sec-diagnostico" title="Manutenção Corretiva — Anomalias" icon={<AlertTriangle className="h-4 w-4 text-orange-500" />}>
                         <Field label="Descrição das Anomalias Identificadas *">
                             <Textarea value={formData.anomaliesDescription || ''} onChange={e => setFormData(p => ({ ...p, anomaliesDescription: e.target.value }))}
                                 placeholder="Descreva em detalhes os defeitos e anomalias identificados que necessitam de reparo…"
@@ -2102,74 +2315,197 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                         </Field>
                     </Section>
                 ) : (
-                    <Section title="Checklist de Inspeção Preventiva" icon={<ClipboardList className="h-4 w-4 text-green-400" />}>
-                        <div className="space-y-6">
+                    <Section
+                        id="os-sec-diagnostico"
+                        title="Checklist de Inspeção Preventiva"
+                        icon={<ClipboardList className="h-4 w-4 text-green-500" />}
+                        action={
+                            <div className="flex flex-wrap items-center gap-2 justify-end">
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    onClick={handleMarkAllChecklistOk}
+                                    disabled={isLoadingChecklist}
+                                    className="h-8 px-3 bg-green-600 hover:bg-green-700 !text-white font-bold text-xs shadow-sm"
+                                    title="Preenche todos os itens do checklist como OK em verde com um único clique"
+                                >
+                                    <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
+                                    Preencher Todos com OK
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleClearAllChecklist}
+                                    disabled={isLoadingChecklist || !formData.checklistItems?.length}
+                                    className="h-8 px-2.5 border-gray-600 text-gray-300 hover:bg-gray-800 text-xs font-semibold"
+                                    title="Limpa as marcações para preencher individualmente ou imprimir em branco"
+                                >
+                                    ⬜ Deixar em Branco
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleGenerateAndPreviewOS(true)}
+                                    disabled={isLoading || isGeneratingPdf}
+                                    className="h-8 px-3 border-amber-500/80 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 font-bold text-xs shadow-sm"
+                                    title="Gera o PDF com os campos em branco para preenchimento manual com caneta"
+                                >
+                                    <FileText className="h-3.5 w-3.5 mr-1.5 text-amber-400" />
+                                    Gerar PDF em Branco (Manual)
+                                </Button>
+                            </div>
+                        }
+                    >
+                        <div className="space-y-4">
+                            {formData.checklistItems && formData.checklistItems.length > 0 && (
+                                <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-lg bg-seguranca-black border border-gray-800 text-xs">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <Badge className="bg-green-600 !text-white font-bold">
+                                            ✓ {(formData.checklistItems || []).filter(i => i.situacao === ChecklistStatus.OK).length} / {formData.checklistItems.length} OK
+                                        </Badge>
+                                        <span className="text-gray-400">
+                                            Clique em <b>"Preencher Todos com OK"</b> para marcar todos de uma vez ou clique no botão <b>OK</b> verde de cada item individualmente.
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
+
                             {Object.keys(checklistByCategory).length === 0 ? (
                                 <div className="p-6 rounded-lg border border-dashed border-gray-800 bg-black/30 text-center space-y-3">
                                     <ClipboardList className="h-8 w-8 text-gray-500 mx-auto" />
                                     <p className="text-sm text-gray-400">
                                         {isLoadingChecklist ? 'Carregando itens de inspeção preventiva...' : 'Nenhum item de inspeção carregado para esta OS.'}
                                     </p>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={handleLoadDefaultChecklist}
-                                        disabled={isLoadingChecklist}
-                                        className="border-green-800 text-green-400 hover:bg-green-950/40"
-                                    >
-                                        <RefreshCw className={`h-3.5 w-3.5 mr-2 ${isLoadingChecklist ? 'animate-spin' : ''}`} />
-                                        {isLoadingChecklist ? 'Carregando...' : 'Carregar Itens Padrão de Inspeção'}
-                                    </Button>
+                                    <div className="flex items-center justify-center gap-2 flex-wrap">
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            onClick={() => handleLoadDefaultChecklist(undefined, ChecklistStatus.OK)}
+                                            disabled={isLoadingChecklist}
+                                            className="bg-green-600 hover:bg-green-700 !text-white font-bold"
+                                        >
+                                            <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
+                                            Carregar e Marcar Todos OK
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => handleLoadDefaultChecklist(undefined, null)}
+                                            disabled={isLoadingChecklist}
+                                            className="border-gray-600 text-gray-300"
+                                        >
+                                            <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${isLoadingChecklist ? 'animate-spin' : ''}`} />
+                                            Carregar em Branco (Preencher Individual)
+                                        </Button>
+                                    </div>
                                 </div>
                             ) : (
-                                Object.entries(checklistByCategory).map(([category, items]) => (
-                                    <div key={category} className="border border-gray-800 rounded-lg p-3 bg-gray-900/40 space-y-3">
-                                        <h4 className="text-xs font-bold uppercase tracking-wider text-green-400 flex items-center gap-2">
-                                            <span>•</span> {category}
-                                        </h4>
-                                        <div className="space-y-2">
-                                            {items.map(({ item, originalIndex }) => (
-                                                <div key={originalIndex} className="p-2.5 bg-black/40 rounded border border-gray-800 flex flex-col md:flex-row md:items-center justify-between gap-3">
-                                                    <div className="flex-1">
-                                                        <p className="text-sm font-medium text-gray-200">{item.checklistItemDescricao}</p>
-                                                    </div>
-                                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                                        <Button type="button" size="sm" variant={item.situacao === ChecklistStatus.OK ? 'default' : 'outline'}
-                                                            onClick={() => handleChecklistStatusChange(originalIndex, ChecklistStatus.OK)}
-                                                            className={`h-8 px-2 text-xs font-bold ${item.situacao === ChecklistStatus.OK ? 'bg-green-600 text-white' : 'border-gray-700 text-gray-400'}`}>
-                                                            <CheckCircle className="h-3.5 w-3.5 mr-1" /> OK
-                                                        </Button>
-                                                        <Button type="button" size="sm" variant={item.situacao === ChecklistStatus.NAO_OK ? 'default' : 'outline'}
-                                                            onClick={() => handleChecklistStatusChange(originalIndex, ChecklistStatus.NAO_OK)}
-                                                            className={`h-8 px-2 text-xs font-bold ${item.situacao === ChecklistStatus.NAO_OK ? 'bg-red-600 text-white' : 'border-gray-700 text-gray-400'}`}>
-                                                            <XCircle className="h-3.5 w-3.5 mr-1" /> NÃO OK
-                                                        </Button>
-                                                        <Button type="button" size="sm" variant={item.situacao === ChecklistStatus.TROCAR ? 'default' : 'outline'}
-                                                            onClick={() => handleChecklistStatusChange(originalIndex, ChecklistStatus.TROCAR)}
-                                                            className={`h-8 px-2 text-xs font-bold ${item.situacao === ChecklistStatus.TROCAR ? 'bg-amber-600 text-white' : 'border-gray-700 text-gray-400'}`}>
-                                                            <RefreshCw className="h-3.5 w-3.5 mr-1" /> TROCAR
-                                                        </Button>
-                                                        <Button type="button" size="sm" variant={item.situacao === ChecklistStatus.NAO_APLICA ? 'default' : 'outline'}
-                                                            onClick={() => handleChecklistStatusChange(originalIndex, ChecklistStatus.NAO_APLICA)}
-                                                            className={`h-8 px-2 text-xs font-bold ${item.situacao === ChecklistStatus.NAO_APLICA ? 'bg-gray-600 text-white' : 'border-gray-700 text-gray-400'}`}>
-                                                            <MinusCircle className="h-3.5 w-3.5 mr-1" /> N/A
-                                                        </Button>
-                                                    </div>
-                                                    {(item.situacao === ChecklistStatus.NAO_OK || item.situacao === ChecklistStatus.TROCAR) && (
-                                                        <div className="w-full md:w-1/2 flex flex-col gap-1.5 mt-2 md:mt-0">
-                                                            <Input value={item.observacao || ''} onChange={e => handleChecklistTextChange(originalIndex, 'observacao', e.target.value)}
-                                                                placeholder={item.situacao === ChecklistStatus.TROCAR ? "Item a ser trocado / motivo da troca…" : "Observação da anomalia…"}
-                                                                className={`bg-seguranca-black text-xs h-8 ${item.situacao === ChecklistStatus.TROCAR ? 'border-amber-700' : 'border-red-900'}`} />
-                                                            <Input value={item.reparoRealizado || ''} onChange={e => handleChecklistTextChange(originalIndex, 'reparoRealizado', e.target.value)}
-                                                                placeholder="Reparo executado para corrigir…" className="bg-seguranca-black border-green-900 text-xs h-8" />
+                                Object.entries(checklistByCategory).map(([category, items]) => {
+                                    const allCatOk = items.every(({ item }) => item.situacao === ChecklistStatus.OK);
+                                    return (
+                                        <div key={category} className="border border-gray-800 rounded-lg p-3 bg-gray-900/40 space-y-3">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <h4 className="text-xs font-bold uppercase tracking-wider text-green-400 flex items-center gap-2">
+                                                    <span>•</span> {category}
+                                                    <span className="text-[10px] font-mono text-gray-400">
+                                                        ({items.filter(x => x.item.situacao === ChecklistStatus.OK).length}/{items.length} OK)
+                                                    </span>
+                                                </h4>
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    onClick={() => handleMarkCategoryOk(category)}
+                                                    className={`h-7 px-2.5 text-[11px] font-bold ${
+                                                        allCatOk
+                                                            ? 'bg-green-600 !text-white shadow-sm'
+                                                            : 'bg-green-600/15 hover:bg-green-600 text-green-500 hover:!text-white border border-green-600/40'
+                                                    }`}
+                                                >
+                                                    <CheckCircle className="h-3 w-3 mr-1" />
+                                                    Marcar {category} OK
+                                                </Button>
+                                            </div>
+                                            <div className="space-y-2">
+                                                {items.map(({ item, originalIndex }) => (
+                                                    <div key={originalIndex} className="p-2.5 bg-black/40 rounded border border-gray-800 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                                                        <div className="flex-1 flex items-center gap-2">
+                                                            {item.situacao === ChecklistStatus.OK && (
+                                                                <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
+                                                            )}
+                                                            <p className="text-sm font-medium text-gray-200">{item.checklistItemDescricao}</p>
                                                         </div>
-                                                    )}
-                                                </div>
-                                            ))}
+                                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                                            <Button
+                                                                type="button"
+                                                                size="sm"
+                                                                variant={item.situacao === ChecklistStatus.OK ? 'default' : 'outline'}
+                                                                onClick={() => handleChecklistStatusChange(originalIndex, ChecklistStatus.OK)}
+                                                                className={`h-8 px-2.5 text-xs font-bold transition-all ${
+                                                                    item.situacao === ChecklistStatus.OK
+                                                                        ? 'bg-green-600 hover:bg-green-700 !text-white border-green-600 shadow-sm'
+                                                                        : 'border-green-600/50 text-green-500 hover:bg-green-600 hover:!text-white'
+                                                                }`}
+                                                            >
+                                                                <CheckCircle className="h-3.5 w-3.5 mr-1" /> OK
+                                                            </Button>
+                                                            <Button
+                                                                type="button"
+                                                                size="sm"
+                                                                variant={item.situacao === ChecklistStatus.NAO_OK ? 'default' : 'outline'}
+                                                                onClick={() => handleChecklistStatusChange(originalIndex, ChecklistStatus.NAO_OK)}
+                                                                className={`h-8 px-2 text-xs font-bold ${
+                                                                    item.situacao === ChecklistStatus.NAO_OK
+                                                                        ? 'bg-red-600 !text-white border-red-600'
+                                                                        : 'border-gray-700 text-gray-400 hover:bg-red-600/20'
+                                                                }`}
+                                                            >
+                                                                <XCircle className="h-3.5 w-3.5 mr-1" /> NÃO OK
+                                                            </Button>
+                                                            <Button
+                                                                type="button"
+                                                                size="sm"
+                                                                variant={item.situacao === ChecklistStatus.TROCAR ? 'default' : 'outline'}
+                                                                onClick={() => handleChecklistStatusChange(originalIndex, ChecklistStatus.TROCAR)}
+                                                                className={`h-8 px-2 text-xs font-bold ${
+                                                                    item.situacao === ChecklistStatus.TROCAR
+                                                                        ? 'bg-amber-600 !text-white border-amber-600'
+                                                                        : 'border-gray-700 text-gray-400 hover:bg-amber-600/20'
+                                                                }`}
+                                                            >
+                                                                <RefreshCw className="h-3.5 w-3.5 mr-1" /> TROCAR
+                                                            </Button>
+                                                            <Button
+                                                                type="button"
+                                                                size="sm"
+                                                                variant={item.situacao === ChecklistStatus.NAO_APLICA ? 'default' : 'outline'}
+                                                                onClick={() => handleChecklistStatusChange(originalIndex, ChecklistStatus.NAO_APLICA)}
+                                                                className={`h-8 px-2 text-xs font-bold ${
+                                                                    item.situacao === ChecklistStatus.NAO_APLICA
+                                                                        ? 'bg-gray-600 !text-white border-gray-600'
+                                                                        : 'border-gray-700 text-gray-400'
+                                                                }`}
+                                                            >
+                                                                <MinusCircle className="h-3.5 w-3.5 mr-1" /> N/A
+                                                            </Button>
+                                                        </div>
+                                                        {(item.situacao === ChecklistStatus.NAO_OK || item.situacao === ChecklistStatus.TROCAR) && (
+                                                            <div className="w-full md:w-1/2 flex flex-col gap-1.5 mt-2 md:mt-0">
+                                                                <Input value={item.observacao || ''} onChange={e => handleChecklistTextChange(originalIndex, 'observacao', e.target.value)}
+                                                                    placeholder={item.situacao === ChecklistStatus.TROCAR ? "Item a ser trocado / motivo da troca…" : "Observação da anomalia…"}
+                                                                    className={`bg-seguranca-black text-xs h-8 ${item.situacao === ChecklistStatus.TROCAR ? 'border-amber-700' : 'border-red-900'}`} />
+                                                                <Input value={item.reparoRealizado || ''} onChange={e => handleChecklistTextChange(originalIndex, 'reparoRealizado', e.target.value)}
+                                                                    placeholder="Reparo executado para corrigir…" className="bg-seguranca-black border-green-900 text-xs h-8" />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
-                                    </div>
-                                ))
+                                    );
+                                })
                             )}
                         </div>
                     </Section>
@@ -2196,11 +2532,11 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                 <p className="text-xs text-gray-400">Selecione fotos do defeito, peças danificadas ou comprovantes (PNG, JPG, WebP)</p>
                             </div>
                             <div className="flex items-center gap-2 flex-wrap shrink-0">
-                                <label className={`cursor-pointer inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-md transition-colors ${isUploadingPhotos ? 'opacity-50 pointer-events-none' : ''}`}>
+                                <label className={`cursor-pointer inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 !text-white text-xs font-bold px-3 py-2 rounded-md transition-colors ${isUploadingPhotos ? 'opacity-50 pointer-events-none' : ''}`}>
                                     <Camera className="h-4 w-4" /> Tirar Foto (Câmera)
                                     <input type="file" accept="image/*" capture="environment" onChange={handleFileUpload} className="hidden" />
                                 </label>
-                                <label className={`cursor-pointer inline-flex items-center gap-2 bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold px-3 py-2 rounded-md transition-colors ${isUploadingPhotos ? 'opacity-50 pointer-events-none' : ''}`}>
+                                <label className={`cursor-pointer inline-flex items-center gap-2 bg-cyan-600 hover:bg-cyan-700 !text-white text-xs font-bold px-3 py-2 rounded-md transition-colors ${isUploadingPhotos ? 'opacity-50 pointer-events-none' : ''}`}>
                                     <UploadCloud className="h-4 w-4" /> {isUploadingPhotos ? 'Enviando...' : 'Galeria'}
                                     <input type="file" accept="image/*" multiple onChange={handleFileUpload} className="hidden" />
                                 </label>
@@ -2216,7 +2552,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                 className="bg-seguranca-black border-gray-600 text-xs flex-1"
                                 onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddPhotoUrl())}
                             />
-                            <Button type="button" size="sm" onClick={handleAddPhotoUrl} disabled={!newPhotoUrl.trim()} className="bg-gray-700 hover:bg-gray-600 text-xs">
+                            <Button type="button" size="sm" onClick={handleAddPhotoUrl} disabled={!newPhotoUrl.trim()} className="bg-blue-600 hover:bg-blue-700 !text-white font-semibold text-xs">
                                 <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar URL
                             </Button>
                         </div>
@@ -2244,7 +2580,11 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                                     const target = e.currentTarget;
                                                     if (!target.dataset.fallbackTried && !trimmed.startsWith('data:') && !trimmed.startsWith('blob:') && !trimmed.startsWith('http')) {
                                                         target.dataset.fallbackTried = '1';
-                                                        target.src = `/api/uploads/${trimmed.replace(/^\/+/, '')}`;
+                                                        const cleanRel = trimmed
+                                                            .replace(/^\/+/, '')
+                                                            .replace(/^api\/uploads\//, '')
+                                                            .replace(/^uploads\//, '');
+                                                        target.src = `/api/uploads/${cleanRel}`;
                                                         return;
                                                     }
                                                     target.style.display = 'none';
@@ -2270,7 +2610,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                                     <Trash2 className="h-4 w-4" />
                                                 </button>
                                             </div>
-                                            <div className="absolute bottom-1 left-1 bg-black/70 px-1.5 py-0.5 rounded text-[10px] text-gray-300 pointer-events-none">
+                                            <div className="absolute bottom-1 left-1 bg-black/70 px-1.5 py-0.5 rounded text-[10px] !text-white pointer-events-none">
                                                 Foto #{idx + 1}
                                             </div>
                                         </div>
@@ -2283,6 +2623,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
 
                 {/* ── Seção 5: Peças e Serviços ──────────────────────────────── */}
                 <Section
+                    id="os-sec-itens"
                     title="Peças e Serviços Utilizados"
                     icon={<Wrench className="h-4 w-4 text-blue-400" />}
                     action={
@@ -2731,8 +3072,8 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
 
 
                 {/* ── Seção 6: Resumo de Custos ──────────────────────────────── */}
-                <Section title="Resumo de Custos" icon={<AlertTriangle className="h-4 w-4 text-green-400" />}>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <Section id="os-sec-custos" title="Resumo de Custos" icon={<AlertTriangle className="h-4 w-4 text-green-400" />}>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
                         <Field label="Custo Mão de Obra (R$)">
                             <div className="relative"><span className="absolute left-3 top-2.5 text-gray-500 text-sm">R$</span>
                                 <Input type="number" value={formData.laborCost || 0} onChange={e => handleLaborChange(e.target.value)} className="bg-seguranca-black border-gray-600 pl-9" /></div>
@@ -2747,34 +3088,226 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                 </Section>
 
 
-                {/* ── Seção 7: Responsáveis e Assinaturas ──────────────────────── */}
-                <Section title="Responsáveis & Assinaturas" icon={<UserCheck className="h-4 w-4 text-purple-400" />}>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <Field label="Assinatura / Responsável Técnico">
-                            <div className="p-3 border border-gray-800 rounded bg-gray-950 flex items-center justify-between">
-                                <div>
-                                    <p className="text-xs font-bold text-gray-300">{formData.responsibleSignature || user?.name || 'Técnico Responsável'}</p>
-                                    <p className="text-[10px] text-gray-500">{formData.responsibleSignatureDate ? new Date(formData.responsibleSignatureDate).toLocaleString('pt-BR') : 'Assinatura Eletrônica Autenticada'}</p>
-                                </div>
-                                <Button type="button" size="sm" variant="outline" onClick={() => setFormData(p => ({ ...p, responsibleSignature: user?.name || 'Usuário Autenticado' }))}
-                                    className="border-purple-600 text-purple-400 text-xs">
-                                    Assinar
-                                </Button>
-                            </div>
-                        </Field>
+                {/* ── Seção 7: Responsáveis e Assinaturas Digitais ──────────────────────── */}
+                <Section id="os-sec-assinaturas" title="Responsáveis & Assinaturas" icon={<UserCheck className="h-4 w-4 text-purple-400" />}>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        {/* Card Responsável Técnico / Mecânico */}
+                        <div className="p-4 border border-gray-800 rounded-xl bg-gray-950/90 space-y-3">
+                            <Field label="Responsável Técnico / Mecânico">
+                                <SearchableSelect
+                                    value={formData.responsibleId || ''}
+                                    fallbackLabel={formData.responsibleName || undefined}
+                                    onChange={(v, opt) => {
+                                        setFormData(p => ({
+                                            ...p,
+                                            responsibleId: v || undefined,
+                                            responsibleName: opt ? opt.label : (v ? p.responsibleName : undefined),
+                                        }));
+                                        setShowResignResp(false);
+                                    }}
+                                    options={technicalResponsibleOptions}
+                                    placeholder="Selecione o funcionário / mecânico..."
+                                    searchPlaceholder="Buscar funcionário ou mecânico..."
+                                    emptyText="Nenhum colaborador encontrado."
+                                />
+                            </Field>
 
-                        <Field label="Assinatura / Supervisor">
-                            <div className="p-3 border border-gray-800 rounded bg-gray-950 flex items-center justify-between">
-                                <div>
-                                    <p className="text-xs font-bold text-gray-300">{formData.supervisorSignature || 'Supervisor da Operação'}</p>
-                                    <p className="text-[10px] text-gray-500">{formData.supervisorSignatureDate ? new Date(formData.supervisorSignatureDate).toLocaleString('pt-BR') : 'Assinatura Eletrônica Supervisor'}</p>
+                            {(formData.responsibleId || formData.responsibleName || formData.responsibleSignature?.startsWith('data:image/')) ? (
+                                formData.responsibleSignature?.startsWith('data:image/') && !showResignResp ? (
+                                    <div className="space-y-2.5 p-3 rounded-lg bg-black/50 border border-emerald-500/30">
+                                        <div className="flex items-center justify-between text-xs">
+                                            <span className="font-semibold text-emerald-400 flex items-center gap-1.5">
+                                                <CheckCircle className="h-3.5 w-3.5" /> Assinatura Digital Capturada
+                                            </span>
+                                            {formData.responsibleSignatureDate && (
+                                                <span className="text-[10px] text-gray-400">
+                                                    {new Date(formData.responsibleSignatureDate).toLocaleString('pt-BR')}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="bg-white rounded-md p-2 flex items-center justify-center border border-gray-300">
+                                            <img
+                                                src={formData.responsibleSignature}
+                                                alt="Assinatura Responsável Técnico"
+                                                className="max-h-24 object-contain"
+                                            />
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => setShowResignResp(true)}
+                                                className="flex-1 h-8 text-xs border-gray-700 text-gray-300 hover:text-white"
+                                            >
+                                                <PenLine className="h-3.5 w-3.5 mr-1.5" /> Reassinar
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => {
+                                                    setFormData(p => ({ ...p, responsibleSignature: '', responsibleSignatureDate: undefined }));
+                                                    setShowResignResp(false);
+                                                }}
+                                                className="flex-1 h-8 text-xs border-red-500/40 text-red-400 hover:bg-red-500/10"
+                                            >
+                                                <Eraser className="h-3.5 w-3.5 mr-1.5" /> Remover (Linha Vazia PDF)
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2 pt-1">
+                                        <div className="flex items-center justify-between text-[11px] text-gray-400">
+                                            <span className="flex items-center gap-1.5 text-purple-300 font-medium">
+                                                <PenLine className="h-3.5 w-3.5" /> Assinatura Digital ({formData.responsibleName || 'Técnico'})
+                                            </span>
+                                            {showResignResp && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowResignResp(false)}
+                                                    className="text-xs text-gray-400 hover:text-white underline"
+                                                >
+                                                    Cancelar
+                                                </button>
+                                            )}
+                                        </div>
+                                        <SignaturePad
+                                            compact
+                                            signerName={formData.responsibleName}
+                                            onSave={(dataUrl) => {
+                                                setFormData(p => ({
+                                                    ...p,
+                                                    responsibleSignature: dataUrl,
+                                                    responsibleSignatureDate: new Date().toISOString()
+                                                }));
+                                                setShowResignResp(false);
+                                                toast({ title: 'Assinatura registrada', description: 'Assinatura digital do Responsável Técnico confirmada.' });
+                                            }}
+                                            onClear={() => {
+                                                setFormData(p => ({ ...p, responsibleSignature: '', responsibleSignatureDate: undefined }));
+                                            }}
+                                        />
+                                        <p className="text-[10px] text-gray-500">
+                                            Opcional: assine com o dedo no celular/tablet e confirme. Sem assinatura digital, o PDF manterá a linha em branco para assinatura manual.
+                                        </p>
+                                    </div>
+                                )
+                            ) : (
+                                <div className="p-3 rounded-lg border border-dashed border-gray-800 bg-black/30 text-center text-xs text-gray-500">
+                                    Selecione o funcionário/mecânico acima para habilitar a assinatura digital no celular/tablet (ou deixe em branco para assinar no PDF impresso).
                                 </div>
-                                <Button type="button" size="sm" variant="outline" onClick={() => setFormData(p => ({ ...p, supervisorSignature: user?.name || 'Supervisor' }))}
-                                    className="border-purple-600 text-purple-400 text-xs">
-                                    Assinar
-                                </Button>
-                            </div>
-                        </Field>
+                            )}
+                        </div>
+
+                        {/* Card Supervisor / Gerente / Encarregado */}
+                        <div className="p-4 border border-gray-800 rounded-xl bg-gray-950/90 space-y-3">
+                            <Field label="Assinatura / Supervisor">
+                                <SearchableSelect
+                                    value={formData.supervisorId || ''}
+                                    fallbackLabel={formData.supervisorName || undefined}
+                                    onChange={(v, opt) => {
+                                        setFormData(p => ({
+                                            ...p,
+                                            supervisorId: v || undefined,
+                                            supervisorName: opt ? opt.label : (v ? p.supervisorName : undefined),
+                                        }));
+                                        setShowResignSup(false);
+                                    }}
+                                    options={supervisorOptions}
+                                    placeholder="Selecione Encarregado, Gestor, Mecânico, Eng. ou Gerente..."
+                                    searchPlaceholder="Buscar por nome ou cargo..."
+                                    emptyText="Nenhum responsável encontrado."
+                                />
+                            </Field>
+
+                            {(formData.supervisorId || formData.supervisorName || formData.supervisorSignature?.startsWith('data:image/')) ? (
+                                formData.supervisorSignature?.startsWith('data:image/') && !showResignSup ? (
+                                    <div className="space-y-2.5 p-3 rounded-lg bg-black/50 border border-emerald-500/30">
+                                        <div className="flex items-center justify-between text-xs">
+                                            <span className="font-semibold text-emerald-400 flex items-center gap-1.5">
+                                                <CheckCircle className="h-3.5 w-3.5" /> Assinatura Digital Capturada
+                                            </span>
+                                            {formData.supervisorSignatureDate && (
+                                                <span className="text-[10px] text-gray-400">
+                                                    {new Date(formData.supervisorSignatureDate).toLocaleString('pt-BR')}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="bg-white rounded-md p-2 flex items-center justify-center border border-gray-300">
+                                            <img
+                                                src={formData.supervisorSignature}
+                                                alt="Assinatura Supervisor"
+                                                className="max-h-24 object-contain"
+                                            />
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => setShowResignSup(true)}
+                                                className="flex-1 h-8 text-xs border-gray-700 text-gray-300 hover:text-white"
+                                            >
+                                                <PenLine className="h-3.5 w-3.5 mr-1.5" /> Reassinar
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => {
+                                                    setFormData(p => ({ ...p, supervisorSignature: '', supervisorSignatureDate: undefined }));
+                                                    setShowResignSup(false);
+                                                }}
+                                                className="flex-1 h-8 text-xs border-red-500/40 text-red-400 hover:bg-red-500/10"
+                                            >
+                                                <Eraser className="h-3.5 w-3.5 mr-1.5" /> Remover (Linha Vazia PDF)
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2 pt-1">
+                                        <div className="flex items-center justify-between text-[11px] text-gray-400">
+                                            <span className="flex items-center gap-1.5 text-purple-300 font-medium">
+                                                <PenLine className="h-3.5 w-3.5" /> Assinatura Digital ({formData.supervisorName || 'Supervisor'})
+                                            </span>
+                                            {showResignSup && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowResignSup(false)}
+                                                    className="text-xs text-gray-400 hover:text-white underline"
+                                                >
+                                                    Cancelar
+                                                </button>
+                                            )}
+                                        </div>
+                                        <SignaturePad
+                                            compact
+                                            signerName={formData.supervisorName}
+                                            onSave={(dataUrl) => {
+                                                setFormData(p => ({
+                                                    ...p,
+                                                    supervisorSignature: dataUrl,
+                                                    supervisorSignatureDate: new Date().toISOString()
+                                                }));
+                                                setShowResignSup(false);
+                                                toast({ title: 'Assinatura registrada', description: 'Assinatura digital do Supervisor confirmada.' });
+                                            }}
+                                            onClear={() => {
+                                                setFormData(p => ({ ...p, supervisorSignature: '', supervisorSignatureDate: undefined }));
+                                            }}
+                                        />
+                                        <p className="text-[10px] text-gray-500">
+                                            Opcional: assine com o dedo no celular/tablet e confirme. Sem assinatura digital, o PDF manterá a linha em branco para assinatura manual.
+                                        </p>
+                                    </div>
+                                )
+                            ) : (
+                                <div className="p-3 rounded-lg border border-dashed border-gray-800 bg-black/30 text-center text-xs text-gray-500">
+                                    Selecione o supervisor (Encarregado, Gestor, Mecânico, Eng. Mecânico ou Gerente) para habilitar a assinatura digital.
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </Section>
 
@@ -3016,6 +3549,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                 onClose={() => setIsPdfModalOpen(false)}
                 order={pdfPreviewOrder}
                 pdfBlob={pdfPreviewBlob}
+                initialBlankMode={isBlankPdfMode}
             />
         </ResponsiveDrawer>
     );
@@ -3023,9 +3557,9 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
 
 // ── Sub-componentes ───────────────────────────────────────────────────────────
 
-const Section: React.FC<{ title: string; icon?: React.ReactNode; action?: React.ReactNode; children: React.ReactNode }> = ({ title, icon, action, children }) => (
-    <div className="space-y-3">
-        <div className="flex items-center justify-between">
+const Section: React.FC<{ id?: string; title: string; icon?: React.ReactNode; action?: React.ReactNode; children: React.ReactNode }> = ({ id, title, icon, action, children }) => (
+    <div id={id} className="space-y-3 scroll-mt-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-sm font-semibold text-gray-300 flex items-center gap-2 uppercase tracking-wide">
                 {icon}{title}
             </h3>
@@ -3036,9 +3570,9 @@ const Section: React.FC<{ title: string; icon?: React.ReactNode; action?: React.
     </div>
 );
 
-const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-    <div className="space-y-1.5">
-        <Label className="text-xs text-gray-400 uppercase tracking-wide">{label}</Label>
+const Field: React.FC<{ label: string; children: React.ReactNode; className?: string }> = ({ label, children, className }) => (
+    <div className={`flex flex-col justify-end space-y-1.5 h-full ${className || ''}`}>
+        <Label className="text-xs text-gray-400 uppercase tracking-wide leading-tight">{label}</Label>
         {children}
     </div>
 );

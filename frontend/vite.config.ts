@@ -28,8 +28,9 @@ export default defineConfig(({ mode }) => {
     ...(useDevHttps && !hasTrustedCert ? [basicSsl()] : []),
     // ...(mode === 'development' ? [componentTagger()] : []),
     VitePWA({
+      selfDestroying: true,
       registerType: 'autoUpdate',
-      // Service Worker em dev intercepta fetch/HMR e causa ERR_CERT / ERR_SSL_PROTOCOL_ERROR misturados com proxy /api
+      // Service Worker desativado/autodestrutivo para evitar cache stale de chunks e falhas workbox-*.js após deploys CI/prod
       devOptions: {
         enabled: false,
         type: 'module',

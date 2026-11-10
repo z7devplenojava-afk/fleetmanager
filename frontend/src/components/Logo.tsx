@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { Building2 } from 'lucide-react';
 
 interface LogoProps {
@@ -23,6 +24,7 @@ const Logo: React.FC<LogoProps> = ({
   forceDefault = false
 }) => {
   const { empresa, user } = useAuth();
+  const { isDark } = useTheme();
   const [imgError, setImgError] = useState(false);
 
   const heightClasses = {
@@ -112,13 +114,13 @@ const Logo: React.FC<LogoProps> = ({
     );
   }
 
-  // Se showText for verdadeiro (ex: Sidebar expandida, Login, telas públicas), exibe a logo completa horizontal
+  // Se showText for verdadeiro (ex: Sidebar expandida, Login, telas públicas), exibe a logo completa horizontal transparente
   return (
     <div className={`flex items-center select-none ${className}`}>
       <img
-        src="/fluxbus-logo.png"
+        src={isDark ? '/fluxbus-logo.png' : '/fluxbus-logo-light.png'}
         alt="FluxBus - Transporte Corporativo e Fretamento"
-        className={`${heightClasses[size]} w-auto max-w-[200px] object-contain drop-shadow-md hover:scale-[1.03] transition-all duration-300 rounded-md`}
+        className={`${heightClasses[size]} w-auto max-w-[200px] object-contain drop-shadow-md hover:scale-[1.03] transition-all duration-300`}
       />
     </div>
   );

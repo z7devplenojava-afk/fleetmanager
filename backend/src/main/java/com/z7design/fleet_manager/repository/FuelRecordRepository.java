@@ -213,4 +213,6 @@ public interface FuelRecordRepository extends JpaRepository<FuelRecord, UUID> {
            "WHERE fr.vehicle.id = :vehicleId " +
            "ORDER BY fr.date DESC, fr.createdAt DESC")
     List<FuelRecord> findByVehicleIdWithVehicleAndDriver(@Param("vehicleId") UUID vehicleId);
+
+    List<FuelRecord> findByNotesContainingIgnoreCase(String text);
 } 

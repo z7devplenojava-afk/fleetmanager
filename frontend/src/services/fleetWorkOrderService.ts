@@ -83,10 +83,10 @@ export interface ChecklistItemMaster {
 export interface FleetWorkOrderChecklist {
     id?: string;
     workOrderId?: string;
-    checklistItemId: string;
+    checklistItemId?: string;
     checklistItemDescricao?: string;
     checklistItemCategoria?: string;
-    situacao: ChecklistStatus;
+    situacao?: ChecklistStatus | null;
     observacao?: string;
     reparoRealizado?: string;
 }

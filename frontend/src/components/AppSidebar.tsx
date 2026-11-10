@@ -393,11 +393,7 @@ export function AppSidebar() {
   return (
     <div className="bg-seguranca-graphite border-r border-gray-700 w-64 h-screen overflow-y-auto" style={{ minHeight: '100vh' }}>
       <div className="p-4 border-b border-gray-700">
-        <img
-          src="/fluxbus-logo.png"
-          alt="FluxBus Logo"
-          className="h-9 w-auto object-contain drop-shadow-md"
-        />
+        <Logo size="md" forceDefault />
       </div>
 
       <div className="p-4" style={{ minHeight: 'calc(100vh - 80px)' }}>

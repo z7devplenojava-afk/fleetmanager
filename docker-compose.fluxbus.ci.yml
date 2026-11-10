@@ -71,8 +71,11 @@ services:
       MAIL_USERNAME: ${MAIL_USERNAME:-securedguard@z7design.com.br}
       MAIL_PASSWORD: ${MAIL_PASSWORD:-CHANGE_THIS_MAIL_PASSWORD}
       MAIL_SSL_ENABLE: true
+      UPLOAD_DIR: /var/www/fluxbus/uploads
     ports:
       - "8083:8083"
+    volumes:
+      - uploads_ci:/var/www/fluxbus/uploads
     depends_on:
       postgres-ci:
         condition: service_healthy
@@ -145,6 +148,8 @@ volumes:
   redis_data_ci:
     driver: local
   whatsapp_sessions_ci:
+    driver: local
+  uploads_ci:
     driver: local
 
 # ========================================

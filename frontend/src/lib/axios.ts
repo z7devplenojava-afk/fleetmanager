@@ -186,16 +186,23 @@ api.interceptors.response.use(
       return Promise.reject(createConnectionError(apiUrl, connectionCause));
     }
 
-    // Tratamento unificado para 522/524 (Cloudflare: origem não responde) com circuit breaker global
-    // Enquanto o servidor estiver fora, novas requisições falham rápido (sem retry storm de dezenas de endpoints)
+    // Tratamento unificado para indisponibilidade temporária (502/503/504/522/524) com circuit breaker global
+    // Enquanto o servidor estiver reiniciando/fora, requisições GET/HEAD tentam backoff curto antes de abrir o circuito
     const status = error.response?.status;
-    if (status === 522 || status === 524) {
+    const reqMethod = String(error.config?.method || 'get').toUpperCase();
+    const isSafeReadMethod = reqMethod === 'GET' || reqMethod === 'HEAD';
+    const isTransientProxyOutage =
+      status === 522 ||
+      status === 524 ||
+      ((status === 502 || status === 503 || status === 504) && isSafeReadMethod);
+
+    if (isTransientProxyOutage) {
       const now = Date.now();
 
-      // Circuito aberto: falha imediata sem tocar o servidor
+      // Circuito aberto: falha imediata sem atacar o servidor
       if (serverDownUntil > now) {
-        const errorOrigin = new Error('O servidor está temporariamente indisponível. Aguarde alguns instantes e tente novamente.');
-        (errorOrigin as any).is522Error = true;
+        const errorOrigin = new Error('O servidor está reiniciando ou temporariamente indisponível. Aguarde alguns instantes e tente novamente.');
+        (errorOrigin as any).is522Error = status === 522 || status === 524;
         (errorOrigin as any).isConnectionError = true;
         (errorOrigin as any).status = status;
         return Promise.reject(errorOrigin);
@@ -207,17 +214,18 @@ api.interceptors.response.use(
 
       if (retryCount < maxRetries) {
         (originalRequest as any).__retryCount = retryCount + 1;
-        const delay = Math.min(1000 * Math.pow(2, retryCount), 4000); // Backoff: 2s, 4s
-        console.warn(`⚠️ Erro ${status} (tentativa ${retryCount + 1}/${maxRetries}). Aguardando ${delay}ms antes de tentar novamente...`);
+        const delay = Math.min(1000 * Math.pow(2, retryCount), 4000); // Backoff: 1s, 2s
+        console.warn(`⚠️ Erro ${status} em ${originalRequest?.url} (tentativa ${retryCount + 1}/${maxRetries}). Aguardando ${delay}ms...`);
         await new Promise(resolve => setTimeout(resolve, delay));
         return api(originalRequest);
       }
 
-      // Esgotou as tentativas: abre o circuito por 30s e falha rápido para todas as requisições
-      serverDownUntil = Date.now() + SERVER_DOWN_COOLDOWN_MS;
-      console.error('❌ Erro ' + status + ': origem (Cloudflare) não respondeu após ' + maxRetries + ' tentativas. Circuito aberto por ' + (SERVER_DOWN_COOLDOWN_MS / 1000) + 's.');
-      const errorOrigin = new Error('O servidor está temporariamente indisponível. Por favor, tente novamente em alguns instantes.');
-      (errorOrigin as any).is522Error = true;
+      // Esgotou as tentativas: abre o circuito por 15s (503) / 30s (522/524)
+      const cooldownMs = status === 522 || status === 524 ? SERVER_DOWN_COOLDOWN_MS : 15000;
+      serverDownUntil = Date.now() + cooldownMs;
+      console.error('❌ Erro ' + status + ': servidor indisponível após ' + maxRetries + ' tentativas. Circuito aberto por ' + (cooldownMs / 1000) + 's.');
+      const errorOrigin = new Error('O servidor está reiniciando ou temporariamente indisponível. Por favor, aguarde alguns instantes e tente novamente.');
+      (errorOrigin as any).is522Error = status === 522 || status === 524;
       (errorOrigin as any).isConnectionError = true;
       (errorOrigin as any).status = status;
       return Promise.reject(errorOrigin);

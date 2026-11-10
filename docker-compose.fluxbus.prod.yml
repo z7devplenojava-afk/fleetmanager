@@ -81,6 +81,9 @@ services:
       ASTRACALLS_API_ENABLED: ${ASTRACALLS_API_ENABLED:-true}
       ASTRACALLS_API_URL: ${ASTRACALLS_API_URL:-http://astracalls-prod:8080}
       ASTRACALLS_API_KEY: ${ASTRACALLS_API_KEY_PROD:-fluxbus_prod_key}
+      UPLOAD_DIR: /var/www/fluxbus/uploads
+    volumes:
+      - uploads_data_prod:/var/www/fluxbus/uploads
     ports:
       - "8085:8083"
     depends_on:
@@ -208,6 +211,8 @@ volumes:
   evolution_instances_prod:
     driver: local
   astracalls_data_prod:
+    driver: local
+  uploads_data_prod:
     driver: local
 
 # ========================================

@@ -10,34 +10,28 @@ const ThemeToggle: React.FC = () => {
 
   const themes = [
     {
+      value: 'dark',
+      label: 'Escuro (Padrão)',
+      icon: Moon,
+      color: 'bg-slate-950 border-slate-800'
+    },
+    {
+      value: 'graphite',
+      label: 'Grafite',
+      icon: Shield,
+      color: 'bg-[#2c313d] border-slate-600'
+    },
+    {
       value: 'white',
       label: 'Branco',
       icon: Sun,
       color: 'bg-white border-gray-200'
     },
     {
-      value: 'light-gray',
-      label: 'Cinza Claro',
-      icon: Cloud,
-      color: 'bg-slate-100 border-slate-300'
-    },
-    {
-      value: 'dark',
-      label: 'Escuro',
-      icon: Moon,
-      color: 'bg-slate-950 border-slate-800'
-    },
-    {
-      value: 'dark-red',
-      label: 'Vermelho Escuro',
-      icon: Shield,
-      color: 'bg-red-950 border-red-900'
-    },
-    {
       value: 'system',
       label: 'Sistema',
       icon: Monitor,
-      color: 'bg-gradient-to-br from-white to-slate-950'
+      color: 'bg-gradient-to-br from-slate-950 to-white'
     },
   ] as const;
 
@@ -75,7 +69,7 @@ const ThemeToggle: React.FC = () => {
                 )}>
                   <Icon className={cn(
                     "h-3.5 w-3.5",
-                    themeOption.value === 'white' || themeOption.value === 'light-gray' ? "text-slate-900" : "text-white"
+                    themeOption.value === 'white' ? "text-slate-900" : "text-white"
                   )} />
                 </div>
                 <span className="font-medium">{themeOption.label}</span>

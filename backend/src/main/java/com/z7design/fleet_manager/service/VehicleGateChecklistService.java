@@ -8,6 +8,7 @@ import com.z7design.fleet_manager.model.FleetWorkOrder;
 import com.z7design.fleet_manager.model.Vehicle;
 import com.z7design.fleet_manager.model.VehicleGateChecklist;
 import com.z7design.fleet_manager.repository.DriverRepository;
+import com.z7design.fleet_manager.repository.FleetWorkOrderRepository;
 import com.z7design.fleet_manager.repository.VehicleGateChecklistRepository;
 import com.z7design.fleet_manager.repository.VehicleRepository;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +37,7 @@ public class VehicleGateChecklistService {
     private final VehicleRepository vehicleRepository;
     private final DriverRepository driverRepository;
     private final FleetWorkOrderService fleetWorkOrderService;
+    private final FleetWorkOrderRepository fleetWorkOrderRepository;
 
     private static final String UPLOAD_DIR = "uploads/vehicle-gate-checklists/odometer-photos/";
     private static final String VEHICLE_PHOTOS_DIR = "uploads/vehicles/";
@@ -275,6 +277,9 @@ public class VehicleGateChecklistService {
             entity.setOdometerPhotoUrl(photoUrl);
             entity.setOdometerPhotoDescription(description);
             entity = repository.save(entity);
+            if (entity.getVehicle() != null) {
+                attachPhotosToRecentWorkOrders(entity.getVehicle().getId(), List.of(photoUrl));
+            }
             log.info("Foto do odômetro salva para checklist: {}", id);
             return toDTO(entity);
         } catch (IOException e) {
@@ -324,12 +329,53 @@ public class VehicleGateChecklistService {
                 vehicleRepository.save(vehicle);
 
                 entity = repository.save(entity);
+                attachPhotosToRecentWorkOrders(vehicleId, newUrls);
                 log.info("{} foto(s) do veículo salva(s) para checklist: {} e galeria do veículo: {}", newUrls.size(), id, vehicleId);
             }
             return toDTO(entity);
         } catch (IOException e) {
             log.error("Erro ao salvar fotos do veículo: {}", e.getMessage());
             throw new RuntimeException("Erro ao salvar fotos do veículo: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Vincula automaticamente as fotos enviadas pelo motorista no checklist às Ordens de Serviço
+     * abertas/recentes do mesmo veículo para que apareçam tanto na modal da OS quanto no PDF.
+     */
+    private void attachPhotosToRecentWorkOrders(UUID vehicleId, List<String> photoUrls) {
+        if (vehicleId == null || photoUrls == null || photoUrls.isEmpty()) return;
+        try {
+            List<FleetWorkOrder> orders = fleetWorkOrderRepository.findByVehicleIdAndDeletedAtIsNullOrderByCreatedAtDesc(vehicleId);
+            if (orders == null || orders.isEmpty()) return;
+            LocalDate today = LocalDate.now();
+            for (FleetWorkOrder wo : orders) {
+                LocalDate woDate = wo.getStopDate() != null
+                        ? wo.getStopDate()
+                        : (wo.getCreatedAt() != null ? wo.getCreatedAt().toLocalDate() : today);
+                boolean isRecent = Math.abs(java.time.temporal.ChronoUnit.DAYS.between(today, woDate)) <= 2;
+                boolean isOpenOrPending = wo.getStatus() == FleetWorkOrder.WorkOrderStatus.OPEN
+                        || wo.getStatus() == FleetWorkOrder.WorkOrderStatus.PENDING_APPROVAL
+                        || wo.getStatus() == FleetWorkOrder.WorkOrderStatus.IN_PROGRESS
+                        || isRecent;
+                if (isOpenOrPending) {
+                    if (wo.getPhotoAttachments() == null) {
+                        wo.setPhotoAttachments(new ArrayList<>());
+                    }
+                    boolean changed = false;
+                    for (String url : photoUrls) {
+                        if (url != null && !url.isBlank() && !wo.getPhotoAttachments().contains(url)) {
+                            wo.getPhotoAttachments().add(url);
+                            changed = true;
+                        }
+                    }
+                    if (changed) {
+                        fleetWorkOrderRepository.save(wo);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Aviso ao vincular fotos do checklist à OS do veículo {}: {}", vehicleId, e.getMessage());
         }
     }
 }

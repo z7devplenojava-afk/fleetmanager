@@ -10,6 +10,7 @@ import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import fleetService from '@/services/fleetService';
 import { garageService } from '@/services/garageService';
 import { contasAPagarService } from '@/services/contasAPagarService';
+import { stockNfeService } from '@/services/stockNfeService';
 import { clientService } from '@/services/clientService';
 import { contractService } from '@/services/contractService';
 import { workPostService } from '@/services/workPostService';
@@ -20,7 +21,7 @@ import { VehicleCombobox } from '@/components/ui/vehicle-combobox';
 import { EmployeeCombobox } from '@/components/ui/employee-combobox';
 import {
   Fuel, Gauge, Truck, MapPin, User, Calendar, DollarSign,
-  Save, Loader2, PlusCircle, Building2, FileText, Droplets, Upload, X
+  Save, Loader2, PlusCircle, Building2, FileText, Droplets, Upload, X, AlertTriangle
 } from 'lucide-react';
 import { SupplierFormModal } from '@/components/estoque/SupplierFormModal';
 
@@ -99,7 +100,35 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
   const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
   const [mileageError, setMileageError] = useState<string | null>(null);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
+  const [parsingReceipt, setParsingReceipt] = useState(false);
+  const [duplicateAlert, setDuplicateAlert] = useState<string | null>(null);
+  const [detectedNewSupplier, setDetectedNewSupplier] = useState<{
+    name: string;
+    tradeName?: string;
+    cnpj?: string;
+    city?: string;
+    state?: string;
+    address?: string;
+    phone?: string;
+  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const cleanDigits = (v?: string) => (v || '').replace(/\D/g, '');
+  const formatCnpj = (v?: string) => {
+    const d = cleanDigits(v);
+    if (d.length === 14) return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12, 14)}`;
+    return v || '';
+  };
+  const sanitizeSuppName = (raw?: string) => {
+    if (!raw) return '';
+    const cleaned = raw
+      .replace(/\bCNPJ(?:\s*\/\s*CPF)?\s*[:.]?.*$/i, '')
+      .replace(/\bI\.?E\.?\s*[:.]?.*$/i, '')
+      .replace(/^[\s:;.,/-]+|[\s:;.,/-]+$/g, '')
+      .trim();
+    const upper = cleaned.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\b(CNPJ|CPF|IE|INSC|ESTADUAL|DANFE|NFE|NF)\b/g, '').replace(/[^A-Z]/g, '');
+    return upper.length >= 3 ? cleaned : '';
+  };
 
   // Preencher formulário quando em modo de edição
   useEffect(() => {
@@ -155,6 +184,12 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
   const { data: suppliers = EMPTY_LIST, refetch: refetchSuppliers } = useQuery({
     queryKey: ['suppliers', 'active'],
     queryFn: contasAPagarService.getFornecedoresAtivos,
+    enabled: isOpen
+  });
+
+  const { data: existingFuelRecords = EMPTY_LIST } = useQuery({
+    queryKey: ['fuelRecords'],
+    queryFn: () => fleetService.getFuelRecords(),
     enabled: isOpen
   });
 
@@ -384,11 +419,193 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
       onClose();
       setFormData(DEFAULT_FORM);
       setIsTotalManual(false);
+      setReceiptPreview(null);
+      setDuplicateAlert(null);
+      setDetectedNewSupplier(null);
     },
     onError: (err: any) => {
       toast({ title: 'Erro', description: err.response?.data?.message || 'Erro ao salvar', variant: 'destructive' });
     }
   });
+
+  // Reset estado auxiliar ao fechar modal
+  useEffect(() => {
+    if (!isOpen) {
+      setDuplicateAlert(null);
+      setDetectedNewSupplier(null);
+      setParsingReceipt(false);
+      if (!abastecimento) {
+        setReceiptPreview(null);
+      }
+    }
+  }, [isOpen, abastecimento]);
+
+  const handleReceiptSelected = async (file: File | null) => {
+    handleField('receiptFile', file);
+    setDuplicateAlert(null);
+    if (!file) {
+      setReceiptPreview(null);
+      return;
+    }
+    setReceiptPreview(file.name);
+
+    const lower = file.name.toLowerCase();
+    const isXmlOrPdf = lower.endsWith('.xml') || lower.endsWith('.pdf') || file.type.includes('xml') || file.type.includes('pdf');
+    if (isEditing || !isXmlOrPdf) return;
+
+    setParsingReceipt(true);
+    try {
+      const parsed = await stockNfeService.parseNfe(file);
+      if (!parsed) return;
+
+      const items = Array.isArray(parsed.items) ? parsed.items : [];
+      const litersSum = items.reduce((s, it) => s + (Number(it.quantity) || 0), 0);
+      const totalVal =
+        Number(parsed.totalInvoiceAmount) ||
+        Number(parsed.totalProductsAmount) ||
+        items.reduce((s, it) => s + (Number(it.totalPrice) || 0), 0);
+      const unitPrice =
+        litersSum > 0 && totalVal > 0
+          ? Number((totalVal / litersSum).toFixed(3))
+          : Number(items[0]?.unitPrice || 0);
+
+      const descJoined = items.map((i) => i.description || '').join(' ').toUpperCase();
+      let detectedFuel: ExternoFormData['fuelType'] = formData.fuelType;
+      if (descJoined.includes('ETANOL') || descJoined.includes('ALCOOL') || descJoined.includes('ÁLCOOL')) {
+        detectedFuel = 'ETHANOL';
+      } else if (descJoined.includes('GASOLINA')) {
+        detectedFuel = 'GASOLINE';
+      } else if (descJoined.includes('DIESEL')) {
+        detectedFuel = 'DIESEL';
+      }
+
+      const nfNum = String(parsed.invoiceNumber || '').trim().replace(/^0+(?!$)/, '');
+      const accessKey = cleanDigits(parsed.accessKey);
+      const cnpjDigits = cleanDigits(parsed.supplierCnpj || (accessKey.length === 44 ? accessKey.slice(6, 20) : ''));
+      const cnpjFormatted = formatCnpj(cnpjDigits);
+
+      let resolvedName = sanitizeSuppName(parsed.supplierName || parsed.supplierTradeName);
+      let resolvedTrade = sanitizeSuppName(parsed.supplierTradeName || parsed.supplierName) || resolvedName;
+
+      // Localizar fornecedor cadastrado na base
+      const matchedSupp = (Array.isArray(suppliers) ? suppliers : []).find((s: any) => {
+        const sc = cleanDigits(s.cnpj || s.registrationNumber);
+        if (cnpjDigits.length >= 11 && sc === cnpjDigits) return true;
+        if (cnpjDigits.length === 14 && sc.length === 14 && sc.slice(0, 8) === cnpjDigits.slice(0, 8)) return true;
+        const sn = sanitizeSuppName(s.name).toLowerCase();
+        const st = sanitizeSuppName(s.tradeName).toLowerCase();
+        return resolvedName.length >= 4 && (sn === resolvedName.toLowerCase() || st === resolvedName.toLowerCase());
+      });
+
+      if (matchedSupp) {
+        resolvedName = matchedSupp.tradeName || matchedSupp.name;
+        resolvedTrade = matchedSupp.tradeName || matchedSupp.name;
+        setDetectedNewSupplier(null);
+      } else {
+        // Se não veio razão social no PDF (ex: logo em imagem), consulta histórico ou BrasilAPI
+        if (!resolvedName && cnpjDigits.length === 14) {
+          const prevRec = (Array.isArray(existingFuelRecords) ? existingFuelRecords : []).find((rec: any) => {
+            const nd = cleanDigits(String(rec?.notes || ''));
+            return (nd.includes(cnpjDigits) || nd.includes(cnpjDigits.slice(0, 8))) && sanitizeSuppName(rec?.station);
+          });
+          if (prevRec && sanitizeSuppName(prevRec.station)) {
+            resolvedName = sanitizeSuppName(prevRec.station);
+            resolvedTrade = resolvedName;
+          } else {
+            try {
+              const resp = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjDigits}`);
+              if (resp.ok) {
+                const brData = await resp.json();
+                resolvedName = sanitizeSuppName(brData.razao_social || brData.nome_fantasia);
+                resolvedTrade = sanitizeSuppName(brData.nome_fantasia || brData.razao_social) || resolvedName;
+              }
+            } catch { /* ignore external lookup failure */ }
+          }
+        }
+        if (resolvedName || cnpjFormatted) {
+          setDetectedNewSupplier({
+            name: resolvedName || `Posto ${cnpjFormatted}`,
+            tradeName: resolvedTrade || resolvedName || `Posto ${cnpjFormatted}`,
+            cnpj: cnpjDigits || undefined,
+            city: parsed.supplierCity || undefined,
+            state: parsed.supplierState || undefined,
+            address: parsed.supplierAddress || undefined,
+            phone: parsed.supplierPhone || undefined,
+          });
+        }
+      }
+
+      // Verificar duplicidade contra backend e histórico local
+      let dupReason: string | null = parsed.alreadyImported
+        ? parsed.alreadyImportedMessage || `A Nota Fiscal nº ${nfNum || file.name} já foi importada anteriormente no sistema.`
+        : null;
+
+      if (!dupReason && Array.isArray(existingFuelRecords) && existingFuelRecords.length > 0) {
+        if (accessKey.length === 44) {
+          const hitKey = existingFuelRecords.find((rec: any) => String(rec?.notes || '').includes(accessKey));
+          if (hitKey) {
+            dupReason = `Esta Nota Fiscal (Chave ${accessKey}) já foi importada anteriormente (${hitKey.station || 'Abastecimento Externo'}).`;
+          }
+        }
+        if (!dupReason && nfNum) {
+          const nfRe = new RegExp(`(?:NF|NOTA|NFE)[:\\s#-]*0*${nfNum.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?!\\d)`, 'i');
+          const hitNf = existingFuelRecords.find((rec: any) => {
+            const notes = String(rec?.notes || '');
+            if (!nfRe.test(notes)) return false;
+            const nd = cleanDigits(notes);
+            if (cnpjDigits.length >= 8 && nd.includes(cnpjDigits.slice(0, 8))) return true;
+            return resolvedName && rec?.station && String(rec.station).toLowerCase().includes(resolvedName.toLowerCase());
+          });
+          if (hitNf) {
+            dupReason = `A Nota Fiscal nº ${nfNum} do fornecedor ${hitNf.station || resolvedName} já foi importada anteriormente.`;
+          }
+        }
+      }
+
+      if (dupReason) {
+        setDuplicateAlert(dupReason);
+        toast({
+          title: 'Nota Fiscal Já Importada!',
+          description: dupReason,
+          variant: 'destructive',
+        });
+      }
+
+      const normDate = parsed.issueDate ? String(parsed.issueDate).slice(0, 10) : '';
+      const nfNoteParts = [
+        'Abastecimento Externo',
+        nfNum ? `NF: ${nfNum}` : '',
+        cnpjFormatted ? `CNPJ: ${cnpjFormatted}` : '',
+        accessKey ? `Chave: ${accessKey}` : '',
+      ].filter(Boolean);
+
+      setIsTotalManual(totalVal > 0);
+      setFormData((prev) => ({
+        ...prev,
+        date: normDate || prev.date,
+        fuelType: detectedFuel,
+        liters: litersSum > 0 ? Number(litersSum.toFixed(2)) : prev.liters,
+        pricePerLiter: unitPrice > 0 ? unitPrice : prev.pricePerLiter,
+        totalValue: totalVal > 0 ? Number(totalVal.toFixed(2)) : prev.totalValue,
+        supplierId: matchedSupp ? matchedSupp.id : prev.supplierId,
+        station: resolvedTrade || resolvedName || prev.station,
+        notes: nfNoteParts.join(' | '),
+      }));
+
+      if (!dupReason) {
+        toast({
+          title: 'Nota Fiscal Lida com Sucesso',
+          description: resolvedName
+            ? `Fornecedor identificado: ${resolvedTrade || resolvedName}${nfNum ? ` | NF nº ${nfNum}` : ''}`
+            : `Dados extraídos da NF${nfNum ? ` nº ${nfNum}` : ''}.`,
+        });
+      }
+    } catch {
+      // Mantém anexo normalmente caso não seja NF-e estruturada
+    } finally {
+      setParsingReceipt(false);
+    }
+  };
 
   const handleSelectClient = (clientId: string) => {
     setFormData(prev => {
@@ -484,7 +701,11 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (duplicateAlert) {
+      toast({ title: 'Nota Fiscal Duplicada!', description: duplicateAlert, variant: 'destructive' });
+      return;
+    }
     if (!formData.vehicleId || !formData.date || !formData.liters || !formData.station) {
       toast({ title: 'Erro', description: 'Preencha os campos obrigatórios', variant: 'destructive' });
       return;
@@ -497,6 +718,29 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
       return;
     }
     const safeCost = Math.max(computedCost, 0.01);
+
+    let resolvedSupplierId = formData.supplierId || null;
+    if (!resolvedSupplierId && detectedNewSupplier && detectedNewSupplier.name) {
+      try {
+        const created = await contasAPagarService.createFornecedor({
+          name: detectedNewSupplier.name,
+          tradeName: detectedNewSupplier.tradeName || detectedNewSupplier.name,
+          cnpj: detectedNewSupplier.cnpj,
+          registrationNumber: detectedNewSupplier.cnpj,
+          documentType: detectedNewSupplier.cnpj?.length === 11 ? 'CPF' : 'CNPJ',
+          address: detectedNewSupplier.address,
+          city: detectedNewSupplier.city,
+          state: detectedNewSupplier.state,
+          phone: detectedNewSupplier.phone,
+          category: 'COMBUSTIVEL',
+          notes: 'Cadastrado automaticamente via importação de Nota Fiscal no Abastecimento Externo',
+        });
+        if (created?.id) {
+          resolvedSupplierId = created.id;
+          refetchSuppliers();
+        }
+      } catch { /* prossegue salvando com station */ }
+    }
 
     const payload = {
       vehicleId: formData.vehicleId,
@@ -517,7 +761,7 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
       obraName: formData.obraName || null,
       contractId: formData.contractId || null,
       contractNumber: formData.contractNumber || null,
-      supplierId: formData.supplierId || null,
+      supplierId: resolvedSupplierId,
     };
 
     const fd = new FormData();
@@ -533,13 +777,13 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="!max-w-3xl !max-h-[92vh] flex flex-col !p-0 overflow-hidden bg-seguranca-darkgray text-seguranca-white border-gray-700">
-          <DialogHeader className="p-6 pb-3 border-b border-gray-700/50">
-            <DialogTitle className="text-xl font-bold flex items-center gap-2">
+        <DialogContent className="!max-w-3xl !max-h-[92vh] flex flex-col !p-0 overflow-hidden bg-seguranca-graphite text-white border-gray-700">
+          <DialogHeader className="p-6 pb-3 border-b border-gray-700/50 bg-seguranca-black/40">
+            <DialogTitle className="text-xl font-bold text-white flex items-center gap-2">
               <Droplets className="h-5 w-5 text-green-400" />
               {isEditing ? 'Editar Abastecimento Externo' : 'Abastecimento Externo - Posto de Gasolina'}
             </DialogTitle>
-            <DialogDescription className="text-gray-400 text-sm">
+            <DialogDescription className="text-gray-300 text-sm">
               {isEditing
                 ? 'Altere os dados do registro de abastecimento realizado em posto externo.'
                 : 'Registro de abastecimento realizado em posto externo. Dados do veículo, cliente e contrato.'}
@@ -549,8 +793,8 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
           <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
             {/* Veículo */}
             <div className="space-y-2">
-              <Label className="text-gray-300 font-medium flex items-center gap-1.5">
-                <Truck className="h-4 w-4" /> Veículo (Placa) *
+              <Label className="text-gray-200 font-semibold flex items-center gap-1.5">
+                <Truck className="h-4 w-4 text-green-400" /> Veículo (Placa) *
               </Label>
               <VehicleCombobox
                 value={formData.vehicleId}
@@ -558,7 +802,7 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
                 className="w-full"
               />
               {selectedVehicle && (
-                <div className="text-xs text-gray-500 flex gap-3 mt-1">
+                <div className="text-xs text-gray-400 flex gap-3 mt-1">
                   <span>Modelo: {selectedVehicle.brand} {selectedVehicle.model}</span>
                   <span>KM Atual: {(selectedVehicle.currentMileage || 0).toLocaleString('pt-BR')} km</span>
                 </div>
@@ -566,13 +810,13 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
             </div>
 
             {/* Cliente / Obra / Contrato */}
-            <div className="bg-gray-900/40 p-4 rounded-lg border border-gray-700/50 space-y-3">
-              <h4 className="text-sm font-semibold text-gray-300 flex items-center gap-1.5">
+            <div className="bg-seguranca-black/40 p-4 rounded-lg border border-gray-700/60 space-y-3">
+              <h4 className="text-sm font-semibold text-gray-200 flex items-center gap-1.5">
                 <Building2 className="h-4 w-4 text-blue-400" /> Dados do Cliente / Contrato
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-gray-400 text-xs">Cliente</Label>
+                  <Label className="text-gray-300 text-xs font-medium">Cliente</Label>
                   <SearchableSelect
                     value={formData.clientId}
                     onChange={(val) => handleSelectClient(val)}
@@ -583,7 +827,7 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-gray-400 text-xs">Obra / Setor</Label>
+                  <Label className="text-gray-300 text-xs font-medium">Obra / Setor</Label>
                   <SearchableSelect
                     value={formData.workPostId}
                     onChange={(val, opt) => handleSelectWorkPost(val, opt)}
@@ -594,7 +838,7 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-gray-400 text-xs">Contrato</Label>
+                  <Label className="text-gray-300 text-xs font-medium">Contrato</Label>
                   <SearchableSelect
                     value={formData.contractId}
                     onChange={(val, opt) => handleSelectContract(val, opt)}
@@ -610,8 +854,8 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
             {/* Garagem e Responsável */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-gray-300 font-medium flex items-center gap-1.5">
-                  <MapPin className="h-4 w-4" /> Garagem
+                <Label className="text-gray-200 font-semibold flex items-center gap-1.5">
+                  <MapPin className="h-4 w-4 text-blue-400" /> Garagem
                 </Label>
                 <SearchableSelect
                   value={formData.garageId}
@@ -623,8 +867,8 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-gray-300 font-medium flex items-center gap-1.5">
-                  <User className="h-4 w-4" /> Encarregado Responsável
+                <Label className="text-gray-200 font-semibold flex items-center gap-1.5">
+                  <User className="h-4 w-4 text-blue-400" /> Encarregado Responsável
                 </Label>
                 <EmployeeCombobox
                   value={formData.responsibleEmployeeId}
@@ -640,19 +884,19 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
             {/* Data e KM */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-gray-300 font-medium flex items-center gap-1.5">
-                  <Calendar className="h-4 w-4" /> Data *
+                <Label className="text-gray-200 font-semibold flex items-center gap-1.5">
+                  <Calendar className="h-4 w-4 text-green-400" /> Data *
                 </Label>
                 <Input
                   type="date"
                   value={formData.date}
                   onChange={(e) => handleField('date', e.target.value)}
-                  className="bg-gray-900/50 border-gray-600 text-white"
+                  className="bg-seguranca-black border-gray-600 text-white"
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-gray-300 font-medium flex items-center gap-1.5">
-                  <Gauge className="h-4 w-4" /> KM Anterior (Auto)
+                <Label className="text-gray-200 font-semibold flex items-center gap-1.5">
+                  <Gauge className="h-4 w-4 text-amber-400" /> KM Anterior (Auto)
                 </Label>
                 <Input
                   type="number"
@@ -662,29 +906,29 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-gray-300 font-medium flex items-center gap-1.5">
-                  <Gauge className="h-4 w-4" /> KM Atual *
+                <Label className="text-gray-200 font-semibold flex items-center gap-1.5">
+                  <Gauge className="h-4 w-4 text-green-400" /> KM Atual *
                 </Label>
                 <Input
                   type="number"
                   value={formData.mileage || ''}
                   onChange={(e) => handleField('mileage', Number(e.target.value))}
-                  className={`bg-gray-900/50 text-white ${mileageError ? 'border-red-500' : 'border-gray-600'}`}
+                  className={`bg-seguranca-black text-white ${mileageError ? 'border-red-500' : 'border-gray-600'}`}
                 />
                 {mileageError && <p className="text-xs text-red-400">{mileageError}</p>}
               </div>
             </div>
 
             {/* Dados do Abastecimento */}
-            <div className="bg-gray-900/40 p-4 rounded-lg border border-gray-700/50 space-y-3">
-              <h4 className="text-sm font-semibold text-gray-300 flex items-center gap-1.5">
+            <div className="bg-seguranca-black/40 p-4 rounded-lg border border-gray-700/60 space-y-3">
+              <h4 className="text-sm font-semibold text-gray-200 flex items-center gap-1.5">
                 <Fuel className="h-4 w-4 text-green-400" /> Dados do Abastecimento
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-gray-400 text-xs">Combustível *</Label>
+                  <Label className="text-gray-300 text-xs font-medium">Combustível *</Label>
                   <Select value={formData.fuelType} onValueChange={(v) => handleField('fuelType', v)}>
-                    <SelectTrigger className="bg-gray-900/50 border-gray-600 text-white">
+                    <SelectTrigger className="bg-seguranca-black border-gray-600 text-white">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-gray-900 border-gray-600">
@@ -696,7 +940,7 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
                   </Select>
                 </div>
                 <div className="space-y-1.5 md:col-span-2">
-                  <Label className="text-gray-400 text-xs">Posto de Gasolina *</Label>
+                  <Label className="text-gray-300 text-xs font-medium">Posto de Gasolina / Fornecedor *</Label>
                   <div className="flex gap-2">
                     <div className="flex-1">
                       <SearchableSelect
@@ -704,49 +948,55 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
                         onChange={(val, opt) => {
                           handleField('supplierId', val);
                           handleField('station', opt?.label || '');
+                          setDetectedNewSupplier(null);
                         }}
                         options={supplierOptions}
-                        placeholder="Buscar posto..."
+                        placeholder={formData.station ? formData.station : 'Buscar posto...'}
                         searchPlaceholder="Digite o nome do posto..."
                         emptyText="Nenhum posto encontrado"
                       />
                     </div>
-                    <Button type="button" variant="outline" onClick={() => setIsSupplierModalOpen(true)} className="border-gray-600 text-gray-300 h-9 px-2 shrink-0">
+                    <Button type="button" variant="outline" onClick={() => setIsSupplierModalOpen(true)} className="border-gray-600 text-gray-300 h-9 px-2 shrink-0" title="Cadastrar Novo Posto / Fornecedor">
                       <PlusCircle className="h-4 w-4" />
                     </Button>
                   </div>
+                  {!formData.supplierId && detectedNewSupplier && (
+                    <p className="text-[11px] text-amber-400 font-medium mt-1">
+                      Fornecedor detectado ({detectedNewSupplier.tradeName || detectedNewSupplier.name}{detectedNewSupplier.cnpj ? ` - ${formatCnpj(detectedNewSupplier.cnpj)}` : ''}) será cadastrado automaticamente ao salvar.
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-gray-400 text-xs">Quantidade (Litros) *</Label>
+                  <Label className="text-gray-300 text-xs font-medium">Quantidade (Litros) *</Label>
                   <Input
                     type="number"
                     step="0.01"
                     value={formData.liters || ''}
                     onChange={(e) => handleField('liters', Number(e.target.value))}
-                    className="bg-gray-900/50 border-gray-600 text-white"
+                    className="bg-seguranca-black border-gray-600 text-white"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-gray-400 text-xs">Valor Unitário (R$/L) *</Label>
+                  <Label className="text-gray-300 text-xs font-medium">Valor Unitário (R$/L) *</Label>
                   <Input
                     type="number"
                     step="0.01"
                     value={formData.pricePerLiter || ''}
                     onChange={(e) => handleField('pricePerLiter', Number(e.target.value))}
-                    className="bg-gray-900/50 border-gray-600 text-white"
+                    className="bg-seguranca-black border-gray-600 text-white"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-gray-400 text-xs">Valor Total (R$) *</Label>
+                  <Label className="text-gray-300 text-xs font-medium">Valor Total (R$) *</Label>
                   <div className="flex gap-1">
                     <Input
                       type="number"
                       step="0.01"
                       value={formData.totalValue || ''}
                       onChange={(e) => handleField('totalValue', Number(e.target.value))}
-                      className={`bg-gray-900/50 border-gray-600 text-white ${isTotalManual ? 'border-yellow-600' : ''}`}
+                      className={`bg-seguranca-black border-gray-600 text-white ${isTotalManual ? 'border-yellow-600' : ''}`}
                     />
                     {isTotalManual && (
                       <Button type="button" size="sm" variant="ghost" onClick={handleRecalculate} title="Recalcular" className="h-9 px-2">
@@ -760,29 +1010,32 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
 
             {/* Comprovante do Posto */}
             <div className="space-y-1.5">
-              <Label className="text-gray-300 font-medium flex items-center gap-1.5">
-                <Upload className="h-4 w-4" /> Comprovante do Posto (PDF)
+              <Label className="text-gray-200 font-semibold flex items-center gap-1.5">
+                <Upload className="h-4 w-4 text-green-400" /> Comprovante / Nota do Posto (PDF ou XML)
               </Label>
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-3 border-2 border-dashed border-gray-600 rounded-lg p-4 cursor-pointer hover:border-green-500/60 hover:bg-green-500/5 transition-all"
+                className="flex items-center gap-3 border-2 border-dashed border-gray-600 rounded-lg p-4 cursor-pointer hover:border-green-500/60 hover:bg-green-500/5 transition-all bg-seguranca-black/20"
               >
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".pdf"
+                  accept=".pdf,.xml"
                   className="hidden"
                   onChange={(e) => {
                     const file = e.target.files?.[0] || null;
-                    handleField('receiptFile', file);
-                    if (file) {
-                      setReceiptPreview(file.name);
-                    } else {
-                      setReceiptPreview(null);
-                    }
+                    handleReceiptSelected(file);
                   }}
                 />
-                {receiptPreview ? (
+                {parsingReceipt ? (
+                  <>
+                    <Loader2 className="h-7 w-7 text-green-400 animate-spin shrink-0" />
+                    <div>
+                      <p className="text-sm text-white font-medium">Lendo Nota Fiscal e identificando fornecedor...</p>
+                      <p className="text-xs text-gray-400">Verificando duplicidade e preenchendo os dados automaticamente</p>
+                    </div>
+                  </>
+                ) : receiptPreview ? (
                   <>
                     <FileText className="h-8 w-8 text-green-400 shrink-0" />
                     <div className="flex-1 min-w-0">
@@ -797,6 +1050,8 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
                         e.stopPropagation();
                         handleField('receiptFile', null);
                         setReceiptPreview(null);
+                        setDuplicateAlert(null);
+                        setDetectedNewSupplier(null);
                         if (fileInputRef.current) fileInputRef.current.value = '';
                       }}
                       className="text-red-400 hover:text-red-300 h-8 w-8 p-0"
@@ -806,37 +1061,47 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
                   </>
                 ) : (
                   <>
-                    <Upload className="h-8 w-8 text-gray-500 shrink-0" />
+                    <Upload className="h-8 w-8 text-gray-400 shrink-0" />
                     <div>
-                      <p className="text-sm text-gray-300">Clique para selecionar o comprovante em PDF</p>
-                      <p className="text-xs text-gray-500">Arquivo PDF (máx. 10MB)</p>
+                      <p className="text-sm text-gray-200 font-medium">Clique para selecionar o comprovante ou nota fiscal (PDF/XML)</p>
+                      <p className="text-xs text-gray-400">O sistema lê automaticamente os dados da nota, identifica o posto e bloqueia notas duplicadas</p>
                     </div>
                   </>
                 )}
               </div>
+
+              {duplicateAlert && (
+                <div className="batch-alert-error p-3 rounded-xl bg-red-950/85 border-2 border-red-500 flex items-center gap-3 text-xs text-red-100 mt-2">
+                  <AlertTriangle className="batch-alert-icon h-5 w-5 text-red-400 shrink-0" />
+                  <div>
+                    <strong className="batch-alert-title font-bold text-white block">Nota Fiscal Já Importada!</strong>
+                    <span className="batch-alert-desc">{duplicateAlert}</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Observações */}
             <div className="space-y-1.5">
-              <Label className="text-gray-300 font-medium flex items-center gap-1.5">
-                <FileText className="h-4 w-4" /> Observações
+              <Label className="text-gray-200 font-semibold flex items-center gap-1.5">
+                <FileText className="h-4 w-4 text-green-400" /> Observações / Nº da Nota Fiscal
               </Label>
               <Textarea
                 value={formData.notes}
                 onChange={(e) => handleField('notes', e.target.value)}
-                placeholder="Observações sobre o abastecimento..."
-                className="bg-gray-900/50 border-gray-600 text-white min-h-[70px]"
+                placeholder="Observações sobre o abastecimento, número da NF, etc..."
+                className="bg-seguranca-black border-gray-600 text-white min-h-[70px]"
               />
             </div>
           </div>
 
-          <div className="flex-none p-4 border-t border-gray-700 flex justify-end gap-3 bg-seguranca-darkgray">
-            <Button variant="outline" onClick={onClose} className="border-gray-600 text-gray-400">
+          <div className="flex-none p-4 border-t border-gray-700/60 flex justify-end gap-3 bg-seguranca-black/40">
+            <Button variant="outline" onClick={onClose} className="border-gray-600 text-gray-300">
               Cancelar
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={saveMutation.isPending || !!mileageError || !formData.vehicleId || !formData.liters || !formData.station}
+              disabled={saveMutation.isPending || parsingReceipt || !!duplicateAlert || !!mileageError || !formData.vehicleId || !formData.liters || !formData.station}
               className="bg-green-600 hover:bg-green-700 text-white min-w-[160px]"
             >
               {saveMutation.isPending ? (

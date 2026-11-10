@@ -291,11 +291,40 @@
      Garante contraste alto, superfícies grafite homogêneas e textos 100% visíveis
      ============================================================================ */
   .graphite {
+    #login-page-bg {
+      background-color: #1e2330 !important;
+    }
+
+    #login-page-gradient {
+      background: radial-gradient(circle at 50% 100%, #4a1c24 0%, #252b3b 55%, #1b202c 100%) !important;
+    }
+
+    #login-card {
+      background-color: #2c313d !important;
+      border-color: #4b5568 !important;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.65) !important;
+    }
+
     /* Remapeia fundos pretos chumbados para superfícies grafite harmônicas */
+    [role="dialog"],
+    [role="alertdialog"],
     .bg-seguranca-graphite,
-    .bg-slate-900,
-    .bg-zinc-900,
-    .bg-gray-900:not(.border-blue-600),
+    .bg-seguranca-graphite\/95,
+    .bg-seguranca-graphite\/90,
+    .bg-seguranca-graphite\/80,
+    .bg-seguranca-darkgray,
+    .bg-slate-900:not(.inset-0),
+    .bg-zinc-900:not(.inset-0),
+    .bg-gray-900:not(.border-blue-600):not(.inset-0),
+    .bg-gray-900\/90,
+    .bg-gray-900\/80,
+    .bg-gray-900\/60,
+    .bg-gray-900\/50,
+    .bg-gray-900\/40,
+    .bg-\[\#0a0a0b\],
+    .bg-\[\#050505\],
+    .bg-\[\#120a0a\],
+    .bg-\[\#120a0a\]\/90,
     .bg-\[\#18181b\],
     .bg-\[\#111319\],
     .bg-\[\#191c26\],
@@ -307,9 +336,26 @@
     }
 
     .bg-seguranca-black,
-    .bg-slate-950,
-    .bg-zinc-950,
-    .bg-gray-950,
+    .bg-seguranca-black\/95,
+    .bg-seguranca-black\/80,
+    .bg-seguranca-black\/60,
+    .bg-seguranca-black\/50,
+    .bg-seguranca-black\/40,
+    .bg-seguranca-black\/30,
+    .bg-slate-950:not(.inset-0),
+    .bg-slate-950\/95,
+    .bg-slate-950\/90,
+    .bg-slate-950\/85,
+    .bg-slate-950\/80,
+    .bg-zinc-950:not(.inset-0),
+    .bg-gray-950:not(.inset-0),
+    .bg-gray-950\/60,
+    .bg-gray-950\/40,
+    .bg-black\/30,
+    .bg-black\/40:not(.fixed):not(.inset-0),
+    .bg-black\/50:not(.fixed):not(.inset-0),
+    .bg-black\/60:not(.fixed):not(.inset-0),
+    .bg-black\/80:not(.fixed):not(.inset-0),
     .bg-\[\#0c0e14\],
     .bg-\[\#090d16\],
     .bg-\[\#0f172a\] {
@@ -317,12 +363,27 @@
       border-color: #3e4554 !important;
     }
 
+    .from-gray-900\/90,
+    .via-black,
+    .to-gray-900\/90 {
+      background-image: linear-gradient(90deg, #262b38 0%, #2c313d 50%, #262b38 100%) !important;
+    }
+
     .bg-slate-800,
     .bg-gray-800:not([data-state="active"]),
+    .bg-gray-700:not([data-state="active"]),
     .bg-zinc-800,
     .bg-\[\#27272a\],
     .bg-\[\#262833\] {
       background-color: #363c4a !important;
+      border-color: #4b5364 !important;
+    }
+
+    [role="listbox"],
+    [role="menu"],
+    [data-radix-popper-content-wrapper] > div {
+      background-color: #2c313d !important;
+      color: #f8fafc !important;
       border-color: #4b5364 !important;
     }
 
@@ -410,6 +471,79 @@
       background-color: #3b4252 !important;
       color: #ffffff !important;
     }
+
+    /* Caixas de alerta semânticas e cards de aviso no tema Grafite */
+    .bg-red-950,
+    .bg-red-950\/60,
+    .bg-red-950\/50,
+    .bg-red-950\/40,
+    .bg-red-950\/30,
+    .bg-rose-950\/60,
+    .batch-alert-error {
+      background-color: #4c1820 !important;
+      border: 1.5px solid #f87171 !important;
+      color: #ffe4e6 !important;
+    }
+
+    .batch-alert-error .batch-alert-title,
+    .bg-red-950\/60 strong {
+      color: #ffffff !important;
+    }
+
+    .batch-alert-error .batch-alert-desc {
+      color: #fecdd3 !important;
+    }
+
+    .batch-alert-error .batch-alert-icon {
+      color: #ff8086 !important;
+    }
+
+    .batch-alert-error .batch-alert-btn {
+      background-color: #dc2626 !important;
+      border-color: #f87171 !important;
+      color: #ffffff !important;
+    }
+
+    .batch-alert-error .batch-alert-btn:hover {
+      background-color: #b91c1c !important;
+      color: #ffffff !important;
+    }
+
+    .bg-amber-950,
+    .bg-amber-950\/60,
+    .bg-amber-950\/50,
+    .bg-amber-950\/40,
+    .bg-amber-950\/30,
+    .bg-yellow-950\/60,
+    .batch-alert-warning {
+      background-color: #4a300d !important;
+      border: 1.5px solid #fbbf24 !important;
+      color: #fef3c7 !important;
+    }
+
+    .batch-alert-warning .batch-alert-title,
+    .bg-amber-950\/60 strong {
+      color: #ffffff !important;
+    }
+
+    .batch-alert-warning .batch-alert-desc {
+      color: #fde68a !important;
+    }
+
+    .batch-alert-warning .batch-alert-icon {
+      color: #fcd34d !important;
+    }
+
+    .batch-alert-warning .batch-alert-btn {
+      background-color: #d97706 !important;
+      border-color: #fbbf24 !important;
+      color: #ffffff !important;
+    }
+
+    .batch-alert-warning .batch-alert-btn:hover {
+      background-color: #b45309 !important;
+      color: #ffffff !important;
+    }
   }
 
   /* ============================================================================
@@ -426,7 +560,50 @@
       filter: blur(2px) brightness(1.15) grayscale(0.35) !important;
     }
 
-    /* 1. Superfícies de Cards e Containers Principais -> Branco Puro com Sombra Suave */
+    /* Tela de Login no Modo Branco */
+    #login-page-bg {
+      background-color: #f1f5f9 !important;
+    }
+
+    #login-page-gradient {
+      background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 60%, #fee2e2 100%) !important;
+    }
+
+    #login-card {
+      background-color: #ffffff !important;
+      border-color: #cbd5e1 !important;
+      box-shadow: 0 20px 45px -15px rgba(15, 23, 42, 0.14), 0 4px 12px -2px rgba(15, 23, 42, 0.06) !important;
+    }
+
+    #login-submit-btn,
+    #login-submit-btn * {
+      background-color: #1d4ed8 !important;
+      color: #ffffff !important;
+      -webkit-text-fill-color: #ffffff !important;
+    }
+
+    #login-submit-btn:hover {
+      background-color: #1e40af !important;
+    }
+
+    #login-passenger-btn,
+    #login-passenger-btn * {
+      background-color: #f0f9ff !important;
+      border-color: #0284c7 !important;
+      color: #0369a1 !important;
+    }
+
+    /* 1. Superfícies de Cards, Modais e Containers Principais -> Branco Puro com Sombra Suave */
+    [role="dialog"],
+    [role="alertdialog"],
+    .bg-\[\#0a0a0b\],
+    .bg-\[\#050505\],
+    .bg-\[\#120a0a\],
+    .bg-\[\#120a0a\]\/90,
+    .bg-seguranca-darkgray,
+    .bg-seguranca-darkgray\/95,
+    .bg-seguranca-darkgray\/90,
+    .bg-seguranca-darkgray\/80,
     .bg-seguranca-graphite,
     .bg-seguranca-graphite\/95,
     .bg-seguranca-graphite\/90,
@@ -436,7 +613,7 @@
     .bg-seguranca-graphite\/50,
     .bg-seguranca-graphite\/40,
     .bg-seguranca-graphite\/30,
-    .bg-slate-900:not(.fixed),
+    .bg-slate-900:not(.inset-0),
     .bg-slate-900\/95,
     .bg-slate-900\/90,
     .bg-slate-900\/80,
@@ -445,7 +622,7 @@
     .bg-slate-900\/50,
     .bg-slate-900\/40,
     .bg-slate-900\/30,
-    .bg-gray-900:not(.border-blue-600):not(.fixed),
+    .bg-gray-900:not(.border-blue-600):not(.inset-0),
     .bg-gray-900\/95,
     .bg-gray-900\/90,
     .bg-gray-900\/80,
@@ -454,12 +631,15 @@
     .bg-gray-900\/50,
     .bg-gray-900\/40,
     .bg-gray-900\/30,
-    .bg-zinc-900:not(.fixed),
+    .bg-zinc-900:not(.inset-0),
+    .bg-zinc-900\/95,
     .bg-zinc-900\/90,
     .bg-zinc-900\/80,
+    .bg-zinc-900\/70,
     .bg-zinc-900\/60,
     .bg-zinc-900\/50,
     .bg-zinc-900\/40,
+    .bg-zinc-900\/30,
     .bg-\[\#18181b\],
     .bg-\[\#111319\],
     .bg-\[\#191c26\],
@@ -483,25 +663,54 @@
     .bg-seguranca-black\/40,
     .bg-seguranca-black\/30,
     .bg-seguranca-black\/20,
-    .bg-slate-950:not(.fixed),
+    .bg-slate-950:not(.inset-0),
+    .bg-slate-950\/95,
     .bg-slate-950\/90,
+    .bg-slate-950\/85,
     .bg-slate-950\/80,
+    .bg-slate-950\/70,
     .bg-slate-950\/60,
     .bg-slate-950\/50,
-    .bg-gray-950:not(.fixed),
+    .bg-slate-950\/40,
+    .bg-slate-950\/30,
+    [style*="background-color: rgb(26, 26, 26)"],
+    [style*="background-color: rgb(41, 41, 41)"],
+    [style*="background-color: #1a1a1a"],
+    [style*="background-color: #292929"],
+    .bg-gray-950:not(.inset-0),
     .bg-gray-950\/90,
     .bg-gray-950\/80,
+    .bg-gray-950\/70,
+    .bg-gray-950\/60,
     .bg-gray-950\/50,
-    .bg-zinc-950:not(.fixed),
+    .bg-gray-950\/40,
+    .bg-gray-950\/30,
+    .bg-zinc-950:not(.inset-0),
     .bg-zinc-950\/90,
     .bg-zinc-950\/80,
+    .bg-zinc-950\/70,
+    .bg-zinc-950\/60,
     .bg-zinc-950\/50,
+    .bg-zinc-950\/40,
+    .bg-zinc-950\/30,
     .bg-\[\#0c0e14\],
     .bg-\[\#090d16\],
     .bg-\[\#0f172a\],
     .bg-\[\#0a0a0a\] {
       background-color: #f8fafc !important;
       border-color: #cbd5e1 !important;
+    }
+
+    /* Cabeçalhos de Tabela no Modo Branco -> Cinza Gelo Claro com Texto Escuro Nítido */
+    thead,
+    thead tr {
+      background-color: #f1f5f9 !important;
+      border-color: #cbd5e1 !important;
+    }
+
+    thead th {
+      color: #334155 !important;
+      font-weight: 700 !important;
     }
 
     /* 3. Caixas de Ícones, Badges Neutras e Sub-blocos -> Slate-100 */
@@ -538,9 +747,20 @@
     .bg-white\/\[0\.05\],
     .bg-black\/20,
     .bg-black\/30,
-    .bg-black\/40:not(.fixed) {
+    .bg-black\/40:not(.fixed):not(.inset-0),
+    .bg-black\/50:not(.fixed):not(.inset-0),
+    .bg-black\/60:not(.fixed):not(.inset-0),
+    .bg-black\/70:not(.fixed):not(.inset-0):not(.bottom-1),
+    .bg-black\/80:not(.fixed):not(.inset-0) {
       background-color: #f1f5f9 !important;
       border-color: #cbd5e1 !important;
+    }
+
+    button.bg-gray-700,
+    button.bg-gray-800,
+    button.bg-slate-800 {
+      color: #0f172a !important;
+      border: 1px solid #cbd5e1 !important;
     }
 
     /* 4. Banners com Gradiente Escuro -> Gradiente Executivo Claro */
@@ -549,16 +769,22 @@
     .from-slate-900,
     .from-slate-950,
     .from-gray-900,
+    .from-gray-900\/90,
     .from-gray-950,
     .from-zinc-900,
     .from-zinc-950,
+    .via-black,
+    .via-gray-900,
+    .via-slate-900,
+    .via-zinc-900,
     .to-slate-900,
     .to-slate-950,
     .to-gray-900,
+    .to-gray-900\/90,
     .to-zinc-900 {
       --tw-gradient-from: #ffffff var(--tw-gradient-from-position) !important;
       --tw-gradient-to: #f1f5f9 var(--tw-gradient-to-position) !important;
-      --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+      --tw-gradient-stops: var(--tw-gradient-from), #f8fafc 50%, var(--tw-gradient-to) !important;
       background-image: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%) !important;
       border-color: #cbd5e1 !important;
     }
@@ -632,6 +858,7 @@
     }
 
     /* 6. Textos Brancos e Cinzas Claros -> Escuros e Nítidos sobre Cards Brancos */
+    .text-seguranca-white:not([data-state="active"]),
     .text-white:not(.bg-red-500):not(.bg-red-600):not(.bg-red-700):not(.bg-rose-500):not(.bg-rose-600):not(.bg-rose-700):not(.bg-blue-500):not(.bg-blue-600):not(.bg-blue-700):not(.bg-emerald-500):not(.bg-emerald-600):not(.bg-emerald-700):not(.bg-green-500):not(.bg-green-600):not(.bg-green-700):not(.bg-amber-500):not(.bg-amber-600):not(.bg-orange-500):not(.bg-orange-600):not(.bg-purple-500):not(.bg-purple-600):not(.bg-indigo-500):not(.bg-indigo-600):not(.bg-cyan-600):not(.bg-teal-600):not(.bg-pink-600):not(.bg-primary):not(.bg-seguranca-red):not(.bg-destructive):not(.btn-danger):not(.btn-primary):not([data-state="active"]) {
       color: #0f172a !important;
     }
@@ -679,15 +906,35 @@
       color: #ffffff !important;
     }
 
-    /* Abas Ativas (TabsTrigger com estado ativo) -> Texto Branco Nítido sobre Fundo Vermelho/Primário */
+    /* Abas Ativas (TabsTrigger com estado ativo) -> Texto Branco Nítido sobre Fundo Colorido/Primário */
     [data-state="active"].bg-seguranca-red,
     [data-state="active"].bg-primary,
     [data-state="active"].bg-red-600,
     [data-state="active"].bg-blue-600,
     [data-state="active"].bg-emerald-600,
+    [data-state="active"].bg-green-600,
+    [data-state="active"].bg-purple-600,
+    [role="tab"][data-state="active"][class*="bg-emerald-"],
+    [role="tab"][data-state="active"][class*="bg-green-"],
+    [role="tab"][data-state="active"][class*="bg-red-"],
+    [role="tab"][data-state="active"][class*="bg-seguranca-red"],
+    [role="tab"][data-state="active"][class*="bg-blue-"],
+    [role="tab"][data-state="active"][class*="bg-purple-"],
+    [role="tab"][data-state="active"][class*="bg-indigo-"],
+    [role="tab"][data-state="active"][class*="bg-amber-"],
+    [role="tab"][data-state="active"][class*="bg-primary"],
     [data-state="active"].bg-seguranca-red *,
     [data-state="active"].bg-primary *,
-    [data-state="active"].bg-red-600 * {
+    [data-state="active"].bg-red-600 *,
+    [role="tab"][data-state="active"][class*="bg-emerald-"] *,
+    [role="tab"][data-state="active"][class*="bg-green-"] *,
+    [role="tab"][data-state="active"][class*="bg-red-"] *,
+    [role="tab"][data-state="active"][class*="bg-seguranca-red"] *,
+    [role="tab"][data-state="active"][class*="bg-blue-"] *,
+    [role="tab"][data-state="active"][class*="bg-purple-"] *,
+    [role="tab"][data-state="active"][class*="bg-indigo-"] *,
+    [role="tab"][data-state="active"][class*="bg-amber-"] *,
+    [role="tab"][data-state="active"][class*="bg-primary"] * {
       color: #ffffff !important;
     }
 
@@ -720,12 +967,140 @@
       color: #64748b !important;
     }
 
-    /* Escurece cores pastéis (-300/-400) pensadas para fundo preto para cores vibrantes de alto contraste no fundo branco */
+    /* Escurece cores pastéis (-200/-300/-400) pensadas para fundo preto para cores vibrantes de alto contraste no fundo branco */
+    .text-rose-200,
+    .text-red-200 {
+      color: #991b1b !important;
+    }
+
     .text-rose-300,
     .text-rose-400,
     .text-red-300,
     .text-red-400 {
       color: #dc2626 !important;
+    }
+
+    .text-amber-200,
+    .text-yellow-200 {
+      color: #92400e !important;
+    }
+
+    .text-emerald-200,
+    .text-green-200 {
+      color: #065f46 !important;
+    }
+
+    .text-blue-200,
+    .text-sky-200,
+    .text-cyan-200 {
+      color: #1e40af !important;
+    }
+
+    /* Caixas de alerta semânticas (vermelho, âmbar, verde, azul) no modo Branco */
+    .bg-red-950,
+    .bg-red-950\/60,
+    .bg-red-950\/50,
+    .bg-red-950\/40,
+    .bg-red-950\/30,
+    .bg-red-950\/20,
+    .bg-red-900\/40,
+    .bg-red-900\/30,
+    .bg-red-900\/20,
+    .bg-rose-950\/60,
+    .bg-rose-950\/40,
+    .bg-rose-950\/30,
+    .batch-alert-error {
+      background-color: #fee2e2 !important;
+      border: 1.5px solid #ef4444 !important;
+      color: #7f1d1d !important;
+    }
+
+    .batch-alert-error .batch-alert-title,
+    .bg-red-950\/60 strong {
+      color: #991b1b !important;
+    }
+
+    .batch-alert-error .batch-alert-desc {
+      color: #7f1d1d !important;
+    }
+
+    .batch-alert-error .batch-alert-icon {
+      color: #dc2626 !important;
+    }
+
+    .batch-alert-error .batch-alert-btn {
+      background-color: #dc2626 !important;
+      border-color: #b91c1c !important;
+      color: #ffffff !important;
+    }
+
+    .batch-alert-error .batch-alert-btn:hover {
+      background-color: #b91c1c !important;
+      color: #ffffff !important;
+    }
+
+    .bg-amber-950,
+    .bg-amber-950\/60,
+    .bg-amber-950\/50,
+    .bg-amber-950\/40,
+    .bg-amber-950\/30,
+    .bg-amber-950\/20,
+    .bg-amber-900\/40,
+    .bg-amber-900\/30,
+    .bg-amber-900\/20,
+    .bg-yellow-950\/60,
+    .bg-yellow-950\/40,
+    .batch-alert-warning {
+      background-color: #fef3c7 !important;
+      border: 1.5px solid #f59e0b !important;
+      color: #78350f !important;
+    }
+
+    .batch-alert-warning .batch-alert-title,
+    .bg-amber-950\/60 strong {
+      color: #92400e !important;
+    }
+
+    .batch-alert-warning .batch-alert-desc {
+      color: #78350f !important;
+    }
+
+    .batch-alert-warning .batch-alert-icon {
+      color: #d97706 !important;
+    }
+
+    .batch-alert-warning .batch-alert-btn {
+      background-color: #d97706 !important;
+      border-color: #b45309 !important;
+      color: #ffffff !important;
+    }
+
+    .batch-alert-warning .batch-alert-btn:hover {
+      background-color: #b45309 !important;
+      color: #ffffff !important;
+    }
+
+    .bg-emerald-950,
+    .bg-emerald-950\/60,
+    .bg-emerald-950\/40,
+    .bg-emerald-950\/30,
+    .bg-emerald-950\/20,
+    .bg-green-950\/60,
+    .bg-green-950\/40,
+    .bg-green-950\/30 {
+      background-color: #ecfdf5 !important;
+      border-color: #6ee7b7 !important;
+      color: #065f46 !important;
+    }
+
+    .bg-blue-950,
+    .bg-blue-950\/60,
+    .bg-blue-950\/40,
+    .bg-blue-950\/30,
+    .bg-blue-950\/20 {
+      background-color: #eff6ff !important;
+      border-color: #93c5fd !important;
+      color: #1e40af !important;
     }
 
     .text-cyan-300,

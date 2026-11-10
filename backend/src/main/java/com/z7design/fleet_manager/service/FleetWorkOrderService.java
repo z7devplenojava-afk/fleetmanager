@@ -78,6 +78,8 @@ public class FleetWorkOrderService {
     private final FleetWorkOrderExecutionHistoryRepository executionHistoryRepository;
     private final com.z7design.fleet_manager.repository.UserRepository userRepository;
     private final DriverRepository driverRepository;
+    private final com.z7design.fleet_manager.repository.VehicleGateChecklistRepository vehicleGateChecklistRepository;
+    private final com.z7design.fleet_manager.repository.VehicleInspectionRepository vehicleInspectionRepository;
     private final ApplicationEventPublisher eventPublisher;
 
     private boolean isUserDriver(com.z7design.fleet_manager.model.User user) {
@@ -164,14 +166,20 @@ public class FleetWorkOrderService {
             }
         }
 
-        // Completa responsibleName se ainda estiver nulo
-        if (dto.getResponsibleName() == null || dto.getResponsibleName().isBlank()) {
-            if (dto.getResponsibleId() != null) {
-                dto.setResponsibleName(resolvePersonName(dto.getResponsibleId()));
+        // Completa responsibleName priorizando responsibleId quando selecionado
+        if (dto.getResponsibleId() != null) {
+            String resolvedResp = resolvePersonName(dto.getResponsibleId());
+            if (resolvedResp != null && !resolvedResp.isBlank()) {
+                dto.setResponsibleName(resolvedResp);
             }
         }
         if (dto.getResponsibleName() == null || dto.getResponsibleName().isBlank()) {
             dto.setResponsibleName(dto.getMechanicName());
+        }
+
+        // Completa supervisorName quando supervisorId estiver preenchido
+        if ((dto.getSupervisorName() == null || dto.getSupervisorName().isBlank()) && dto.getSupervisorId() != null) {
+            dto.setSupervisorName(resolvePersonName(dto.getSupervisorId()));
         }
 
         // Completa requesterName se ainda estiver nulo
@@ -200,7 +208,70 @@ public class FleetWorkOrderService {
             dto.setOdometerIn(entity.getVehicle().getCurrentMileage());
         }
 
+        // Completa photoAttachments se vazio usando evidências do Checklist Diário / Laudo / Veículo
+        if ((dto.getPhotoAttachments() == null || dto.getPhotoAttachments().isEmpty()) && entity.getVehicle() != null) {
+            try {
+                java.util.Set<String> fallbackPhotos = new java.util.LinkedHashSet<>();
+                LocalDate refDate = dto.getStopDate() != null ? dto.getStopDate() : LocalDate.now();
+                UUID vehId = entity.getVehicle().getId();
+                if (vehId != null) {
+                    var checklists = vehicleGateChecklistRepository.findByVehicleIdOrderByOccurredAtDesc(vehId);
+                    if (checklists != null) {
+                        for (var chk : checklists) {
+                            if (chk.getOccurredAt() != null && Math.abs(java.time.temporal.ChronoUnit.DAYS.between(refDate, chk.getOccurredAt().toLocalDate())) <= 2) {
+                                addSplitPhotoUrls(fallbackPhotos, chk.getVehiclePhotos());
+                                addSplitPhotoUrls(fallbackPhotos, chk.getOdometerPhotoUrl());
+                            }
+                            if (fallbackPhotos.size() >= 8) break;
+                        }
+                        if (fallbackPhotos.isEmpty()) {
+                            for (var chk : checklists) {
+                                addSplitPhotoUrls(fallbackPhotos, chk.getVehiclePhotos());
+                                addSplitPhotoUrls(fallbackPhotos, chk.getOdometerPhotoUrl());
+                                if (!fallbackPhotos.isEmpty()) break;
+                            }
+                        }
+                    }
+                }
+                if (fallbackPhotos.isEmpty() && entity.getVehicle().getPlate() != null) {
+                    var inspections = vehicleInspectionRepository.findByVehiclePlateIgnoreCase(entity.getVehicle().getPlate().trim());
+                    if (inspections != null) {
+                        for (var insp : inspections) {
+                            if (insp.getDeletedAt() == null && insp.getEvidencesUrls() != null && !insp.getEvidencesUrls().isBlank()) {
+                                addSplitPhotoUrls(fallbackPhotos, insp.getEvidencesUrls());
+                                if (!fallbackPhotos.isEmpty()) break;
+                            }
+                        }
+                    }
+                }
+                if (fallbackPhotos.isEmpty()) {
+                    addSplitPhotoUrls(fallbackPhotos, entity.getVehicle().getPhotos());
+                }
+                if (!fallbackPhotos.isEmpty()) {
+                    dto.setPhotoAttachments(new ArrayList<>(fallbackPhotos));
+                }
+            } catch (Exception ignored) {}
+        }
+
         return dto;
+    }
+
+    private void addSplitPhotoUrls(java.util.Set<String> target, String raw) {
+        if (raw == null || raw.isBlank()) return;
+        String trimmed = raw.trim();
+        if (trimmed.startsWith("data:image/")) {
+            target.add(trimmed);
+            return;
+        }
+        if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+            trimmed = trimmed.substring(1, trimmed.length() - 1);
+        }
+        for (String part : trimmed.split(",")) {
+            String clean = part.trim().replaceAll("^\"|\"$", "");
+            if (!clean.isBlank()) {
+                target.add(clean);
+            }
+        }
     }
 
     // ── Consultas ─────────────────────────────────────────────────────────────
@@ -454,6 +525,17 @@ public class FleetWorkOrderService {
         UUID resolvedRequesterId = dto.getRequesterId() != null ? dto.getRequesterId() : (currentUser != null ? currentUser.getId() : null);
         UUID resolvedResponsibleId = dto.getResponsibleId() != null ? dto.getResponsibleId() : (currentUser != null ? currentUser.getId() : null);
 
+        String createRespSig = (dto.getResponsibleSignature() != null && !dto.getResponsibleSignature().isBlank())
+                ? dto.getResponsibleSignature().trim() : null;
+        java.time.LocalDateTime createRespSigDate = createRespSig != null
+                ? (dto.getResponsibleSignatureDate() != null ? dto.getResponsibleSignatureDate() : java.time.LocalDateTime.now())
+                : null;
+        String createSupSig = (dto.getSupervisorSignature() != null && !dto.getSupervisorSignature().isBlank())
+                ? dto.getSupervisorSignature().trim() : null;
+        java.time.LocalDateTime createSupSigDate = createSupSig != null
+                ? (dto.getSupervisorSignatureDate() != null ? dto.getSupervisorSignatureDate() : java.time.LocalDateTime.now())
+                : null;
+
         FleetWorkOrder entity = FleetWorkOrder.builder()
                 .osNumber(osNumber)
                 .maintenanceType(type)
@@ -481,10 +563,10 @@ public class FleetWorkOrderService {
                 .requesterId(resolvedRequesterId)
                 .responsibleId(resolvedResponsibleId)
                 .supervisorId(dto.getSupervisorId())
-                .responsibleSignature(dto.getResponsibleSignature())
-                .responsibleSignatureDate(dto.getResponsibleSignatureDate())
-                .supervisorSignature(dto.getSupervisorSignature())
-                .supervisorSignatureDate(dto.getSupervisorSignatureDate())
+                .responsibleSignature(createRespSig)
+                .responsibleSignatureDate(createRespSigDate)
+                .supervisorSignature(createSupSig)
+                .supervisorSignatureDate(createSupSigDate)
                 .odometerIn(dto.getOdometerIn())
                 .odometerOut(dto.getOdometerOut())
                 .stopReason(dto.getStopReason())
@@ -606,12 +688,28 @@ public class FleetWorkOrderService {
         if (dto.getSupervisorId() != null) entity.setSupervisorId(dto.getSupervisorId());
 
         if (dto.getResponsibleSignature() != null) {
-            entity.setResponsibleSignature(dto.getResponsibleSignature());
-            entity.setResponsibleSignatureDate(java.time.LocalDateTime.now());
+            String nextRespSig = dto.getResponsibleSignature().trim();
+            if (nextRespSig.isEmpty()) {
+                entity.setResponsibleSignature(null);
+                entity.setResponsibleSignatureDate(null);
+            } else if (!nextRespSig.equals(entity.getResponsibleSignature())) {
+                entity.setResponsibleSignature(nextRespSig);
+                entity.setResponsibleSignatureDate(java.time.LocalDateTime.now());
+            } else if (entity.getResponsibleSignatureDate() == null) {
+                entity.setResponsibleSignatureDate(java.time.LocalDateTime.now());
+            }
         }
         if (dto.getSupervisorSignature() != null) {
-            entity.setSupervisorSignature(dto.getSupervisorSignature());
-            entity.setSupervisorSignatureDate(java.time.LocalDateTime.now());
+            String nextSupSig = dto.getSupervisorSignature().trim();
+            if (nextSupSig.isEmpty()) {
+                entity.setSupervisorSignature(null);
+                entity.setSupervisorSignatureDate(null);
+            } else if (!nextSupSig.equals(entity.getSupervisorSignature())) {
+                entity.setSupervisorSignature(nextSupSig);
+                entity.setSupervisorSignatureDate(java.time.LocalDateTime.now());
+            } else if (entity.getSupervisorSignatureDate() == null) {
+                entity.setSupervisorSignatureDate(java.time.LocalDateTime.now());
+            }
         }
 
         if (dto.getOdometerIn() != null) entity.setOdometerIn(dto.getOdometerIn());

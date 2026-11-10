@@ -3,11 +3,17 @@ package com.z7design.fleet_manager.service;
 import com.z7design.fleet_manager.exception.ResourceNotFoundException;
 import com.z7design.fleet_manager.model.Company;
 import com.z7design.fleet_manager.model.FleetWorkOrder;
+import com.z7design.fleet_manager.model.VehicleGateChecklist;
+import com.z7design.fleet_manager.model.VehicleInspection;
 import com.z7design.fleet_manager.model.WorkOrderItem;
 import com.z7design.fleet_manager.model.WorkPost;
 import com.z7design.fleet_manager.repository.ChecklistItemRepository;
 import com.z7design.fleet_manager.repository.CompanyRepository;
+import com.z7design.fleet_manager.repository.EmployeeRepository;
 import com.z7design.fleet_manager.repository.FleetWorkOrderRepository;
+import com.z7design.fleet_manager.repository.UserRepository;
+import com.z7design.fleet_manager.repository.VehicleGateChecklistRepository;
+import com.z7design.fleet_manager.repository.VehicleInspectionRepository;
 import com.z7design.fleet_manager.tenant.TenantContext;
 import com.z7design.fleet_manager.util.CompanyDataFormatter;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +25,11 @@ import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 import org.xhtmlrenderer.pdf.ITextRenderer;
 
+import javax.imageio.ImageIO;
+import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.net.URL;
@@ -33,9 +44,11 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -46,10 +59,18 @@ public class FleetWorkOrderPdfService {
     private final FleetWorkOrderRepository repository;
     private final CompanyRepository companyRepository;
     private final ChecklistItemRepository checklistItemRepository;
+    private final EmployeeRepository employeeRepository;
+    private final UserRepository userRepository;
+    private final VehicleGateChecklistRepository vehicleGateChecklistRepository;
+    private final VehicleInspectionRepository vehicleInspectionRepository;
+    private final StoredUploadService storedUploadService;
     private final TemplateEngine templateEngine;
 
     @Value("${app.upload.dir:uploads}")
     private String uploadDir;
+
+    @Value("${app.file.upload-dir:./uploads/maintenance}")
+    private String maintenanceUploadDir;
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private static final DateTimeFormatter DATETIME_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
@@ -61,6 +82,17 @@ public class FleetWorkOrderPdfService {
      */
     @Transactional(readOnly = true)
     public byte[] generatePdf(UUID workOrderId) {
+        return generatePdf(workOrderId, false);
+    }
+
+    /**
+     * Gera o PDF da Ordem de Serviço de Frota usando o template Thymeleaf
+     * fleet-work-order.html e o Flying Saucer (ITextRenderer).
+     * Quando blankChecklist == true, renderiza os itens do checklist em branco
+     * para preenchimento manual em papel.
+     */
+    @Transactional(readOnly = true)
+    public byte[] generatePdf(UUID workOrderId, boolean blankChecklist) {
         FleetWorkOrder order = repository.findById(workOrderId)
                 .orElseThrow(() -> new ResourceNotFoundException("FleetWorkOrder not found: " + workOrderId));
 
@@ -79,7 +111,7 @@ public class FleetWorkOrderPdfService {
             log.warn("Aviso ao inicializar coleções da OS {}: {}", workOrderId, e.getMessage());
         }
 
-        Map<String, Object> data = buildDataMap(order);
+        Map<String, Object> data = buildDataMap(order, blankChecklist);
 
         try {
             Context context = new Context();
@@ -257,8 +289,9 @@ public class FleetWorkOrderPdfService {
         return location.isEmpty() ? null : location.toString();
     }
 
-    private Map<String, Object> buildDataMap(FleetWorkOrder order) {
+    private Map<String, Object> buildDataMap(FleetWorkOrder order, boolean blankChecklist) {
         Map<String, Object> data = new HashMap<>();
+        data.put("blankChecklist", blankChecklist);
 
         String osNumber = order.getOsNumber() != null ? order.getOsNumber()
                 : "#" + (order.getId() != null ? order.getId().toString().split("-")[0] : "");
@@ -337,13 +370,31 @@ public class FleetWorkOrderPdfService {
         data.put("maintenancePerformed", order.getMaintenancePerformed());
         data.put("stopReason", order.getStopReason());
 
-        // Assinaturas
-        data.put("responsibleSignature", order.getResponsibleSignature());
-        data.put("responsibleSignatureDate", order.getResponsibleSignatureDate() != null ? order.getResponsibleSignatureDate().format(DATETIME_FMT) : null);
-        data.put("supervisorSignature", order.getSupervisorSignature());
-        data.put("supervisorSignatureDate", order.getSupervisorSignatureDate() != null ? order.getSupervisorSignatureDate().format(DATETIME_FMT) : null);
+        // Assinaturas digitais (imagem data:image/...) vs linha vazia para assinatura manual
+        String respName = resolvePersonNameById(order.getResponsibleId());
+        if (respName == null || respName.isBlank()) {
+            respName = order.getMechanicName();
+        }
+        String supName = resolvePersonNameById(order.getSupervisorId());
 
-        // Checklist Items (para OS Preventiva)
+        String techSigRaw = order.getResponsibleSignature();
+        boolean hasTechDigitalSig = techSigRaw != null && techSigRaw.trim().startsWith("data:image/");
+        String supSigRaw = order.getSupervisorSignature();
+        boolean hasSupDigitalSig = supSigRaw != null && supSigRaw.trim().startsWith("data:image/");
+
+        data.put("responsibleSignatureImg", hasTechDigitalSig ? techSigRaw.trim() : null);
+        data.put("responsibleDisplayName", respName);
+        data.put("responsibleSignature", hasTechDigitalSig ? techSigRaw.trim() : null);
+        data.put("responsibleSignatureDate", (hasTechDigitalSig && order.getResponsibleSignatureDate() != null)
+                ? order.getResponsibleSignatureDate().format(DATETIME_FMT) : null);
+
+        data.put("supervisorSignatureImg", hasSupDigitalSig ? supSigRaw.trim() : null);
+        data.put("supervisorDisplayName", supName);
+        data.put("supervisorSignature", hasSupDigitalSig ? supSigRaw.trim() : null);
+        data.put("supervisorSignatureDate", (hasSupDigitalSig && order.getSupervisorSignatureDate() != null)
+                ? order.getSupervisorSignatureDate().format(DATETIME_FMT) : null);
+
+        // Checklist Items (para OS Preventiva ou quando solicitado em branco)
         List<Map<String, Object>> checklistData = new ArrayList<>();
         try {
             if (order.getChecklistItems() != null && !order.getChecklistItems().isEmpty()) {
@@ -358,12 +409,12 @@ public class FleetWorkOrderPdfService {
                     }
                     cMap.put("itemDescricao", desc);
                     cMap.put("categoria", cat);
-                    cMap.put("situacao", cItem.getSituacao() != null ? cItem.getSituacao().name() : "OK");
-                    cMap.put("observacao", cItem.getObservacao());
-                    cMap.put("reparoRealizado", cItem.getReparoRealizado());
+                    cMap.put("situacao", blankChecklist ? "BLANK" : (cItem.getSituacao() != null ? cItem.getSituacao().name() : "BLANK"));
+                    cMap.put("observacao", blankChecklist ? null : cItem.getObservacao());
+                    cMap.put("reparoRealizado", blankChecklist ? null : cItem.getReparoRealizado());
                     checklistData.add(cMap);
                 }
-            } else if (order.getMaintenanceType() == com.z7design.fleet_manager.model.FleetWorkOrder.MaintenanceType.PREVENTIVA && checklistItemRepository != null) {
+            } else if ((order.getMaintenanceType() == com.z7design.fleet_manager.model.FleetWorkOrder.MaintenanceType.PREVENTIVA || blankChecklist) && checklistItemRepository != null) {
                 String vType = "";
                 if (order.getVehicle() != null) {
                     if (order.getVehicle().getVehicleType() != null) vType += order.getVehicle().getVehicleType().name();
@@ -378,7 +429,7 @@ public class FleetWorkOrderPdfService {
                     Map<String, Object> cMap = new HashMap<>();
                     cMap.put("itemDescricao", m.getDescricao() != null ? m.getDescricao() : "");
                     cMap.put("categoria", m.getCategoria() != null ? m.getCategoria() : "GERAL");
-                    cMap.put("situacao", "OK");
+                    cMap.put("situacao", blankChecklist ? "BLANK" : "OK");
                     cMap.put("observacao", null);
                     cMap.put("reparoRealizado", null);
                     checklistData.add(cMap);
@@ -451,9 +502,32 @@ public class FleetWorkOrderPdfService {
         // Evidências Fotográficas / Fotos
         List<String> processedPhotos = new ArrayList<>();
         try {
+            Set<String> rawPhotoCandidates = new LinkedHashSet<>();
             if (order.getPhotoAttachments() != null) {
-                for (String photo : order.getPhotoAttachments()) {
-                    String uri = processPhotoAsDataUri(photo);
+                for (String p : order.getPhotoAttachments()) {
+                    if (p != null && !p.isBlank()) {
+                        rawPhotoCandidates.add(p.trim());
+                    }
+                }
+            }
+
+            // Se a OS não tiver fotos próprias (ex: criada via Checklist Diário do Motorista ou Laudo),
+            // busca automaticamente as evidências vinculadas ao veículo/checklist/inspeção
+            if (rawPhotoCandidates.isEmpty()) {
+                rawPhotoCandidates.addAll(collectFallbackEvidenceUrls(order));
+            }
+
+            for (String photo : rawPhotoCandidates) {
+                String uri = processPhotoAsDataUri(photo);
+                if (uri != null && !uri.isBlank()) {
+                    processedPhotos.add(uri);
+                }
+            }
+
+            // Se as URLs primárias da OS falharem na leitura em disco, tenta também o fallback do checklist/inspeção
+            if (processedPhotos.isEmpty()) {
+                for (String fallbackPhoto : collectFallbackEvidenceUrls(order)) {
+                    String uri = processPhotoAsDataUri(fallbackPhoto);
                     if (uri != null && !uri.isBlank()) {
                         processedPhotos.add(uri);
                     }
@@ -547,33 +621,63 @@ public class FleetWorkOrderPdfService {
         if (logoUrl == null || logoUrl.isBlank()) {
             return null;
         }
+        String cleanUrl = logoUrl.trim();
         try {
-            byte[] bytes;
-            if (logoUrl.startsWith("http://") || logoUrl.startsWith("https://")) {
-                bytes = new URL(logoUrl).openStream().readAllBytes();
-            } else {
-                Path logoPath = resolveLogoPath(logoUrl);
-                if (logoPath == null || !Files.exists(logoPath)) {
-                    log.warn("Logo da empresa não encontrado em disco: {}", logoUrl);
-                    return null;
-                }
-                bytes = Files.readAllBytes(logoPath);
+            if (cleanUrl.startsWith("data:image/")) {
+                return processPhotoAsDataUri(cleanUrl);
             }
+
+            byte[] bytes = null;
+            if (cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")) {
+                try {
+                    bytes = new URL(cleanUrl).openStream().readAllBytes();
+                } catch (Exception netEx) {
+                    log.debug("Falha ao baixar logo por URL ({}), tentando disco/banco: {}", cleanUrl, netEx.getMessage());
+                }
+            }
+
             if (bytes == null || bytes.length == 0) {
+                Path logoPath = resolveLogoPath(cleanUrl);
+                if (logoPath != null && Files.exists(logoPath) && Files.isRegularFile(logoPath)) {
+                    bytes = Files.readAllBytes(logoPath);
+                }
+            }
+
+            if (bytes == null || bytes.length == 0) {
+                String filenameOnly = extractFilenameFromUrl(cleanUrl);
+                if (filenameOnly != null && storedUploadService != null) {
+                    var dbLogo = storedUploadService.find("companies/logos", filenameOnly);
+                    if (dbLogo.isPresent() && dbLogo.get().getData() != null && dbLogo.get().getData().length > 0) {
+                        bytes = dbLogo.get().getData();
+                    }
+                }
+            }
+
+            if (bytes == null || bytes.length == 0) {
+                log.warn("Logo da empresa não encontrado em disco nem no banco: {}", logoUrl);
                 return null;
             }
 
-            // Apenas formatos raster suportados pelo Flying Saucer (SVG não renderiza)
-            String lower = logoUrl.toLowerCase();
-            String mime;
-            if (lower.endsWith(".png")) {
-                mime = "image/png";
-            } else if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) {
+            // Converte formatos raster (incluindo WEBP) via ImageIO para compatibilidade total com Flying Saucer
+            String lower = cleanUrl.split("[?#]")[0].toLowerCase();
+            if (lower.endsWith(".svg")) {
+                return null; // Flying Saucer não renderiza SVG diretamente
+            }
+            if (lower.endsWith(".webp")) {
+                BufferedImage img = ImageIO.read(new ByteArrayInputStream(bytes));
+                if (img != null) {
+                    ByteArrayOutputStream pngOut = new ByteArrayOutputStream();
+                    if (ImageIO.write(img, "png", pngOut)) {
+                        return "data:image/png;base64," + Base64.getEncoder().encodeToString(pngOut.toByteArray());
+                    }
+                }
+            }
+
+            String mime = "image/png";
+            if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) {
                 mime = "image/jpeg";
             } else if (lower.endsWith(".gif")) {
                 mime = "image/gif";
-            } else {
-                return null;
             }
             return "data:" + mime + ";base64," + Base64.getEncoder().encodeToString(bytes);
         } catch (Exception e) {
@@ -582,16 +686,41 @@ public class FleetWorkOrderPdfService {
         }
     }
 
+    private String extractFilenameFromUrl(String rawUrl) {
+        if (rawUrl == null || rawUrl.isBlank()) return null;
+        String clean = rawUrl.replace("\\", "/").split("[?#]")[0].trim();
+        int lastSlash = clean.lastIndexOf('/');
+        String name = lastSlash >= 0 ? clean.substring(lastSlash + 1) : clean;
+        return name.isBlank() ? null : name;
+    }
+
     private Path resolveLogoPath(String logoUrl) {
         try {
-            if (logoUrl.startsWith("/api/uploads/companies/logos/")) {
-                String filename = logoUrl.replace("/api/uploads/companies/logos/", "");
-                return Paths.get(uploadDir, "companies", "logos", filename);
+            String clean = logoUrl.replace("\\", "/").split("[?#]")[0].trim();
+            if (clean.startsWith("http://") || clean.startsWith("https://")) {
+                try {
+                    clean = new URL(clean).getPath();
+                } catch (Exception ignored) {}
             }
-            if (!logoUrl.contains("/")) {
-                return Paths.get(uploadDir, "companies", "logos", logoUrl);
+            String filename = extractFilenameFromUrl(clean);
+            if (filename == null) return null;
+
+            List<Path> candidates = new ArrayList<>();
+            if (uploadDir != null && !uploadDir.isBlank()) {
+                candidates.add(Paths.get(uploadDir, "companies", "logos", filename).toAbsolutePath().normalize());
+                candidates.add(Paths.get(uploadDir, filename).toAbsolutePath().normalize());
             }
-            return Paths.get(uploadDir, logoUrl);
+            candidates.add(Paths.get("/var/www/fluxbus/uploads/companies/logos", filename).toAbsolutePath().normalize());
+            candidates.add(Paths.get("/app/uploads/companies/logos", filename).toAbsolutePath().normalize());
+            candidates.add(Paths.get("uploads", "companies", "logos", filename).toAbsolutePath().normalize());
+            candidates.add(Paths.get("..", "uploads", "companies", "logos", filename).toAbsolutePath().normalize());
+
+            for (Path candidate : candidates) {
+                if (Files.exists(candidate) && Files.isRegularFile(candidate)) {
+                    return candidate;
+                }
+            }
+            return candidates.get(0);
         } catch (Exception e) {
             log.warn("Erro ao resolver caminho do logo ({}): {}", logoUrl, e.getMessage());
             return null;
@@ -599,42 +728,208 @@ public class FleetWorkOrderPdfService {
     }
 
     /**
+     * Coleta evidências fotográficas vinculadas ao mesmo veículo em Checklists Diários
+     * (VehicleGateChecklist), Laudos de Inspeção (VehicleInspection) ou galeria do veículo
+     * quando a OS não possui fotos diretamente em fleet_work_order_photos.
+     */
+    private List<String> collectFallbackEvidenceUrls(FleetWorkOrder order) {
+        Set<String> urls = new LinkedHashSet<>();
+        if (order == null || order.getVehicle() == null) {
+            return new ArrayList<>(urls);
+        }
+
+        LocalDate refDate = order.getStopDate() != null
+                ? order.getStopDate()
+                : (order.getCreatedAt() != null ? order.getCreatedAt().toLocalDate() : LocalDate.now());
+
+        // 1. Buscar em Checklists de Portaria / Motorista (VehicleGateChecklist) do veículo
+        try {
+            UUID vehicleId = order.getVehicle().getId();
+            if (vehicleId != null) {
+                List<VehicleGateChecklist> checklists = vehicleGateChecklistRepository
+                        .findByVehicleIdOrderByOccurredAtDesc(vehicleId);
+                if (checklists != null && !checklists.isEmpty()) {
+                    // Prioriza checklists do mesmo dia da OS (ou até +/- 2 dias)
+                    for (VehicleGateChecklist chk : checklists) {
+                        if (chk.getOccurredAt() != null) {
+                            LocalDate chkDate = chk.getOccurredAt().toLocalDate();
+                            if (Math.abs(java.time.temporal.ChronoUnit.DAYS.between(refDate, chkDate)) <= 2) {
+                                addSplitUrls(urls, chk.getVehiclePhotos());
+                                addSplitUrls(urls, chk.getOdometerPhotoUrl());
+                            }
+                        }
+                        if (urls.size() >= 8) break;
+                    }
+                    // Se ainda estiver vazio, pega o checklist mais recente que possua fotos
+                    if (urls.isEmpty()) {
+                        for (VehicleGateChecklist chk : checklists) {
+                            addSplitUrls(urls, chk.getVehiclePhotos());
+                            addSplitUrls(urls, chk.getOdometerPhotoUrl());
+                            if (!urls.isEmpty()) break;
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.debug("Fallback de fotos via VehicleGateChecklist ignorado: {}", e.getMessage());
+        }
+
+        // 2. Buscar em Laudos de Inspeção (VehicleInspection) pela placa do veículo
+        if (urls.isEmpty()) {
+            try {
+                String plate = order.getVehicle().getPlate();
+                if (plate != null && !plate.isBlank()) {
+                    List<VehicleInspection> inspections = vehicleInspectionRepository
+                            .findByVehiclePlateIgnoreCase(plate.trim());
+                    if (inspections != null && !inspections.isEmpty()) {
+                        for (VehicleInspection insp : inspections) {
+                            if (insp.getDeletedAt() == null && insp.getEvidencesUrls() != null && !insp.getEvidencesUrls().isBlank()) {
+                                addSplitUrls(urls, insp.getEvidencesUrls());
+                                if (!urls.isEmpty()) break;
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.debug("Fallback de fotos via VehicleInspection ignorado: {}", e.getMessage());
+            }
+        }
+
+        // 3. Fallback final: galeria de fotos do próprio veículo (alimentada pelo checklist do motorista)
+        if (urls.isEmpty()) {
+            try {
+                addSplitUrls(urls, order.getVehicle().getPhotos());
+            } catch (Exception ignored) {}
+        }
+
+        List<String> result = new ArrayList<>(urls);
+        return result.size() > 8 ? result.subList(0, 8) : result;
+    }
+
+    private void addSplitUrls(Set<String> target, String raw) {
+        if (raw == null || raw.isBlank()) return;
+        String trimmed = raw.trim();
+        if (trimmed.startsWith("data:image/")) {
+            target.add(trimmed);
+            return;
+        }
+        // Remove colchetes caso esteja salvo como JSON array ["url1","url2"]
+        if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+            trimmed = trimmed.substring(1, trimmed.length() - 1);
+        }
+        for (String part : trimmed.split(",")) {
+            String clean = part.trim().replaceAll("^\"|\"$", "");
+            if (!clean.isBlank()) {
+                target.add(clean);
+            }
+        }
+    }
+
+    /**
      * Processa fotos anexadas para formato data URI (base64) para renderização direta no PDF.
+     * Converte imagens para JPEG padrão RGB quando possível para máxima compatibilidade com Flying Saucer / iText.
      */
     private String processPhotoAsDataUri(String photoUrl) {
         if (photoUrl == null || photoUrl.isBlank()) {
             return null;
         }
         String trimmed = photoUrl.trim();
-        if (trimmed.startsWith("data:image/")) {
-            return trimmed;
-        }
         try {
-            byte[] bytes;
-            if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-                bytes = new URL(trimmed).openStream().readAllBytes();
+            byte[] bytes = null;
+            String mime = "image/jpeg";
+
+            if (trimmed.startsWith("data:image/")) {
+                int commaIdx = trimmed.indexOf(',');
+                if (commaIdx > 0) {
+                    String header = trimmed.substring(0, commaIdx).toLowerCase();
+                    String base64Part = trimmed.substring(commaIdx + 1).replaceAll("\\s+", "");
+                    // Se já for JPEG ou PNG válido e não WebP, podemos normalizar ou retornar direto
+                    if (!header.contains("webp")) {
+                        return trimmed;
+                    }
+                    bytes = Base64.getDecoder().decode(base64Part);
+                } else {
+                    return trimmed;
+                }
+            } else if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+                try {
+                    bytes = new URL(trimmed).openStream().readAllBytes();
+                } catch (Exception netEx) {
+                    Path localFallback = resolvePhotoPath(trimmed);
+                    if (localFallback != null && Files.exists(localFallback)) {
+                        bytes = Files.readAllBytes(localFallback);
+                    }
+                }
+                if ((bytes == null || bytes.length == 0) && storedUploadService != null) {
+                    String fn = extractFilenameFromUrl(trimmed);
+                    var dbPhoto = storedUploadService.find("maintenance", fn);
+                    if (dbPhoto.isPresent()) {
+                        bytes = dbPhoto.get().getData();
+                    }
+                }
             } else {
                 Path photoPath = resolvePhotoPath(trimmed);
-                if (photoPath == null || !Files.exists(photoPath)) {
-                    log.warn("Foto da OS não encontrada em disco: {}", trimmed);
+                if (photoPath != null && Files.exists(photoPath)) {
+                    bytes = Files.readAllBytes(photoPath);
+                } else if (storedUploadService != null) {
+                    String fn = extractFilenameFromUrl(trimmed);
+                    var dbPhoto = storedUploadService.find("maintenance", fn);
+                    if (dbPhoto.isPresent()) {
+                        bytes = dbPhoto.get().getData();
+                    }
+                }
+                if (bytes == null || bytes.length == 0) {
+                    log.warn("Foto da OS não encontrada em disco nem no banco: {}", trimmed);
                     return null;
                 }
-                bytes = Files.readAllBytes(photoPath);
             }
+
             if (bytes == null || bytes.length == 0) {
                 return null;
             }
 
+            // Tenta normalizar para RGB JPEG via ImageIO (garante compatibilidade total com Flying Saucer/iText)
+            try {
+                BufferedImage img = ImageIO.read(new ByteArrayInputStream(bytes));
+                if (img != null && img.getWidth() > 0 && img.getHeight() > 0) {
+                    // Redimensiona se for muito grande (> 1200px) para manter o PDF leve e rápido
+                    int maxDim = 1200;
+                    int w = img.getWidth();
+                    int h = img.getHeight();
+                    if (w > maxDim || h > maxDim) {
+                        if (w > h) {
+                            h = Math.max(1, (int) Math.round((double) h * maxDim / w));
+                            w = maxDim;
+                        } else {
+                            w = Math.max(1, (int) Math.round((double) w * maxDim / h));
+                            h = maxDim;
+                        }
+                    }
+                    BufferedImage rgbImage = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
+                    Graphics2D g2d = rgbImage.createGraphics();
+                    g2d.setColor(Color.WHITE);
+                    g2d.fillRect(0, 0, w, h);
+                    g2d.drawImage(img, 0, 0, w, h, null);
+                    g2d.dispose();
+
+                    ByteArrayOutputStream jpegOut = new ByteArrayOutputStream();
+                    if (ImageIO.write(rgbImage, "jpg", jpegOut)) {
+                        byte[] jpegBytes = jpegOut.toByteArray();
+                        if (jpegBytes.length > 0) {
+                            return "data:image/jpeg;base64," + Base64.getEncoder().encodeToString(jpegBytes);
+                        }
+                    }
+                }
+            } catch (Exception imgEx) {
+                log.debug("Normalização ImageIO ignorada para {}: {}", trimmed, imgEx.getMessage());
+            }
+
             String lower = trimmed.toLowerCase();
-            // Remove query string/fragmento antes de detectar a extensão (ex: ".jpg?token=x")
             String pathOnly = lower.split("[?#]")[0];
-            String mime = "image/jpeg";
             if (pathOnly.endsWith(".png")) {
                 mime = "image/png";
             } else if (pathOnly.endsWith(".gif")) {
                 mime = "image/gif";
-            } else if (pathOnly.endsWith(".webp")) {
-                mime = "image/webp";
             } else if (pathOnly.endsWith(".bmp")) {
                 mime = "image/bmp";
             }
@@ -649,11 +944,12 @@ public class FleetWorkOrderPdfService {
      * Resolve o caminho em disco de uma foto da OS a partir da URL armazenada.
      * Aceita as variações "/api/uploads/...", "api/uploads/...", "/uploads/...",
      * "uploads/...", caminhos absolutos e nomes de arquivo simples, testando
-     * múltiplas raízes (diretório configurado, ../uploads e caminho puro).
+     * múltiplas raízes (uploads local/container, uploadDir, maintenanceUploadDir,
+     * /app/uploads, /var/www/fluxbus/uploads e ../uploads).
      */
     private Path resolvePhotoPath(String photoUrl) {
         try {
-            String relative = photoUrl.replace("\\\\", "/").trim();
+            String relative = photoUrl.replace("\\", "/").trim();
 
             // Remove query string e fragmento (ex: "/api/uploads/maintenance/x.jpg?v=2")
             int queryIdx = relative.indexOf('?');
@@ -663,6 +959,14 @@ public class FleetWorkOrderPdfService {
             int fragmentIdx = relative.indexOf('#');
             if (fragmentIdx >= 0) {
                 relative = relative.substring(0, fragmentIdx);
+            }
+
+            // Se for uma URL completa do próprio sistema (ex: https://ci.fluxbus.com.br/api/uploads/maintenance/x.jpg),
+            // extrai apenas o path
+            if (relative.startsWith("http://") || relative.startsWith("https://")) {
+                try {
+                    relative = new URL(relative).getPath();
+                } catch (Exception ignored) {}
             }
 
             // Normaliza prefixos conhecidos para o caminho relativo dentro do diretório de uploads
@@ -677,13 +981,38 @@ public class FleetWorkOrderPdfService {
             }
             relative = relative.replaceFirst("^/+", "");
 
+            String filenameOnly = relative.contains("/")
+                    ? relative.substring(relative.lastIndexOf('/') + 1)
+                    : relative;
+
             java.util.List<Path> candidates = new ArrayList<>();
-            candidates.add(Paths.get(uploadDir, relative).toAbsolutePath().normalize());
+            // 1. Diretórios relativos de execução (Docker /app/uploads e local backend/uploads)
+            candidates.add(Paths.get("uploads", relative).toAbsolutePath().normalize());
+            if (maintenanceUploadDir != null && !maintenanceUploadDir.isBlank()) {
+                candidates.add(Paths.get(maintenanceUploadDir, filenameOnly).toAbsolutePath().normalize());
+                candidates.add(Paths.get(maintenanceUploadDir, relative).toAbsolutePath().normalize());
+            }
+            // 2. Diretório configurado em app.upload.dir
+            if (uploadDir != null && !uploadDir.isBlank()) {
+                candidates.add(Paths.get(uploadDir, relative).toAbsolutePath().normalize());
+                candidates.add(Paths.get(uploadDir, "maintenance", filenameOnly).toAbsolutePath().normalize());
+            }
+            // 3. Caminhos padrão de container Docker e servidores Linux
+            candidates.add(Paths.get("/app/uploads", relative).toAbsolutePath().normalize());
+            candidates.add(Paths.get("/app/uploads/maintenance", filenameOnly).toAbsolutePath().normalize());
+            candidates.add(Paths.get("/var/www/fluxbus/uploads", relative).toAbsolutePath().normalize());
+            candidates.add(Paths.get("/var/www/fluxbus/uploads/maintenance", filenameOnly).toAbsolutePath().normalize());
+            candidates.add(Paths.get("/var/www/fluxbus-dev/uploads", relative).toAbsolutePath().normalize());
+            // 4. Caminhos de workspace local (raiz do monorepo / backend)
             candidates.add(Paths.get("..", "uploads", relative).toAbsolutePath().normalize());
+            candidates.add(Paths.get("..", "uploads", "maintenance", filenameOnly).toAbsolutePath().normalize());
+            candidates.add(Paths.get("backend", "uploads", relative).toAbsolutePath().normalize());
+            candidates.add(Paths.get("backend", "uploads", "maintenance", filenameOnly).toAbsolutePath().normalize());
+            candidates.add(Paths.get("uploads", "maintenance", filenameOnly).toAbsolutePath().normalize());
             candidates.add(Paths.get(relative).toAbsolutePath().normalize());
 
             for (Path candidate : candidates) {
-                if (Files.exists(candidate)) {
+                if (Files.exists(candidate) && Files.isRegularFile(candidate)) {
                     return candidate;
                 }
             }
@@ -697,6 +1026,21 @@ public class FleetWorkOrderPdfService {
     }
 
     // ── Helpers de formatação ─────────────────────────────────────────────────
+
+    private String resolvePersonNameById(UUID personId) {
+        if (personId == null) return null;
+        try {
+            var emp = employeeRepository.findById(personId);
+            if (emp.isPresent() && emp.get().getName() != null && !emp.get().getName().isBlank()) {
+                return emp.get().getName();
+            }
+            var usr = userRepository.findById(personId);
+            if (usr.isPresent() && usr.get().getName() != null && !usr.get().getName().isBlank()) {
+                return usr.get().getName();
+            }
+        } catch (Exception ignored) {}
+        return null;
+    }
 
     private String formatCurrency(BigDecimal value) {
         return value != null ? CURRENCY.format(value) : CURRENCY.format(BigDecimal.ZERO);

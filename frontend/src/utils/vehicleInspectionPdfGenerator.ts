@@ -77,38 +77,64 @@ async function loadImageWithDimensions(
 ): Promise<{ dataUrl: string; width: number; height: number } | null> {
   if (!url || typeof url !== 'string') return null;
 
-  return new Promise((resolve) => {
-    const img = new Image();
-    if (!url.startsWith('data:')) {
-      img.crossOrigin = 'Anonymous';
-    }
-    const timer = window.setTimeout(() => resolve(null), 3500);
-    img.onload = () => {
-      window.clearTimeout(timer);
-      try {
-        const w = img.naturalWidth || img.width || 300;
-        const h = img.naturalHeight || img.height || 150;
-        const canvas = document.createElement('canvas');
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          resolve(null);
-          return;
-        }
-        ctx.drawImage(img, 0, 0);
-        const dataUrl = asPng ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 0.88);
-        resolve({ dataUrl, width: w, height: h });
-      } catch {
-        resolve(null);
+  const trimmed = url.trim();
+  const candidates: string[] = [];
+  if (trimmed.startsWith('data:') || trimmed.startsWith('blob:') || trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    candidates.push(trimmed);
+  } else if (trimmed.startsWith('/api/uploads/')) {
+    candidates.push(trimmed);
+    candidates.push(trimmed.replace(/^\/api/, ''));
+  } else if (trimmed.startsWith('/uploads/')) {
+    candidates.push(`/api${trimmed}`);
+    candidates.push(trimmed);
+  } else if (trimmed.startsWith('/')) {
+    candidates.push(`/api/uploads${trimmed}`);
+    candidates.push(trimmed);
+  } else {
+    candidates.push(`/api/uploads/maintenance/${trimmed}`);
+    candidates.push(`/uploads/maintenance/${trimmed}`);
+    candidates.push(trimmed);
+  }
+
+  const tryLoadSingle = (candidateUrl: string): Promise<{ dataUrl: string; width: number; height: number } | null> =>
+    new Promise((resolve) => {
+      const img = new Image();
+      if (!candidateUrl.startsWith('data:') && !candidateUrl.startsWith('blob:')) {
+        img.crossOrigin = 'Anonymous';
       }
-    };
-    img.onerror = () => {
-      window.clearTimeout(timer);
-      resolve(null);
-    };
-    img.src = url;
-  });
+      const timer = window.setTimeout(() => resolve(null), 4000);
+      img.onload = () => {
+        window.clearTimeout(timer);
+        try {
+          const w = img.naturalWidth || img.width || 300;
+          const h = img.naturalHeight || img.height || 150;
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(null);
+            return;
+          }
+          ctx.drawImage(img, 0, 0);
+          const dataUrl = asPng ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 0.88);
+          resolve({ dataUrl, width: w, height: h });
+        } catch {
+          resolve(null);
+        }
+      };
+      img.onerror = () => {
+        window.clearTimeout(timer);
+        resolve(null);
+      };
+      img.src = candidateUrl;
+    });
+
+  for (const cand of candidates) {
+    const res = await tryLoadSingle(cand);
+    if (res) return res;
+  }
+  return null;
 }
 
 /**

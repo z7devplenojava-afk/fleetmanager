@@ -6,6 +6,7 @@ import com.z7design.fleet_manager.dto.StockNfeProcessRequestDTO;
 import com.z7design.fleet_manager.dto.StockNfeProcessResponseDTO;
 import com.z7design.fleet_manager.exception.BusinessException;
 import com.z7design.fleet_manager.model.FleetWorkOrderHistory;
+import com.z7design.fleet_manager.model.FuelRecord;
 import com.z7design.fleet_manager.model.Invoice;
 import com.z7design.fleet_manager.model.MaterialRequisition;
 import com.z7design.fleet_manager.model.StockItem;
@@ -20,6 +21,7 @@ import com.z7design.fleet_manager.model.enums.MovementReason;
 import com.z7design.fleet_manager.model.enums.MovementType;
 import com.z7design.fleet_manager.model.enums.StockCategory;
 import com.z7design.fleet_manager.repository.FleetWorkOrderHistoryRepository;
+import com.z7design.fleet_manager.repository.FuelRecordRepository;
 import com.z7design.fleet_manager.repository.InvoiceRepository;
 import com.z7design.fleet_manager.repository.MaterialRequisitionRepository;
 import com.z7design.fleet_manager.repository.StockItemRepository;
@@ -74,6 +76,7 @@ public class StockNfeService {
     private final MaterialRequisitionRepository materialRequisitionRepository;
     private final FleetWorkOrderHistoryRepository workOrderHistoryRepository;
     private final SystemNotificationService systemNotificationService;
+    private final FuelRecordRepository fuelRecordRepository;
 
     /**
      * Faz o parse seguro do XML da NF-e e analisa previamente os itens e financeiro
@@ -373,13 +376,15 @@ public class StockNfeService {
                 PDFTextStripper stripper = new PDFTextStripper();
                 stripper.setSortByPosition(true);
                 String textTrue = stripper.getText(document);
-
-                stripper.setSortByPosition(false);
-                String textFalse = stripper.getText(document);
+                String textFalse = null;
 
                 String text = textTrue;
-                if ((text == null || text.isBlank() || text.trim().length() < 30) && (textFalse != null && textFalse.trim().length() >= 30)) {
-                    text = textFalse;
+                if (text == null || text.isBlank() || text.trim().length() < 30) {
+                    stripper.setSortByPosition(false);
+                    textFalse = stripper.getText(document);
+                    if (textFalse != null && textFalse.trim().length() >= 30) {
+                        text = textFalse;
+                    }
                 }
 
                 // Se o PDF não contém texto nativo ou é uma digitalização / imagem
@@ -404,28 +409,36 @@ public class StockNfeService {
                 }
 
                 StockNfeParsedDTO dto = parseDanfeText(text, companyId, file.getOriginalFilename());
-                // Fallback inteligente: se textFalse estiver disponível e o resultado inicial com textTrue
-                // tiver total 0, fornecedor ausente/inválido ou lista de itens vazia/zerada
-                if (textFalse != null && !textFalse.isBlank() && !textFalse.equals(textTrue)) {
-                    boolean initialHasNoAmount = dto.getTotalInvoiceAmount() == null || dto.getTotalInvoiceAmount().compareTo(BigDecimal.ZERO) <= 0;
-                    boolean initialHasNoSupplier = dto.getSupplierName() == null || dto.getSupplierName().isBlank() || dto.getSupplierName().matches("^[\\p{Punct}\\s]+$");
-                    boolean initialHasNoItems = dto.getItems() == null || dto.getItems().isEmpty();
-                    boolean initialItemsAllZero = !initialHasNoItems && dto.getItems().stream().allMatch(it -> it.getTotalPrice() == null || it.getTotalPrice().compareTo(BigDecimal.ZERO) <= 0);
+                // Fallback inteligente: avalia stream-order (textFalse) apenas se o resultado inicial precisar de complemento
+                boolean initialHasNoAmount = dto.getTotalInvoiceAmount() == null || dto.getTotalInvoiceAmount().compareTo(BigDecimal.ZERO) <= 0;
+                boolean initialHasNoSupplier = dto.getSupplierName() == null || dto.getSupplierName().isBlank()
+                        || dto.getSupplierName().matches("^[\\p{Punct}\\s]+$") || isDanfeLabel(dto.getSupplierName());
+                boolean initialHasNoItems = dto.getItems() == null || dto.getItems().isEmpty();
+                boolean initialItemsAllZero = !initialHasNoItems && dto.getItems().stream().allMatch(it -> it.getTotalPrice() == null || it.getTotalPrice().compareTo(BigDecimal.ZERO) <= 0);
 
-                    if (initialHasNoAmount || initialHasNoSupplier || initialHasNoItems || initialItemsAllZero) {
-                        try {
+                if (initialHasNoAmount || initialHasNoSupplier || initialHasNoItems || initialItemsAllZero) {
+                    try {
+                        if (textFalse == null) {
+                            stripper.setSortByPosition(false);
+                            textFalse = stripper.getText(document);
+                        }
+                        if (textFalse != null && !textFalse.isBlank() && !textFalse.equals(text)) {
                             StockNfeParsedDTO fallbackDto = parseDanfeText(textFalse, companyId, file.getOriginalFilename());
                             boolean fallbackHasAmount = fallbackDto.getTotalInvoiceAmount() != null && fallbackDto.getTotalInvoiceAmount().compareTo(BigDecimal.ZERO) > 0;
-                            boolean fallbackHasSupplier = fallbackDto.getSupplierName() != null && !fallbackDto.getSupplierName().isBlank();
+                            boolean fallbackHasSupplier = fallbackDto.getSupplierName() != null && !fallbackDto.getSupplierName().isBlank() && !isDanfeLabel(fallbackDto.getSupplierName());
                             boolean fallbackHasItems = fallbackDto.getItems() != null && !fallbackDto.getItems().isEmpty();
 
-                            if (fallbackHasAmount || (fallbackHasSupplier && fallbackHasItems)) {
+                            if (initialHasNoSupplier && fallbackHasSupplier) {
+                                dto.setSupplierName(fallbackDto.getSupplierName());
+                                dto.setSupplierTradeName(fallbackDto.getSupplierTradeName());
+                            }
+                            if (fallbackHasAmount && (initialHasNoAmount || (fallbackHasSupplier && fallbackHasItems))) {
                                 log.info("PDF da NF-e '{}': Fallback stream-order (textFalse) obteve melhor resultado estruturado que layout-order.", file.getOriginalFilename());
                                 return fallbackDto;
                             }
-                        } catch (Exception exFallback) {
-                            log.debug("Fallback para textFalse não aplicável: {}", exFallback.getMessage());
                         }
+                    } catch (Exception exFallback) {
+                        log.debug("Fallback para textFalse não aplicável: {}", exFallback.getMessage());
                     }
                 }
 
@@ -833,6 +846,15 @@ public class StockNfeService {
         SupplierInfo info = new SupplierInfo();
         int cnpjIdx = -1;
 
+        // 0. Se temos a chave de acesso de 44 dígitos, os dígitos 6..20 são SEMPRE o CNPJ autoritativo do emitente
+        String authoritativeRawCnpj = null;
+        if (accessKey != null && accessKey.length() == 44) {
+            try {
+                authoritativeRawCnpj = accessKey.substring(6, 20);
+                info.cnpj = formatCnpj(authoritativeRawCnpj);
+            } catch (Exception ignored) {}
+        }
+
         // 1. Procurar nas primeiras 35 linhas (bloco do emitente, antes do cabeçalho do destinatário)
         for (int i = 0; i < Math.min(lines.size(), 35); i++) {
             String line = lines.get(i);
@@ -843,35 +865,40 @@ public class StockNfeService {
 
             Matcher matcher = Pattern.compile("(?i)CNPJ(?:\\s*/\\s*CPF)?\\s*[:.]?\\s*([\\d./-]{14,20})").matcher(line);
             if (matcher.find()) {
-                info.cnpj = matcher.group(1).trim();
-                cnpjIdx = i;
-                break;
+                String candidateCnpj = matcher.group(1).trim();
+                String candidateDigits = candidateCnpj.replaceAll("\\D", "");
+                if (authoritativeRawCnpj == null || authoritativeRawCnpj.equals(candidateDigits)) {
+                    if (info.cnpj == null || info.cnpj.isBlank()) {
+                        info.cnpj = candidateCnpj;
+                    }
+                    cnpjIdx = i;
+                    break;
+                }
             }
 
             Matcher directCnpj = Pattern.compile("(?<!\\d)(\\d{2}\\.\\d{3}\\.\\d{3}/\\d{4}-\\d{2})(?!\\d)").matcher(line);
             if (directCnpj.find()) {
-                info.cnpj = directCnpj.group(1).trim();
-                cnpjIdx = i;
-                break;
+                String candidateCnpj = directCnpj.group(1).trim();
+                String candidateDigits = candidateCnpj.replaceAll("\\D", "");
+                if (authoritativeRawCnpj == null || authoritativeRawCnpj.equals(candidateDigits)) {
+                    if (info.cnpj == null || info.cnpj.isBlank()) {
+                        info.cnpj = candidateCnpj;
+                    }
+                    cnpjIdx = i;
+                    break;
+                }
             }
         }
 
-        // 2. Se não encontrou CNPJ nas linhas, mas temos a chave de acesso de 44 dígitos
-        if ((info.cnpj == null || info.cnpj.isBlank()) && accessKey != null && accessKey.length() == 44) {
-            try {
-                String rawCnpj = accessKey.substring(6, 20);
-                info.cnpj = formatCnpj(rawCnpj);
-                log.info("CNPJ do emitente recuperado a partir da chave de acesso: {}", info.cnpj);
-            } catch (Exception ignored) {}
-        }
-
-        // 3. Se temos o CNPJ, verificar se o fornecedor já existe no banco de dados para recuperar nome e dados oficiais
+        // 2. Se temos o CNPJ, verificar se o fornecedor já existe no banco de dados para recuperar nome e dados oficiais
         if (info.cnpj != null && !info.cnpj.isBlank()) {
             try {
                 Optional<Supplier> existing = findExistingSupplier(info.cnpj, companyId);
                 if (existing.isPresent()) {
                     Supplier s = existing.get();
-                    boolean isPlaceholder = s.getName() != null && s.getName().matches("(?i)^(?:VENDA|CUPOM|PEDIDO|NF|DOC|IMPORT).*\\d+.*");
+                    boolean isPlaceholder = s.getName() != null && (
+                            s.getName().matches("(?i)^(?:VENDA|CUPOM|PEDIDO|NF|DOC|IMPORT|CNPJ).*")
+                            || isDanfeLabel(s.getName()));
                     if (!isPlaceholder && s.getName() != null && !s.getName().isBlank()) {
                         info.name = s.getName();
                         info.tradeName = s.getTradeName() != null ? s.getTradeName() : s.getName();
@@ -894,12 +921,27 @@ public class StockNfeService {
 
         // 3.5. Tentar padrão universal do canhoto DANFE: "RECEBEMOS DE <NOME> OS PRODUTOS..."
         String flatText = String.join(" | ", lines);
-        Matcher mRecebemos = Pattern.compile("(?i)RECEBEMOS\\s+DE\\s+([^|\\r\n]+?)\\s+(?:DATA|OS\\s+PRODUTOS|IDENTIFICACAO|IDENTIFICA[ÇC][ÃA]O|AS\\s+MERCADORIAS|CONSTANTES)").matcher(flatText);
+        Matcher mRecebemos = Pattern.compile("(?i)RECEBEMOS\\s+DE\\s+([^|\\r\\n]{3,90}?)(?:\\s+(?:DATA|OS\\s+PRODUTOS|IDENTIFICACAO|IDENTIFICA[ÇC][ÃA]O|AS\\s+MERCADORIAS|CONSTANTES)|\\s*\\||$)").matcher(flatText);
         if (mRecebemos.find()) {
             String recName = cleanSupplierCandidate(mRecebemos.group(1).trim());
             if (recName.length() >= 3 && containsLetters(recName) && !isDanfeLabel(recName) && !isDocumentTitle(recName)) {
                 info.name = recName;
                 info.tradeName = recName;
+            }
+        }
+
+        // 3.5b. Caso "RECEBEMOS DE" esteja sozinho em uma linha e o nome do emitente na linha seguinte
+        if (info.name == null || info.name.isBlank()) {
+            for (int i = 0; i < Math.min(lines.size() - 1, 20); i++) {
+                String upperLine = removeAccents(lines.get(i).toUpperCase()).trim();
+                if (upperLine.endsWith("RECEBEMOS DE") || upperLine.equals("RECEBEMOS DE:")) {
+                    String nextCandidate = cleanSupplierCandidate(lines.get(i + 1));
+                    if (nextCandidate.length() >= 3 && containsLetters(nextCandidate) && !isDanfeLabel(nextCandidate)) {
+                        info.name = nextCandidate;
+                        info.tradeName = nextCandidate;
+                        break;
+                    }
+                }
             }
         }
 
@@ -915,12 +957,42 @@ public class StockNfeService {
             }
         }
 
-                // 4. Razão social / Nome do emitente a partir do texto
-        if ((info.name == null || info.name.isBlank()) && cnpjIdx >= 0) {
-            // Linhas acima do CNPJ, ignorando títulos, labels e endereços
-            for (int i = cnpjIdx - 1; i >= 0; i--) {
+        // 3.7. Buscar linha com forte indicador de razão social / posto de combustível no bloco do emitente (antes de DESTINATÁRIO)
+        int destBound = lines.size();
+        for (int i = 0; i < Math.min(lines.size(), 45); i++) {
+            String norm = removeAccents(lines.get(i)).toUpperCase();
+            if (norm.contains("DESTINATARIO") || norm.contains("REMETENTE")) {
+                destBound = i;
+                break;
+            }
+        }
+
+        if (info.name == null || info.name.isBlank()) {
+            for (int i = 0; i < Math.min(destBound, 30); i++) {
                 String candidate = lines.get(i);
                 if (isDanfeLabel(candidate) || isDocumentTitle(candidate) || isAddressLine(candidate)) {
+                    continue;
+                }
+                String cleaned = cleanSupplierCandidate(candidate);
+                String upperClean = removeAccents(cleaned.toUpperCase());
+                if (cleaned.length() >= 4 && !upperClean.contains("VIACAO SAO SILVESTRE") && !upperClean.contains("FLUXBUS")
+                        && (upperClean.contains("AUTO POSTO") || upperClean.contains("POSTO ") || upperClean.contains("COMBUSTIVE")
+                            || upperClean.contains("PETROLEO") || upperClean.contains("DERIVADOS") || upperClean.contains("LTDA")
+                            || upperClean.contains("EIRELI") || upperClean.contains("S/A") || upperClean.contains("S.A")
+                            || upperClean.contains("COMERCIO") || upperClean.contains("DISTRIBUIDORA"))) {
+                    info.name = cleaned;
+                    info.tradeName = cleaned;
+                    break;
+                }
+            }
+        }
+
+        // 4. Razão social / Nome do emitente a partir do topo do cabeçalho da DANFE (antes de NATUREZA DA OPERAÇÃO e do CNPJ)
+        if (info.name == null || info.name.isBlank()) {
+            int searchLimit = (cnpjIdx > 0) ? Math.min(cnpjIdx, destBound) : Math.min(destBound, 20);
+            for (int i = 0; i < searchLimit; i++) {
+                String candidate = lines.get(i);
+                if (isDanfeLabel(candidate) || isDocumentTitle(candidate) || isAddressLine(candidate) || candidate.matches("^[\\d./\\s-]+$")) {
                     if (isAddressLine(candidate) && info.address.isEmpty()) {
                         info.address = candidate;
                     }
@@ -935,34 +1007,26 @@ public class StockNfeService {
             }
         }
 
-        // 4.1 Se ainda não identificou, busca nas primeiras linhas do cabeçalho da DANFE
-        if ((info.name == null || info.name.isBlank()) && !lines.isEmpty()) {
-            for (int i = 0; i < Math.min(lines.size(), 10); i++) {
-                String candidate = lines.get(i);
-                if (isDanfeLabel(candidate) || isDocumentTitle(candidate) || isAddressLine(candidate) || candidate.matches("^[\\d./\\s-]+$")) {
-                    continue;
-                }
-                String cleaned = cleanSupplierCandidate(candidate);
-                if (!cleaned.isEmpty() && containsLetters(cleaned) && cleaned.length() >= 3) {
-                    info.name = cleaned;
-                    info.tradeName = cleaned;
-                    break;
-                }
-            }
-        }
+        // 4.1 Se ainda não encontrou o nome e temos o CNPJ, verifica registros de abastecimento anteriores ou consulta BrasilAPI
+        if ((info.name == null || info.name.isBlank()) && info.cnpj != null && !info.cnpj.isBlank()) {
+            String cleanDigits = info.cnpj.replaceAll("\\D", "");
+            if (cleanDigits.length() == 14) {
+                try {
+                    List<FuelRecord> prevRecords = fuelRecordRepository.findByNotesContainingIgnoreCase(info.cnpj);
+                    if (prevRecords.isEmpty()) {
+                        prevRecords = fuelRecordRepository.findByNotesContainingIgnoreCase(cleanDigits);
+                    }
+                    for (FuelRecord fr : prevRecords) {
+                        if (fr.getStation() != null && !fr.getStation().isBlank() && !isDanfeLabel(fr.getStation())) {
+                            info.name = fr.getStation().trim();
+                            info.tradeName = fr.getStation().trim();
+                            break;
+                        }
+                    }
+                } catch (Exception ignored) {}
 
-        // Se ainda não encontrou o nome, busca nas primeiras 15 linhas (ignorando endereços)
-        if (info.name == null || info.name.isBlank() || info.name.length() < 3) {
-            for (int i = 0; i < Math.min(lines.size(), 15); i++) {
-                String candidate = lines.get(i);
-                if (isDanfeLabel(candidate) || isDocumentTitle(candidate) || isAddressLine(candidate)) {
-                    continue;
-                }
-                String cleaned = cleanSupplierCandidate(candidate);
-                if (!cleaned.isEmpty() && containsLetters(cleaned) && cleaned.length() >= 3) {
-                    info.name = cleaned;
-                    info.tradeName = cleaned;
-                    break;
+                if (info.name == null || info.name.isBlank()) {
+                    enrichSupplierFromBrasilApi(cleanDigits, info);
                 }
             }
         }
@@ -1014,20 +1078,27 @@ public class StockNfeService {
 
     private String cleanSupplierCandidate(String candidate) {
         if (candidate == null) return "";
-        return candidate
+        String cleaned = candidate
                 .replaceAll("(?i)^.*?RECEBEMOS\\s+DE\\s+", "")
+                .replaceAll("(?i)\\s*OS\\s+PRODUTOS.*$", "")
+                .replaceAll("(?i)\\s*AS\\s+MERCADORIAS.*$", "")
+                .replaceAll("(?i)\\s*CONSTANTES\\s+DA.*$", "")
                 .replaceAll("(?i)\\s*NOTA\\s+FISCAL.*$", "")
-                .replaceAll("(?i)^(?:NOME\\s+FANTASIA|RAZ[ÃA]O\\s+SOCIAL|NOME/RAZ[ÃA]O\\s+SOCIAL|PRESTADOR\\s+DE\\s+SERVI[ÇC]OS?)\\s*[:.]?\\s*", "")
+                .replaceAll("(?i)^(?:IDENTIFICA[ÇC][ÃA]O\\s+DO\\s+EMITENTE|NOME\\s+FANTASIA|RAZ[ÃA]O\\s+SOCIAL|NOME/RAZ[ÃA]O\\s+SOCIAL|PRESTADOR\\s+DE\\s+SERVI[ÇC]OS?)\\s*[:.]?\\s*", "")
                 .replaceAll("(?i)^.*?NATUREZA\\s+DE\\s+OPERA[ÇC][ÃA]O", "")
+                .replaceAll("(?i)\\bCNPJ(?:\\s*/\\s*CPF)?\\s*[:.]?.*$", "")
+                .replaceAll("(?i)\\bCPF\\s*[:.]?.*$", "")
+                .replaceAll("(?i)\\bI\\.?E\\.?\\s*[:.]?.*$", "")
                 .replaceAll("(?i)DATA\\s+RECEBIMENTO.*$", "")
                 .replaceAll("(?i)IDENTIFICA[ÇC][ÃA]O.*$", "")
                 .replaceAll("(?i)DEST(?:/|\\s*/\\s*)?REM[EÉ].*$", "")
                 .replaceAll("(?i)EMISS[AÃ]O.*$", "")
                 .replaceAll("(?i)VALOR\\s+TOTAL.*$", "")
                 .replaceAll("(?i)N[º°O]\\.?\\s*NF-?E.*$", "")
-                .replaceAll("(?i)S[EÉ]RIE\\s*\\d+.*$", "")
+                .replaceAll("(?i)S[EÉ]RIE\\s*\\d*.*$", "")
                 .replaceAll("(?i)FL\\.?\\s*\\d+.*$", "")
                 .replaceAll("(?i)TELEFONE.*$", "")
+                .replaceAll("(?i)FONE.*$", "")
                 .replaceAll("(?i)INSCRI[ÇC][ÃA]O\\s+ESTADUAL.*$", "")
                 .replaceAll("(?i)INSC\\.?\\s*EST\\.?.*$", "")
                 .replaceAll("(?i)CHAVE\\s+DE\\s+ACESSO.*$", "")
@@ -1037,16 +1108,66 @@ public class StockNfeService {
                 .replaceAll("(?i)DOCUMENTO\\s+AUXILIAR.*$", "")
                 .replaceAll("(?i)CONSULTA\\s+DE\\s+AUTENTICIDADE.*$", "")
                 .replaceAll("(?i)FOLHA\\s+\\d+.*$", "")
+                .replaceAll("^[\\s:;.,/-]+|[\\s:;.,/-]+$", "")
                 .trim();
+        if (isDanfeLabel(cleaned) || isDocumentTitle(cleaned)) {
+            return "";
+        }
+        return cleaned;
     }
 
     private boolean isDocumentTitle(String line) {
+        if (line == null) return true;
         String upper = removeAccents(line.toUpperCase()).trim();
         return upper.contains("DOCUMENTO AUXILIAR") || upper.contains("NOTA FISCAL ELETRONICA")
                 || upper.contains("RECEBEMOS DE") || upper.contains("DEST/REME")
                 || upper.contains("EMISSAO:") || upper.contains("VALOR TOTAL:")
-                || upper.contains("ENTRADA") || upper.contains("SAIDA")
-                || upper.matches("^[0-9\\s.-]+$");
+                || upper.equals("ENTRADA") || upper.equals("SAIDA")
+                || upper.contains("CONTROLE DO FISCO") || upper.contains("USO AUTORIZADO")
+                || upper.contains("WWW.") || upper.contains(".GOV.BR") || upper.contains("SEFAZ")
+                || upper.contains("FAZENDA") || upper.contains("AUTENTICIDADE")
+                || upper.startsWith("VENDA ") || upper.startsWith("REMESSA ") || upper.startsWith("DEVOLUCAO ")
+                || upper.startsWith("COMPRA ") || upper.contains("MERCADORIA ADQUIRIDA")
+                || upper.contains("SUBSTITUICAO TRIBUTARIA") || upper.contains("SUBST. TRIB")
+                || upper.matches("^[0-9\\s.:,/-]+$");
+    }
+
+    private void enrichSupplierFromBrasilApi(String cnpjDigits, SupplierInfo info) {
+        try {
+            java.net.http.HttpClient client = java.net.http.HttpClient.newBuilder()
+                    .connectTimeout(java.time.Duration.ofSeconds(3))
+                    .build();
+            java.net.http.HttpRequest req = java.net.http.HttpRequest.newBuilder()
+                    .uri(java.net.URI.create("https://brasilapi.com.br/api/cnpj/v1/" + cnpjDigits))
+                    .timeout(java.time.Duration.ofSeconds(3))
+                    .header("Accept", "application/json")
+                    .GET()
+                    .build();
+            java.net.http.HttpResponse<String> resp = client.send(req, java.net.http.HttpResponse.BodyHandlers.ofString());
+            if (resp.statusCode() == 200 && resp.body() != null) {
+                com.fasterxml.jackson.databind.JsonNode root = new com.fasterxml.jackson.databind.ObjectMapper().readTree(resp.body());
+                String razao = root.path("razao_social").asText("").trim();
+                String fantasia = root.path("nome_fantasia").asText("").trim();
+                if (!razao.isEmpty()) {
+                    info.name = razao;
+                    info.tradeName = !fantasia.isEmpty() ? fantasia : razao;
+                }
+                if (info.city.isEmpty()) info.city = root.path("municipio").asText("").trim();
+                if (info.state.isEmpty()) info.state = root.path("uf").asText("").trim();
+                if (info.zipCode.isEmpty()) info.zipCode = root.path("cep").asText("").trim();
+                if (info.address.isEmpty()) {
+                    String logr = root.path("logradouro").asText("").trim();
+                    String num = root.path("numero").asText("").trim();
+                    String bairro = root.path("bairro").asText("").trim();
+                    if (!logr.isEmpty()) {
+                        info.address = logr + (!num.isEmpty() ? ", " + num : "") + (!bairro.isEmpty() ? " - " + bairro : "");
+                    }
+                }
+                log.info("Fornecedor '{}' recuperado via BrasilAPI para o CNPJ {}", info.name, info.cnpj);
+            }
+        } catch (Exception ex) {
+            log.debug("Consulta complementar BrasilAPI para CNPJ {} não disponível: {}", cnpjDigits, ex.getMessage());
+        }
     }
 
     private boolean isInvalidItemLine(String line) {
@@ -1075,20 +1196,31 @@ public class StockNfeService {
     }
 
     private boolean isDanfeLabel(String line) {
-        String upper = line.toUpperCase()
-                .replaceAll("[^A-ZÀ-Ü0-9/ ]", " ")
+        if (line == null || line.isBlank()) return true;
+        String upper = removeAccents(line.toUpperCase())
+                .replaceAll("[^A-Z0-9/ ]", " ")
                 .replaceAll("\\s+", " ")
                 .trim();
+        if (upper.isEmpty()) return true;
         Set<String> labels = Set.of(
-                "EMITENTE", "DANFE", "NOTA FISCAL ELETRONICA", "N F E", "NFe",
-                "DESTINATARIO", "REMETENTE", "EXPEDIDOR", "RECEBEDOR",
-                "NUMERO", "SERIE", "DATA DA EMISSAO", "DATA DE EMISSAO",
-                "CNPJ", "CPF", "INSC EST", "INSCRICAO ESTADUAL", "FONE",
-                "DADOS DO PRODUTO", "DADOS DOS PRODUTOS", "DADOS DOS SERVICOS",
-                "CALCULO DO IMPOSTO", "TRANSPORTADOR", "DADOS ADICIONAIS",
-                "VALOR TOTAL", "BASE DE CALCULO", "PAGAMENTO", "FOLHA", "NATUREZA DA OPERACAO", "NATUREZA DE OPERACAO", "VENDA", "REMESSA", "COMPRA", "DEVOLUCAO"
+                "EMITENTE", "IDENTIFICACAO DO EMITENTE", "DANFE", "NOTA FISCAL ELETRONICA", "N F E", "NFE", "NF E",
+                "DESTINATARIO", "REMETENTE", "DESTINATARIO / REMETENTE", "DESTINATARIO REMETENTE", "EXPEDIDOR", "RECEBEDOR",
+                "NUMERO", "SERIE", "DATA DA EMISSAO", "DATA DE EMISSAO", "DATA EMISSAO", "DATA SAIDA", "HORA SAIDA",
+                "CNPJ", "CPF", "CNPJ CPF", "CNPJ / CPF", "CNPJ IE", "CNPJ / IE", "IE", "I E", "INSC EST", "INSCRICAO ESTADUAL",
+                "CNPJ INSCRICAO ESTADUAL", "FONE", "FONE FAX", "TELEFONE", "CEP", "UF", "MUNICIPIO", "ENDERECO", "BAIRRO", "DISTRITO",
+                "DADOS DO PRODUTO", "DADOS DOS PRODUTOS", "DADOS DOS SERVICOS", "DADOS DOS PRODUTOS / SERVICOS",
+                "CALCULO DO IMPOSTO", "TRANSPORTADOR", "DADOS ADICIONAIS", "INFORMACOES COMPLEMENTARES", "RESERVADO AO FISCO",
+                "VALOR TOTAL", "BASE DE CALCULO", "PAGAMENTO", "FOLHA", "NATUREZA DA OPERACAO", "NATUREZA DE OPERACAO",
+                "PROTOCOLO DE AUTORIZACAO DE USO", "CHAVE DE ACESSO", "VENDA", "REMESSA", "COMPRA", "DEVOLUCAO"
         );
-        return upper.isEmpty() || labels.contains(upper);
+        if (labels.contains(upper)) return true;
+
+        // Se a linha é composta exclusivamente por tokens de rótulos de formulário DANFE (ex: "CNPJ: IE:", "CNPJ: CPF: IE:")
+        String withoutLabelTokens = upper.replaceAll(
+                "\\b(CNPJ|CPF|IE|INSC|INSCRICAO|ESTADUAL|MUNICIPAL|SUB|SUBST|TRIBUTARIA|CEP|UF|FONE|FAX|TEL|TELEFONE|DATA|HORA|EMISSAO|SAIDA|ENTRADA|SERIE|FOLHA|PAGINA|NF|NFE|DANFE|CHAVE|ACESSO|PROTOCOLO|USO|AUTORIZACAO|CODIGO|VALOR|TOTAL|NOTA|FISCAL|NUMERO|NO|NR)\\b",
+                ""
+        ).replaceAll("[^A-Z]", "").trim();
+        return withoutLabelTokens.length() < 3;
     }
 
     private boolean isAddressLine(String line) {
@@ -1840,10 +1972,23 @@ public class StockNfeService {
 
         boolean foundInFinance = false;
         boolean foundInStock = false;
+        boolean foundInFuel = false;
         String matchDetail = "";
 
         // 1. Checagem por Chave de Acesso (44 dígitos)
         if (cleanAccessKey.length() == 44) {
+            // Checar em Registros de Abastecimento (FuelRecord)
+            try {
+                List<FuelRecord> fuelByKey = fuelRecordRepository.findByNotesContainingIgnoreCase(cleanAccessKey);
+                if (!fuelByKey.isEmpty()) {
+                    foundInFuel = true;
+                    FuelRecord fr = fuelByKey.get(0);
+                    matchDetail = String.format("Abastecimento em %s (%s)",
+                            fr.getDate() != null ? fr.getDate().toString() : "data N/D",
+                            fr.getStation() != null ? fr.getStation() : "Posto");
+                }
+            } catch (Exception ignored) {}
+
             // Checar em Faturas/Contas a Pagar
             List<Invoice> invoicesByKey = invoiceRepository.findByNotesContaining(cleanAccessKey);
             if (invoicesByKey.isEmpty()) {
@@ -1852,7 +1997,9 @@ public class StockNfeService {
             if (!invoicesByKey.isEmpty()) {
                 foundInFinance = true;
                 Invoice sample = invoicesByKey.get(0);
-                matchDetail = String.format("Fatura nº %s", sample.getInvoiceNumber() != null ? sample.getInvoiceNumber() : sample.getId());
+                if (matchDetail.isEmpty()) {
+                    matchDetail = String.format("Fatura nº %s", sample.getInvoiceNumber() != null ? sample.getInvoiceNumber() : sample.getId());
+                }
             }
 
             // Checar em Movimentações de Estoque
@@ -1868,6 +2015,31 @@ public class StockNfeService {
 
         // 2. Checagem por Número da NF-e + Fornecedor
         if (!cleanNf.isEmpty()) {
+            // Checar em Registros de Abastecimento (FuelRecord)
+            if (!foundInFuel) {
+                try {
+                    List<FuelRecord> fuelByNf = fuelRecordRepository.findByNotesContainingIgnoreCase(cleanNf);
+                    Pattern nfPattern = Pattern.compile("(?i)(?:NF|NOTA|NFE|DOC)[:\\s#-]*0*" + Pattern.quote(cleanNf) + "(?!\\d)");
+                    String cnpjRoot = cleanCnpj.length() >= 8 ? cleanCnpj.substring(0, 8) : "";
+                    for (FuelRecord fr : fuelByNf) {
+                        String notes = fr.getNotes() != null ? fr.getNotes() : "";
+                        Matcher mNf = nfPattern.matcher(notes);
+                        if (mNf.find()) {
+                            String notesDigits = notes.replaceAll("\\D", "");
+                            boolean cnpjMatches = !cleanCnpj.isEmpty() && (notesDigits.contains(cleanCnpj)
+                                    || (!cnpjRoot.isEmpty() && notesDigits.contains(cnpjRoot)));
+                            boolean stationMatches = cleanSuppName.isEmpty() || (fr.getStation() != null && isSupplierMatching(fr.getStation(), cleanCnpj, cleanSuppName));
+                            if (cnpjMatches || stationMatches) {
+                                foundInFuel = true;
+                                if (matchDetail.isEmpty()) {
+                                    matchDetail = String.format("Abastecimento NF %s (%s)", cleanNf, fr.getStation() != null ? fr.getStation() : "Posto");
+                                }
+                                break;
+                            }
+                        }
+                    }
+                } catch (Exception ignored) {}
+            }
             // Checar em Movimentações de Estoque
             List<StockMovement> movementsByDoc = stockMovementRepository.findByDocumentNumber(cleanNf);
             if (movementsByDoc.isEmpty()) {
@@ -1936,9 +2108,11 @@ public class StockNfeService {
             }
         }
 
-        if (foundInFinance || foundInStock) {
+        if (foundInFuel || foundInFinance || foundInStock) {
             String modules;
-            if (foundInFinance && foundInStock) {
+            if (foundInFuel) {
+                modules = "Controle de Abastecimento";
+            } else if (foundInFinance && foundInStock) {
                 modules = "Estoque e Financeiro";
             } else if (foundInFinance) {
                 modules = "Financeiro (Contas a Pagar)";

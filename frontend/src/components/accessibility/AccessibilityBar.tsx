@@ -11,6 +11,7 @@ import {
   Sparkles,
   ExternalLink
 } from 'lucide-react';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface AccessibilityBarProps {
   className?: string;
@@ -21,6 +22,7 @@ export const AccessibilityBar: React.FC<AccessibilityBarProps> = ({
   className = '',
   skipTargetId = 'login-card'
 }) => {
+  const { theme, setTheme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -169,6 +171,54 @@ export const AccessibilityBar: React.FC<AccessibilityBarProps> = ({
             >
               <X className="h-4 w-4" />
             </button>
+          </div>
+
+          {/* 0. Tema de Contraste (Escuro / Grafite / Branco) */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-300 font-medium flex items-center gap-1.5">
+                <SunMoon className="h-3.5 w-3.5 text-cyan-400" />
+                Tema / Contraste
+              </span>
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-cyan-300 uppercase">
+                {theme === 'white' ? 'Branco' : theme === 'graphite' ? 'Grafite' : 'Escuro'}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-1.5">
+              <button
+                type="button"
+                onClick={() => setTheme('dark')}
+                className={`py-1.5 px-2 rounded-xl text-xs font-bold border transition-all ${
+                  theme === 'dark'
+                    ? 'bg-red-600 !text-white border-red-500 shadow-sm'
+                    : 'bg-slate-900 hover:bg-slate-800 text-slate-200 border-slate-700'
+                }`}
+              >
+                Escuro
+              </button>
+              <button
+                type="button"
+                onClick={() => setTheme('graphite')}
+                className={`py-1.5 px-2 rounded-xl text-xs font-bold border transition-all ${
+                  theme === 'graphite'
+                    ? 'bg-red-600 !text-white border-red-500 shadow-sm'
+                    : 'bg-slate-900 hover:bg-slate-800 text-slate-200 border-slate-700'
+                }`}
+              >
+                Grafite
+              </button>
+              <button
+                type="button"
+                onClick={() => setTheme('white')}
+                className={`py-1.5 px-2 rounded-xl text-xs font-bold border transition-all ${
+                  theme === 'white'
+                    ? 'bg-red-600 !text-white border-red-500 shadow-sm'
+                    : 'bg-slate-900 hover:bg-slate-800 text-slate-200 border-slate-700'
+                }`}
+              >
+                Branco
+              </button>
+            </div>
           </div>
 
           {/* 1. Alto Contraste */}

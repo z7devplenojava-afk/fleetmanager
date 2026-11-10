@@ -1,16 +1,26 @@
 import api from '@/lib/axios';
 import type { FleetWorkOrder } from '@/services/fleetWorkOrderService';
 
+export interface FleetWorkOrderPDFOptions {
+  blank?: boolean;
+}
+
 /**
  * Busca o PDF da Ordem de Serviço de Frota no backend
  * (endpoint GET /fleet-work-orders/{id}/pdf — gerado via Thymeleaf + Flying Saucer).
+ * Quando options.blank === true, gera o PDF com os campos do checklist em branco
+ * ([ ] OK  [ ] NÃO OK  [ ] TROCAR  [ ] N/A) para preenchimento manual em papel.
  */
-export async function generateFleetWorkOrderPDFBlob(order: FleetWorkOrder): Promise<Blob> {
+export async function generateFleetWorkOrderPDFBlob(
+  order: FleetWorkOrder,
+  options?: FleetWorkOrderPDFOptions
+): Promise<Blob> {
   if (!order?.id) {
     throw new Error('Ordem de Serviço sem ID — não é possível gerar o PDF.');
   }
 
   const response = await api.get(`/fleet-work-orders/${order.id}/pdf`, {
+    params: options?.blank ? { blank: true } : undefined,
     responseType: 'blob',
     headers: {
       'Accept': 'application/pdf',
@@ -27,13 +37,17 @@ export async function generateFleetWorkOrderPDFBlob(order: FleetWorkOrder): Prom
 /**
  * Gera o PDF e dispara o download direto.
  */
-export async function generateFleetWorkOrderPDFDownload(order: FleetWorkOrder): Promise<void> {
-  const blob = await generateFleetWorkOrderPDFBlob(order);
+export async function generateFleetWorkOrderPDFDownload(
+  order: FleetWorkOrder,
+  options?: FleetWorkOrderPDFOptions
+): Promise<void> {
+  const blob = await generateFleetWorkOrderPDFBlob(order, options);
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   const osNumber = order.osNumber || order.id.split('-')[0] || order.id;
+  const suffix = options?.blank ? '-em-branco' : '';
   a.href = url;
-  a.download = `ordem-servico-${osNumber.replace(/[^a-zA-Z0-9-_]/g, '')}.pdf`;
+  a.download = `ordem-servico-${osNumber.replace(/[^a-zA-Z0-9-_]/g, '')}${suffix}.pdf`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -43,8 +57,11 @@ export async function generateFleetWorkOrderPDFDownload(order: FleetWorkOrder): 
 /**
  * Abre o PDF gerado diretamente em uma nova aba do navegador para visualização.
  */
-export async function openFleetWorkOrderPDFPreview(order: FleetWorkOrder): Promise<void> {
-  const blob = await generateFleetWorkOrderPDFBlob(order);
+export async function openFleetWorkOrderPDFPreview(
+  order: FleetWorkOrder,
+  options?: FleetWorkOrderPDFOptions
+): Promise<void> {
+  const blob = await generateFleetWorkOrderPDFBlob(order, options);
   const url = URL.createObjectURL(blob);
   window.open(url, '_blank', 'noopener,noreferrer');
   window.setTimeout(() => URL.revokeObjectURL(url), 120_000);

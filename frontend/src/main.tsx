@@ -33,9 +33,8 @@ if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
     }
   };
 
-  if (import.meta.env.DEV) {
-    safeCleanupWorkers();
-  }
+  // Limpa Service Workers legados e caches Workbox quebrados (evita 404 em workbox-*.js e assets antigos)
+  safeCleanupWorkers();
 
   window.addEventListener('unhandledrejection', (event) => {
     const reason =
