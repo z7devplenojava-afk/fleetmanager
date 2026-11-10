@@ -7,7 +7,13 @@ export const queryClient = new QueryClient({
       gcTime: 1000 * 60 * 30, // 30 minutos retido na memória (garbage collection)
       refetchOnWindowFocus: false, // Evita travamentos ao alternar abas do navegador
       refetchOnMount: false, // Utiliza os dados já carregados imediatamente ao trocar de tela
-      retry: 1, // Limita tentativas de falhas de rede para não travar a UI
+      retry: (failureCount, error: any) => {
+        const status = error?.response?.status;
+        if (status === 401 || status === 403 || status === 404) {
+          return false;
+        }
+        return failureCount < 1;
+      }, // Evita retentar erros de permissão/autenticação e limita falhas de rede
     },
   },
 });

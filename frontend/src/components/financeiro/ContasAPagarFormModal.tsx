@@ -7,13 +7,23 @@ import { useToast } from '@/hooks/use-toast';
 import { 
   CalendarDays, DollarSign, Plus, Users, Building2, Tag, CheckCircle, 
   Search, X, Warehouse, FileSignature, CheckCircle2, Sparkles, Store, UserCheck, User,
-  FileText, Download, Receipt, GitBranch, ArrowRight, Link2, Wrench, Truck
+  FileText, Download, Receipt, GitBranch, ArrowRight, Link2, Wrench, Truck,
+  Upload, Eye, Trash2, Loader2, Barcode, Layers
 } from 'lucide-react';
 import DatePicker from '@/components/ui/smart-date-picker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { ptBR } from 'date-fns/locale';
 import { formatDateForBackend, parseDateFromBackend } from '@/utils/dateUtils';
 import { contasAPagarService, Supplier } from '@/services/contasAPagarService';
+import { InstallmentsBoletosPanel } from './InstallmentsBoletosPanel';
+import BoletoViewerModal from '@/components/abastecimento/BoletoViewerModal';
+import {
+  InstallmentBoletoItem,
+  toIsoDateOnly,
+  parseIsoDateLocal,
+  formatDateBR,
+  matchBoletosBatchToInstallments,
+} from '@/utils/boletoInstallmentMatcher';
 import { clientService, Client } from '@/services/clientService';
 import { workPostService, WorkPost } from '@/services/workPostService';
 import { contractService, Contract } from '@/services/contractService';
@@ -181,7 +191,12 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
   const [paymentCondition, setPaymentCondition] = useState<'A_VISTA' | 'PARCELADO'>('A_VISTA');
   const [numParcelas, setNumParcelas] = useState<number>(2);
   const [nfeKey, setNfeKey] = useState<string>('');
-  const [parcelasDetails, setParcelasDetails] = useState<Array<{ seq: number; vencimento: Date; valor: number }>>([]);
+  const [parcelasDetails, setParcelasDetails] = useState<InstallmentBoletoItem[]>([]);
+  const [parcelasCustomized, setParcelasCustomized] = useState<boolean>(false);
+  const [uploadingSingleBoleto, setUploadingSingleBoleto] = useState<boolean>(false);
+  const [singleBoletoViewerOpen, setSingleBoletoViewerOpen] = useState<boolean>(false);
+  const quickBatchInputRef = useRef<HTMLInputElement>(null);
+  const singleBoletoInputRef = useRef<HTMLInputElement>(null);
 
   // Pesquisa de Fornecedor
   const [supplierSearchQuery, setSupplierSearchQuery] = useState('');
@@ -495,26 +510,105 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
 
   // Recalcular parcelas quando o valor total, número de parcelas ou data de vencimento mudar
   useEffect(() => {
-    if (paymentCondition === 'PARCELADO' && numParcelas > 1 && formData.valor > 0) {
-      const baseValor = Math.floor((formData.valor / numParcelas) * 100) / 100;
-      const resto = Math.round((formData.valor - baseValor * numParcelas) * 100) / 100;
+    if (editMode || paymentCondition !== 'PARCELADO' || numParcelas < 2) return;
+    if (parcelasCustomized && parcelasDetails.length === numParcelas) return;
 
-      const items = [];
-      const baseDate = formData.vencimento ? new Date(formData.vencimento) : new Date();
+    const total = Number(formData.valor || 0);
+    const baseValor = total > 0 ? Math.floor((total / numParcelas) * 100) / 100 : 0;
+    const resto = total > 0 ? Math.round((total - baseValor * numParcelas) * 100) / 100 : 0;
 
-      for (let i = 1; i <= numParcelas; i++) {
-        const d = new Date(baseDate);
-        d.setMonth(d.getMonth() + (i - 1));
-        const val = i === 1 ? baseValor + resto : baseValor;
-        items.push({
-          seq: i,
-          vencimento: d,
-          valor: val
-        });
-      }
-      setParcelasDetails(items);
+    const baseDate = formData.vencimento ? new Date(formData.vencimento) : new Date();
+    const items: InstallmentBoletoItem[] = [];
+
+    for (let i = 1; i <= numParcelas; i++) {
+      const d = new Date(baseDate);
+      d.setMonth(d.getMonth() + (i - 1));
+      const val = i === 1 ? Math.round((baseValor + resto) * 100) / 100 : baseValor;
+      const existing = parcelasDetails.find((p) => p.installmentNumber === i);
+      items.push({
+        ...(existing || {}),
+        installmentNumber: i,
+        dueDate: toIsoDateOnly(d),
+        amount: val,
+      });
     }
-  }, [paymentCondition, numParcelas, formData.valor, formData.vencimento]);
+    setParcelasDetails(items);
+  }, [editMode, paymentCondition, numParcelas, formData.valor, formData.vencimento, parcelasCustomized]);
+
+  const handleQuickBatchBoletos = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    e.target.value = '';
+    if (!files || files.length === 0) return;
+
+    try {
+      setUploadingSingleBoleto(true);
+      const parsedBoletos = await contasAPagarService.parseBoletosBatch(Array.from(files));
+      if (!parsedBoletos || parsedBoletos.length === 0) {
+        toast({
+          title: 'Nenhum boleto lido',
+          description: 'Não foi possível extrair os dados dos boletos.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      if (parsedBoletos.length === 1 && paymentCondition === 'A_VISTA') {
+        const b = parsedBoletos[0];
+        setPaymentMethod('BOLETO');
+        setFormData((prev) => ({
+          ...prev,
+          boletoUrl: b.fileUrl || prev.boletoUrl,
+          boletoOriginalName: b.originalFileName || prev.boletoOriginalName,
+          linhaDigitavel: b.linhaDigitavel || prev.linhaDigitavel,
+          codigoBarras: b.barcode || b.linhaDigitavel || prev.codigoBarras,
+          valor: prev.valor <= 0 && b.amount > 0 ? Number(b.amount) : prev.valor,
+          vencimento: b.dueDate ? parseIsoDateLocal(b.dueDate) : prev.vencimento,
+        }));
+        if (formData.valor <= 0 && b.amount > 0) {
+          setValorDisplay(formatToBRL(Number(b.amount)));
+        }
+        toast({
+          title: 'Boleto importado!',
+          description: `Arquivo "${b.originalFileName || 'boleto.pdf'}" anexado.${b.amount > 0 ? ` Valor: R$ ${formatToBRL(b.amount)}` : ''}${b.dueDate ? ` • Venc.: ${formatDateBR(b.dueDate)}` : ''}`,
+        });
+        return;
+      }
+
+      // Múltiplos boletos -> ativa Parcelado e cria/vincula parcelas por vencimento e valor
+      const matched = matchBoletosBatchToInstallments([], parsedBoletos, { expandIfSingleOrEmpty: true });
+      const sum = Math.round(matched.installments.reduce((s, it) => s + (it.amount || 0), 0) * 100) / 100;
+
+      setPaymentMethod('BOLETO');
+      setPaymentCondition('PARCELADO');
+      setNumParcelas(matched.installments.length);
+      setParcelasCustomized(true);
+      setParcelasDetails(matched.installments);
+
+      if (sum > 0) {
+        setFormData((prev) => ({
+          ...prev,
+          valor: sum,
+          vencimento: matched.installments[0]?.dueDate
+            ? parseIsoDateLocal(matched.installments[0].dueDate)
+            : prev.vencimento,
+        }));
+        setValorDisplay(formatToBRL(sum));
+      }
+
+      toast({
+        title: `${matched.installments.length} boletos importados em lote!`,
+        description: `Parcelas geradas automaticamente com vencimentos e valores identificados (Total R$ ${formatToBRL(sum)}).`,
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao ler boletos',
+        description: err?.response?.data?.message || err?.message || 'Verifique os arquivos enviados.',
+        variant: 'destructive',
+      });
+    } finally {
+      setUploadingSingleBoleto(false);
+    }
+  };
 
   // Auto-selecionar imediatamente a empresa do usuário
   useEffect(() => {
@@ -666,8 +760,14 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
         requisitionId: initialData.requisitionId,
         requisitionNumber: initialData.requisitionNumber,
         purchaseOrderId: initialData.purchaseOrderId,
-        purchaseOrderNumber: initialData.purchaseOrderNumber
+        purchaseOrderNumber: initialData.purchaseOrderNumber,
+        boletoUrl: initialData.boletoUrl,
+        boletoOriginalName: initialData.boletoOriginalName,
+        linhaDigitavel: initialData.linhaDigitavel
       });
+      setPaymentCondition('A_VISTA');
+      setParcelasCustomized(false);
+      setParcelasDetails([]);
       setValorDisplay(formatToBRL(initialData.valor || 0));
       setPaymentConfirmDate((typeof initialData.dataPagamento === 'string' ? parseDateFromBackend(initialData.dataPagamento) : initialData.dataPagamento) || new Date());
       setSupplierSearchQuery('');
@@ -712,8 +812,15 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
         categoria: initialData?.categoria || undefined,
         centroCusto: initialData?.centroCusto || undefined,
         workOrderId: initialData?.workOrderId,
-        workOrderNumber: initialData?.workOrderNumber
+        workOrderNumber: initialData?.workOrderNumber,
+        boletoUrl: initialData?.boletoUrl,
+        boletoOriginalName: initialData?.boletoOriginalName,
+        linhaDigitavel: initialData?.linhaDigitavel
       });
+      setPaymentCondition('A_VISTA');
+      setNumParcelas(2);
+      setParcelasCustomized(false);
+      setParcelasDetails([]);
       setValorDisplay(initialData?.valor ? formatToBRL(initialData.valor) : '0,00');
       setPaymentConfirmDate(new Date());
       setSupplierSearchQuery('');
@@ -959,27 +1066,37 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
           title: "Sucesso",
           description: "Conta a pagar atualizada com sucesso!"
         });
-      } else if (paymentCondition === 'PARCELADO' && numParcelas > 1 && parcelasDetails.length > 0) {
-        // Criar N parcelas no sistema
-        for (let i = 0; i < parcelasDetails.length; i++) {
+      } else if (paymentCondition === 'PARCELADO' && parcelasDetails.length > 0) {
+        // Criar N parcelas no sistema (com boleto individual por parcela quando anexado)
+        const totalParcelas = parcelasDetails.length;
+        for (let i = 0; i < totalParcelas; i++) {
           const parc = parcelasDetails[i];
           const parcPayload = {
             ...commonPayload,
-            descricao: `${formData.descricao} (Parc. ${parc.seq}/${numParcelas})`,
-            vencimento: parc.vencimento,
-            valor: parc.valor,
-            totalInstallments: numParcelas,
-            installmentSeq: parc.seq
+            descricao: `${formData.descricao} (Parc. ${parc.installmentNumber}/${totalParcelas})`,
+            vencimento: parseIsoDateLocal(parc.dueDate),
+            valor: Number(parc.amount || 0),
+            totalInstallments: totalParcelas,
+            installmentSeq: parc.installmentNumber,
+            boletoUrl: parc.boletoUrl || undefined,
+            boletoOriginalName: parc.originalBoletoName || undefined,
+            linhaDigitavel: parc.linhaDigitavel || formData.linhaDigitavel || undefined,
+            codigoBarras: parc.barcode || parc.linhaDigitavel || commonPayload.codigoBarras || undefined,
+            divergenceAlert: parc.divergenceAlert || undefined
           };
           await contasAPagarService.createContaAPagar(parcPayload);
         }
+        const totalParcSum = parcelasDetails.reduce((s, p) => s + (Number(p.amount) || 0), 0);
         toast({
           title: "Parcelas Geradas com Sucesso!",
-          description: `${numParcelas} parcelas de R$ ${formatToBRL(formData.valor / numParcelas)} registradas no Contas a Pagar.`
+          description: `${totalParcelas} parcela(s) (total R$ ${formatToBRL(totalParcSum)}) registradas no Contas a Pagar.`
         });
       } else {
         const payloadData = {
           ...commonPayload,
+          boletoUrl: formData.boletoUrl,
+          boletoOriginalName: formData.boletoOriginalName,
+          linhaDigitavel: formData.linhaDigitavel,
           totalInstallments: 1,
           installmentSeq: 1
         };
@@ -1273,7 +1390,10 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
                 <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">Condição de Pagamento</label>
                 <Select
                   value={paymentCondition}
-                  onValueChange={(val: any) => setPaymentCondition(val)}
+                  onValueChange={(val: any) => {
+                    setPaymentCondition(val);
+                    if (val === 'PARCELADO') setParcelasCustomized(false);
+                  }}
                   disabled={editMode}
                 >
                   <SelectTrigger className="border-zinc-700/80 bg-zinc-950/80 text-zinc-100 focus:border-amber-500 focus:ring-amber-500/20 rounded-xl h-10">
@@ -1292,7 +1412,10 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
                   <label className="text-xs font-semibold text-amber-400 uppercase tracking-wider">Nº de Parcelas</label>
                   <Select
                     value={String(numParcelas)}
-                    onValueChange={(val) => setNumParcelas(parseInt(val, 10))}
+                    onValueChange={(val) => {
+                      setParcelasCustomized(false);
+                      setNumParcelas(parseInt(val, 10));
+                    }}
                   >
                     <SelectTrigger className="border-amber-500/50 bg-amber-500/10 text-amber-300 font-bold focus:border-amber-400 focus:ring-amber-500/20 rounded-xl h-10">
                       <SelectValue />
@@ -1319,6 +1442,51 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
                 </div>
               )}
             </div>
+
+            {/* Atalho rápido de Importação de Boletos (1 ou em lote para gerar parcelas com vencimentos e valores) */}
+            {!editMode && paymentCondition === 'A_VISTA' && (
+              <div className="mt-2 p-3 rounded-xl border border-zinc-800 bg-zinc-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Barcode className="h-4 w-4 text-amber-400 shrink-0" />
+                  <div className="text-xs">
+                    <span className="font-semibold text-zinc-200 block">
+                      Recebeu boletos de NF-e de compra, serviço ou abastecimento?
+                    </span>
+                    <span className="text-[11px] text-zinc-400">
+                      Envie 1 boleto ou vários em lote: identificamos automaticamente vencimento, valor e código de barras de cada parcela.
+                    </span>
+                  </div>
+                </div>
+                <div className="shrink-0">
+                  <input
+                    ref={quickBatchInputRef}
+                    type="file"
+                    multiple
+                    accept=".pdf,image/*"
+                    className="hidden"
+                    onChange={handleQuickBatchBoletos}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={uploadingSingleBoleto}
+                    onClick={() => quickBatchInputRef.current?.click()}
+                    className="h-8 px-3 border-amber-500/50 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 font-semibold text-xs"
+                  >
+                    {uploadingSingleBoleto ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Lendo Boletos...
+                      </>
+                    ) : (
+                      <>
+                        <Layers className="h-3.5 w-3.5 mr-1.5" /> Importar Boleto(s) em Lote
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {/* Banner de Detecção da NF-e e Importação dos Boletos (quando 44 dígitos forem informados) */}
             {parsedNfeInfo && (
@@ -1358,37 +1526,24 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
               </div>
             )}
 
-            {/* Grid de Detalhamento das Parcelas (Se Parcelado) */}
+            {/* Grid de Detalhamento das Parcelas + Upload de Boletos (Individual ou em Lote) */}
             {paymentCondition === 'PARCELADO' && !editMode && parcelasDetails.length > 0 && (
-              <div className="mt-3 pt-3 border-t border-amber-500/20 bg-amber-500/5 p-3.5 rounded-xl space-y-2">
-                <div className="flex items-center justify-between text-xs font-bold text-amber-400">
-                  <span className="flex items-center gap-1.5">
-                    ✨ Simulação de Lançamento das {numParcelas} Parcelas
-                  </span>
-                  <span>Total: R$ {formatToBRL(formData.valor)}</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-40 overflow-y-auto pr-1">
-                  {parcelasDetails.map((p, idx) => (
-                    <div key={p.seq} className="flex items-center justify-between bg-zinc-900/90 border border-zinc-700/80 px-3 py-1.5 rounded-lg text-xs">
-                      <span className="font-bold text-amber-400 font-mono">Parc. {p.seq}/{numParcelas}</span>
-                      <div className="flex items-center gap-2">
-                        <DatePicker
-                          selected={p.vencimento}
-                          onChange={(date) => {
-                            if (!date) return;
-                            const copy = [...parcelasDetails];
-                            copy[idx].vencimento = date;
-                            setParcelasDetails(copy);
-                          }}
-                          dateFormat="dd/MM/yyyy"
-                          locale={ptBR}
-                          className="w-24 px-1.5 py-0.5 text-center text-zinc-200 bg-zinc-950 border border-zinc-700 rounded font-mono text-[11px]"
-                        />
-                        <span className="font-bold text-emerald-400 font-mono">R$ {formatToBRL(p.valor)}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+              <div className="mt-3">
+                <InstallmentsBoletosPanel
+                  installments={parcelasDetails}
+                  onChange={(next) => {
+                    setParcelasCustomized(true);
+                    setParcelasDetails(next);
+                    if (next.length >= 2) setNumParcelas(next.length);
+                  }}
+                  totalExpected={formData.valor}
+                  onSyncTotal={(newTotal) => {
+                    setFormData((prev) => ({ ...prev, valor: newTotal }));
+                    setValorDisplay(formatToBRL(newTotal));
+                  }}
+                  supplierName={formData.fornecedor}
+                  invoiceNumber={formData.invoiceNumber}
+                />
               </div>
             )}
           </div>
@@ -1902,16 +2057,100 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
               </div>
             </div>
 
-            {/* Código de Barras e Observações */}
+            {/* Código de Barras, Boleto Individual e Observações */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">Código de Barras / Linha Digitável</label>
+                <div className="flex items-center justify-between gap-2">
+                  <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">Código de Barras / Linha Digitável</label>
+                  <input
+                    ref={singleBoletoInputRef}
+                    type="file"
+                    accept=".pdf,image/*"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = '';
+                      if (!file) return;
+                      try {
+                        setUploadingSingleBoleto(true);
+                        const res = await contasAPagarService.parseBoleto(file);
+                        setFormData((prev) => ({
+                          ...prev,
+                          boletoUrl: res.fileUrl || prev.boletoUrl,
+                          boletoOriginalName: res.originalFileName || file.name,
+                          linhaDigitavel: res.linhaDigitavel || prev.linhaDigitavel,
+                          codigoBarras: res.barcode || res.linhaDigitavel || prev.codigoBarras,
+                          valor: prev.valor <= 0 && res.amount > 0 ? Number(res.amount) : prev.valor,
+                          vencimento: res.dueDate ? parseIsoDateLocal(res.dueDate) : prev.vencimento,
+                        }));
+                        if (formData.valor <= 0 && res.amount > 0) {
+                          setValorDisplay(formatToBRL(Number(res.amount)));
+                        }
+                        toast({
+                          title: 'Boleto anexado!',
+                          description: `Arquivo "${res.originalFileName || file.name}" salvo nesta conta.`,
+                        });
+                      } catch (err: any) {
+                        toast({
+                          title: 'Erro ao anexar boleto',
+                          description: err?.response?.data?.message || err?.message || 'Não foi possível ler o boleto.',
+                          variant: 'destructive',
+                        });
+                      } finally {
+                        setUploadingSingleBoleto(false);
+                      }
+                    }}
+                  />
+                  {(editMode || paymentCondition === 'A_VISTA') && (
+                    <button
+                      type="button"
+                      onClick={() => singleBoletoInputRef.current?.click()}
+                      disabled={uploadingSingleBoleto}
+                      className="text-[11px] font-semibold text-amber-300 hover:text-amber-200 flex items-center gap-1"
+                    >
+                      {uploadingSingleBoleto ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
+                      {formData.boletoUrl ? 'Trocar Boleto' : 'Anexar Boleto'}
+                    </button>
+                  )}
+                </div>
                 <Input
                   value={formData.codigoBarras || ''}
                   onChange={(e) => handleInputChange('codigoBarras', e.target.value)}
                   placeholder="Linha digitável do boleto (opcional)"
                   className="border-zinc-700/80 bg-zinc-950/80 text-zinc-100 placeholder:text-zinc-500 focus:border-amber-500 focus:ring-amber-500/20 rounded-xl h-10 font-mono text-xs"
                 />
+                {formData.boletoUrl && (editMode || paymentCondition === 'A_VISTA') && (
+                  <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-emerald-950/30 border border-emerald-500/30 text-xs">
+                    <span className="text-emerald-300 truncate flex items-center gap-1.5">
+                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                      {formData.boletoOriginalName || 'Boleto anexado'}
+                    </span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setSingleBoletoViewerOpen(true)}
+                        className="text-sky-300 hover:text-sky-200 font-semibold flex items-center gap-1"
+                      >
+                        <Eye className="h-3 w-3" /> Ver
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            boletoUrl: '',
+                            boletoOriginalName: '',
+                            linhaDigitavel: '',
+                          }))
+                        }
+                        className="text-red-400 hover:text-red-300 ml-1"
+                        title="Remover boleto"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -2897,6 +3136,20 @@ export const ContasAPagarFormModal: React.FC<ContasAPagarFormModalProps> = ({
         onClose={() => setLineageModalType(null)}
         type={lineageModalType}
         conta={formData}
+      />
+
+      {/* Visualizador do Boleto Individual (1x / Edição) */}
+      <BoletoViewerModal
+        isOpen={singleBoletoViewerOpen}
+        onClose={() => setSingleBoletoViewerOpen(false)}
+        boletoUrl={formData.boletoUrl}
+        fileName={formData.boletoOriginalName}
+        invoiceNumber={formData.invoiceNumber}
+        supplier={formData.fornecedor}
+        amount={formData.valor}
+        dueDate={toIsoDateOnly(formData.vencimento)}
+        barcode={formData.codigoBarras}
+        linhaDigitavel={formData.linhaDigitavel}
       />
     </Dialog>
   );

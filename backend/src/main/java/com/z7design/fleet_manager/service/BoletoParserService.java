@@ -68,6 +68,21 @@ public class BoletoParserService {
             log.warn("Não foi possível salvar o arquivo do boleto em disco: {}", e.getMessage());
         }
 
+        String lowerName = originalName != null ? originalName.toLowerCase() : "";
+        boolean isImage = lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg")
+                || lowerName.endsWith(".png") || lowerName.endsWith(".webp")
+                || (file != null && file.getContentType() != null && file.getContentType().startsWith("image/"));
+
+        if (isImage) {
+            return BoletoParsedDTO.builder()
+                    .originalFileName(originalName)
+                    .fileUrl(storedFileUrl)
+                    .amount(BigDecimal.ZERO)
+                    .parseSuccess(true)
+                    .errorMessage("Imagem anexada. Preencha ou confira vencimento e valor manualmente (leitura automática é feita em PDFs de boleto).")
+                    .build();
+        }
+
         try (InputStream is = file.getInputStream();
              PDDocument document = PDDocument.load(is)) {
 

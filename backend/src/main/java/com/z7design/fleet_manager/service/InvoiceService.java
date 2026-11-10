@@ -513,8 +513,20 @@ public class InvoiceService {
             if (dto.getIsCanceled() != null) invoice.setIsCanceled(dto.getIsCanceled());
             if (dto.getWorkOrderId() != null) invoice.setWorkOrderId(dto.getWorkOrderId());
             if (dto.getWorkOrderNumber() != null) invoice.setWorkOrderNumber(dto.getWorkOrderNumber());
-            if (dto.getBoletoUrl() != null) invoice.setBoletoUrl(dto.getBoletoUrl());
-            if (dto.getBoletoOriginalName() != null) invoice.setBoletoOriginalName(dto.getBoletoOriginalName());
+            if (dto.getBoletoUrl() != null) {
+                invoice.setBoletoUrl(dto.getBoletoUrl().isBlank() ? null : dto.getBoletoUrl());
+            }
+            if (dto.getBoletoOriginalName() != null) {
+                invoice.setBoletoOriginalName(dto.getBoletoOriginalName().isBlank() ? null : dto.getBoletoOriginalName());
+            }
+            if (dto.getLinhaDigitavel() != null) {
+                invoice.setLinhaDigitavel(dto.getLinhaDigitavel().isBlank() ? null : dto.getLinhaDigitavel());
+            }
+            if (dto.getPaymentMethod() != null) invoice.setPaymentMethod(dto.getPaymentMethod());
+            if (dto.getNfeKey() != null) invoice.setNfeKey(dto.getNfeKey());
+            if (dto.getDivergenceAlert() != null) {
+                invoice.setDivergenceAlert(dto.getDivergenceAlert().isBlank() ? null : dto.getDivergenceAlert());
+            }
             if (dto.getTotalInstallments() != null) invoice.setTotalInstallments(dto.getTotalInstallments());
             
             log.debug("Campos bÃ¡sicos definidos");

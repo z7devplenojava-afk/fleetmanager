@@ -28,6 +28,8 @@ export interface CreateContaAPagarRequest {
   installmentSeq?: number;
   boletoUrl?: string;
   boletoOriginalName?: string;
+  linhaDigitavel?: string;
+  divergenceAlert?: string;
   parentInvoiceId?: string;
   nfeKey?: string;
   ddaInvoiceId?: string;
@@ -483,7 +485,10 @@ export const contasAPagarService = {
       installmentSeq: conta.installmentSeq,
       paymentMethod: (conta as any).paymentMethod,
       boletoUrl: conta.boletoUrl,
-      boletoOriginalName: conta.boletoOriginalName
+      boletoOriginalName: conta.boletoOriginalName,
+      linhaDigitavel: conta.linhaDigitavel,
+      divergenceAlert: conta.divergenceAlert,
+      nfeKey: (conta as any).nfeKey
     };
 
 
@@ -523,6 +528,14 @@ export const contasAPagarService = {
     if (conta.companySigla !== undefined) requestData.companySigla = conta.companySigla;
     if (conta.workOrderId !== undefined) requestData.workOrderId = conta.workOrderId;
     if (conta.workOrderNumber !== undefined) requestData.workOrderNumber = conta.workOrderNumber;
+    if (conta.boletoUrl !== undefined) requestData.boletoUrl = conta.boletoUrl;
+    if (conta.boletoOriginalName !== undefined) requestData.boletoOriginalName = conta.boletoOriginalName;
+    if (conta.linhaDigitavel !== undefined) requestData.linhaDigitavel = conta.linhaDigitavel;
+    if (conta.divergenceAlert !== undefined) requestData.divergenceAlert = conta.divergenceAlert;
+    if ((conta as any).paymentMethod !== undefined) requestData.paymentMethod = (conta as any).paymentMethod;
+    if ((conta as any).nfeKey !== undefined) requestData.nfeKey = (conta as any).nfeKey;
+    if (conta.totalInstallments !== undefined) requestData.totalInstallments = conta.totalInstallments;
+    if (conta.installmentSeq !== undefined) requestData.installmentSeq = conta.installmentSeq;
     
     // Se não há unitId, buscar uma unidade padrão
     if (!requestData.unitId) {

@@ -306,24 +306,40 @@ public class SecurityConfig {
                                                                 "FINANCIAL_CREATE", "FINANCIAL_DELETE",
                                                                 "ROLE_SUPER_ADMIN", "ROLE_ADMIN", "ROLE_COMPANY_ADMIN",
                                                                 "ROLE_FLEX_ADMIN", "ROLE_FINANCEIRO")
-                                                // Endpoints de invoices (contas a pagar)
-                                                .requestMatchers("/api/invoices/**")
-                                                .hasAnyAuthority("SUPER_ADMIN", "ADMIN", "FINANCEIRO",
+                                                // Endpoints de invoices (contas a pagar, despesas de manutenção, abastecimento e boletos)
+                                                .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/api/invoices/**")
+                                                .hasAnyAuthority("SUPER_ADMIN", "ADMIN", "FINANCEIRO", "COMPANY_ADMIN",
+                                                                "FLEX_ADMIN", "GESTOR", "GESTOR_DE_MANUTENCAO",
                                                                 "ROLE_SUPER_ADMIN", "ROLE_ADMIN", "ROLE_COMPANY_ADMIN",
-                                                                "ROLE_FLEX_ADMIN",
-                                                                "ROLE_FINANCEIRO")
-                                                // Endpoints de suppliers (fornecedores) - requerem permissÃƒÂµes
-                                                // administrativas
-                                                // ou financeiras
+                                                                "ROLE_FLEX_ADMIN", "ROLE_FINANCEIRO", "ROLE_GESTOR",
+                                                                "ROLE_GESTOR_DE_MANUTENCAO", "FINANCIAL_DELETE")
+                                                .requestMatchers("/api/invoices/**")
+                                                .hasAnyAuthority("SUPER_ADMIN", "ADMIN", "FINANCEIRO", "COMPANY_ADMIN",
+                                                                "FLEX_ADMIN", "MANUTENCAO", "GESTOR_DE_MANUTENCAO",
+                                                                "ALMOXARIFADO", "ESTOQUE", "GESTOR", "SUPERVISOR",
+                                                                "OPERACIONAL", "ANALISTA_DE_FROTA", "ANALISTA_FROTA",
+                                                                "ROLE_SUPER_ADMIN", "ROLE_ADMIN", "ROLE_COMPANY_ADMIN",
+                                                                "ROLE_FLEX_ADMIN", "ROLE_FINANCEIRO", "ROLE_MANUTENCAO",
+                                                                "ROLE_GESTOR_DE_MANUTENCAO", "ROLE_ALMOXARIFADO",
+                                                                "ROLE_ESTOQUE", "ROLE_GESTOR", "ROLE_SUPERVISOR",
+                                                                "ROLE_OPERACIONAL", "ROLE_ANALISTA_DE_FROTA",
+                                                                "ROLE_ANALISTA_FROTA", "FINANCIAL_READ",
+                                                                "FINANCIAL_WRITE", "FINANCIAL_CREATE", "FINANCIAL_DELETE")
+                                                // Endpoints de suppliers (fornecedores) - leitura autenticada; criação/edição inclui Manutenção/Almoxarifado/Frota
                                                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/suppliers", "/api/suppliers/**").authenticated()
                                                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/cost-centers", "/api/cost-centers/**").authenticated()
                                                 .requestMatchers("/api/suppliers/**")
-                                                .hasAnyAuthority("SUPER_ADMIN", "ADMIN", "FINANCEIRO",
+                                                .hasAnyAuthority("SUPER_ADMIN", "ADMIN", "FINANCEIRO", "COMPANY_ADMIN",
+                                                                "FLEX_ADMIN", "MANUTENCAO", "GESTOR_DE_MANUTENCAO",
+                                                                "ALMOXARIFADO", "ESTOQUE", "GESTOR", "SUPERVISOR",
+                                                                "OPERACIONAL", "ANALISTA_DE_FROTA", "ANALISTA_FROTA",
                                                                 "ROLE_SUPER_ADMIN", "ROLE_ADMIN", "ROLE_COMPANY_ADMIN",
-                                                                "ROLE_FLEX_ADMIN",
-                                                                "ROLE_FINANCEIRO", "FINANCIAL_READ", "FINANCIAL_WRITE",
-                                                                "FINANCIAL_CREATE",
-                                                                "FINANCIAL_DELETE")
+                                                                "ROLE_FLEX_ADMIN", "ROLE_FINANCEIRO", "ROLE_MANUTENCAO",
+                                                                "ROLE_GESTOR_DE_MANUTENCAO", "ROLE_ALMOXARIFADO",
+                                                                "ROLE_ESTOQUE", "ROLE_GESTOR", "ROLE_SUPERVISOR",
+                                                                "ROLE_OPERACIONAL", "ROLE_ANALISTA_DE_FROTA",
+                                                                "ROLE_ANALISTA_FROTA", "FINANCIAL_READ", "FINANCIAL_WRITE",
+                                                                "FINANCIAL_CREATE", "FINANCIAL_DELETE")
                                                 // Endpoints de accounts-receivable (contas a receber) - requerem
                                                 // permissÃƒÂµes
                                                 // especÃƒÂ­ficas

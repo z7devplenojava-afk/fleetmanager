@@ -28,9 +28,11 @@ import {
   ChevronRight,
   TrendingDown,
   DollarSign,
-  User
+  User,
+  Barcode
 } from 'lucide-react';
 import { ContaAPagar } from './ContasAPagarFormModal';
+import BoletoViewerModal from '@/components/abastecimento/BoletoViewerModal';
 import { format, isAfter, isBefore, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale/pt-BR';
 import {
@@ -85,6 +87,7 @@ export const ContasAPagarTable: React.FC<ContasAPagarTableProps> = ({
   // Ordenação interativa
   const [sortField, setSortField] = useState<SortField>('vencimento');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [boletoModalConta, setBoletoModalConta] = useState<ContaAPagar | null>(null);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -733,6 +736,20 @@ export const ContasAPagarTable: React.FC<ContasAPagarTableProps> = ({
 
                       <TableCell className="text-center whitespace-nowrap py-1.5 px-2">
                         <div className="flex items-center justify-center gap-0.5">
+                          {conta.boletoUrl && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setBoletoModalConta(conta);
+                              }}
+                              className="text-sky-400 hover:text-sky-300 hover:bg-sky-500/20 p-1 h-7 w-7 rounded-lg transition-colors"
+                              title={`Visualizar Boleto: ${conta.boletoOriginalName || 'Boleto PDF'}`}
+                            >
+                              <Barcode size={14} />
+                            </Button>
+                          )}
                           {conta.status !== 'PAGA' && !conta.baixa && onDarBaixa && (
                             <Button 
                               variant="ghost" 
@@ -817,6 +834,28 @@ export const ContasAPagarTable: React.FC<ContasAPagarTableProps> = ({
           )}
         </CardContent>
       </Card>
+
+      <BoletoViewerModal
+        isOpen={!!boletoModalConta}
+        onClose={() => setBoletoModalConta(null)}
+        boletoUrl={boletoModalConta?.boletoUrl}
+        fileName={boletoModalConta?.boletoOriginalName}
+        invoiceNumber={boletoModalConta?.invoiceNumber}
+        installmentText={
+          boletoModalConta?.installmentSeq && boletoModalConta?.totalInstallments
+            ? `Parcela ${boletoModalConta.installmentSeq}/${boletoModalConta.totalInstallments}`
+            : undefined
+        }
+        supplier={boletoModalConta?.fornecedor}
+        amount={boletoModalConta?.valor}
+        dueDate={
+          boletoModalConta?.vencimento
+            ? new Date(boletoModalConta.vencimento).toISOString().split('T')[0]
+            : undefined
+        }
+        barcode={boletoModalConta?.codigoBarras}
+        linhaDigitavel={boletoModalConta?.linhaDigitavel}
+      />
     </div>
   );
 };

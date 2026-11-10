@@ -31,7 +31,7 @@ public class CostCenterController {
 
     @GetMapping
     @Operation(summary = "Listar centros de custo", description = "Lista todos os centros de custo com filtros opcionais")
-    @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN','FINANCEIRO','ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_FINANCEIRO','ROLE_COMPANY_ADMIN','ROLE_FLEX_ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<CostCenterDTO>> list(
             @Parameter(description = "Status do centro de custo") @RequestParam(value = "status", required = false) CostCenter.CostCenterStatus status,
             @Parameter(description = "Departamento do centro de custo") @RequestParam(value = "department", required = false) String department,
@@ -46,7 +46,7 @@ public class CostCenterController {
 
     @GetMapping("/paginated")
     @Operation(summary = "Listar centros de custo paginados", description = "Lista centros de custo com paginaÃ§Ã£o")
-    @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN','FINANCEIRO','ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_FINANCEIRO','ROLE_COMPANY_ADMIN','ROLE_FLEX_ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Page<CostCenterDTO>> listPaginated(
             @Parameter(description = "Status do centro de custo") @RequestParam(value = "status", required = false) CostCenter.CostCenterStatus status,
             @Parameter(description = "Departamento do centro de custo") @RequestParam(value = "department", required = false) String department,
@@ -62,7 +62,7 @@ public class CostCenterController {
 
     @GetMapping("/all")
     @Operation(summary = "Listar todos os centros de custo", description = "Lista todos os centros de custo sem filtros")
-    @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN','FINANCEIRO','ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_FINANCEIRO','ROLE_COMPANY_ADMIN','ROLE_FLEX_ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<CostCenterDTO>> listAll() {
         log.info("Listando todos os centros de custo");
         List<CostCenterDTO> costCenters = costCenterService.findAll();
@@ -71,7 +71,7 @@ public class CostCenterController {
 
     @GetMapping("/active")
     @Operation(summary = "Listar centros de custo ativos", description = "Lista apenas centros de custo ativos")
-    @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN','FINANCEIRO','ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_FINANCEIRO','ROLE_COMPANY_ADMIN','ROLE_FLEX_ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<CostCenterDTO>> listActive() {
         log.info("Listando centros de custo ativos");
         List<CostCenterDTO> costCenters = costCenterService.getActiveCenters();
@@ -80,7 +80,7 @@ public class CostCenterController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Buscar centro de custo por ID", description = "Retorna um centro de custo especÃ­fico")
-    @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN','FINANCEIRO','ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_FINANCEIRO','ROLE_COMPANY_ADMIN','ROLE_FLEX_ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<CostCenterDTO> findById(@PathVariable("id") UUID id) {
         log.info("Buscando centro de custo por ID: {}", id);
         CostCenterDTO costCenter = costCenterService.findById(id);
@@ -89,7 +89,7 @@ public class CostCenterController {
 
     @GetMapping("/code/{code}")
     @Operation(summary = "Buscar centro de custo por cÃ³digo", description = "Retorna um centro de custo especÃ­fico pelo cÃ³digo")
-    @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN','FINANCEIRO','ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_FINANCEIRO','ROLE_COMPANY_ADMIN','ROLE_FLEX_ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<CostCenterDTO> findByCode(@PathVariable("code") String code) {
         log.info("Buscando centro de custo por cÃ³digo: {}", code);
         CostCenterDTO costCenter = costCenterService.findByCode(code);

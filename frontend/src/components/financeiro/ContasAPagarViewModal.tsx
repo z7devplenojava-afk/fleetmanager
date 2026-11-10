@@ -19,9 +19,12 @@ import {
   FileSpreadsheet,
   Receipt,
   GitBranch,
-  Link2
+  Link2,
+  Barcode,
+  Eye
 } from 'lucide-react';
 import { ContaAPagar } from './ContasAPagarFormModal';
+import BoletoViewerModal from '@/components/abastecimento/BoletoViewerModal';
 import { getClassificacaoStyle } from '@/constants/classificacaoContasPagar';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale/pt-BR';
@@ -43,6 +46,7 @@ export const ContasAPagarViewModal: React.FC<ContasAPagarViewModalProps> = ({
   onGenerateReport
 }) => {
   const [lineageModalType, setLineageModalType] = React.useState<LineageStepType | null>(null);
+  const [boletoModalOpen, setBoletoModalOpen] = React.useState(false);
   if (!conta) return null;
 
   const formatCurrency = (value: number) => {
@@ -319,21 +323,40 @@ export const ContasAPagarViewModal: React.FC<ContasAPagarViewModalProps> = ({
             </Card>
           )}
 
-          {/* Informações Adicionais */}
-          {(conta.codigoBarras || conta.observacoes) && (
+          {/* Informações Adicionais / Boleto */}
+          {(conta.codigoBarras || conta.linhaDigitavel || conta.boletoUrl || conta.observacoes) && (
             <Card className="bg-zinc-950/80 border-zinc-800 rounded-xl overflow-hidden shadow-lg">
               <CardHeader className="py-3 px-4 bg-zinc-900/60 border-b border-zinc-800/80">
                 <CardTitle className="text-zinc-200 text-sm font-bold flex items-center gap-2">
                   <Tag className="w-4 h-4 text-sky-400" />
-                  Código de Barras e Observações
+                  Boleto, Código de Barras e Observações
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4 space-y-3">
-                {conta.codigoBarras && (
+                {conta.boletoUrl && (
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-lg bg-sky-950/30 border border-sky-500/30">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Barcode className="w-4 h-4 text-sky-400 shrink-0" />
+                      <div className="min-w-0">
+                        <span className="text-xs font-bold text-sky-200 block">Boleto Bancário Anexado</span>
+                        <span className="text-[11px] text-zinc-400 truncate block">{conta.boletoOriginalName || 'boleto.pdf'}</span>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => setBoletoModalOpen(true)}
+                      className="h-8 px-3 bg-sky-600 hover:bg-sky-500 text-white font-semibold text-xs shrink-0"
+                    >
+                      <Eye className="w-3.5 h-3.5 mr-1.5" /> Visualizar / Imprimir Boleto
+                    </Button>
+                  </div>
+                )}
+                {(conta.linhaDigitavel || conta.codigoBarras) && (
                   <div>
                     <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Código de Barras / Linha Digitável</label>
                     <p className="text-zinc-100 mt-1 font-mono text-xs bg-zinc-900 p-2.5 rounded-lg border border-zinc-800 select-all">
-                      {conta.codigoBarras}
+                      {conta.linhaDigitavel || conta.codigoBarras}
                     </p>
                   </div>
                 )}
@@ -480,6 +503,24 @@ export const ContasAPagarViewModal: React.FC<ContasAPagarViewModalProps> = ({
           onClose={() => setLineageModalType(null)}
           type={lineageModalType}
           conta={conta}
+        />
+
+        <BoletoViewerModal
+          isOpen={boletoModalOpen}
+          onClose={() => setBoletoModalOpen(false)}
+          boletoUrl={conta.boletoUrl}
+          fileName={conta.boletoOriginalName}
+          invoiceNumber={conta.invoiceNumber}
+          installmentText={
+            conta.installmentSeq && conta.totalInstallments
+              ? `Parcela ${conta.installmentSeq}/${conta.totalInstallments}`
+              : undefined
+          }
+          supplier={conta.fornecedor}
+          amount={conta.valor}
+          dueDate={conta.vencimento ? new Date(conta.vencimento).toISOString().split('T')[0] : undefined}
+          barcode={conta.codigoBarras}
+          linhaDigitavel={conta.linhaDigitavel}
         />
       </DialogContent>
     </Dialog>

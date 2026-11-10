@@ -32,6 +32,8 @@ import {
   StockNfeProcessRequestDTO
 } from '@/services/stockNfeService';
 import { StockItem, StockCategory } from '@/types/stock';
+import { InstallmentsBoletosPanel } from '@/components/financeiro/InstallmentsBoletosPanel';
+import { InstallmentBoletoItem, toIsoDateOnly } from '@/utils/boletoInstallmentMatcher';
 import {
   FileText,
   Upload,
@@ -111,11 +113,7 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
   const [selectedWorkOrderId, setSelectedWorkOrderId] = useState<string>('');
   const [selectedWorkOrderNumber, setSelectedWorkOrderNumber] = useState<string>('');
   const [isNfse, setIsNfse] = useState<boolean>(false);
-  const [boletoFile, setBoletoFile] = useState<File | null>(null);
-  const [uploadingBoleto, setUploadingBoleto] = useState(false);
-  const [boletoAttachmentUrl, setBoletoAttachmentUrl] = useState<string>('');
-  const [originalBoletoFileName, setOriginalBoletoFileName] = useState<string>('');
-  const [boletoLinhaDigitavel, setBoletoLinhaDigitavel] = useState<string>('');
+  const [installmentRows, setInstallmentRows] = useState<InstallmentBoletoItem[]>([]);
 
   // Carregar itens existentes do estoque para o dropdown de "Vincular a existente"
   useEffect(() => {
@@ -132,6 +130,7 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
       setFile(null);
       setParsedData(null);
       setItemsRows([]);
+      setInstallmentRows([]);
       setForceImport(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -187,6 +186,34 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
     if (data.suggestedServiceOrder) {
       setSelectedWorkOrderNumber(data.suggestedServiceOrder);
     }
+
+    // Inicializa parcelas editáveis com suporte a upload de boleto individual/lote
+    if (data.installments && data.installments.length > 0) {
+      setInstallmentRows(
+        data.installments.map((inst, idx) => ({
+          installmentNumber: inst.installmentNumber || idx + 1,
+          dueDate: toIsoDateOnly(inst.dueDate),
+          amount: Number(inst.amount || 0),
+          barcode: inst.barcode,
+          linhaDigitavel: inst.linhaDigitavel,
+          boletoUrl: inst.boletoUrl,
+          originalBoletoName: inst.originalBoletoName,
+          divergenceAlert: inst.divergenceAlert,
+        }))
+      );
+    } else if ((data.totalInvoiceAmount || 0) > 0) {
+      const baseDue = new Date();
+      baseDue.setDate(baseDue.getDate() + 30);
+      setInstallmentRows([
+        {
+          installmentNumber: 1,
+          dueDate: toIsoDateOnly(baseDue),
+          amount: Number(data.totalInvoiceAmount || 0),
+        },
+      ]);
+    } else {
+      setInstallmentRows([]);
+    }
   };
 
   const loadWorkOrders = async () => {
@@ -195,35 +222,6 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
       setWorkOrders(Array.isArray(orders) ? orders : []);
     } catch (e) {
       console.error('Erro ao carregar Ordens de Serviço:', e);
-    }
-  };
-
-  const handleBoletoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      setUploadingBoleto(true);
-      const res = await contasAPagarService.parseBoleto(file);
-      setBoletoFile(file);
-      setBoletoAttachmentUrl(res.fileUrl || '');
-      setOriginalBoletoFileName(res.originalFileName || file.name);
-      if (res.linhaDigitavel) {
-        setBoletoLinhaDigitavel(res.linhaDigitavel);
-      }
-      toast({
-        title: 'Boleto anexado com sucesso!',
-        description: `Arquivo "${file.name}" pronto para ser disponibilizado no Contas a Pagar.`
-      });
-    } catch (err: any) {
-      console.error('Erro no upload de boleto:', err);
-      toast({
-        title: 'Falha no upload do boleto',
-        description: err.message || 'Não foi possível carregar o boleto.',
-        variant: 'destructive'
-      });
-    } finally {
-      setUploadingBoleto(false);
     }
   };
 
@@ -373,16 +371,22 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
       return;
     }
 
-    // Parcelas financeiras
+    // Parcelas financeiras (com boleto individual por parcela)
     const installmentsPayload: ProcessInstallmentPayload[] = itemsOnly
       ? []
-      : (parsedData.installments || []).map((inst) => ({
+      : installmentRows.map((inst) => ({
           installmentNumber: inst.installmentNumber,
           dueDate: inst.dueDate,
           amount: inst.amount,
-          barcode: inst.barcode,
-          notes: `NF ${parsedData.invoiceNumber} - Parcela ${inst.installmentNumber}`
+          barcode: inst.barcode || inst.linhaDigitavel,
+          linhaDigitavel: inst.linhaDigitavel,
+          boletoUrl: inst.boletoUrl,
+          originalBoletoName: inst.originalBoletoName,
+          divergenceAlert: inst.divergenceAlert,
+          notes: `NF ${parsedData.invoiceNumber} - Parcela ${inst.installmentNumber}/${installmentRows.length}`
         }));
+
+    const firstAttachedBoleto = installmentRows.find((i) => i.boletoUrl);
 
     const payload: StockNfeProcessRequestDTO = {
       accessKey: parsedData.accessKey,
@@ -402,8 +406,8 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
       supplierId: parsedData.existingSupplierId,
       createFinancialAccounts,
       forceImport,
-      boletoAttachmentUrl: boletoAttachmentUrl || undefined,
-      originalBoletoFileName: originalBoletoFileName || undefined,
+      boletoAttachmentUrl: installmentRows.length === 1 ? firstAttachedBoleto?.boletoUrl : undefined,
+      originalBoletoFileName: installmentRows.length === 1 ? firstAttachedBoleto?.originalBoletoName : undefined,
       isNfse,
       workOrderId: selectedWorkOrderId || undefined,
       workOrderNumber: selectedWorkOrderNumber || undefined,
@@ -1007,99 +1011,15 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
 
               {createFinancialAccounts && (
                 <div className="mt-2">
-                  {parsedData.installments && parsedData.installments.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
-                      {parsedData.installments.map((inst, i) => (
-                        <div key={i} className="p-2.5 bg-gray-800/60 border border-gray-700 rounded-lg flex items-center justify-between text-xs">
-                          <div>
-                            <span className="font-semibold text-white block">Parcela {inst.installmentNumber}</span>
-                            <span className="text-gray-400 text-[11px] flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              Vence: {new Date(inst.dueDate).toLocaleDateString('pt-BR')}
-                            </span>
-                          </div>
-                          <span className="font-bold text-green-400 font-mono">
-                            R$ {inst.amount?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-gray-400 italic">
-                      Esta nota fiscal não possui grupo de duplicatas/parcelamento declarado no XML. O valor total de R$ {parsedData.totalInvoiceAmount.toFixed(2)} será lançado à vista no vencimento padrão.
-                    </p>
-                  )}
-
-                  {/* Anexo de Boleto Bancário para Contas a Pagar */}
-                  <div className="mt-4 pt-3.5 border-t border-gray-700/80 space-y-2.5">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-                      <div>
-                        <span className="text-xs font-semibold text-gray-200 flex items-center gap-1.5">
-                          <Paperclip className="h-3.5 w-3.5 text-seguranca-yellow" />
-                          Boleto Bancário da Cobrança (PDF ou Imagem)
-                        </span>
-                        <span className="text-[11px] text-gray-400 block mt-0.5">
-                          Faça upload do boleto para disponibilizá-lo para conferência e liquidação no Contas a Pagar.
-                        </span>
-                      </div>
-
-                      <div>
-                        <input
-                          type="file"
-                          id="nfe-boleto-file-input"
-                          accept=".pdf,image/*"
-                          className="hidden"
-                          onChange={handleBoletoUpload}
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          disabled={uploadingBoleto}
-                          onClick={() => document.getElementById('nfe-boleto-file-input')?.click()}
-                          className="h-8 text-xs border-seguranca-yellow/40 text-seguranca-yellow hover:bg-seguranca-yellow/10"
-                        >
-                          {uploadingBoleto ? (
-                            <>
-                              <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                              Processando Boleto...
-                            </>
-                          ) : (
-                            <>
-                              <Upload className="h-3.5 w-3.5 mr-1.5" />
-                              {originalBoletoFileName ? 'Trocar Boleto' : 'Anexar Boleto'}
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-
-                    {originalBoletoFileName && (
-                      <div className="p-2.5 bg-gray-900/90 border border-green-500/40 rounded-lg flex items-center justify-between gap-2 text-xs">
-                        <div className="flex items-center gap-2 truncate">
-                          <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />
-                          <span className="text-gray-200 font-medium truncate">{originalBoletoFileName}</span>
-                          {boletoLinhaDigitavel && (
-                            <span className="text-[10px] font-mono text-gray-400 bg-gray-800 px-1.5 py-0.5 rounded truncate max-w-xs">
-                              {boletoLinhaDigitavel}
-                            </span>
-                          )}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setBoletoFile(null);
-                            setBoletoAttachmentUrl('');
-                            setOriginalBoletoFileName('');
-                            setBoletoLinhaDigitavel('');
-                          }}
-                          className="text-xs text-red-400 hover:text-red-300 font-medium shrink-0 ml-2"
-                        >
-                          Remover
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                  <InstallmentsBoletosPanel
+                    installments={installmentRows}
+                    onChange={setInstallmentRows}
+                    totalExpected={parsedData.totalInvoiceAmount}
+                    supplierName={parsedData.supplierName}
+                    invoiceNumber={parsedData.invoiceNumber}
+                    title="Parcelas da NF-e & Upload de Boletos (Individual ou em Lote)"
+                    subtitle="Anexe o boleto de cada parcela individualmente ou envie todos em lote: o sistema lê o vencimento e o valor de cada boleto e vincula automaticamente."
+                  />
                 </div>
               )}
             </Card>

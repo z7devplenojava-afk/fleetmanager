@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,9 +17,15 @@ import {
     Calendar,
     DollarSign,
     CheckCircle2,
-    Barcode
+    Barcode,
+    Layers,
+    Loader2
 } from 'lucide-react';
 import BoletoViewerModal from './BoletoViewerModal';
+import {
+    matchBoletosBatchToInstallments,
+    toIsoDateOnly
+} from '@/utils/boletoInstallmentMatcher';
 
 interface InstallmentItem {
     installmentNumber: number;
@@ -68,8 +74,14 @@ const FuelDeliveryFormModal: React.FC<FuelDeliveryFormModalProps> = ({ isOpen, o
         barcode?: string;
     }>({ isOpen: false });
 
+    const skipNextRecalcRef = useRef(false);
+
     // Recalcula parcelas ao mudar valor total, número de parcelas ou data de entrega
     useEffect(() => {
+        if (skipNextRecalcRef.current) {
+            skipNextRecalcRef.current = false;
+            return;
+        }
         const total = parseFloat(formData.totalPrice) || 0;
         const count = Math.max(1, totalInstallments);
         const installmentValue = count > 0 ? parseFloat((total / count).toFixed(2)) : total;
@@ -120,24 +132,89 @@ const FuelDeliveryFormModal: React.FC<FuelDeliveryFormModalProps> = ({ isOpen, o
         setFormData(nextData);
     };
 
-    // Upload de Boleto por Parcela
-    const handleBoletoUpload = (installmentNumber: number, file: File) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const dataUrl = e.target?.result as string;
+    const [loadingBatchBoletos, setLoadingBatchBoletos] = useState(false);
+    const batchBoletoRef = useRef<HTMLInputElement>(null);
+
+    // Upload de Boleto Individual por Parcela (com parse automático no backend + persistência)
+    const handleBoletoUpload = async (installmentNumber: number, file: File) => {
+        try {
+            const parsed = await contasAPagarService.parseBoleto(file);
             setInstallments((prev) =>
-                prev.map((item) =>
-                    item.installmentNumber === installmentNumber
-                        ? { ...item, boletoFileName: file.name, boletoDataUrl: dataUrl }
-                        : item
-                )
+                prev.map((item) => {
+                    if (item.installmentNumber !== installmentNumber) return item;
+                    return {
+                        ...item,
+                        boletoFileName: parsed.originalFileName || file.name,
+                        boletoDataUrl: parsed.fileUrl || item.boletoDataUrl,
+                        barcode: parsed.linhaDigitavel || parsed.barcode || item.barcode,
+                        dueDate: parsed.dueDate ? toIsoDateOnly(parsed.dueDate) : item.dueDate,
+                        amount: parsed.amount && parsed.amount > 0 && item.amount <= 0 ? Number(parsed.amount) : item.amount
+                    };
+                })
             );
             toast({
                 title: 'Boleto Anexado',
-                description: `${file.name} anexado à Parcela ${installmentNumber}.`
+                description: `${file.name} anexado à Parcela ${installmentNumber}${parsed.dueDate ? ` (Venc: ${parsed.dueDate})` : ''}.`
             });
-        };
-        reader.readAsDataURL(file);
+        } catch {
+            toast({
+                title: 'Erro ao processar boleto',
+                description: 'Não foi possível enviar o boleto.',
+                variant: 'destructive'
+            });
+        }
+    };
+
+    // Upload de Boletos em Lote (identifica vencimento e valor de cada boleto)
+    const handleBatchBoletosUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        e.target.value = '';
+        if (!files || files.length === 0) return;
+
+        try {
+            setLoadingBatchBoletos(true);
+            const parsedBoletos = await contasAPagarService.parseBoletosBatch(Array.from(files));
+            const existing = installments.map((it) => ({
+                installmentNumber: it.installmentNumber,
+                dueDate: it.dueDate,
+                amount: it.amount,
+                barcode: it.barcode,
+                boletoUrl: it.boletoDataUrl,
+                originalBoletoName: it.boletoFileName
+            }));
+            const matched = matchBoletosBatchToInstallments(existing, parsedBoletos, { expandIfSingleOrEmpty: true });
+            const batchSum = Math.round(matched.installments.reduce((s, m) => s + (m.amount || 0), 0) * 100) / 100;
+            skipNextRecalcRef.current = true;
+            if ((!formData.totalPrice || parseFloat(formData.totalPrice) <= 0) && batchSum > 0) {
+                setFormData((prev) => ({ ...prev, totalPrice: batchSum.toFixed(2) }));
+            }
+            if (matched.installments.length > 1) {
+                setPaymentCondition('A_PRAZO');
+            }
+            setTotalInstallments(matched.installments.length);
+            setInstallments(
+                matched.installments.map((m) => ({
+                    installmentNumber: m.installmentNumber,
+                    amount: m.amount,
+                    dueDate: m.dueDate,
+                    boletoFileName: m.originalBoletoName,
+                    boletoDataUrl: m.boletoUrl,
+                    barcode: m.linhaDigitavel || m.barcode
+                }))
+            );
+            toast({
+                title: `${parsedBoletos.length} boleto(s) importado(s) em lote!`,
+                description: 'Vencimentos, valores e códigos de barras vinculados às parcelas.'
+            });
+        } catch (err: any) {
+            toast({
+                title: 'Erro no lote de boletos',
+                description: err?.response?.data?.message || 'Verifique os PDFs enviados.',
+                variant: 'destructive'
+            });
+        } finally {
+            setLoadingBatchBoletos(false);
+        }
     };
 
     const handleRemoveBoleto = (installmentNumber: number) => {
@@ -403,12 +480,38 @@ const FuelDeliveryFormModal: React.FC<FuelDeliveryFormModalProps> = ({ isOpen, o
                                 </div>
                             </div>
 
-                            {/* Detalhamento das Parcelas com Upload Individual de Boleto */}
+                            {/* Detalhamento das Parcelas com Upload Individual ou em Lote de Boletos */}
                             <div className="space-y-2 mt-2">
-                                <Label className="text-xs text-gray-300 flex items-center justify-between">
-                                    <span>Vencimento e Upload dos Boletos por Parcela:</span>
-                                    <span className="text-[10px] text-gray-400">PDF ou Imagem</span>
-                                </Label>
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <Label className="text-xs text-gray-300">
+                                        Vencimento e Upload dos Boletos por Parcela (PDF ou Imagem):
+                                    </Label>
+                                    <div>
+                                        <input
+                                            ref={batchBoletoRef}
+                                            type="file"
+                                            multiple
+                                            accept=".pdf,image/*"
+                                            className="hidden"
+                                            onChange={handleBatchBoletosUpload}
+                                        />
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            disabled={loadingBatchBoletos}
+                                            onClick={() => batchBoletoRef.current?.click()}
+                                            className="h-7 px-2.5 text-[11px] border-amber-500/50 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 font-semibold"
+                                        >
+                                            {loadingBatchBoletos ? (
+                                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                            ) : (
+                                                <Layers className="h-3 w-3 mr-1" />
+                                            )}
+                                            Upload Boletos em Lote
+                                        </Button>
+                                    </div>
+                                </div>
 
                                 <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                                     {installments.map((inst) => (

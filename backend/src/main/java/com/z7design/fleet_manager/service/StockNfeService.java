@@ -2432,6 +2432,15 @@ public class StockNfeService {
                 inv.setBoletoOriginalName(boletoNameToUse);
                 inv.setDivergenceAlert(instReq.getDivergenceAlert());
                 inv.setInstallmentSeq(instReq.getInstallmentNumber());
+                inv.setTotalInstallments(totalInst);
+                if (request.getAccessKey() != null && !request.getAccessKey().isBlank()) {
+                    inv.setNfeKey(request.getAccessKey().trim());
+                }
+                if ((boletoToUse != null && !boletoToUse.isBlank()) ||
+                        (instReq.getBarcode() != null && !instReq.getBarcode().isBlank()) ||
+                        (instReq.getLinhaDigitavel() != null && !instReq.getLinhaDigitavel().isBlank())) {
+                    inv.setPaymentMethod("BOLETO");
+                }
                 if (request.isNfse()) {
                     inv.setCategory("2.01 - SERVIÇOS DE TERCEIROS / MANUTENÇÃO DE FROTAS");
                     inv.setCentroCusto("MANUTENÇÃO E FROTAS");
