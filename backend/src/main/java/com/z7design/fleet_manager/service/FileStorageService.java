@@ -26,7 +26,7 @@ import org.springframework.context.annotation.Primary;
 public class FileStorageService {
     private static final Logger log = LoggerFactory.getLogger(FileStorageService.class);
 
-    private final Path fileStorageLocation;
+    private Path fileStorageLocation;
     private final String baseUrl = "/uploads/maintenance"; // Base URL para acesso aos arquivos
     private final String storageCategory;
 
@@ -35,15 +35,41 @@ public class FileStorageService {
 
     @Autowired
     public FileStorageService(@Value("${app.file.upload-dir:./uploads/maintenance}") String uploadDir) {
-        this.fileStorageLocation = Paths.get(uploadDir).toAbsolutePath().normalize();
         String norm = uploadDir != null ? uploadDir.replace("\\", "/").toLowerCase() : "";
         this.storageCategory = norm.contains("receipt") ? "receipts" : "maintenance";
-        try {
-            Files.createDirectories(this.fileStorageLocation);
-        } catch (Exception ex) {
-            throw new RuntimeException("NÃ£o foi possÃ­vel criar o diretÃ³rio de upload: " + uploadDir, ex);
-        }
+        this.fileStorageLocation = resolveWritableLocation(uploadDir, this.storageCategory);
         log.info("DiretÃ³rio de upload de arquivos inicializado em: {}", this.fileStorageLocation);
+    }
+
+    private Path resolveWritableLocation(String uploadDir, String category) {
+        Path primary = Paths.get(uploadDir != null && !uploadDir.isBlank() ? uploadDir : "./uploads/" + category)
+                .toAbsolutePath().normalize();
+        if (ensureWritableDir(primary)) {
+            return primary;
+        }
+        Path fallback = Paths.get("uploads", category).toAbsolutePath().normalize();
+        if (!fallback.equals(primary) && ensureWritableDir(fallback)) {
+            log.warn("⚠️ Diretório primário '{}' sem permissão de criação/escrita; usando fallback '{}'", primary, fallback);
+            return fallback;
+        }
+        Path tmpFallback = Paths.get(System.getProperty("java.io.tmpdir", "/tmp"), "fluxbus-uploads", category)
+                .toAbsolutePath().normalize();
+        if (ensureWritableDir(tmpFallback)) {
+            log.warn("⚠️ Usando diretório temporário para uploads '{}'", tmpFallback);
+            return tmpFallback;
+        }
+        log.warn("⚠️ Nenhum diretório local gravável para '{}'; uploads dependerão do banco de dados.", primary);
+        return primary;
+    }
+
+    private boolean ensureWritableDir(Path dir) {
+        try {
+            Files.createDirectories(dir);
+            return Files.isDirectory(dir) && Files.isWritable(dir);
+        } catch (Exception ex) {
+            log.warn("⚠️ Não foi possível inicializar diretório '{}': {}", dir, ex.getMessage());
+            return false;
+        }
     }
 
     // Whitelist rigorosa de extensões permitidas (inclui XML de NF-e)
@@ -97,19 +123,39 @@ public class FileStorageService {
         String safeFileName = UUID.randomUUID().toString() + "_" + baseName + "." + extension;
 
         try {
+            byte[] fileBytes = file.getBytes();
+            boolean savedToDisk = false;
+
             Path targetLocation = this.fileStorageLocation.resolve(safeFileName).normalize();
-            
             // Garantir que o destino está estritamente contido no diretório autorizado
             if (!targetLocation.startsWith(this.fileStorageLocation)) {
                 log.error("🚨 Tentativa de gravar arquivo fora do diretório de upload: {}", targetLocation);
                 throw new SecurityException("Caminho de gravação inválido.");
             }
 
-            byte[] fileBytes = file.getBytes();
-            Files.write(targetLocation, fileBytes);
+            try {
+                Files.createDirectories(this.fileStorageLocation);
+                Files.write(targetLocation, fileBytes);
+                savedToDisk = true;
+            } catch (IOException diskEx) {
+                log.warn("⚠️ Falha ao gravar '{}' em '{}': {}. Tentando fallback...", safeFileName, this.fileStorageLocation, diskEx.getMessage());
+                Path fallbackDir = Paths.get("uploads", storageCategory).toAbsolutePath().normalize();
+                if (!fallbackDir.equals(this.fileStorageLocation)) {
+                    try {
+                        Files.createDirectories(fallbackDir);
+                        Files.write(fallbackDir.resolve(safeFileName).normalize(), fileBytes);
+                        this.fileStorageLocation = fallbackDir;
+                        savedToDisk = true;
+                    } catch (IOException fallbackEx) {
+                        log.warn("⚠️ Fallback em disco também falhou para '{}': {}", safeFileName, fallbackEx.getMessage());
+                    }
+                }
+            }
 
             if (storedUploadService != null) {
                 storedUploadService.save(storageCategory, safeFileName, file.getContentType(), fileBytes);
+            } else if (!savedToDisk) {
+                throw new IOException("Sem permissão de escrita em disco e armazenamento em banco indisponível.");
             }
 
             log.info("✅ Arquivo {} armazenado com sucesso como {}", originalFileName, safeFileName);

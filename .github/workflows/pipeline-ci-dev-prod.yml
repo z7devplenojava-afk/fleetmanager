@@ -292,7 +292,7 @@ jobs:
           SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30"
           sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh $SSH_OPTS \
             ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} \
-            "echo '=== DOCKER PS ===' && docker ps -a && echo '=== BACKEND LOGS ===' && docker logs fluxbus-backend-ci --tail 150 && echo '=== NGINX LOGS ===' && docker logs fluxbus-nginx-ci --tail 50" || true
+            "echo '=== DOCKER PS ===' && docker ps -a && echo '=== BACKEND LOGS ===' && docker logs fluxbus-backend-ci --tail 500 && echo '=== NGINX LOGS ===' && docker logs fluxbus-nginx-ci --tail 50" || true
 
   # ============================================================
   # JOB 4: DEPLOY DEV (so roda se CI passou)
