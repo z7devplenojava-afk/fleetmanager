@@ -46,9 +46,9 @@ public class FileStorageService {
         log.info("DiretÃ³rio de upload de arquivos inicializado em: {}", this.fileStorageLocation);
     }
 
-    // Whitelist rigorosa de extensões permitidas
+    // Whitelist rigorosa de extensões permitidas (inclui XML de NF-e)
     private static final java.util.Set<String> ALLOWED_EXTENSIONS = java.util.Set.of(
-            "jpg", "jpeg", "png", "webp", "pdf", "xlsx", "xls", "csv", "docx", "doc", "txt", "zip"
+            "jpg", "jpeg", "png", "webp", "pdf", "xml", "xlsx", "xls", "csv", "docx", "doc", "txt", "zip"
     );
 
     // Blacklist explícita de extensões executáveis / scripts (Defesa em profundidade)

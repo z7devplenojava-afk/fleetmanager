@@ -556,15 +556,24 @@ public class FileUploadController {
                 Paths.get(maintenanceUploadDir).resolve(filename).toAbsolutePath().normalize(),
                 Paths.get(uploadDir, "maintenance").resolve(filename).toAbsolutePath().normalize(),
                 Paths.get("uploads", "maintenance").resolve(filename).toAbsolutePath().normalize(),
+                Paths.get("receipts").resolve(filename).toAbsolutePath().normalize(),
+                Paths.get(uploadDir, "receipts").resolve(filename).toAbsolutePath().normalize(),
                 Paths.get("..", "uploads", "maintenance").resolve(filename).toAbsolutePath().normalize(),
                 Paths.get("/app/uploads/maintenance").resolve(filename).toAbsolutePath().normalize(),
+                Paths.get("/app/receipts").resolve(filename).toAbsolutePath().normalize(),
                 Paths.get("/var/www/fluxbus/uploads/maintenance").resolve(filename).toAbsolutePath().normalize()
             };
+            String lowerName = filename.toLowerCase();
+            String fallbackCt = lowerName.endsWith(".pdf") ? "application/pdf"
+                    : lowerName.endsWith(".xml") ? "application/xml"
+                    : lowerName.endsWith(".png") ? "image/png"
+                    : lowerName.endsWith(".webp") ? "image/webp"
+                    : "image/jpeg";
             for (Path candidate : candidates) {
                 if (Files.exists(candidate) && Files.isRegularFile(candidate) && Files.isReadable(candidate)) {
                     String contentType = Files.probeContentType(candidate);
                     return ResponseEntity.ok()
-                        .contentType(MediaType.parseMediaType(contentType != null ? contentType : "image/jpeg"))
+                        .contentType(MediaType.parseMediaType(contentType != null ? contentType : fallbackCt))
                         .header(HttpHeaders.CACHE_CONTROL, "public, max-age=86400")
                         .body(new UrlResource(candidate.toUri()));
                 }
@@ -578,7 +587,9 @@ public class FileUploadController {
                     Files.createDirectories(cachePath);
                     Files.write(cachePath.resolve(filename), stored.getData());
                 } catch (Exception ignored) {}
-                String ct = stored.getContentType() != null ? stored.getContentType() : "image/jpeg";
+                String ct = stored.getContentType() != null && !stored.getContentType().isBlank()
+                        ? stored.getContentType()
+                        : fallbackCt;
                 return ResponseEntity.ok()
                     .contentType(MediaType.parseMediaType(ct))
                     .header(HttpHeaders.CACHE_CONTROL, "public, max-age=86400")
