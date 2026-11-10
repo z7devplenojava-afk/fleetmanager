@@ -424,7 +424,21 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
       setDetectedNewSupplier(null);
     },
     onError: (err: any) => {
-      toast({ title: 'Erro', description: err.response?.data?.message || 'Erro ao salvar', variant: 'destructive' });
+      const respData = err?.response?.data;
+      const fieldErrorsText =
+        respData?.fieldErrors && typeof respData.fieldErrors === 'object'
+          ? Object.entries(respData.fieldErrors)
+              .map(([k, v]) => `${k}: ${v}`)
+              .join('; ')
+          : '';
+      toast({
+        title: 'Erro',
+        description:
+          [respData?.message || respData?.error || err?.message, fieldErrorsText]
+            .filter(Boolean)
+            .join(' — ') || 'Erro ao salvar',
+        variant: 'destructive',
+      });
     }
   });
 

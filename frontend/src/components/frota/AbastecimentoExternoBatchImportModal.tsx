@@ -1100,7 +1100,15 @@ const AbastecimentoExternoBatchImportModal: React.FC<AbastecimentoExternoBatchIm
       for (const row of rows) {
         const targetVehicleId = row.vehicleId || defaultVehicleId;
         const vehicleObj = veiculos.find((v) => v.id === targetVehicleId);
-        const currentKm = row.mileage > 0 ? row.mileage : vehicleObj?.currentMileage || 0;
+        const parsedRowKm = Number(row.mileage);
+        const parsedVehicleKm = Number(vehicleObj?.currentMileage);
+        const currentKm =
+          Number.isFinite(parsedRowKm) && parsedRowKm > 0
+            ? Math.round(parsedRowKm)
+            : Number.isFinite(parsedVehicleKm) && parsedVehicleKm > 0
+              ? Math.round(parsedVehicleKm)
+              : 0;
+        const safeStation = (finalSupplierName || row.supplierTradeName || row.supplierName || 'Posto Externo').trim();
 
         const nfTag = row.invoiceNumber ? `NF: ${row.invoiceNumber}` : `Arquivo: ${row.fileName}`;
         const cnpjTag = finalSupplierCnpj ? ` | CNPJ: ${formatCnpj(finalSupplierCnpj)}` : '';
@@ -1110,13 +1118,13 @@ const AbastecimentoExternoBatchImportModal: React.FC<AbastecimentoExternoBatchIm
         const payload = {
           vehicleId: targetVehicleId,
           date: row.issueDate,
-          fuelType: row.fuelType,
+          fuelType: row.fuelType || 'DIESEL',
           quantity: Number(row.liters),
           cost: Number(row.totalValue),
           pricePerLiter: Number(row.pricePerLiter) || Number((row.totalValue / row.liters).toFixed(3)),
           mileage: currentKm,
-          initialMileage: vehicleObj?.currentMileage || null,
-          station: finalSupplierName,
+          initialMileage: Number.isFinite(parsedVehicleKm) && parsedVehicleKm >= 0 ? Math.round(parsedVehicleKm) : null,
+          station: safeStation,
           driverId: null,
           notes: `Abastecimento Externo | ${nfTag} | Origem: Lote ${row.fileType} | Competência: ${competenceLabel}${cnpjTag}${keyTag}${extraNotes}`,
           costCenter: 'Abastecimento Externo',
@@ -1184,9 +1192,19 @@ const AbastecimentoExternoBatchImportModal: React.FC<AbastecimentoExternoBatchIm
       onSuccess();
       onClose();
     } catch (error: any) {
+      const respData = error?.response?.data;
+      const fieldErrorsText =
+        respData?.fieldErrors && typeof respData.fieldErrors === 'object'
+          ? Object.entries(respData.fieldErrors)
+              .map(([k, v]) => `${k}: ${v}`)
+              .join('; ')
+          : '';
       toast({
         title: 'Erro na Importação em Lote',
-        description: error?.response?.data?.message || error?.message || 'Erro ao salvar os abastecimentos do lote.',
+        description:
+          [respData?.message || respData?.error || error?.message, fieldErrorsText]
+            .filter(Boolean)
+            .join(' — ') || 'Erro ao salvar os abastecimentos do lote.',
         variant: 'destructive',
       });
     } finally {

@@ -236,9 +236,11 @@ api.interceptors.response.use(
     const requestConfig = error?.config as { silentErrorLog?: boolean } | undefined;
     const silentErrorLog = requestConfig?.silentErrorLog === true;
     if (!silentErrorLog) {
-      console.error('❌ Axios Response Error:', error.response?.status, error.config?.url);
-      if (isHttpDebugMode()) {
-        console.error('❌ Error details:', error.response?.data);
+      const status = error.response?.status;
+      console.error('❌ Axios Response Error:', status, error.config?.url);
+      if (isHttpDebugMode() || (status && status >= 400 && status < 500 && error.response?.data)) {
+        const data = error.response?.data as { message?: string; error?: string; fieldErrors?: Record<string, string> } | undefined;
+        console.error('❌ Error details:', data?.message || data?.error || data, data?.fieldErrors || '');
       }
     }
     const originalRequest = error.config;
