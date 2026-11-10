@@ -2584,8 +2584,11 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                                             .replace(/^\/+/, '')
                                                             .replace(/^api\/uploads\//, '')
                                                             .replace(/^uploads\//, '');
-                                                        target.src = `/api/uploads/${cleanRel}`;
-                                                        return;
+                                                        const nextSrc = `/api/uploads/${cleanRel}`;
+                                                        if (nextSrc !== photoSrc) {
+                                                            target.src = nextSrc;
+                                                            return;
+                                                        }
                                                     }
                                                     target.style.display = 'none';
                                                     const parent = target.parentElement;
@@ -2596,11 +2599,11 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                                 }}
                                             />
                                             <div className="photo-error-fallback hidden w-full h-full flex-col items-center justify-center p-2 text-center bg-gray-900/90 text-gray-400">
-                                                <LucideImage className="h-6 w-6 text-gray-500 mb-1" />
+                                                <LucideImage className="h-5 w-5 text-gray-500 mb-1" />
                                                 <span className="text-[10px] truncate max-w-full px-1 text-gray-300 font-mono">
                                                     {photo.split('/').pop() || `Evidência ${idx + 1}`}
                                                 </span>
-                                                <span className="text-[9px] text-amber-400">Falha ao carregar</span>
+                                                <span className="text-[9px] text-amber-400">Arquivo antigo indisponível (envie novamente)</span>
                                             </div>
                                             <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                                                 <a href={photoSrc} target="_blank" rel="noreferrer" title="Visualizar em tamanho real" className="p-1.5 bg-gray-900/80 rounded-full text-white hover:bg-gray-800">

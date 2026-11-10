@@ -548,21 +548,59 @@ public class FileUploadController {
     })
     @Operation(summary = "Obter foto/evidência de manutenção", description = "Retorna foto de evidência de OS de disco ou banco de dados")
     public ResponseEntity<Resource> getMaintenancePhoto(@PathVariable("filename") String filename) {
+        if (filename == null || filename.isBlank() || filename.contains("..")) {
+            return ResponseEntity.notFound().build();
+        }
+        Path[] candidates = new Path[] {
+            Paths.get(maintenanceUploadDir).resolve(filename).toAbsolutePath().normalize(),
+            Paths.get(uploadDir, "maintenance").resolve(filename).toAbsolutePath().normalize(),
+            Paths.get("uploads", "maintenance").resolve(filename).toAbsolutePath().normalize(),
+            Paths.get("receipts").resolve(filename).toAbsolutePath().normalize(),
+            Paths.get(uploadDir, "receipts").resolve(filename).toAbsolutePath().normalize(),
+            Paths.get("..", "uploads", "maintenance").resolve(filename).toAbsolutePath().normalize(),
+            Paths.get("/app/uploads/maintenance").resolve(filename).toAbsolutePath().normalize(),
+            Paths.get("/app/receipts").resolve(filename).toAbsolutePath().normalize(),
+            Paths.get("/var/www/fluxbus/uploads/maintenance").resolve(filename).toAbsolutePath().normalize()
+        };
+        return serveUploadedFile(candidates, "maintenance", filename, Paths.get(maintenanceUploadDir));
+    }
+
+    @GetMapping("/vehicle-gate-checklists/odometer-photos/{filename:.+}")
+    @Operation(summary = "Obter foto do odômetro do checklist de portaria")
+    public ResponseEntity<Resource> getGateOdometerPhoto(@PathVariable("filename") String filename) {
+        if (filename == null || filename.isBlank() || filename.contains("..")) {
+            return ResponseEntity.notFound().build();
+        }
+        Path[] candidates = new Path[] {
+            Paths.get("uploads", "vehicle-gate-checklists", "odometer-photos", filename).toAbsolutePath().normalize(),
+            Paths.get(uploadDir, "vehicle-gate-checklists", "odometer-photos", filename).toAbsolutePath().normalize(),
+            Paths.get("/app/uploads/vehicle-gate-checklists/odometer-photos", filename).toAbsolutePath().normalize(),
+            Paths.get("/var/www/fluxbus/uploads/vehicle-gate-checklists/odometer-photos", filename).toAbsolutePath().normalize()
+        };
+        return serveUploadedFile(candidates, "vehicle-gate-checklists/odometer-photos", filename,
+                Paths.get("uploads", "vehicle-gate-checklists", "odometer-photos"));
+    }
+
+    @GetMapping("/vehicles/{vehicleId}/{filename:.+}")
+    @Operation(summary = "Obter foto da galeria/checklist do veículo")
+    public ResponseEntity<Resource> getVehicleGalleryPhoto(
+            @PathVariable("vehicleId") String vehicleId,
+            @PathVariable("filename") String filename) {
+        if (vehicleId == null || vehicleId.contains("..") || filename == null || filename.isBlank() || filename.contains("..")) {
+            return ResponseEntity.notFound().build();
+        }
+        Path[] candidates = new Path[] {
+            Paths.get("uploads", "vehicles", vehicleId, filename).toAbsolutePath().normalize(),
+            Paths.get(uploadDir, "vehicles", vehicleId, filename).toAbsolutePath().normalize(),
+            Paths.get("/app/uploads/vehicles", vehicleId, filename).toAbsolutePath().normalize(),
+            Paths.get("/var/www/fluxbus/uploads/vehicles", vehicleId, filename).toAbsolutePath().normalize()
+        };
+        return serveUploadedFile(candidates, "vehicles/" + vehicleId, filename,
+                Paths.get("uploads", "vehicles", vehicleId));
+    }
+
+    private ResponseEntity<Resource> serveUploadedFile(Path[] candidates, String dbCategory, String filename, Path cacheDir) {
         try {
-            if (filename == null || filename.isBlank() || filename.contains("..")) {
-                return ResponseEntity.notFound().build();
-            }
-            Path[] candidates = new Path[] {
-                Paths.get(maintenanceUploadDir).resolve(filename).toAbsolutePath().normalize(),
-                Paths.get(uploadDir, "maintenance").resolve(filename).toAbsolutePath().normalize(),
-                Paths.get("uploads", "maintenance").resolve(filename).toAbsolutePath().normalize(),
-                Paths.get("receipts").resolve(filename).toAbsolutePath().normalize(),
-                Paths.get(uploadDir, "receipts").resolve(filename).toAbsolutePath().normalize(),
-                Paths.get("..", "uploads", "maintenance").resolve(filename).toAbsolutePath().normalize(),
-                Paths.get("/app/uploads/maintenance").resolve(filename).toAbsolutePath().normalize(),
-                Paths.get("/app/receipts").resolve(filename).toAbsolutePath().normalize(),
-                Paths.get("/var/www/fluxbus/uploads/maintenance").resolve(filename).toAbsolutePath().normalize()
-            };
             String lowerName = filename.toLowerCase();
             String fallbackCt = lowerName.endsWith(".pdf") ? "application/pdf"
                     : lowerName.endsWith(".xml") ? "application/xml"
@@ -579,13 +617,13 @@ public class FileUploadController {
                 }
             }
 
-            Optional<StoredUpload> dbPhoto = storedUploadService.find("maintenance", filename);
+            Optional<StoredUpload> dbPhoto = storedUploadService.find(dbCategory, filename);
             if (dbPhoto.isPresent() && dbPhoto.get().getData() != null && dbPhoto.get().getData().length > 0) {
                 StoredUpload stored = dbPhoto.get();
                 try {
-                    Path cachePath = Paths.get(maintenanceUploadDir).toAbsolutePath().normalize();
-                    Files.createDirectories(cachePath);
-                    Files.write(cachePath.resolve(filename), stored.getData());
+                    Path absCache = cacheDir.toAbsolutePath().normalize();
+                    Files.createDirectories(absCache);
+                    Files.write(absCache.resolve(filename), stored.getData());
                 } catch (Exception ignored) {}
                 String ct = stored.getContentType() != null && !stored.getContentType().isBlank()
                         ? stored.getContentType()

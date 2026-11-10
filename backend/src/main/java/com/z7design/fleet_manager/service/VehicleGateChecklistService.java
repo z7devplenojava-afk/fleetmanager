@@ -39,6 +39,9 @@ public class VehicleGateChecklistService {
     private final FleetWorkOrderService fleetWorkOrderService;
     private final FleetWorkOrderRepository fleetWorkOrderRepository;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private StoredUploadService storedUploadService;
+
     private static final String UPLOAD_DIR = "uploads/vehicle-gate-checklists/odometer-photos/";
     private static final String VEHICLE_PHOTOS_DIR = "uploads/vehicles/";
 
@@ -271,8 +274,12 @@ public class VehicleGateChecklistService {
             String fileExtension = (originalFilename != null && originalFilename.contains("."))
                     ? originalFilename.substring(originalFilename.lastIndexOf(".")) : "";
             String filename = UUID.randomUUID().toString() + "_" + id + fileExtension;
+            byte[] fileBytes = file.getBytes();
             Path filePath = uploadPath.resolve(filename);
-            Files.copy(file.getInputStream(), filePath);
+            Files.write(filePath, fileBytes);
+            if (storedUploadService != null) {
+                storedUploadService.save("vehicle-gate-checklists/odometer-photos", filename, file.getContentType(), fileBytes);
+            }
             String photoUrl = "/uploads/vehicle-gate-checklists/odometer-photos/" + filename;
             entity.setOdometerPhotoUrl(photoUrl);
             entity.setOdometerPhotoDescription(description);
@@ -308,8 +315,12 @@ public class VehicleGateChecklistService {
                 String fileExtension = (originalFilename != null && originalFilename.contains("."))
                         ? originalFilename.substring(originalFilename.lastIndexOf(".")) : ".jpg";
                 String filename = UUID.randomUUID().toString() + "_" + id + fileExtension;
+                byte[] fileBytes = file.getBytes();
                 Path filePath = uploadPath.resolve(filename);
-                Files.copy(file.getInputStream(), filePath);
+                Files.write(filePath, fileBytes);
+                if (storedUploadService != null) {
+                    storedUploadService.save("vehicles/" + vehicleId, filename, file.getContentType(), fileBytes);
+                }
                 String photoUrl = "/uploads/vehicles/" + vehicleId + "/" + filename;
                 newUrls.add(photoUrl);
             }
