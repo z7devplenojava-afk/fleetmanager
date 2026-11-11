@@ -692,6 +692,15 @@ public class FleetWorkOrderPdfService {
         String cleanUrl = logoUrl.trim();
         try {
             if (cleanUrl.startsWith("data:image/")) {
+                int commaIdx = cleanUrl.indexOf(',');
+                if (commaIdx > 0) {
+                    byte[] rawDataBytes = Base64.getDecoder()
+                            .decode(cleanUrl.substring(commaIdx + 1).replaceAll("\\s+", ""));
+                    String normalized = flattenLogoOntoWhite(rawDataBytes);
+                    if (normalized != null) {
+                        return normalized;
+                    }
+                }
                 return processPhotoAsDataUri(cleanUrl);
             }
 
@@ -727,20 +736,16 @@ public class FleetWorkOrderPdfService {
                 return null;
             }
 
-            // Converte formatos raster (incluindo WEBP) via ImageIO para compatibilidade
-            // total com Flying Saucer
             String lower = cleanUrl.split("[?#]")[0].toLowerCase();
             if (lower.endsWith(".svg")) {
                 return null; // Flying Saucer não renderiza SVG diretamente
             }
-            if (lower.endsWith(".webp")) {
-                BufferedImage img = ImageIO.read(new ByteArrayInputStream(bytes));
-                if (img != null) {
-                    ByteArrayOutputStream pngOut = new ByteArrayOutputStream();
-                    if (ImageIO.write(img, "png", pngOut)) {
-                        return "data:image/png;base64," + Base64.getEncoder().encodeToString(pngOut.toByteArray());
-                    }
-                }
+
+            // Converte para RGB sobre fundo branco (e remove eventual fundo preto conectado às bordas)
+            // para evitar que transparência de PNG/WEBP seja renderizada em preto pelo Flying Saucer/iText
+            String normalized = flattenLogoOntoWhite(bytes);
+            if (normalized != null) {
+                return normalized;
             }
 
             String mime = "image/png";
@@ -754,6 +759,112 @@ public class FleetWorkOrderPdfService {
             log.warn("Erro ao carregar logo da empresa ({}): {}", logoUrl, e.getMessage());
             return null;
         }
+    }
+
+    /**
+     * Normaliza a logomarca para PNG RGB sobre fundo branco puro.
+     * Se as bordas tiverem fundo preto sólido opaco, remove-o por flood-fill
+     * conectado às extremidades preservando o conteúdo colorido interno.
+     */
+    private String flattenLogoOntoWhite(byte[] bytes) {
+        try {
+            BufferedImage img = ImageIO.read(new ByteArrayInputStream(bytes));
+            if (img == null || img.getWidth() <= 0 || img.getHeight() <= 0) {
+                return null;
+            }
+            int w = img.getWidth();
+            int h = img.getHeight();
+
+            BufferedImage argb = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+            Graphics2D gArgb = argb.createGraphics();
+            gArgb.drawImage(img, 0, 0, null);
+            gArgb.dispose();
+
+            removeOuterBlackBackground(argb);
+
+            BufferedImage whiteRgb = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
+            Graphics2D gWhite = whiteRgb.createGraphics();
+            gWhite.setColor(Color.WHITE);
+            gWhite.fillRect(0, 0, w, h);
+            gWhite.drawImage(argb, 0, 0, null);
+            gWhite.dispose();
+
+            ByteArrayOutputStream pngOut = new ByteArrayOutputStream();
+            if (ImageIO.write(whiteRgb, "png", pngOut)) {
+                return "data:image/png;base64," + Base64.getEncoder().encodeToString(pngOut.toByteArray());
+            }
+        } catch (Exception e) {
+            log.debug("Falha ao normalizar fundo da logomarca: {}", e.getMessage());
+        }
+        return null;
+    }
+
+    private void removeOuterBlackBackground(BufferedImage argb) {
+        int w = argb.getWidth();
+        int h = argb.getHeight();
+        int[][] corners = { { 0, 0 }, { w - 1, 0 }, { 0, h - 1 }, { w - 1, h - 1 } };
+        boolean hasOpaqueDarkCorner = false;
+        for (int[] c : corners) {
+            if (isNeutralNearBlackOpaque(argb.getRGB(c[0], c[1]), 28, 16)) {
+                hasOpaqueDarkCorner = true;
+                break;
+            }
+        }
+        if (!hasOpaqueDarkCorner) {
+            return;
+        }
+
+        boolean[] visited = new boolean[w * h];
+        java.util.ArrayDeque<Integer> queue = new java.util.ArrayDeque<>();
+
+        for (int x = 0; x < w; x++) {
+            enqueueIfDark(argb, x, 0, w, visited, queue);
+            if (h > 1) {
+                enqueueIfDark(argb, x, h - 1, w, visited, queue);
+            }
+        }
+        for (int y = 1; y < h - 1; y++) {
+            enqueueIfDark(argb, 0, y, w, visited, queue);
+            if (w > 1) {
+                enqueueIfDark(argb, w - 1, y, w, visited, queue);
+            }
+        }
+
+        while (!queue.isEmpty()) {
+            int pos = queue.poll();
+            int x = pos % w;
+            int y = pos / w;
+            argb.setRGB(x, y, 0x00000000);
+
+            if (x > 0) enqueueIfDark(argb, x - 1, y, w, visited, queue);
+            if (x + 1 < w) enqueueIfDark(argb, x + 1, y, w, visited, queue);
+            if (y > 0) enqueueIfDark(argb, x, y - 1, w, visited, queue);
+            if (y + 1 < h) enqueueIfDark(argb, x, y + 1, w, visited, queue);
+        }
+    }
+
+    private void enqueueIfDark(BufferedImage argb, int x, int y, int w, boolean[] visited, java.util.ArrayDeque<Integer> queue) {
+        int idx = y * w + x;
+        if (visited[idx]) {
+            return;
+        }
+        visited[idx] = true;
+        if (isNeutralNearBlackOpaque(argb.getRGB(x, y), 32, 18)) {
+            queue.add(idx);
+        }
+    }
+
+    private boolean isNeutralNearBlackOpaque(int pixel, int maxLuminance, int maxSpread) {
+        int a = (pixel >>> 24) & 0xFF;
+        if (a < 200) {
+            return false;
+        }
+        int r = (pixel >>> 16) & 0xFF;
+        int g = (pixel >>> 8) & 0xFF;
+        int b = pixel & 0xFF;
+        int max = Math.max(r, Math.max(g, b));
+        int min = Math.min(r, Math.min(g, b));
+        return max <= maxLuminance && (max - min) <= maxSpread;
     }
 
     private String extractFilenameFromUrl(String rawUrl) {
