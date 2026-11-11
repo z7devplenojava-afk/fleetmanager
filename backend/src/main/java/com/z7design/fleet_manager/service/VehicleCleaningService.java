@@ -14,6 +14,7 @@ import com.z7design.fleet_manager.repository.*;
 import com.z7design.fleet_manager.service.whatsapp.WhatsAppGateway;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -61,6 +62,9 @@ public class VehicleCleaningService {
     private final ObjectMapper objectMapper;
     private final FleetWorkOrderService fleetWorkOrderService;
     private final CarWashRepository carWashRepository;
+
+    @Autowired(required = false)
+    private StoredUploadService storedUploadService;
 
     private static final String PHOTOS_DIR = "uploads/vehicle-cleaning/";
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
@@ -414,14 +418,20 @@ public class VehicleCleaningService {
 
         try {
             Path uploadPath = Paths.get(PHOTOS_DIR);
-            if (!Files.exists(uploadPath)) {
-                Files.createDirectories(uploadPath);
-            }
             String originalFilename = file.getOriginalFilename();
             String extension = (originalFilename != null && originalFilename.contains("."))
                     ? originalFilename.substring(originalFilename.lastIndexOf(".")) : ".jpg";
             String filename = UUID.randomUUID() + "_" + order.getId() + extension;
-            Files.copy(file.getInputStream(), uploadPath.resolve(filename));
+            String ct = file.getContentType() != null ? file.getContentType() : "image/jpeg";
+            byte[] bytes = file.getBytes();
+            if (storedUploadService != null) {
+                storedUploadService.saveWithDiskFallback(uploadPath, null, "vehicle-cleaning", filename, ct, bytes);
+            } else {
+                if (!Files.exists(uploadPath)) {
+                    Files.createDirectories(uploadPath);
+                }
+                Files.write(uploadPath.resolve(filename), bytes);
+            }
             String photoUrl = "/uploads/vehicle-cleaning/" + filename;
 
             order.setChecklistData(attachPhotoToItem(order.getChecklistData(), itemKey, photoUrl));
@@ -726,14 +736,20 @@ public class VehicleCleaningService {
 
         try {
             Path uploadPath = Paths.get(PHOTOS_DIR);
-            if (!Files.exists(uploadPath)) {
-                Files.createDirectories(uploadPath);
-            }
             String originalFilename = file.getOriginalFilename();
             String extension = (originalFilename != null && originalFilename.contains("."))
                     ? originalFilename.substring(originalFilename.lastIndexOf(".")) : ".jpg";
             String filename = category + "_" + order.getId() + "_" + System.currentTimeMillis() + extension;
-            Files.copy(file.getInputStream(), uploadPath.resolve(filename));
+            String ct = file.getContentType() != null ? file.getContentType() : "image/jpeg";
+            byte[] bytes = file.getBytes();
+            if (storedUploadService != null) {
+                storedUploadService.saveWithDiskFallback(uploadPath, null, "vehicle-cleaning", filename, ct, bytes);
+            } else {
+                if (!Files.exists(uploadPath)) {
+                    Files.createDirectories(uploadPath);
+                }
+                Files.write(uploadPath.resolve(filename), bytes);
+            }
             String photoUrl = "/uploads/vehicle-cleaning/" + filename;
 
             switch (category.toLowerCase()) {

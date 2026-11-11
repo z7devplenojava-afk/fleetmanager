@@ -7,6 +7,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -23,6 +24,9 @@ public class ChatFileService {
     
     @Value("${app.upload.dir:uploads}")
     private String uploadDir;
+
+    @Autowired(required = false)
+    private StoredUploadService storedUploadService;
     
     private static final long MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
     private static final long MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -58,11 +62,15 @@ public class ChatFileService {
             // Criar diretÃ³rio se nÃ£o existir
             String subDir = getSubDirectoryForType(messageType);
             Path uploadPath = Paths.get(uploadDir, "chat", subDir);
-            Files.createDirectories(uploadPath);
-            
-            // Salvar arquivo
-            Path filePath = uploadPath.resolve(uniqueFilename);
-            Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+            Path fallbackPath = Paths.get("uploads", "chat", subDir);
+            byte[] bytes = file.getBytes();
+            if (storedUploadService != null) {
+                storedUploadService.saveWithDiskFallback(
+                        uploadPath, fallbackPath, "chat/" + subDir, uniqueFilename, contentType, bytes);
+            } else {
+                Files.createDirectories(uploadPath);
+                Files.write(uploadPath.resolve(uniqueFilename), bytes);
+            }
             
             log.info("âœ… Arquivo de chat salvo: {}", filePath.toString());
             

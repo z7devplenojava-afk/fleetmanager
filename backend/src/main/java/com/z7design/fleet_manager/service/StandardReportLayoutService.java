@@ -21,6 +21,7 @@ import com.z7design.fleet_manager.repository.CompanyRepository;
 import com.z7design.fleet_manager.util.CompanyDataFormatter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -49,6 +50,9 @@ public class StandardReportLayoutService {
     
     @Value("${app.upload.dir:uploads}")
     private String uploadDir;
+
+    @Autowired(required = false)
+    private StoredUploadService storedUploadService;
     
     @Value("${app.url:http://localhost:3000}")
     private String appUrl;
@@ -533,18 +537,27 @@ public class StandardReportLayoutService {
                     imageData = ImageDataFactory.create(logoUrl);
                 } else {
                     String logoPath = resolveLogoPath(logoUrl);
+                    String fileName = StoredUploadService.extractFileName(logoUrl);
+                    byte[] logoBytes = (storedUploadService != null && fileName != null)
+                            ? storedUploadService.loadBytes(
+                                    "companies/logos",
+                                    fileName,
+                                    logoPath != null ? Paths.get(logoPath) : null,
+                                    Paths.get("uploads", "companies", "logos", fileName))
+                            : (logoPath != null && Files.exists(Paths.get(logoPath))
+                                    ? Files.readAllBytes(Paths.get(logoPath))
+                                    : null);
 
-                    if (logoPath == null || !Files.exists(Paths.get(logoPath))) {
-                        log.warn("Logo nÃ£o encontrado no caminho: {}. Tentando URL pÃºblica...", logoPath);
+                    if (logoBytes != null && logoBytes.length > 0) {
+                        imageData = ImageDataFactory.create(logoBytes);
+                    } else {
                         String publicLogoUrl = buildPublicLogoUrl(logoUrl);
                         if (publicLogoUrl != null) {
-                            log.info("ðŸ”— Carregando logo via URL pÃºblica: {}", publicLogoUrl);
+                            log.info("Carregando logo via URL pública: {}", publicLogoUrl);
                             imageData = ImageDataFactory.create(publicLogoUrl);
                         } else {
                             return null;
                         }
-                    } else {
-                        imageData = ImageDataFactory.create(logoPath);
                     }
                 }
                 

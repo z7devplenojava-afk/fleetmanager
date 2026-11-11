@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.*;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -29,6 +30,9 @@ public class ExcelReportLayoutService {
     
     @Value("${app.upload.dir:uploads}")
     private String uploadDir;
+
+    @Autowired(required = false)
+    private StoredUploadService storedUploadService;
     
     // Cores do gradiente (amarelo â†’ laranja â†’ vermelho)
     private static final String COLOR_YELLOW_HEX = "FFCC00";
@@ -244,14 +248,30 @@ public class ExcelReportLayoutService {
      */
     private byte[] loadLogoImage(String logoUrl) {
         try {
+            String fileName = StoredUploadService.extractFileName(logoUrl);
+            java.nio.file.Path logoPath = resolveLogoPath(logoUrl);
             if (logoUrl.startsWith("http://") || logoUrl.startsWith("https://")) {
-                // Carregar de URL
-                URL url = new URL(logoUrl);
-                return url.openStream().readAllBytes();
+                try {
+                    URL url = new URL(logoUrl);
+                    return url.openStream().readAllBytes();
+                } catch (Exception urlEx) {
+                    if (storedUploadService != null && fileName != null) {
+                        byte[] fallback = storedUploadService.loadBytes("companies/logos", fileName,
+                                logoPath, java.nio.file.Paths.get("uploads", "companies", "logos", fileName));
+                        if (fallback != null && fallback.length > 0) {
+                            return fallback;
+                        }
+                    }
+                    throw urlEx;
+                }
             } else {
-                // Carregar de arquivo local
-                java.nio.file.Path logoPath = resolveLogoPath(logoUrl);
-                if (java.nio.file.Files.exists(logoPath)) {
+                if (storedUploadService != null && fileName != null) {
+                    byte[] bytes = storedUploadService.loadBytes("companies/logos", fileName,
+                            logoPath, java.nio.file.Paths.get("uploads", "companies", "logos", fileName));
+                    if (bytes != null && bytes.length > 0) {
+                        return bytes;
+                    }
+                } else if (java.nio.file.Files.exists(logoPath)) {
                     return java.nio.file.Files.readAllBytes(logoPath);
                 }
             }

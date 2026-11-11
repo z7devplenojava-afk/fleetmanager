@@ -13,7 +13,7 @@ import {
   getStoredCompanyBranding,
   saveStoredCompanyBranding,
 } from '@/utils/logoUtils';
-import { Upload, X, Image as ImageIcon, Building2, CheckCircle2, Sparkles, Images, Trash2, ChevronLeft, ChevronRight, Plus, Loader2 } from 'lucide-react';
+import { Upload, X, Image as ImageIcon, Building2, CheckCircle2, Sparkles, Images, Trash2, ChevronLeft, ChevronRight, Plus, Loader2, AlertTriangle } from 'lucide-react';
 
 interface CompanyFormModalProps {
   open: boolean;
@@ -27,9 +27,12 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({ open, onOpen
   const [loading, setLoading] = useState(false);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [logoImgError, setLogoImgError] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [iconFile, setIconFile] = useState<File | null>(null);
   const [iconPreview, setIconPreview] = useState<string | null>(null);
+  const [iconImgError, setIconImgError] = useState(false);
+  const [brokenBanners, setBrokenBanners] = useState<Record<string, boolean>>({});
   const [uploadingIcon, setUploadingIcon] = useState(false);
   const [uploadingBanners, setUploadingBanners] = useState(false);
   const [loadingCep, setLoadingCep] = useState(false);
@@ -71,6 +74,9 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({ open, onOpen
       } as CreateCompanyRequest));
       setLogoFile(null);
       setIconFile(null);
+      setLogoImgError(false);
+      setIconImgError(false);
+      setBrokenBanners({});
       setLogoPreview(initialLogo ? resolveCompanyLogoUrl(initialLogo) : null);
       setIconPreview(initialIcon ? resolveCompanyLogoUrl(initialIcon) : null);
     } else if (open) {
@@ -98,8 +104,11 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({ open, onOpen
       });
       setLogoFile(null);
       setLogoPreview(null);
+      setLogoImgError(false);
       setIconFile(null);
       setIconPreview(null);
+      setIconImgError(false);
+      setBrokenBanners({});
     }
   }, [open, initialData]);
 
@@ -202,11 +211,13 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({ open, onOpen
 
   const uploadLogo = async (file: File) => {
     setUploadingLogo(true);
+    setLogoImgError(false);
     try {
       const data = await companyService.uploadLogo(file);
       const logoUrl = data.url;
       setForm(prev => ({ ...prev, logoUrl }));
       setLogoPreview(resolveCompanyLogoUrl(logoUrl));
+      setLogoImgError(false);
       saveStoredCompanyBranding({
         companyId: (initialData as any)?.id || null,
         logoUrl,
@@ -238,6 +249,7 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({ open, onOpen
     e?.stopPropagation();
     setLogoFile(null);
     setLogoPreview(null);
+    setLogoImgError(false);
     setForm(prev => ({ ...prev, logoUrl: '' }));
     saveStoredCompanyBranding({
       companyId: (initialData as any)?.id || null,
@@ -271,6 +283,7 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({ open, onOpen
     }
 
     setIconFile(file);
+    setIconImgError(false);
     const reader = new FileReader();
     reader.onloadend = () => {
       setIconPreview(reader.result as string);
@@ -283,6 +296,7 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({ open, onOpen
       const iconUrl = data.url;
       setForm(prev => ({ ...prev, iconUrl }));
       setIconPreview(resolveCompanyLogoUrl(iconUrl));
+      setIconImgError(false);
       saveStoredCompanyBranding({
         companyId: (initialData as any)?.id || null,
         iconUrl,
@@ -309,6 +323,7 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({ open, onOpen
     e?.stopPropagation();
     setIconFile(null);
     setIconPreview(null);
+    setIconImgError(false);
     setForm(prev => ({ ...prev, iconUrl: '' }));
     saveStoredCompanyBranding({
       companyId: (initialData as any)?.id || null,
@@ -456,13 +471,18 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({ open, onOpen
               <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-900/70 border border-gray-700">
                 <div className="relative flex-shrink-0">
                   <div className="w-20 h-20 rounded-xl bg-gray-950 border-2 border-dashed border-gray-600 flex items-center justify-center overflow-hidden p-1.5">
-                    {iconPreview ? (
+                    {iconPreview && !iconImgError ? (
                       <img
                         src={iconPreview}
                         alt="Ícone da empresa"
                         className="w-full h-full object-contain rounded-lg"
-                        onError={() => setIconPreview(null)}
+                        onError={() => setIconImgError(true)}
                       />
+                    ) : iconPreview && iconImgError ? (
+                      <div className="flex flex-col items-center justify-center text-center text-amber-400 px-1" title="Arquivo antigo indisponível — faça upload novamente">
+                        <AlertTriangle className="w-5 h-5 mb-0.5" />
+                        <span className="text-[9px] font-semibold leading-tight">Envie novamente</span>
+                      </div>
                     ) : (
                       <div className="flex flex-col items-center justify-center text-center text-gray-400">
                         <Building2 className="w-7 h-7 text-gray-500 mb-0.5" />
@@ -470,7 +490,7 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({ open, onOpen
                       </div>
                     )}
                   </div>
-                  {iconPreview && (
+                  {(iconPreview || form.iconUrl) && (
                     <button
                       type="button"
                       onClick={removeIcon}
@@ -485,7 +505,7 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({ open, onOpen
                 <div className="flex-1 space-y-1.5">
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs font-bold text-amber-400">1. Ícone da Empresa</span>
-                    {iconPreview && (
+                    {iconPreview && !iconImgError && (
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                     )}
                   </div>
@@ -523,13 +543,18 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({ open, onOpen
               <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-900/70 border border-gray-700">
                 <div className="relative flex-shrink-0">
                   <div className="w-28 h-20 rounded-xl bg-gray-950 border-2 border-dashed border-gray-600 flex items-center justify-center overflow-hidden p-1.5">
-                    {logoPreview ? (
+                    {logoPreview && !logoImgError ? (
                       <img
                         src={logoPreview}
                         alt="Logomarca da empresa"
                         className="w-full h-full object-contain rounded-lg"
-                        onError={() => setLogoPreview(null)}
+                        onError={() => setLogoImgError(true)}
                       />
+                    ) : logoPreview && logoImgError ? (
+                      <div className="flex flex-col items-center justify-center text-center text-amber-400 px-1" title="Arquivo antigo indisponível — faça upload novamente">
+                        <AlertTriangle className="w-5 h-5 mb-0.5" />
+                        <span className="text-[9px] font-semibold leading-tight">Envie novamente</span>
+                      </div>
                     ) : (
                       <div className="flex flex-col items-center justify-center text-center text-gray-400">
                         <ImageIcon className="w-7 h-7 text-gray-500 mb-0.5" />
@@ -537,7 +562,7 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({ open, onOpen
                       </div>
                     )}
                   </div>
-                  {logoPreview && (
+                  {(logoPreview || form.logoUrl) && (
                     <button
                       type="button"
                       onClick={removeLogo}
@@ -641,21 +666,31 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({ open, onOpen
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
                 {form.bannerUrls.map((bannerUrl, index) => {
                   const resolvedUrl = resolveCompanyBannerUrl(bannerUrl) || bannerUrl;
+                  const isBroken = Boolean(brokenBanners[bannerUrl]);
                   return (
                     <div 
                       key={`${bannerUrl}-${index}`}
                       className="group relative rounded-xl border border-gray-700 bg-gray-900/80 overflow-hidden shadow-sm hover:border-amber-500/60 transition-all flex flex-col"
                     >
                       {/* Imagem do Banner */}
-                      <div className="relative aspect-video w-full overflow-hidden bg-black/50">
-                        <img 
-                          src={resolvedUrl} 
-                          alt={`Banner motivacional ${index + 1}`}
-                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                          onError={(e) => {
-                            (e.target as HTMLElement).style.opacity = '0.4';
-                          }}
-                        />
+                      <div className="relative aspect-video w-full overflow-hidden bg-black/50 flex items-center justify-center">
+                        {isBroken ? (
+                          <div className="flex flex-col items-center justify-center text-center px-3 text-amber-400/90">
+                            <AlertTriangle className="w-6 h-6 mb-1" />
+                            <span className="text-[11px] font-semibold leading-tight">
+                              Arquivo antigo indisponível (faça upload novamente)
+                            </span>
+                          </div>
+                        ) : (
+                          <img 
+                            src={resolvedUrl} 
+                            alt={`Banner motivacional ${index + 1}`}
+                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                            onError={() => {
+                              setBrokenBanners(prev => ({ ...prev, [bannerUrl]: true }));
+                            }}
+                          />
+                        )}
                         {/* Badge de Ordem */}
                         <span className="absolute top-2 left-2 bg-black/80 backdrop-blur-sm text-amber-400 text-[11px] font-black px-2 py-0.5 rounded-md border border-amber-500/30 shadow">
                           {index + 1}º Banner

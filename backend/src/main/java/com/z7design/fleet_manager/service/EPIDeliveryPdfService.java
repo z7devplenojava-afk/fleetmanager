@@ -40,6 +40,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 import org.xhtmlrenderer.pdf.ITextRenderer;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import java.net.URL;
 import java.nio.file.Files;
@@ -65,6 +66,9 @@ public class EPIDeliveryPdfService {
 
     @Value("${app.upload.dir:uploads}")
     private String uploadDir;
+
+    @Autowired(required = false)
+    private StoredUploadService storedUploadService;
 
     public byte[] generateEPIDeliveryPdf(UUID employeeId, UUID companyId, LocalDate deliveryDate, 
                                          UUID responsibleEmployeeId, String observations) throws Exception {
@@ -198,16 +202,23 @@ public class EPIDeliveryPdfService {
     private String loadLogoAsDataUri(String logoUrl) {
         if (logoUrl != null && !logoUrl.isBlank()) {
             try {
-                byte[] bytes;
-                if (logoUrl.startsWith("http://") || logoUrl.startsWith("https://")) {
-                    bytes = new URL(logoUrl).openStream().readAllBytes();
-                } else {
-                    Path logoPath = resolveLogoPath(logoUrl);
-                    if (logoPath != null && Files.exists(logoPath)) {
-                        bytes = Files.readAllBytes(logoPath);
-                    } else {
-                        bytes = null;
+                byte[] bytes = null;
+                Path logoPath = resolveLogoPath(logoUrl);
+                String fileName = StoredUploadService.extractFileName(logoUrl);
+                if (storedUploadService != null && fileName != null && !(logoUrl.startsWith("http://") || logoUrl.startsWith("https://"))) {
+                    bytes = storedUploadService.loadBytes("companies/logos", fileName,
+                            logoPath, Paths.get("uploads", "companies", "logos", fileName));
+                } else if (logoUrl.startsWith("http://") || logoUrl.startsWith("https://")) {
+                    try {
+                        bytes = new URL(logoUrl).openStream().readAllBytes();
+                    } catch (Exception urlEx) {
+                        if (storedUploadService != null && fileName != null) {
+                            bytes = storedUploadService.loadBytes("companies/logos", fileName,
+                                    logoPath, Paths.get("uploads", "companies", "logos", fileName));
+                        }
                     }
+                } else if (logoPath != null && Files.exists(logoPath)) {
+                    bytes = Files.readAllBytes(logoPath);
                 }
                 if (bytes != null && bytes.length > 0) {
                     String lower = logoUrl.toLowerCase();

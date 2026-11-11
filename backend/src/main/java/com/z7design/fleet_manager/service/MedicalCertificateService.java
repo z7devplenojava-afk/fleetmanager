@@ -12,6 +12,7 @@ import com.z7design.fleet_manager.repository.MedicalCertificateRepository;
 import com.z7design.fleet_manager.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -36,6 +37,9 @@ public class MedicalCertificateService {
     private final MedicalCertificateRepository certificateRepository;
     private final EmployeeRepository employeeRepository;
     private final Cid10Repository cid10Repository;
+
+    @Autowired(required = false)
+    private StoredUploadService storedUploadService;
 
     private static final String UPLOAD_DIR = "uploads/atestados";
 
@@ -116,9 +120,6 @@ public class MedicalCertificateService {
         }
 
         Path uploadPath = Paths.get(UPLOAD_DIR);
-        if (!Files.exists(uploadPath)) {
-            Files.createDirectories(uploadPath);
-        }
 
         String originalFilename = file.getOriginalFilename();
         String extension = "";
@@ -127,8 +128,16 @@ public class MedicalCertificateService {
         }
 
         String uniqueFilename = UUID.randomUUID() + extension;
-        Path targetPath = uploadPath.resolve(uniqueFilename);
-        Files.copy(file.getInputStream(), targetPath);
+        byte[] bytes = file.getBytes();
+        if (storedUploadService != null) {
+            storedUploadService.saveWithDiskFallback(
+                    uploadPath, null, "atestados", uniqueFilename, file.getContentType(), bytes);
+        } else {
+            if (!Files.exists(uploadPath)) {
+                Files.createDirectories(uploadPath);
+            }
+            Files.write(uploadPath.resolve(uniqueFilename), bytes);
+        }
 
         String relativeUrl = "/uploads/atestados/" + uniqueFilename;
         Map<String, String> result = new HashMap<>();

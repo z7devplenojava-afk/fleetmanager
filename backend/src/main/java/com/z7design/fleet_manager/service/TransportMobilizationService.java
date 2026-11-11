@@ -15,6 +15,7 @@ import com.z7design.fleet_manager.repository.VehicleRepository;
 import com.z7design.fleet_manager.repository.WorkPostRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -43,6 +44,9 @@ public class TransportMobilizationService {
     private final WorkPostRepository workPostRepository;
     private final GarageService garageService;
     private final com.z7design.fleet_manager.repository.GarageRepository garageRepository;
+
+    @Autowired(required = false)
+    private StoredUploadService storedUploadService;
 
     private static final String UPLOAD_DIR = "uploads/transport-mobilizations/odometer-photos/";
     private static final String VEHICLE_PHOTOS_DIR = "uploads/vehicles/";
@@ -277,16 +281,22 @@ public class TransportMobilizationService {
                 .orElseThrow(() -> new ResourceNotFoundException("Mobilização não encontrada com ID: " + id));
         try {
             Path uploadPath = Paths.get(UPLOAD_DIR);
-            if (!Files.exists(uploadPath)) {
-                Files.createDirectories(uploadPath);
-            }
             String originalFilename = file.getOriginalFilename();
             String fileExtension = (originalFilename != null && originalFilename.contains("."))
                     ? originalFilename.substring(originalFilename.lastIndexOf("."))
-                    : "";
+                    : ".jpg";
             String filename = UUID.randomUUID().toString() + "_" + id + fileExtension;
-            Path filePath = uploadPath.resolve(filename);
-            Files.copy(file.getInputStream(), filePath);
+            String ct = file.getContentType() != null ? file.getContentType() : "image/jpeg";
+            byte[] bytes = file.getBytes();
+            if (storedUploadService != null) {
+                storedUploadService.saveWithDiskFallback(
+                        uploadPath, null, "transport-mobilizations/odometer-photos", filename, ct, bytes);
+            } else {
+                if (!Files.exists(uploadPath)) {
+                    Files.createDirectories(uploadPath);
+                }
+                Files.write(uploadPath.resolve(filename), bytes);
+            }
 
             String photoUrl = "/uploads/transport-mobilizations/odometer-photos/" + filename;
             entity.setOdometerPhotoUrl(photoUrl);
@@ -305,17 +315,27 @@ public class TransportMobilizationService {
 
         try {
             Path uploadPath = Paths.get(VEHICLE_PHOTOS_DIR, vehicle.getId().toString());
-            if (!Files.exists(uploadPath)) {
-                Files.createDirectories(uploadPath);
-            }
 
             List<String> newUrls = new ArrayList<>();
             for (MultipartFile file : files) {
                 if (file == null || file.isEmpty())
                     continue;
-                String filename = UUID.randomUUID().toString() + "_" + id + ".jpg";
-                Path filePath = uploadPath.resolve(filename);
-                Files.copy(file.getInputStream(), filePath);
+                String originalFilename = file.getOriginalFilename();
+                String fileExtension = (originalFilename != null && originalFilename.contains("."))
+                        ? originalFilename.substring(originalFilename.lastIndexOf("."))
+                        : ".jpg";
+                String filename = UUID.randomUUID().toString() + "_" + id + fileExtension;
+                String ct = file.getContentType() != null ? file.getContentType() : "image/jpeg";
+                byte[] bytes = file.getBytes();
+                if (storedUploadService != null) {
+                    storedUploadService.saveWithDiskFallback(
+                            uploadPath, null, "vehicles/" + vehicle.getId(), filename, ct, bytes);
+                } else {
+                    if (!Files.exists(uploadPath)) {
+                        Files.createDirectories(uploadPath);
+                    }
+                    Files.write(uploadPath.resolve(filename), bytes);
+                }
                 newUrls.add("/uploads/vehicles/" + vehicle.getId() + "/" + filename);
             }
 

@@ -86,15 +86,14 @@ public class FileUploadController {
             String fileExtension = getFileExtension(originalFilename);
             String uniqueFilename = UUID.randomUUID().toString() + "." + fileExtension;
 
-            // Criar diretÃ³rio se nÃ£o existir
-            Path uploadPath = Paths.get(uploadDir, "atestados");
-            Files.createDirectories(uploadPath);
+            // Criar diretório se não existir
+            Path primaryDir = Paths.get(uploadDir, "atestados").toAbsolutePath().normalize();
+            Path fallbackDir = Paths.get("uploads", "atestados").toAbsolutePath().normalize();
 
-            // Salvar arquivo
-            Path filePath = uploadPath.resolve(uniqueFilename);
+            // Salvar arquivo em banco + disco (com fallback)
             byte[] fileBytes = file.getBytes();
-            Files.write(filePath, fileBytes);
-            storedUploadService.save("atestados", uniqueFilename, contentType, fileBytes);
+            storedUploadService.saveWithDiskFallback(
+                    primaryDir, fallbackDir, "atestados", uniqueFilename, contentType, fileBytes);
 
             // Retornar informaÃ§Ãµes do arquivo
             Map<String, String> response = new HashMap<>();
@@ -150,15 +149,14 @@ public class FileUploadController {
             String fileExtension = getFileExtension(originalFilename);
             String uniqueFilename = UUID.randomUUID().toString() + "." + fileExtension;
 
-            // Criar diretÃ³rio se nÃ£o existir
-            Path uploadPath = Paths.get(uploadDir, "comprovantes");
-            Files.createDirectories(uploadPath);
+            // Criar diretório se não existir
+            Path primaryDir = Paths.get(uploadDir, "comprovantes").toAbsolutePath().normalize();
+            Path fallbackDir = Paths.get("uploads", "comprovantes").toAbsolutePath().normalize();
 
-            // Salvar arquivo
-            Path filePath = uploadPath.resolve(uniqueFilename);
+            // Salvar arquivo em banco + disco (com fallback)
             byte[] fileBytes = file.getBytes();
-            Files.write(filePath, fileBytes);
-            storedUploadService.save("comprovantes", uniqueFilename, contentType, fileBytes);
+            storedUploadService.saveWithDiskFallback(
+                    primaryDir, fallbackDir, "comprovantes", uniqueFilename, contentType, fileBytes);
 
             // Retornar informaÃ§Ãµes do arquivo
             Map<String, String> response = new HashMap<>();
@@ -177,7 +175,21 @@ public class FileUploadController {
         }
     }
 
-    @GetMapping("/comprovantes/{filename}")
+    @GetMapping("/atestados/{filename:.+}")
+    @Operation(summary = "Download de atestado médico", description = "Retorna atestado de disco ou banco de dados")
+    public ResponseEntity<Resource> downloadAtestado(@PathVariable("filename") String filename) {
+        if (filename == null || filename.isBlank() || filename.contains("..")) {
+            return ResponseEntity.notFound().build();
+        }
+        return serveUploadedFile(
+                buildDiskCandidates("atestados", filename),
+                "atestados",
+                filename,
+                Paths.get("uploads", "atestados"),
+                false);
+    }
+
+    @GetMapping({"/comprovantes/{filename:.+}", "/comprovantes/{filename}"})
     @Operation(summary = "Download de comprovante", description = "Faz download de um comprovante de pagamento")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Arquivo retornado com sucesso"),
@@ -187,31 +199,15 @@ public class FileUploadController {
     public ResponseEntity<Resource> downloadComprovante(
             @Parameter(description = "Nome do arquivo")
             @PathVariable("filename") String filename) {
-        
-        try {
-            Path filePath = Paths.get(uploadDir, "comprovantes").resolve(filename);
-            Resource resource = new UrlResource(filePath.toUri());
-
-            if (resource.exists() && resource.isReadable()) {
-                // Determinar tipo de conteÃºdo
-                String contentType = Files.probeContentType(filePath);
-                if (contentType == null) {
-                    contentType = "application/octet-stream";
-                }
-
-                return ResponseEntity.ok()
-                    .contentType(MediaType.parseMediaType(contentType))
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
-                    .body(resource);
-            } else {
-                return ResponseEntity.notFound().build();
-            }
-
-        } catch (MalformedURLException e) {
-            return ResponseEntity.badRequest().build();
-        } catch (IOException e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        if (filename == null || filename.isBlank() || filename.contains("..")) {
+            return ResponseEntity.notFound().build();
         }
+        return serveUploadedFile(
+                buildDiskCandidates("comprovantes", filename),
+                "comprovantes",
+                filename,
+                Paths.get("uploads", "comprovantes"),
+                false);
     }
 
     @DeleteMapping("/comprovantes/{filename}")
@@ -244,32 +240,20 @@ public class FileUploadController {
     /**
      * Download de arquivo do chat
      */
-    @GetMapping("/chat/{subDir}/{filename}")
+    @GetMapping({"/chat/{subDir}/{filename:.+}", "/chat/{subDir}/{filename}"})
     public ResponseEntity<Resource> downloadChatFile(
             @PathVariable("subDir") String subDir,
             @PathVariable("filename") String filename) {
-        
-        try {
-            Path filePath = Paths.get(uploadDir, "chat", subDir).resolve(filename);
-            Resource resource = new UrlResource(filePath.toUri());
-
-            if (resource.exists() && resource.isReadable()) {
-                String contentType = Files.probeContentType(filePath);
-                if (contentType == null) {
-                    contentType = "application/octet-stream";
-                }
-
-                return ResponseEntity.ok()
-                    .contentType(MediaType.parseMediaType(contentType))
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
-                    .body(resource);
-            } else {
-                return ResponseEntity.notFound().build();
-            }
-
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        if (subDir == null || subDir.contains("..") || filename == null || filename.isBlank() || filename.contains("..")) {
+            return ResponseEntity.notFound().build();
         }
+        String category = "chat/" + subDir;
+        return serveUploadedFile(
+                buildDiskCandidates(category, filename),
+                category,
+                filename,
+                Paths.get("uploads", "chat", subDir),
+                false);
     }
 
     @PostMapping({"/companies/logo", "/companies/logos"})
@@ -344,52 +328,27 @@ public class FileUploadController {
             
             log.info("📄 Nome único gerado: {}", uniqueFilename);
 
-            // Criar diretório se não existir (com fallback resiliente)
-            Path uploadPath = Paths.get(uploadDir, "companies", "logos").toAbsolutePath().normalize();
-            try {
-                Files.createDirectories(uploadPath);
-            } catch (Exception dirEx) {
-                log.warn("⚠️ Falha ao criar diretório primário {}, tentando fallback 'uploads/companies/logos': {}", uploadPath, dirEx.getMessage());
-                uploadPath = Paths.get("uploads", "companies", "logos").toAbsolutePath().normalize();
-                Files.createDirectories(uploadPath);
-            }
-            log.info("✅ Diretório verificado/criado: {}", uploadPath);
-
-            // Salvar arquivo em disco + persistir no banco de dados (sobrevive a deploys/rebuilds)
-            Path filePath = uploadPath.resolve(uniqueFilename);
-            log.info("💾 Salvando arquivo em: {}", filePath);
+            // Salvar em banco (PostgreSQL) + disco com fallback resiliente
+            Path primaryDir = Paths.get(uploadDir, "companies", "logos").toAbsolutePath().normalize();
+            Path fallbackDir = Paths.get("uploads", "companies", "logos").toAbsolutePath().normalize();
+            String resolvedCt = contentType != null ? contentType : "image/" + fileExtension;
 
             byte[] logoBytes = file.getBytes();
-            Files.write(filePath, logoBytes);
-            storedUploadService.save(
-                    "companies/logos",
-                    uniqueFilename,
-                    contentType != null ? contentType : "image/" + fileExtension,
-                    logoBytes);
-            
-            // Verificar se o arquivo foi salvo corretamente
-            if (!Files.exists(filePath)) {
-                log.error("❌ Arquivo não foi salvo corretamente: {}", filePath);
-                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Erro ao salvar arquivo: arquivo não encontrado após upload"));
-            }
-            
-            log.info("✅ Arquivo salvo com sucesso: {} ({} bytes)", filePath, Files.size(filePath));
+            storedUploadService.saveWithDiskFallback(
+                    primaryDir, fallbackDir, "companies/logos", uniqueFilename, resolvedCt, logoBytes);
 
             // Retornar informações do arquivo
             String relativeUrl = "/api/uploads/companies/logos/" + uniqueFilename;
-            
+
             Map<String, String> response = new HashMap<>();
             response.put("filename", uniqueFilename);
             response.put("originalName", originalFilename);
             response.put("path", "companies/logos/" + uniqueFilename);
             response.put("size", String.valueOf(file.getSize()));
-            response.put("contentType", contentType != null ? contentType : "image/" + fileExtension);
+            response.put("contentType", resolvedCt);
             response.put("url", relativeUrl);
 
-            log.info("✅ Upload concluído com sucesso. URL relativa: {}", relativeUrl);
-            log.info("📄 Arquivo salvo em: {}", filePath.toAbsolutePath());
-
+            log.info("✅ Upload de logo concluído com sucesso ({} bytes). URL: {}", logoBytes.length, relativeUrl);
             return ResponseEntity.ok(response);
 
         } catch (IOException e) {
@@ -415,63 +374,17 @@ public class FileUploadController {
     public ResponseEntity<Resource> getCompanyLogo(
             @Parameter(description = "Nome do arquivo")
             @PathVariable(value = "filename", required = false) String filename) {
-        try {
-            if (filename == null || filename.isBlank() || 
-                filename.contains("e9654118-53a8-4dd8-b57c-bc50997f081b") ||
-                "logo".equalsIgnoreCase(filename) || "logos".equalsIgnoreCase(filename)) {
-                return ResponseEntity.noContent().build();
-            }
-
-            Path uploadPath = Paths.get(uploadDir, "companies", "logos").resolve(filename);
-            Resource resource = new UrlResource(uploadPath.toUri());
-
-            if (resource.exists() && resource.isReadable()) {
-                String contentType = Files.probeContentType(uploadPath);
-                return ResponseEntity.ok()
-                    .contentType(MediaType.parseMediaType(contentType != null ? contentType : "image/jpeg"))
-                    .header(HttpHeaders.CACHE_CONTROL, "public, max-age=86400")
-                    .body(resource);
-            }
-
-            // Fallback nos diretórios alternativos
-            Path[] fallbacks = new Path[] {
-                Paths.get("uploads", "companies", "logos").resolve(filename),
-                Paths.get("..", "uploads", "companies", "logos").resolve(filename),
-                Paths.get("/app/uploads/companies/logos").resolve(filename),
-                Paths.get("/var/www/fluxbus/uploads/companies/logos").resolve(filename)
-            };
-
-            for (Path fb : fallbacks) {
-                if (Files.exists(fb) && Files.isReadable(fb)) {
-                    Resource fbResource = new UrlResource(fb.toUri());
-                    String contentType = Files.probeContentType(fb);
-                    return ResponseEntity.ok()
-                        .contentType(MediaType.parseMediaType(contentType != null ? contentType : "image/jpeg"))
-                        .header(HttpHeaders.CACHE_CONTROL, "public, max-age=86400")
-                        .body(fbResource);
-                }
-            }
-
-            // Fallback persistente no PostgreSQL (evita perda da logomarca após novo deploy)
-            Optional<StoredUpload> dbLogo = storedUploadService.find("companies/logos", filename);
-            if (dbLogo.isPresent() && dbLogo.get().getData() != null && dbLogo.get().getData().length > 0) {
-                StoredUpload stored = dbLogo.get();
-                try {
-                    Files.createDirectories(uploadPath.getParent());
-                    Files.write(uploadPath, stored.getData());
-                } catch (Exception ignored) {}
-                String ct = stored.getContentType() != null ? stored.getContentType() : "image/png";
-                return ResponseEntity.ok()
-                    .contentType(MediaType.parseMediaType(ct))
-                    .header(HttpHeaders.CACHE_CONTROL, "public, max-age=86400")
-                    .body(new ByteArrayResource(stored.getData()));
-            }
-
-            // Retornar 204 No Content se o arquivo não existe em disco nem no banco
-            return ResponseEntity.noContent().build();
-        } catch (Exception e) {
+        if (filename == null || filename.isBlank() || filename.contains("..") ||
+            filename.contains("e9654118-53a8-4dd8-b57c-bc50997f081b") ||
+            "logo".equalsIgnoreCase(filename) || "logos".equalsIgnoreCase(filename)) {
             return ResponseEntity.noContent().build();
         }
+        return serveUploadedFile(
+                buildDiskCandidates("companies/logos", filename),
+                "companies/logos",
+                filename,
+                Paths.get("uploads", "companies", "logos"),
+                true);
     }
 
     @GetMapping({
@@ -486,59 +399,16 @@ public class FileUploadController {
     public ResponseEntity<Resource> getCompanyBanner(
             @Parameter(description = "Nome do arquivo")
             @PathVariable(value = "filename", required = false) String filename) {
-        try {
-            if (filename == null || filename.isBlank() || 
-                "banner".equalsIgnoreCase(filename) || "banners".equalsIgnoreCase(filename)) {
-                return ResponseEntity.noContent().build();
-            }
-
-            Path uploadPath = Paths.get(uploadDir, "companies", "banners").resolve(filename);
-            Resource resource = new UrlResource(uploadPath.toUri());
-
-            if (resource.exists() && resource.isReadable()) {
-                String contentType = Files.probeContentType(uploadPath);
-                return ResponseEntity.ok()
-                    .contentType(MediaType.parseMediaType(contentType != null ? contentType : "image/jpeg"))
-                    .header(HttpHeaders.CACHE_CONTROL, "public, max-age=86400")
-                    .body(resource);
-            }
-
-            Path[] fallbacks = new Path[] {
-                Paths.get("uploads", "companies", "banners").resolve(filename),
-                Paths.get("..", "uploads", "companies", "banners").resolve(filename),
-                Paths.get("/app/uploads/companies/banners").resolve(filename),
-                Paths.get("/var/www/fluxbus/uploads/companies/banners").resolve(filename)
-            };
-
-            for (Path fb : fallbacks) {
-                if (Files.exists(fb) && Files.isReadable(fb)) {
-                    Resource fbResource = new UrlResource(fb.toUri());
-                    String contentType = Files.probeContentType(fb);
-                    return ResponseEntity.ok()
-                        .contentType(MediaType.parseMediaType(contentType != null ? contentType : "image/jpeg"))
-                        .header(HttpHeaders.CACHE_CONTROL, "public, max-age=86400")
-                        .body(fbResource);
-                }
-            }
-
-            Optional<StoredUpload> dbBanner = storedUploadService.find("companies/banners", filename);
-            if (dbBanner.isPresent() && dbBanner.get().getData() != null && dbBanner.get().getData().length > 0) {
-                StoredUpload stored = dbBanner.get();
-                try {
-                    Files.createDirectories(uploadPath.getParent());
-                    Files.write(uploadPath, stored.getData());
-                } catch (Exception ignored) {}
-                String ct = stored.getContentType() != null ? stored.getContentType() : "image/png";
-                return ResponseEntity.ok()
-                    .contentType(MediaType.parseMediaType(ct))
-                    .header(HttpHeaders.CACHE_CONTROL, "public, max-age=86400")
-                    .body(new ByteArrayResource(stored.getData()));
-            }
-
-            return ResponseEntity.noContent().build();
-        } catch (Exception e) {
+        if (filename == null || filename.isBlank() || filename.contains("..") ||
+            "banner".equalsIgnoreCase(filename) || "banners".equalsIgnoreCase(filename)) {
             return ResponseEntity.noContent().build();
         }
+        return serveUploadedFile(
+                buildDiskCandidates("companies/banners", filename),
+                "companies/banners",
+                filename,
+                Paths.get("uploads", "companies", "banners"),
+                true);
     }
 
     @GetMapping({
@@ -562,23 +432,43 @@ public class FileUploadController {
             Paths.get("/app/receipts").resolve(filename).toAbsolutePath().normalize(),
             Paths.get("/var/www/fluxbus/uploads/maintenance").resolve(filename).toAbsolutePath().normalize()
         };
-        return serveUploadedFile(candidates, "maintenance", filename, Paths.get(maintenanceUploadDir));
+        return serveUploadedFile(candidates, "maintenance", filename, Paths.get(maintenanceUploadDir), false);
     }
 
     @GetMapping("/vehicle-gate-checklists/odometer-photos/{filename:.+}")
     @Operation(summary = "Obter foto do odômetro do checklist de portaria")
     public ResponseEntity<Resource> getGateOdometerPhoto(@PathVariable("filename") String filename) {
-        if (filename == null || filename.isBlank() || filename.contains("..")) {
-            return ResponseEntity.notFound().build();
-        }
-        Path[] candidates = new Path[] {
-            Paths.get("uploads", "vehicle-gate-checklists", "odometer-photos", filename).toAbsolutePath().normalize(),
-            Paths.get(uploadDir, "vehicle-gate-checklists", "odometer-photos", filename).toAbsolutePath().normalize(),
-            Paths.get("/app/uploads/vehicle-gate-checklists/odometer-photos", filename).toAbsolutePath().normalize(),
-            Paths.get("/var/www/fluxbus/uploads/vehicle-gate-checklists/odometer-photos", filename).toAbsolutePath().normalize()
-        };
-        return serveUploadedFile(candidates, "vehicle-gate-checklists/odometer-photos", filename,
-                Paths.get("uploads", "vehicle-gate-checklists", "odometer-photos"));
+        return serveSubDirPhoto("vehicle-gate-checklists/odometer-photos", filename);
+    }
+
+    @GetMapping("/client-checklists/odometer-photos/{filename:.+}")
+    @Operation(summary = "Obter foto do odômetro do checklist de cliente")
+    public ResponseEntity<Resource> getClientChecklistOdometerPhoto(@PathVariable("filename") String filename) {
+        return serveSubDirPhoto("client-checklists/odometer-photos", filename);
+    }
+
+    @GetMapping("/transport-mobilizations/odometer-photos/{filename:.+}")
+    @Operation(summary = "Obter foto do odômetro da mobilização de transporte")
+    public ResponseEntity<Resource> getTransportMobilizationOdometerPhoto(@PathVariable("filename") String filename) {
+        return serveSubDirPhoto("transport-mobilizations/odometer-photos", filename);
+    }
+
+    @GetMapping("/km-controls/dashboard-photos/{filename:.+}")
+    @Operation(summary = "Obter foto do painel de controle de KM")
+    public ResponseEntity<Resource> getKmControlDashboardPhoto(@PathVariable("filename") String filename) {
+        return serveSubDirPhoto("km-controls/dashboard-photos", filename);
+    }
+
+    @GetMapping("/lavajato/{filename:.+}")
+    @Operation(summary = "Obter foto do checklist de lavajato")
+    public ResponseEntity<Resource> getLavajatoPhoto(@PathVariable("filename") String filename) {
+        return serveSubDirPhoto("lavajato", filename);
+    }
+
+    @GetMapping("/vehicle-cleaning/{filename:.+}")
+    @Operation(summary = "Obter foto de higienização/limpeza de veículo")
+    public ResponseEntity<Resource> getVehicleCleaningPhoto(@PathVariable("filename") String filename) {
+        return serveSubDirPhoto("vehicle-cleaning", filename);
     }
 
     @GetMapping("/vehicles/{vehicleId}/{filename:.+}")
@@ -589,23 +479,46 @@ public class FileUploadController {
         if (vehicleId == null || vehicleId.contains("..") || filename == null || filename.isBlank() || filename.contains("..")) {
             return ResponseEntity.notFound().build();
         }
-        Path[] candidates = new Path[] {
-            Paths.get("uploads", "vehicles", vehicleId, filename).toAbsolutePath().normalize(),
-            Paths.get(uploadDir, "vehicles", vehicleId, filename).toAbsolutePath().normalize(),
-            Paths.get("/app/uploads/vehicles", vehicleId, filename).toAbsolutePath().normalize(),
-            Paths.get("/var/www/fluxbus/uploads/vehicles", vehicleId, filename).toAbsolutePath().normalize()
-        };
-        return serveUploadedFile(candidates, "vehicles/" + vehicleId, filename,
-                Paths.get("uploads", "vehicles", vehicleId));
+        return serveSubDirPhoto("vehicles/" + vehicleId, filename);
     }
 
-    private ResponseEntity<Resource> serveUploadedFile(Path[] candidates, String dbCategory, String filename, Path cacheDir) {
+    private ResponseEntity<Resource> serveSubDirPhoto(String subDir, String filename) {
+        if (filename == null || filename.isBlank() || filename.contains("..")) {
+            return ResponseEntity.notFound().build();
+        }
+        return serveUploadedFile(
+                buildDiskCandidates(subDir, filename),
+                subDir,
+                filename,
+                Paths.get("uploads", subDir),
+                false);
+    }
+
+    private Path[] buildDiskCandidates(String subDir, String filename) {
+        String cleanSub = subDir.replace("\\", "/").replaceFirst("^/+", "");
+        return new Path[] {
+            Paths.get(uploadDir, cleanSub, filename).toAbsolutePath().normalize(),
+            Paths.get("uploads", cleanSub, filename).toAbsolutePath().normalize(),
+            Paths.get("..", "uploads", cleanSub, filename).toAbsolutePath().normalize(),
+            Paths.get("/app/uploads", cleanSub, filename).toAbsolutePath().normalize(),
+            Paths.get("/var/www/fluxbus/uploads", cleanSub, filename).toAbsolutePath().normalize()
+        };
+    }
+
+    private ResponseEntity<Resource> serveUploadedFile(
+            Path[] candidates,
+            String dbCategory,
+            String filename,
+            Path cacheDir,
+            boolean returnNoContentWhenMissing) {
         try {
             String lowerName = filename.toLowerCase();
             String fallbackCt = lowerName.endsWith(".pdf") ? "application/pdf"
                     : lowerName.endsWith(".xml") ? "application/xml"
                     : lowerName.endsWith(".png") ? "image/png"
                     : lowerName.endsWith(".webp") ? "image/webp"
+                    : lowerName.endsWith(".svg") ? "image/svg+xml"
+                    : lowerName.endsWith(".ico") ? "image/x-icon"
                     : "image/jpeg";
             for (Path candidate : candidates) {
                 if (Files.exists(candidate) && Files.isRegularFile(candidate) && Files.isReadable(candidate)) {
@@ -633,9 +546,9 @@ public class FileUploadController {
                     .header(HttpHeaders.CACHE_CONTROL, "public, max-age=86400")
                     .body(new ByteArrayResource(stored.getData()));
             }
-            return ResponseEntity.notFound().build();
+            return returnNoContentWhenMissing ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
         } catch (Exception e) {
-            return ResponseEntity.notFound().build();
+            return returnNoContentWhenMissing ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
         }
     }
 
@@ -685,40 +598,25 @@ public class FileUploadController {
             }
             String uniqueFilename = UUID.randomUUID().toString() + "." + fileExtension;
             
-            Path uploadPath = Paths.get(uploadDir, "companies", "banners").toAbsolutePath().normalize();
-            try {
-                Files.createDirectories(uploadPath);
-            } catch (Exception dirEx) {
-                log.warn("⚠️ Falha ao criar diretório primário {}, tentando fallback 'uploads/companies/banners': {}", uploadPath, dirEx.getMessage());
-                uploadPath = Paths.get("uploads", "companies", "banners").toAbsolutePath().normalize();
-                Files.createDirectories(uploadPath);
-            }
+            Path primaryDir = Paths.get(uploadDir, "companies", "banners").toAbsolutePath().normalize();
+            Path fallbackDir = Paths.get("uploads", "companies", "banners").toAbsolutePath().normalize();
+            String resolvedCt = contentType != null ? contentType : "image/" + fileExtension;
 
-            Path filePath = uploadPath.resolve(uniqueFilename);
             byte[] bannerBytes = file.getBytes();
-            Files.write(filePath, bannerBytes);
-            storedUploadService.save(
-                    "companies/banners",
-                    uniqueFilename,
-                    contentType != null ? contentType : "image/" + fileExtension,
-                    bannerBytes);
-            
-            if (!Files.exists(filePath)) {
-                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Erro ao salvar banner: arquivo não encontrado após upload"));
-            }
-            
+            storedUploadService.saveWithDiskFallback(
+                    primaryDir, fallbackDir, "companies/banners", uniqueFilename, resolvedCt, bannerBytes);
+
             String relativeUrl = "/api/uploads/companies/banners/" + uniqueFilename;
-            
+
             Map<String, String> response = new HashMap<>();
             response.put("filename", uniqueFilename);
             response.put("originalName", originalFilename);
             response.put("path", "companies/banners/" + uniqueFilename);
             response.put("size", String.valueOf(file.getSize()));
-            response.put("contentType", contentType != null ? contentType : "image/" + fileExtension);
+            response.put("contentType", resolvedCt);
             response.put("url", relativeUrl);
-            
-            log.info("✅ Upload de banner concluído com sucesso. URL: {}", relativeUrl);
+
+            log.info("✅ Upload de banner concluído com sucesso ({} bytes). URL: {}", bannerBytes.length, relativeUrl);
             return ResponseEntity.ok(response);
 
         } catch (IOException e) {

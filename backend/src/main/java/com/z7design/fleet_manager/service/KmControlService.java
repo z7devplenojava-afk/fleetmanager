@@ -9,6 +9,7 @@ import com.z7design.fleet_manager.repository.UserRepository;
 import com.z7design.fleet_manager.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -35,7 +36,10 @@ public class KmControlService {
     private final KmControlRepository kmControlRepository;
     private final VehicleRepository vehicleRepository;
     private final UserRepository userRepository;
-    
+
+    @Autowired(required = false)
+    private StoredUploadService storedUploadService;
+
     private static final String UPLOAD_DIR = "uploads/km-controls/dashboard-photos/";
     
     /**
@@ -373,12 +377,7 @@ public class KmControlService {
                 .orElseThrow(() -> new ResourceNotFoundException("Registro de controle de KM nÃ£o encontrado com ID: " + id));
         
         try {
-            // Criar diretÃ³rio se nÃ£o existir
             Path uploadPath = Paths.get(UPLOAD_DIR);
-            if (!Files.exists(uploadPath)) {
-                Files.createDirectories(uploadPath);
-                log.info("DiretÃ³rio criado: {}", uploadPath.toAbsolutePath());
-            }
             
             // Gerar nome Ãºnico para o arquivo
             String originalFilename = file.getOriginalFilename();
@@ -388,11 +387,15 @@ public class KmControlService {
             }
             
             String filename = UUID.randomUUID().toString() + "_" + id + fileExtension;
-            Path filePath = uploadPath.resolve(filename);
-            
-            // Salvar arquivo
-            Files.copy(file.getInputStream(), filePath);
-            log.info("Arquivo salvo: {}", filePath.toAbsolutePath());
+            String ct = file.getContentType() != null ? file.getContentType() : "image/jpeg";
+            byte[] bytes = file.getBytes();
+            if (storedUploadService != null) {
+                storedUploadService.saveWithDiskFallback(
+                        uploadPath, null, "km-controls/dashboard-photos", filename, ct, bytes);
+            } else {
+                Files.write(uploadPath.resolve(filename), bytes);
+            }
+            log.info("Arquivo salvo: km-controls/dashboard-photos/{}", filename);
             
             // Construir URL da foto (assumindo que o diretÃ³rio de upload Ã© servido estaticamente)
             String photoUrl = "/uploads/km-controls/dashboard-photos/" + filename;

@@ -10,6 +10,7 @@ import com.z7design.fleet_manager.model.*;
 import com.z7design.fleet_manager.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -39,6 +40,9 @@ public class ClientChecklistService {
     private final VehicleRepository vehicleRepository;
     private final DriverRepository driverRepository;
     private final ObjectMapper objectMapper;
+
+    @Autowired(required = false)
+    private StoredUploadService storedUploadService;
 
     private static final String ODOMETER_UPLOAD_DIR = "uploads/client-checklists/odometer-photos/";
     private static final String VEHICLE_PHOTOS_DIR = "uploads/vehicles/";
@@ -259,15 +263,21 @@ public class ClientChecklistService {
                 .orElseThrow(() -> new ResourceNotFoundException("Registro não encontrado: " + id));
         try {
             Path uploadPath = Paths.get(ODOMETER_UPLOAD_DIR);
-            if (!Files.exists(uploadPath)) {
-                Files.createDirectories(uploadPath);
-            }
             String originalFilename = file.getOriginalFilename();
             String fileExtension = (originalFilename != null && originalFilename.contains("."))
                     ? originalFilename.substring(originalFilename.lastIndexOf(".")) : ".jpg";
             String filename = UUID.randomUUID().toString() + "_" + id + fileExtension;
-            Path filePath = uploadPath.resolve(filename);
-            Files.copy(file.getInputStream(), filePath);
+            String ct = file.getContentType() != null ? file.getContentType() : "image/jpeg";
+            byte[] bytes = file.getBytes();
+            if (storedUploadService != null) {
+                storedUploadService.saveWithDiskFallback(
+                        uploadPath, null, "client-checklists/odometer-photos", filename, ct, bytes);
+            } else {
+                if (!Files.exists(uploadPath)) {
+                    Files.createDirectories(uploadPath);
+                }
+                Files.write(uploadPath.resolve(filename), bytes);
+            }
             String photoUrl = "/uploads/client-checklists/odometer-photos/" + filename;
             entity.setOdometerPhotoUrl(photoUrl);
             entity.setOdometerPhotoDescription(description);
@@ -292,9 +302,6 @@ public class ClientChecklistService {
 
         try {
             Path uploadPath = Paths.get(VEHICLE_PHOTOS_DIR, vehicleId.toString());
-            if (!Files.exists(uploadPath)) {
-                Files.createDirectories(uploadPath);
-            }
 
             List<String> newUrls = new ArrayList<>();
             for (MultipartFile file : files) {
@@ -303,8 +310,17 @@ public class ClientChecklistService {
                 String fileExtension = (originalFilename != null && originalFilename.contains("."))
                         ? originalFilename.substring(originalFilename.lastIndexOf(".")) : ".jpg";
                 String filename = UUID.randomUUID().toString() + "_" + id + fileExtension;
-                Path filePath = uploadPath.resolve(filename);
-                Files.copy(file.getInputStream(), filePath);
+                String ct = file.getContentType() != null ? file.getContentType() : "image/jpeg";
+                byte[] bytes = file.getBytes();
+                if (storedUploadService != null) {
+                    storedUploadService.saveWithDiskFallback(
+                            uploadPath, null, "vehicles/" + vehicleId, filename, ct, bytes);
+                } else {
+                    if (!Files.exists(uploadPath)) {
+                        Files.createDirectories(uploadPath);
+                    }
+                    Files.write(uploadPath.resolve(filename), bytes);
+                }
                 String photoUrl = "/uploads/vehicles/" + vehicleId + "/" + filename;
                 newUrls.add(photoUrl);
             }

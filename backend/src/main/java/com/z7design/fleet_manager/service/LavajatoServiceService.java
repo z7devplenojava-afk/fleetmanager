@@ -14,6 +14,7 @@ import com.z7design.fleet_manager.repository.*;
 import com.z7design.fleet_manager.service.whatsapp.WhatsAppGateway;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -47,6 +48,9 @@ public class LavajatoServiceService {
     private final NotificationService notificationService;
     private final WhatsAppGateway whatsAppGateway;
     private final ObjectMapper objectMapper;
+
+    @Autowired(required = false)
+    private StoredUploadService storedUploadService;
 
     private static final String PHOTOS_DIR = "uploads/lavajato/";
 
@@ -212,14 +216,20 @@ public class LavajatoServiceService {
 
         try {
             Path uploadPath = Paths.get(PHOTOS_DIR);
-            if (!Files.exists(uploadPath)) {
-                Files.createDirectories(uploadPath);
-            }
             String originalFilename = file.getOriginalFilename();
             String extension = (originalFilename != null && originalFilename.contains("."))
                     ? originalFilename.substring(originalFilename.lastIndexOf(".")) : ".jpg";
             String filename = UUID.randomUUID() + "_" + lavajato.getId() + extension;
-            Files.copy(file.getInputStream(), uploadPath.resolve(filename));
+            String ct = file.getContentType() != null ? file.getContentType() : "image/jpeg";
+            byte[] bytes = file.getBytes();
+            if (storedUploadService != null) {
+                storedUploadService.saveWithDiskFallback(uploadPath, null, "lavajato", filename, ct, bytes);
+            } else {
+                if (!Files.exists(uploadPath)) {
+                    Files.createDirectories(uploadPath);
+                }
+                Files.write(uploadPath.resolve(filename), bytes);
+            }
             String photoUrl = "/uploads/lavajato/" + filename;
 
             String defaultTemplate = "internal".equalsIgnoreCase(checklistType)
