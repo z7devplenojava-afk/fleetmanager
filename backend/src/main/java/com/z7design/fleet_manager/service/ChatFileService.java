@@ -72,7 +72,7 @@ public class ChatFileService {
                 Files.write(uploadPath.resolve(uniqueFilename), bytes);
             }
             
-            log.info("âœ… Arquivo de chat salvo: {}", filePath.toString());
+            log.info("Arquivo de chat salvo: chat/{}/{}", subDir, uniqueFilename);
             
             // Retornar informaÃ§Ãµes do arquivo
             ChatFileInfo fileInfo = new ChatFileInfo();
