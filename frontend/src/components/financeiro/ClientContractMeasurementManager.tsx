@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { FLUXBUS_LOGO_DARK } from '@/lib/brandAssets';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -2845,7 +2846,7 @@ export const ClientContractMeasurementManager: React.FC = () => {
                     />
                   ) : (
                     <img
-                      src="/fluxbus-logo.png"
+                      src={FLUXBUS_LOGO_DARK}
                       alt="Logomarca Padrão"
                       className="w-full h-full object-contain opacity-80"
                     />

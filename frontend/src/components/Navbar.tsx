@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import QuoteModal from '@/components/QuoteModal';
 import ThemeToggle from '@/components/ThemeToggle';
 import { useTheme } from '@/contexts/ThemeContext';
+import { getFluxbusLogoSrc } from '@/lib/brandAssets';
 
 const Navbar: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -14,7 +15,7 @@ const Navbar: React.FC = () => {
     setMobileMenuOpen(!mobileMenuOpen);
   };
 
-  const logoSrc = isDark ? '/fluxbus-logo.png' : '/fluxbus-logo-light.png';
+  const logoSrc = getFluxbusLogoSrc(isDark);
   const navLinkClass = isDark
     ? 'text-slate-200 hover:text-cyan-400 transition-colors font-medium text-sm'
     : 'text-slate-700 hover:text-red-600 transition-colors font-medium text-sm';

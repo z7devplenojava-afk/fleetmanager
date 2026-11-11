@@ -13,6 +13,7 @@ interface LogoProps {
 }
 
 import { resolveCompanyLogoUrl, getStoredCompanyBranding } from '@/utils/logoUtils';
+import { getFluxbusLogoSrc } from '@/lib/brandAssets';
 export { resolveCompanyLogoUrl };
 
 const Logo: React.FC<LogoProps> = ({
@@ -118,7 +119,7 @@ const Logo: React.FC<LogoProps> = ({
   return (
     <div className={`flex items-center select-none ${className}`}>
       <img
-        src={isDark ? '/fluxbus-logo.png' : '/fluxbus-logo-light.png'}
+        src={getFluxbusLogoSrc(isDark)}
         alt="FluxBus - Transporte Corporativo e Fretamento"
         className={`${heightClasses[size]} w-auto max-w-[200px] object-contain drop-shadow-md hover:scale-[1.03] transition-all duration-300`}
       />
