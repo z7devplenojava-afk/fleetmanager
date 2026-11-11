@@ -13,7 +13,7 @@ import {
     Wrench, Trash2, Plus, ClipboardList, Clock, History,
     Gauge, AlertTriangle, Send, ChevronDown, ChevronUp, CheckCircle, XCircle, MinusCircle, UserCheck,
     Camera, UploadCloud, Image as LucideImage, Package, ShieldCheck, Tag, FileText, Check, AlertCircle,
-    Timer, Edit, PlayCircle, StopCircle, RefreshCw, Zap, Sparkles, Car, PenLine, Eraser
+    Timer, Edit, PlayCircle, StopCircle, RefreshCw, Zap, Sparkles, Car, PenLine, Eraser, User, Calendar
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -83,14 +83,17 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
     const { user }        = useAuth();
     const queryClient     = useQueryClient();
     const isEdit          = !!order?.id;
+    const isDriverUser    = user?.role === 'MOTORISTA' || Boolean((user as any)?.roles?.some((r: any) => typeof r === 'string' ? r.includes('MOTORISTA') : r?.name?.includes('MOTORISTA')));
 
-    // Aba padrão: Formulário Completo sempre primeiro e ativo por padrão
-    const [isExpressMode, setIsExpressMode] = useState(false);
+    // Aba padrão: Motorista usa sempre modo simplificado; oficina/gestor inicia no Formulário Completo
+    const [isExpressMode, setIsExpressMode] = useState(isDriverUser);
+    const effectiveExpressMode = isDriverUser || isExpressMode;
 
     const [isLoading, setIsLoading]         = useState(false);
     const [newNote, setNewNote]             = useState('');
     const [showResignResp, setShowResignResp] = useState(false);
     const [showResignSup, setShowResignSup]   = useState(false);
+    const [showResignRel, setShowResignRel]   = useState(false);
     const [showHistory, setShowHistory]     = useState(false);
     const [isPdfModalOpen, setIsPdfModalOpen]       = useState(false);
     const [pdfPreviewOrder, setPdfPreviewOrder]     = useState<FleetWorkOrder | null>(null);
@@ -112,7 +115,9 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         laborCost: 0, partsCost: 0, totalCost: 0,
         odometerIn: undefined, odometerOut: undefined,
         stopReason: '', mechanicName: '', notes: '', items: [], checklistItems: [],
-        anomaliesDescription: '', otherDescription: '', maintenancePerformed: ''
+        anomaliesDescription: '', otherDescription: '', maintenancePerformed: '',
+        driverName: '', requestDate: new Date().toISOString().split('T')[0],
+        servicesVerified: undefined, releaseDate: '', releaseTime: '', releasedByName: '', releaseSignature: ''
     });
 
     // Estado do controle de execução do serviço
@@ -872,12 +877,15 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         }
     }, [formData.maintenanceType, formData.vehicleId]);
 
-    // Popular form ao abrir (Formulário Completo sempre como aba padrão)
+    // Popular form ao abrir (Motorista sempre em modo simplificado)
     useEffect(() => {
         if (order) {
             const resp = getOrderResponsibleDisplay(order);
+            const fallbackDriver = isDriverUser ? (user?.name || (user as any)?.fullName || user?.username || '') : '';
             setFormData({
                 ...order,
+                driverName: (order.driverName && order.driverName.trim()) ? order.driverName : fallbackDriver,
+                requestDate: order.requestDate || order.stopDate || new Date().toISOString().split('T')[0],
                 mechanicName: (order.mechanicName && order.mechanicName.trim()) ? order.mechanicName : (resp !== 'Não atribuído' ? resp : ''),
                 responsibleName: (order.responsibleName && order.responsibleName.trim())
                     ? order.responsibleName
@@ -885,13 +893,14 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                 responsibleId: order.responsibleId || order.mechanicId || undefined,
                 responsibleSignature: order.responsibleSignature?.startsWith('data:image/') ? order.responsibleSignature : '',
                 supervisorSignature: order.supervisorSignature?.startsWith('data:image/') ? order.supervisorSignature : '',
+                releaseSignature: order.releaseSignature?.startsWith('data:image/') ? order.releaseSignature : '',
             });
-            setIsExpressMode(false);
+            setIsExpressMode(isDriverUser);
         } else {
             const today = new Date().toISOString().split('T')[0];
             const nowTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-            const isDriver = user?.role === 'MOTORISTA' || (user as any)?.roles?.some((r: any) => typeof r === 'string' ? r.includes('MOTORISTA') : r?.name?.includes('MOTORISTA'));
-            const defaultResponsible = isDriver ? `${user?.name || 'Motorista'} (Motorista)` : '';
+            const driverFullName = user?.name || (user as any)?.fullName || user?.username || 'Motorista';
+            const defaultResponsible = isDriverUser ? `${driverFullName} (Motorista)` : '';
             setFormData({
                 vehicleId: initialVehicleId || '',
                 maintenanceType: MaintenanceType.CORRETIVA,
@@ -901,8 +910,15 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                 plannedDate: today,
                 stopDate: today,
                 stopTime: nowTime,
+                requestDate: today,
+                driverName: isDriverUser ? driverFullName : '',
+                servicesVerified: undefined,
+                releaseDate: '',
+                releaseTime: '',
+                releasedByName: '',
+                releaseSignature: '',
                 laborCost: 0, partsCost: 0, totalCost: 0,
-                stopReason: isDriver ? 'Abertura de Chamado pelo Condutor/Motorista' : '',
+                stopReason: isDriverUser ? 'Abertura de Chamado pelo Condutor/Motorista' : '',
                 mechanicName: defaultResponsible,
                 requesterName: user?.name,
                 requesterId: (user as any)?.employeeId || (user?.id ? String(user.id) : undefined),
@@ -912,17 +928,18 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                 supervisorName: undefined,
                 responsibleSignature: '',
                 supervisorSignature: '',
-                notes: isDriver ? `OS aberta pelo Motorista: ${user?.name || 'Condutor'} via Sistema` : '',
+                notes: isDriverUser ? `OS aberta pelo Motorista: ${driverFullName} via Sistema` : '',
                 items: [], checklistItems: [],
                 anomaliesDescription: '', otherDescription: '', maintenancePerformed: ''
             });
-            setIsExpressMode(false);
+            setIsExpressMode(isDriverUser);
         }
         setShowHistory(false);
         setShowResignResp(false);
         setShowResignSup(false);
+        setShowResignRel(false);
         setNewNote('');
-    }, [order, isOpen, initialVehicleId]);
+    }, [order, isOpen, initialVehicleId, isDriverUser]);
 
     // Veículo selecionado atualmente
     const selectedVehicle = React.useMemo(() => {
@@ -1402,6 +1419,8 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
 
             const payload: Partial<FleetWorkOrder> = {
                 ...formData,
+                driverName: formData.driverName?.trim() || (isDriver ? driverName : undefined),
+                requestDate: formData.requestDate || formData.stopDate || today,
                 mechanicName: resolvedMechanic,
                 responsibleName: formData.responsibleName || (isDriver ? driverName : undefined),
                 requesterName: formData.requesterName || (isDriver ? driverName : undefined),
@@ -1475,6 +1494,8 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
 
             const payload: Partial<FleetWorkOrder> = {
                 ...formData,
+                driverName: formData.driverName?.trim() || (isDriver ? driverName : undefined),
+                requestDate: formData.requestDate || formData.stopDate || today,
                 mechanicName: resolvedMechanic,
                 responsibleName: formData.responsibleName || (isDriver ? driverName : undefined),
                 requesterName: formData.requesterName || (isDriver ? driverName : undefined),
@@ -1557,7 +1578,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                 >
                     Cancelar
                 </Button>
-                {isExpressMode && (
+                {effectiveExpressMode && !isDriverUser && (
                     <Button
                         type="button"
                         variant="outline"
@@ -1603,7 +1624,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                 <div className="hidden sm:block h-6 w-px bg-gray-700/80 mx-0.5" />
 
                 {/* Grupo Salvar / Status */}
-                {isExpressMode ? (
+                {effectiveExpressMode ? (
                     <Button
                         type="button"
                         onClick={() => handleSubmit(WorkOrderStatus.OPEN)}
@@ -1708,37 +1729,44 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                             )}
                         </div>
 
-                        {/* Seletor segmentado responsivo: Formulário Completo (1º) vs Abertura Expressa (2º) */}
-                        <div className="grid grid-cols-2 sm:inline-flex p-1 bg-black/90 rounded-lg border border-gray-800 w-full sm:w-auto">
-                            <button
-                                type="button"
-                                onClick={() => setIsExpressMode(false)}
-                                className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                                    !isExpressMode
-                                        ? 'bg-blue-600 !text-white shadow-md'
-                                        : 'text-gray-400 hover:text-white'
-                                }`}
-                            >
-                                <ClipboardList className="h-3.5 w-3.5 shrink-0" />
-                                <span className="truncate">Formulário Completo</span>
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setIsExpressMode(true)}
-                                className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                                    isExpressMode
-                                        ? 'bg-amber-500 text-black shadow-md'
-                                        : 'text-gray-400 hover:text-white'
-                                }`}
-                            >
+                        {/* Seletor segmentado responsivo: oculta Formulário Completo para Motorista */}
+                        {isDriverUser ? (
+                            <Badge className="bg-amber-500/15 text-amber-300 border border-amber-500/40 text-xs font-bold px-3 py-1.5 flex items-center gap-1.5 w-fit">
                                 <Zap className="h-3.5 w-3.5 shrink-0" />
-                                <span className="truncate">Abertura Expressa</span>
-                            </button>
-                        </div>
+                                Abertura Simplificada (Motorista)
+                            </Badge>
+                        ) : (
+                            <div className="grid grid-cols-2 sm:inline-flex p-1 bg-black/90 rounded-lg border border-gray-800 w-full sm:w-auto">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsExpressMode(false)}
+                                    className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                                        !effectiveExpressMode
+                                            ? 'bg-blue-600 !text-white shadow-md'
+                                            : 'text-gray-400 hover:text-white'
+                                    }`}
+                                >
+                                    <ClipboardList className="h-3.5 w-3.5 shrink-0" />
+                                    <span className="truncate">Formulário Completo</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsExpressMode(true)}
+                                    className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                                        effectiveExpressMode
+                                            ? 'bg-amber-500 text-black shadow-md'
+                                            : 'text-gray-400 hover:text-white'
+                                    }`}
+                                >
+                                    <Zap className="h-3.5 w-3.5 shrink-0" />
+                                    <span className="truncate">Abertura Expressa</span>
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     {/* Navegação rápida entre seções no modo Formulário Completo */}
-                    {!isExpressMode && (
+                    {!effectiveExpressMode && (
                         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 px-1 bg-black/40 border border-gray-800/80 rounded-lg">
                             {[
                                 { id: 'os-sec-identificacao', label: '1. Identificação' },
@@ -1765,8 +1793,38 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                     )}
                 </div>
 
-                {isExpressMode ? (
+                {effectiveExpressMode ? (
                     <div className="space-y-5 animate-in fade-in duration-200">
+                        {/* Motorista & Data da Solicitação */}
+                        <div className="p-4 rounded-xl bg-gray-900/60 border border-gray-800 grid grid-cols-1 sm:grid-cols-2 gap-4 shadow-sm">
+                            <div className="space-y-1.5">
+                                <Label className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                                    <User className="h-4 w-4 text-emerald-400" />
+                                    Motorista
+                                </Label>
+                                <Input
+                                    value={formData.driverName || ''}
+                                    onChange={e => setFormData(p => ({ ...p, driverName: e.target.value }))}
+                                    readOnly={isDriverUser}
+                                    disabled={isDriverUser}
+                                    placeholder="Nome do motorista solicitante"
+                                    className={`bg-seguranca-black border-gray-700 text-sm ${isDriverUser ? 'text-emerald-300 font-semibold cursor-not-allowed opacity-90' : ''}`}
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                                    <Calendar className="h-4 w-4 text-blue-400" />
+                                    Data da Solicitação
+                                </Label>
+                                <Input
+                                    type="date"
+                                    value={formData.requestDate || ''}
+                                    onChange={e => setFormData(p => ({ ...p, requestDate: e.target.value }))}
+                                    className="bg-seguranca-black border-gray-700 text-sm"
+                                />
+                            </div>
+                        </div>
+
                         {/* 1. Veículo e Odômetro */}
                         <div className="p-4 rounded-xl bg-gray-900/60 border border-gray-800 space-y-3 shadow-sm">
                             <div className="flex items-center justify-between">
@@ -1927,12 +1985,12 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                             </div>
                         </div>
 
-                        {/* 3. Defeito Relatado / Queixa com Sintomas Rápidos */}
+                        {/* 4. Descrição de Serviços a Serem Feitos */}
                         <div className="p-4 rounded-xl bg-gray-900/60 border border-gray-800 space-y-3 shadow-sm">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                                 <Label className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-2">
                                     <AlertTriangle className="h-4 w-4 text-amber-400" />
-                                    4. Defeito Relatado / Motivo da Entrada *
+                                    4. Descrição de Serviços a Serem Feitos (Descreva detalhadamente) *
                                 </Label>
                                 <span className="text-[11px] text-gray-500">
                                     Clique nas queixas rápidas para preencher instantaneamente
@@ -1977,14 +2035,16 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                 </p>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => setIsExpressMode(false)}
-                                    className="border-gray-700 text-gray-300 text-xs hover:text-white"
-                                >
-                                    Lançar Peças / Detalhes →
-                                </Button>
+                                {!isDriverUser && (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => setIsExpressMode(false)}
+                                        className="border-gray-700 text-gray-300 text-xs hover:text-white"
+                                    >
+                                        Lançar Peças / Detalhes →
+                                    </Button>
+                                )}
                                 <Button
                                     type="button"
                                     onClick={() => handleSubmit(WorkOrderStatus.OPEN)}
@@ -2131,6 +2191,24 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                 placeholder="Selecione a garagem…"
                                 searchPlaceholder="Buscar garagem por nome..."
                                 emptyText="Nenhuma garagem encontrada."
+                            />
+                        </Field>
+                        <Field label="Motorista">
+                            <Input
+                                value={formData.driverName || ''}
+                                onChange={e => setFormData(p => ({ ...p, driverName: e.target.value }))}
+                                readOnly={isDriverUser}
+                                disabled={isDriverUser}
+                                placeholder="Nome do motorista"
+                                className="bg-seguranca-black border-gray-600"
+                            />
+                        </Field>
+                        <Field label="Data da Solicitação">
+                            <Input
+                                type="date"
+                                value={formData.requestDate || ''}
+                                onChange={e => setFormData(p => ({ ...p, requestDate: e.target.value }))}
+                                className="bg-seguranca-black border-gray-600"
                             />
                         </Field>
                     </div>
@@ -2302,8 +2380,8 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
 
                 {/* ── Seção Dinâmica Corretiva vs Preventiva ──────────────────────── */}
                 {formData.maintenanceType === MaintenanceType.CORRETIVA ? (
-                    <Section id="os-sec-diagnostico" title="Manutenção Corretiva — Anomalias" icon={<AlertTriangle className="h-4 w-4 text-orange-500" />}>
-                        <Field label="Descrição das Anomalias Identificadas *">
+                    <Section id="os-sec-diagnostico" title="Manutenção Corretiva — Serviços Solicitados" icon={<AlertTriangle className="h-4 w-4 text-orange-500" />}>
+                        <Field label="Descrição de Serviços a Serem Feitos (Descreva detalhadamente) *">
                             <Textarea value={formData.anomaliesDescription || ''} onChange={e => setFormData(p => ({ ...p, anomaliesDescription: e.target.value }))}
                                 placeholder="Descreva em detalhes os defeitos e anomalias identificados que necessitam de reparo…"
                                 className="bg-seguranca-black border-gray-600 min-h-[90px]" />
@@ -3340,6 +3418,163 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                     Selecione o supervisor (Encarregado, Gestor, Mecânico, Eng. Mecânico ou Gerente) para habilitar a assinatura digital.
                                 </div>
                             )}
+                        </div>
+
+                        {/* Card 3: Conferência dos Serviços & Liberação do Veículo */}
+                        <div className="lg:col-span-2 p-4 border border-gray-800 rounded-xl bg-gray-950/90 flex flex-col gap-4">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-gray-800">
+                                <Label className="text-xs text-amber-400 font-bold uppercase tracking-wide">
+                                    3. Conferência dos Serviços &amp; Liberação do Veículo
+                                </Label>
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <span className="text-xs text-gray-300 font-medium">
+                                        Os serviços acima descritos foram realizados e conferidos?
+                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setFormData(p => ({ ...p, servicesVerified: true }))}
+                                            className={`px-3 py-1 rounded-md border text-xs font-bold transition-all ${
+                                                formData.servicesVerified === true
+                                                    ? 'bg-emerald-600 border-emerald-400 text-white shadow'
+                                                    : 'bg-black/40 border-gray-700 text-gray-400 hover:border-gray-500'
+                                            }`}
+                                        >
+                                            ( {formData.servicesVerified === true ? 'X' : ' '} ) Sim
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setFormData(p => ({ ...p, servicesVerified: false }))}
+                                            className={`px-3 py-1 rounded-md border text-xs font-bold transition-all ${
+                                                formData.servicesVerified === false
+                                                    ? 'bg-red-600 border-red-400 text-white shadow'
+                                                    : 'bg-black/40 border-gray-700 text-gray-400 hover:border-gray-500'
+                                            }`}
+                                        >
+                                            ( {formData.servicesVerified === false ? 'X' : ' '} ) Não
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <Field label="Data da Liberação do Veículo">
+                                    <Input
+                                        type="date"
+                                        value={formData.releaseDate || ''}
+                                        onChange={e => setFormData(p => ({ ...p, releaseDate: e.target.value }))}
+                                        className="bg-seguranca-black border-gray-600"
+                                    />
+                                </Field>
+                                <Field label="Hora da Liberação do Veículo">
+                                    <Input
+                                        type="time"
+                                        value={formData.releaseTime || ''}
+                                        onChange={e => setFormData(p => ({ ...p, releaseTime: e.target.value }))}
+                                        className="bg-seguranca-black border-gray-600"
+                                    />
+                                </Field>
+                                <Field label="Responsável pela Liberação do Veículo (Nome)">
+                                    <Input
+                                        value={formData.releasedByName || ''}
+                                        onChange={e => setFormData(p => ({ ...p, releasedByName: e.target.value }))}
+                                        placeholder="Nome completo do responsável..."
+                                        className="bg-seguranca-black border-gray-600"
+                                    />
+                                </Field>
+                            </div>
+
+                            <div>
+                                <div className="flex items-center justify-between mb-2">
+                                    <Label className="text-xs text-gray-300 font-semibold uppercase tracking-wide">
+                                        Assinatura (Liberação do Veículo)
+                                    </Label>
+                                    {formData.releaseSignature?.startsWith('data:image/') ? (
+                                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                                            Assinado
+                                        </span>
+                                    ) : (
+                                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-gray-800 text-gray-400 border border-gray-700">
+                                            Opcional (linha em branco no PDF se vazio)
+                                        </span>
+                                    )}
+                                </div>
+
+                                {formData.releaseSignature?.startsWith('data:image/') && !showResignRel ? (
+                                    <div className="space-y-2.5 p-3 rounded-lg bg-black/50 border border-emerald-500/30">
+                                        <div className="flex items-center justify-between text-xs">
+                                            <span className="font-semibold text-emerald-400 flex items-center gap-1.5">
+                                                <CheckCircle className="h-3.5 w-3.5" /> Assinatura Digital Capturada
+                                            </span>
+                                            {formData.releaseSignatureDate && (
+                                                <span className="text-[10px] text-gray-400">
+                                                    {new Date(formData.releaseSignatureDate).toLocaleString('pt-BR')}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="bg-white rounded-md p-2 flex items-center justify-center border border-gray-300">
+                                            <img
+                                                src={formData.releaseSignature}
+                                                alt="Assinatura Liberação do Veículo"
+                                                className="max-h-24 object-contain"
+                                            />
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => setShowResignRel(true)}
+                                                className="flex-1 h-8 text-xs border-gray-700 text-gray-300 hover:text-white"
+                                            >
+                                                <PenLine className="h-3.5 w-3.5 mr-1.5" /> Reassinar
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => {
+                                                    setFormData(p => ({ ...p, releaseSignature: '', releaseSignatureDate: undefined }));
+                                                    setShowResignRel(false);
+                                                }}
+                                                className="flex-1 h-8 text-xs border-red-500/40 text-red-400 hover:bg-red-500/10"
+                                            >
+                                                <Eraser className="h-3.5 w-3.5 mr-1.5" /> Remover (Linha Vazia PDF)
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2 p-3 rounded-lg bg-black/50 border border-gray-800">
+                                        {showResignRel && (
+                                            <div className="flex justify-end">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowResignRel(false)}
+                                                    className="text-xs text-gray-400 hover:text-white underline"
+                                                >
+                                                    Cancelar
+                                                </button>
+                                            </div>
+                                        )}
+                                        <SignaturePad
+                                            compact
+                                            signerName={formData.releasedByName}
+                                            onSave={(dataUrl) => {
+                                                setFormData(p => ({
+                                                    ...p,
+                                                    releaseSignature: dataUrl,
+                                                    releaseSignatureDate: new Date().toISOString()
+                                                }));
+                                                setShowResignRel(false);
+                                                toast({ title: 'Assinatura registrada', description: 'Assinatura da Liberação do Veículo confirmada.' });
+                                            }}
+                                            onClear={() => {
+                                                setFormData(p => ({ ...p, releaseSignature: '', releaseSignatureDate: undefined }));
+                                            }}
+                                        />
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </Section>

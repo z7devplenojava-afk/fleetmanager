@@ -72,6 +72,16 @@ public class FleetWorkOrderDTO {
     private String supervisorSignature;
     private LocalDateTime supervisorSignatureDate;
 
+    // Solicitante (Motorista) & Conferência/Liberação do Veículo
+    private String driverName;
+    private LocalDate requestDate;
+    private Boolean servicesVerified;
+    private LocalDate releaseDate;
+    private String releaseTime;
+    private String releasedByName;
+    private String releaseSignature;
+    private LocalDateTime releaseSignatureDate;
+
     // Odômetro
     private Integer odometerIn;
     private Integer odometerOut;
@@ -114,7 +124,8 @@ public class FleetWorkOrderDTO {
                 }
             }
             java.util.regex.Matcher m2 = java.util.regex.Pattern
-                    .compile("(?i)(?:aberta|criada|gerada|solicitad[ao])\\s+(?:pelo|por)\\s+(?:o\\s+)?(?:motorista|condutor|solicitante)?[:\\s]*([^\\n,]+?)(?:\\s+via|$)")
+                    .compile(
+                            "(?i)(?:aberta|criada|gerada|solicitad[ao])\\s+(?:pelo|por)\\s+(?:o\\s+)?(?:motorista|condutor|solicitante)?[:\\s]*([^\\n,]+?)(?:\\s+via|$)")
                     .matcher(notes);
             if (m2.find() && !m2.group(1).trim().isEmpty()) {
                 String val = m2.group(1).trim();
@@ -147,7 +158,8 @@ public class FleetWorkOrderDTO {
 
         if (notes != null && !notes.isBlank()) {
             String lower = notes.toLowerCase();
-            if (lower.contains("portal mobile") || lower.contains("condutor") || lower.contains("motorista") || lower.contains("checklist")) {
+            if (lower.contains("portal mobile") || lower.contains("condutor") || lower.contains("motorista")
+                    || lower.contains("checklist")) {
                 return "Condutor / Motorista";
             }
         }
@@ -156,7 +168,8 @@ public class FleetWorkOrderDTO {
     }
 
     public static FleetWorkOrderDTO fromEntity(FleetWorkOrder entity) {
-        if (entity == null) return null;
+        if (entity == null)
+            return null;
 
         // Resolve Obra (Cliente) — prioriza a obra gravada na OS; se ausente,
         // cai para a alocação atual do veículo (vehicle.workPostId).
@@ -178,12 +191,14 @@ public class FleetWorkOrderDTO {
             workPostName = entity.getVehicle().getWorkPostEntity() != null
                     ? entity.getVehicle().getWorkPostEntity().getName()
                     : null;
-            if (entity.getVehicle().getWorkPostEntity() != null && entity.getVehicle().getWorkPostEntity().getClient() != null) {
+            if (entity.getVehicle().getWorkPostEntity() != null
+                    && entity.getVehicle().getWorkPostEntity().getClient() != null) {
                 clientId = entity.getVehicle().getWorkPostEntity().getClient().getId();
                 clientName = entity.getVehicle().getWorkPostEntity().getClient().getName();
             }
         }
-        // Garagem: prioriza a garagem gravada na OS; fallback = garagem atual do veículo.
+        // Garagem: prioriza a garagem gravada na OS; fallback = garagem atual do
+        // veículo.
         UUID garageId = entity.getGarage() != null ? entity.getGarage().getId() : null;
         String garageName = entity.getGarage() != null ? entity.getGarage().getName() : null;
         if (garageId == null && entity.getVehicle() != null) {
@@ -207,14 +222,16 @@ public class FleetWorkOrderDTO {
 
         String mechanicName = entity.getMechanicName();
         if (mechanicName == null || mechanicName.isBlank()) {
-            String extracted = extractDriverFromText(entity.getNotes(), entity.getAnomaliesDescription(), entity.getStopReason());
+            String extracted = extractDriverFromText(entity.getNotes(), entity.getAnomaliesDescription(),
+                    entity.getStopReason());
             if (extracted != null && !extracted.isBlank()) {
                 mechanicName = extracted;
             }
             if ((mechanicName == null || mechanicName.isBlank()) && entity.getVehicle() != null) {
                 if (entity.getVehicle().getResponsibleEmployee() != null) {
                     mechanicName = entity.getVehicle().getResponsibleEmployee().getName();
-                } else if (entity.getVehicle().getAssignedDriver() != null && !entity.getVehicle().getAssignedDriver().isBlank()) {
+                } else if (entity.getVehicle().getAssignedDriver() != null
+                        && !entity.getVehicle().getAssignedDriver().isBlank()) {
                     mechanicName = entity.getVehicle().getAssignedDriver() + " (Motorista)";
                 }
             }
@@ -235,6 +252,14 @@ public class FleetWorkOrderDTO {
         if (odometerIn == null && entity.getVehicle() != null) {
             odometerIn = entity.getVehicle().getCurrentMileage();
         }
+
+        String resolvedDriverName = entity.getDriverName();
+        if ((resolvedDriverName == null || resolvedDriverName.isBlank()) && entity.getVehicle() != null) {
+            if (entity.getVehicle().getAssignedDriver() != null && !entity.getVehicle().getAssignedDriver().isBlank()) {
+                resolvedDriverName = entity.getVehicle().getAssignedDriver();
+            }
+        }
+        java.time.LocalDate resolvedRequestDate = entity.getRequestDate() != null ? entity.getRequestDate() : stopDate;
 
         return FleetWorkOrderDTO.builder()
                 .id(entity.getId())
@@ -278,6 +303,14 @@ public class FleetWorkOrderDTO {
                 .responsibleSignatureDate(entity.getResponsibleSignatureDate())
                 .supervisorSignature(entity.getSupervisorSignature())
                 .supervisorSignatureDate(entity.getSupervisorSignatureDate())
+                .driverName(resolvedDriverName)
+                .requestDate(resolvedRequestDate)
+                .servicesVerified(entity.getServicesVerified())
+                .releaseDate(entity.getReleaseDate())
+                .releaseTime(entity.getReleaseTime())
+                .releasedByName(entity.getReleasedByName())
+                .releaseSignature(entity.getReleaseSignature())
+                .releaseSignatureDate(entity.getReleaseSignatureDate())
                 .odometerIn(odometerIn)
                 .odometerOut(entity.getOdometerOut())
                 .stopReason(entity.getStopReason())
@@ -295,7 +328,8 @@ public class FleetWorkOrderDTO {
                         ? entity.getItems().stream().map(WorkOrderItemDTO::fromEntity).collect(Collectors.toList())
                         : null)
                 .checklistItems(entity.getChecklistItems() != null
-                        ? entity.getChecklistItems().stream().map(FleetWorkOrderChecklistDTO::fromEntity).collect(Collectors.toList())
+                        ? entity.getChecklistItems().stream().map(FleetWorkOrderChecklistDTO::fromEntity)
+                                .collect(Collectors.toList())
                         : null)
                 .photoAttachments(entity.getPhotoAttachments() != null
                         ? new java.util.ArrayList<>(entity.getPhotoAttachments())

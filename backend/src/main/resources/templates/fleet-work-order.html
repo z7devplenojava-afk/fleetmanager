@@ -505,6 +505,12 @@
         <td class="valor" th:text="${vehicleModel} ?: '—'">—</td>
       </tr>
       <tr>
+        <td class="label">Motorista:</td>
+        <td class="valor" th:text="${driverName} ?: '—'">—</td>
+        <td class="label">Data da Solicitação:</td>
+        <td class="valor" th:text="${requestDate} ?: '—'">—</td>
+      </tr>
+      <tr>
         <td class="label">Mecânico / Responsável:</td>
         <td class="valor" th:text="${mechanicName} ?: 'Não designado'">—</td>
         <td class="label">Mão de Obra:</td>
@@ -550,10 +556,18 @@
     </table>
   </div>
 
-  <!-- Seção Anomalias (Corretiva) -->
+  <!-- Seção Descrição de Serviços a Serem Feitos -->
   <div class="secao" th:if="${anomaliesDescription != null and anomaliesDescription != ''}">
-    <div class="secao-titulo">Descrição de Anomalias Identificadas</div>
+    <div class="secao-titulo">Descrição de Serviços a Serem Feitos (Descreva detalhadamente)</div>
     <div class="descricao-box" th:text="${anomaliesDescription}">—</div>
+  </div>
+  <div class="secao" th:if="${(anomaliesDescription == null or anomaliesDescription == '') and blankChecklist == true}">
+    <div class="secao-titulo">Descrição de Serviços a Serem Feitos (Descreva detalhadamente)</div>
+    <div class="descricao-box" style="min-height: 44px; line-height: 18px; color: #bbb;">
+      ____________________________________________________________________________________________________________________________________________<br/>
+      ____________________________________________________________________________________________________________________________________________<br/>
+      ____________________________________________________________________________________________________________________________________________
+    </div>
   </div>
 
   <!-- Seção Checklist (Preventiva) - 2 Colunas para caber em uma página -->
@@ -761,7 +775,50 @@
 
   <!-- Declaração de Liberação e Assinaturas Técnicas (Modelo Oficial de OS Preventiva) -->
   <div class="secao" style="margin-top: 10px; page-break-inside: avoid;">
-    <div style="background-color: #f5f5f5; border: 1px solid #333; padding: 4px; text-align: center; font-weight: bold; font-size: 8px; text-transform: uppercase;">
+    <div style="background-color: #f5f5f5; border: 1px solid #333; padding: 5px 8px; font-size: 8px;">
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+          <td style="font-weight: bold; width: 65%; border: none; padding: 2px 0;">
+            Os serviços acima descritos foram realizados e conferidos?
+          </td>
+          <td style="text-align: right; font-weight: bold; border: none; padding: 2px 0;">
+            <span th:if="${servicesVerified == true}">( X ) Sim &#160;&#160;&#160; ( &#160; ) Não</span>
+            <span th:if="${servicesVerified == false}">( &#160; ) Sim &#160;&#160;&#160; ( X ) Não</span>
+            <span th:if="${servicesVerified == null}">( &#160; ) Sim &#160;&#160;&#160; ( &#160; ) Não</span>
+          </td>
+        </tr>
+      </table>
+      <table class="info-table" style="margin-top: 4px; background-color: #fff;">
+        <tr>
+          <td class="label" style="width: 24%;">Data e Hora da Liberação do Veículo:</td>
+          <td class="valor" style="width: 26%;">
+            <span th:if="${releaseDate != null and releaseDate != ''}" th:text="${releaseDate}"></span>
+            <span th:unless="${releaseDate != null and releaseDate != ''}">_____ / _____ / _____</span>
+            <span> às </span>
+            <span th:if="${releaseTime != null and releaseTime != ''}" th:text="${releaseTime}"></span>
+            <span th:unless="${releaseTime != null and releaseTime != ''}">____:____</span>
+          </td>
+          <td class="label" style="width: 24%;">Responsável pela Liberação do Veículo (Nome):</td>
+          <td class="valor" style="width: 26%;">
+            <span th:if="${releasedByName != null and releasedByName != ''}" th:text="${releasedByName}">Nome</span>
+            <span th:unless="${releasedByName != null and releasedByName != ''}">______________________________</span>
+          </td>
+        </tr>
+        <tr>
+          <td class="label">Assinatura (Liberação):</td>
+          <td class="valor" colspan="3" style="padding: 6px 8px;">
+            <div th:if="${releaseSignatureImg != null and releaseSignatureImg != ''}" style="text-align: left;">
+              <img class="assinatura-digital-img" style="margin: 0;" th:src="${releaseSignatureImg}" alt="Assinatura Liberação do Veículo" />
+              <div style="font-size: 7px; color: #555;" th:if="${releaseSignatureDate != null and releaseSignatureDate != ''}" th:text="'Assinado em: ' + ${releaseSignatureDate}"></div>
+            </div>
+            <div th:unless="${releaseSignatureImg != null and releaseSignatureImg != ''}" style="padding-top: 14px;">
+              ___________________________________________________________________________
+            </div>
+          </td>
+        </tr>
+      </table>
+    </div>
+    <div style="background-color: #f5f5f5; border: 1px solid #333; border-top: none; padding: 4px; text-align: center; font-weight: bold; font-size: 8px; text-transform: uppercase;">
       DECLARO QUE O VEÍCULO FOI INSPECIONADO POR MIM COM SEGUINTE CONCLUSÃO: <br/>
       <span style="color: #2e7d32; font-size: 8.5px;">EQUIPAMENTO LIBERADO, SEM RESTRIÇÃO OPERATIVA OU DE SEGURANÇA.</span>
     </div>

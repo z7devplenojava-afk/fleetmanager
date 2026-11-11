@@ -151,6 +151,16 @@ export interface FleetWorkOrder {
     supervisorSignature?: string;
     supervisorSignatureDate?: string;
 
+    // Solicitante (Motorista) & Conferência/Liberação do Veículo
+    driverName?: string;
+    requestDate?: string;
+    servicesVerified?: boolean | null;
+    releaseDate?: string;
+    releaseTime?: string;
+    releasedByName?: string;
+    releaseSignature?: string;
+    releaseSignatureDate?: string;
+
     // Odômetro
     odometerIn?: number;
     odometerOut?: number;

@@ -535,6 +535,18 @@ public class FleetWorkOrderService {
         java.time.LocalDateTime createSupSigDate = createSupSig != null
                 ? (dto.getSupervisorSignatureDate() != null ? dto.getSupervisorSignatureDate() : java.time.LocalDateTime.now())
                 : null;
+        String createReleaseSig = (dto.getReleaseSignature() != null && !dto.getReleaseSignature().isBlank())
+                ? dto.getReleaseSignature().trim() : null;
+        java.time.LocalDateTime createReleaseSigDate = createReleaseSig != null
+                ? (dto.getReleaseSignatureDate() != null ? dto.getReleaseSignatureDate() : java.time.LocalDateTime.now())
+                : null;
+
+        String resolvedDriverName = dto.getDriverName();
+        if ((resolvedDriverName == null || resolvedDriverName.isBlank()) && currentUser != null && isUserDriver(currentUser)) {
+            resolvedDriverName = currentUser.getName();
+        }
+        java.time.LocalDate resolvedStopDate = dto.getStopDate() != null ? dto.getStopDate() : java.time.LocalDate.now();
+        java.time.LocalDate resolvedRequestDate = dto.getRequestDate() != null ? dto.getRequestDate() : resolvedStopDate;
 
         FleetWorkOrder entity = FleetWorkOrder.builder()
                 .osNumber(osNumber)
@@ -548,7 +560,7 @@ public class FleetWorkOrderService {
                 .laborType(dto.getLaborType())
                 .plannedDate(dto.getPlannedDate())
                 .actualDate(dto.getActualDate())
-                .stopDate(dto.getStopDate() != null ? dto.getStopDate() : java.time.LocalDate.now())
+                .stopDate(resolvedStopDate)
                 .stopTime(dto.getStopTime() != null ? dto.getStopTime() : java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")))
                 .exitDate(dto.getExitDate())
                 .exitTime(dto.getExitTime())
@@ -567,6 +579,14 @@ public class FleetWorkOrderService {
                 .responsibleSignatureDate(createRespSigDate)
                 .supervisorSignature(createSupSig)
                 .supervisorSignatureDate(createSupSigDate)
+                .driverName(resolvedDriverName)
+                .requestDate(resolvedRequestDate)
+                .servicesVerified(dto.getServicesVerified())
+                .releaseDate(dto.getReleaseDate())
+                .releaseTime(dto.getReleaseTime())
+                .releasedByName(dto.getReleasedByName())
+                .releaseSignature(createReleaseSig)
+                .releaseSignatureDate(createReleaseSigDate)
                 .odometerIn(dto.getOdometerIn())
                 .odometerOut(dto.getOdometerOut())
                 .stopReason(dto.getStopReason())
@@ -709,6 +729,24 @@ public class FleetWorkOrderService {
                 entity.setSupervisorSignatureDate(java.time.LocalDateTime.now());
             } else if (entity.getSupervisorSignatureDate() == null) {
                 entity.setSupervisorSignatureDate(java.time.LocalDateTime.now());
+            }
+        }
+        if (dto.getDriverName() != null) entity.setDriverName(dto.getDriverName());
+        if (dto.getRequestDate() != null) entity.setRequestDate(dto.getRequestDate());
+        if (dto.getServicesVerified() != null) entity.setServicesVerified(dto.getServicesVerified());
+        if (dto.getReleaseDate() != null) entity.setReleaseDate(dto.getReleaseDate());
+        if (dto.getReleaseTime() != null) entity.setReleaseTime(dto.getReleaseTime());
+        if (dto.getReleasedByName() != null) entity.setReleasedByName(dto.getReleasedByName());
+        if (dto.getReleaseSignature() != null) {
+            String nextRelSig = dto.getReleaseSignature().trim();
+            if (nextRelSig.isEmpty()) {
+                entity.setReleaseSignature(null);
+                entity.setReleaseSignatureDate(null);
+            } else if (!nextRelSig.equals(entity.getReleaseSignature())) {
+                entity.setReleaseSignature(nextRelSig);
+                entity.setReleaseSignatureDate(java.time.LocalDateTime.now());
+            } else if (entity.getReleaseSignatureDate() == null) {
+                entity.setReleaseSignatureDate(java.time.LocalDateTime.now());
             }
         }
 

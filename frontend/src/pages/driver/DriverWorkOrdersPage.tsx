@@ -28,7 +28,9 @@ import {
     Eye,
     Download,
     Printer,
-    Edit
+    Edit,
+    User,
+    Calendar
 } from 'lucide-react';
 import {
     Select,
@@ -71,6 +73,8 @@ export const DriverWorkOrdersPage: React.FC = () => {
     const [otherDetails, setOtherDetails] = useState('');
     const [photoUrls, setPhotoUrls] = useState<string[]>([]);
     const [isUploading, setIsUploading] = useState(false);
+    const [requestDate, setRequestDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+    const loggedDriverName = user?.name || (user as any)?.fullName || user?.username || 'Motorista';
 
     // Estados para Visualizar, Baixar, Imprimir e Editar
     const [viewingPdfOrder, setViewingPdfOrder] = useState<FleetWorkOrder | null>(null);
@@ -264,7 +268,7 @@ export const DriverWorkOrdersPage: React.FC = () => {
             const dateStr = now.toISOString().split('T')[0];
             const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
-            const driverName = user?.name || 'Motorista';
+            const driverName = loggedDriverName;
             const payload: Partial<FleetWorkOrder> = {
                 vehicleId: selectedVehicleId,
                 maintenanceType: MaintenanceType.CORRETIVA,
@@ -272,11 +276,13 @@ export const DriverWorkOrdersPage: React.FC = () => {
                 priority,
                 laborType: LaborType.INTERNAL,
                 mechanicName: `${driverName} (Motorista)`,
+                driverName,
+                requestDate: requestDate || dateStr,
                 responsibleName: driverName,
                 requesterName: driverName,
                 responsibleId: (user as any)?.employeeId || (user?.id ? String(user.id) : undefined),
                 requesterId: (user as any)?.employeeId || (user?.id ? String(user.id) : undefined),
-                stopDate: dateStr,
+                stopDate: requestDate || dateStr,
                 stopTime: timeStr,
                 odometerIn: currentKm !== '' ? Number(currentKm) : (selectedVehicle?.currentMileage || undefined),
                 stopReason: 'Abertura de Chamado pelo Condutor/Motorista',
@@ -304,6 +310,7 @@ export const DriverWorkOrdersPage: React.FC = () => {
             setAnomaliesDescription('');
             setOtherDetails('');
             setPhotoUrls([]);
+            setRequestDate(new Date().toISOString().split('T')[0]);
             setIsCreating(false);
         },
         onError: (err: any) => {
@@ -386,6 +393,33 @@ export const DriverWorkOrdersPage: React.FC = () => {
                         </CardHeader>
 
                         <CardContent className="space-y-5 pt-5">
+                            {/* Motorista (pré-preenchido e bloqueado) e Data da Solicitação */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5">
+                                        <User className="h-4 w-4 text-emerald-400" /> Motorista
+                                    </Label>
+                                    <Input
+                                        value={loggedDriverName}
+                                        readOnly
+                                        disabled
+                                        className="bg-zinc-900/90 border-zinc-700 text-emerald-300 font-semibold cursor-not-allowed opacity-90"
+                                    />
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5">
+                                        <Calendar className="h-4 w-4 text-blue-400" /> Data da Solicitação
+                                    </Label>
+                                    <Input
+                                        type="date"
+                                        value={requestDate}
+                                        onChange={(e) => setRequestDate(e.target.value)}
+                                        className="bg-zinc-950 border-zinc-800 text-zinc-200"
+                                    />
+                                </div>
+                            </div>
+
                             {/* 1. Seleção de Veículo */}
                             <div className="space-y-2">
                                 <Label className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5">
@@ -474,10 +508,10 @@ export const DriverWorkOrdersPage: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* 3. Descrição do Defeito / Anomalia */}
+                            {/* 3. Descrição de Serviços a Serem Feitos */}
                             <div className="space-y-1.5">
                                 <Label className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5">
-                                    <AlertTriangle className="h-4 w-4 text-amber-400" /> Descrição do Problema / Anomalia *
+                                    <AlertTriangle className="h-4 w-4 text-amber-400" /> Descrição de Serviços a Serem Feitos (Descreva detalhadamente) *
                                 </Label>
                                 <Textarea
                                     rows={4}

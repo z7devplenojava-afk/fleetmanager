@@ -242,6 +242,12 @@
       </td>
     </tr>
     <tr>
+      <td class="label">Motorista</td>
+      <td class="valor" th:text="${driverName} ?: '—'">—</td>
+      <td class="label">Data da Solicitação</td>
+      <td class="valor" th:text="${requestDate} ?: '—'">—</td>
+    </tr>
+    <tr>
       <td class="label">Situação</td>
       <td class="valor" th:text="${status} ?: '—'">—</td>
       <td class="label">Conclusão</td>

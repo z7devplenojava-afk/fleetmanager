@@ -152,6 +152,31 @@ public class FleetWorkOrder implements TenantAware {
     @Column(name = "supervisor_signature_date")
     private LocalDateTime supervisorSignatureDate;
 
+    // ── Solicitante (Motorista) e Conferência/Liberação do Veículo ─────
+    @Column(name = "driver_name", length = 255)
+    private String driverName;
+
+    @Column(name = "request_date")
+    private LocalDate requestDate;
+
+    @Column(name = "services_verified")
+    private Boolean servicesVerified;
+
+    @Column(name = "release_date")
+    private LocalDate releaseDate;
+
+    @Column(name = "release_time", length = 10)
+    private String releaseTime;
+
+    @Column(name = "released_by_name", length = 255)
+    private String releasedByName;
+
+    @Column(name = "release_signature", columnDefinition = "TEXT")
+    private String releaseSignature;
+
+    @Column(name = "release_signature_date")
+    private LocalDateTime releaseSignatureDate;
+
     // ── Odômetro ──────────────────────────────────────────────
     /** Quilometragem do veículo na entrada da OS */
     @Column(name = "odometer_in")
