@@ -13,20 +13,13 @@ import {
   Home,
   UserCircle,
   CreditCard,
-  Upload,
-  AlertTriangle,
-  Bus,
-  MapPin,
-  QrCode,
-  Camera,
-  History,
-  Image as ImageIcon,
   Building2,
-  Navigation
+  Bus,
+  ShieldCheck,
+  Award,
+  CalendarDays
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
@@ -40,6 +33,10 @@ import Vacations from '@/components/employee/Vacations';
 import Notifications from '@/components/employee/Notifications';
 import EmployeeDashboard from '@/components/employee/EmployeeDashboard';
 import ClientPassengerPortalContent from '@/components/employee/ClientPassengerPortalContent';
+import Benefits from '@/components/employee/Benefits';
+import EpiForms from '@/components/employee/EpiForms';
+import YearCalendarModal from '@/components/employee/YearCalendarModal';
+import NotificationBell from '@/components/NotificationBell';
 import ThemeToggle from '@/components/ThemeToggle';
 
 interface EmployeePortalProps {}
@@ -67,6 +64,14 @@ const EmployeePortal: React.FC<EmployeePortalProps> = () => {
 
   const [activeTab, setActiveTab] = useState(() => (isClientEmployee ? 'fretamento' : 'dashboard'));
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [calendarModalOpen, setCalendarModalOpen] = useState(false);
+
+  const today = new Date();
+  const formattedTodayShort = today.toLocaleDateString('pt-BR', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short'
+  });
 
   const handleToggleMode = (mode: 'operator' | 'client') => {
     const isClient = mode === 'client';
@@ -87,10 +92,12 @@ const EmployeePortal: React.FC<EmployeePortalProps> = () => {
     { id: 'profile', label: 'Meu Perfil', icon: UserCircle },
     { id: 'time-records', label: 'Ponto Eletrônico', icon: Clock },
     { id: 'payslips', label: 'Holerites', icon: FileText },
+    { id: 'benefits', label: 'Benefícios', icon: Award },
+    { id: 'epi', label: 'Fichas de EPI', icon: ShieldCheck },
     { id: 'documents', label: 'Documentos', icon: CreditCard },
     { id: 'trainings', label: 'Treinamentos', icon: BookOpen },
     { id: 'vacations', label: 'Férias', icon: Calendar },
-    { id: 'notifications', label: 'Notificações', icon: Bell },
+    { id: 'notifications', label: 'Notificações do RH', icon: Bell },
   ];
 
   // Menu para colaboradores de empresas clientes (Passageiros do fretado)
@@ -122,6 +129,10 @@ const EmployeePortal: React.FC<EmployeePortalProps> = () => {
         return <TimeRecords />;
       case 'payslips':
         return <Payslips />;
+      case 'benefits':
+        return <Benefits />;
+      case 'epi':
+        return <EpiForms />;
       case 'documents':
         return <Documents />;
       case 'trainings':
@@ -136,8 +147,8 @@ const EmployeePortal: React.FC<EmployeePortalProps> = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
+    <div className="min-h-screen bg-background text-foreground">
+      {/* Header / Navbar do Funcionário */}
       <header className="bg-card shadow-sm border-b border-border sticky top-0 z-40 backdrop-blur-md">
         <div className="px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -161,7 +172,23 @@ const EmployeePortal: React.FC<EmployeePortalProps> = () => {
               </div>
             </div>
 
-            <div className="flex items-center space-x-2 sm:space-x-4">
+            <div className="flex items-center space-x-2 sm:space-x-3">
+              {/* Botão de Calendário do Sistema (com destaque do mês/dia atual) */}
+              <button
+                type="button"
+                onClick={() => setCalendarModalOpen(true)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-muted/60 hover:bg-muted text-xs font-semibold border border-border transition-colors text-foreground"
+                title="Abrir Calendário Anual"
+              >
+                <CalendarDays className="h-4 w-4 text-primary" />
+                <span className="capitalize hidden sm:inline">{formattedTodayShort}</span>
+              </button>
+
+              {/* Sino de Notificações com Badge */}
+              <div className="relative">
+                <NotificationBell />
+              </div>
+
               {/* Seletor Rápido de Contexto: Empresa Operadora vs Cliente */}
               <div className="hidden sm:flex items-center p-1 bg-muted rounded-xl border border-border text-xs">
                 <button
@@ -190,9 +217,11 @@ const EmployeePortal: React.FC<EmployeePortalProps> = () => {
                 </button>
               </div>
 
-              <div className="hidden lg:flex items-center space-x-2">
-                <User className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium text-foreground">{user?.name}</span>
+              <div className="hidden lg:flex items-center space-x-2 pl-1 border-l border-border/50">
+                <div className="w-7 h-7 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs">
+                  {user?.name ? user.name.substring(0, 2).toUpperCase() : 'U'}
+                </div>
+                <span className="text-xs font-medium text-foreground max-w-[120px] truncate">{user?.name}</span>
               </div>
 
               <ThemeToggle />
@@ -201,10 +230,10 @@ const EmployeePortal: React.FC<EmployeePortalProps> = () => {
                 variant="outline"
                 size="sm"
                 onClick={handleLogout}
-                className="flex items-center space-x-1 sm:space-x-2 h-9 px-3"
+                className="flex items-center space-x-1 sm:space-x-2 h-9 px-3 border-border hover:bg-muted"
               >
                 <LogOut className="h-4 w-4" />
-                <span className="hidden sm:inline">Sair</span>
+                <span className="hidden sm:inline text-xs">Sair</span>
               </Button>
             </div>
           </div>
@@ -232,7 +261,7 @@ const EmployeePortal: React.FC<EmployeePortalProps> = () => {
             </div>
           </div>
 
-          <nav className="mt-4 px-2">
+          <nav className="mt-4 px-3">
             <div className="space-y-1">
               {currentMenuItems.map((item) => {
                 const Icon = item.icon;
@@ -244,14 +273,14 @@ const EmployeePortal: React.FC<EmployeePortalProps> = () => {
                       setActiveTab(item.id);
                       setMobileMenuOpen(false);
                     }}
-                    className={`w-full flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all ${
+                    className={`w-full flex items-center px-3 py-2.5 text-xs font-medium rounded-xl transition-all ${
                       isSelected
                         ? 'bg-primary text-primary-foreground font-bold shadow-md shadow-primary/20'
                         : 'text-muted-foreground hover:text-foreground hover:bg-accent'
                     }`}
                   >
-                    <Icon className="mr-3 h-5 w-5" />
-                    {item.label}
+                    <Icon className="mr-3 h-4 w-4 shrink-0" />
+                    <span>{item.label}</span>
                   </button>
                 );
               })}
@@ -266,6 +295,12 @@ const EmployeePortal: React.FC<EmployeePortalProps> = () => {
           </div>
         </main>
       </div>
+
+      {/* Modal de Calendário Completo Anual */}
+      <YearCalendarModal 
+        isOpen={calendarModalOpen} 
+        onClose={() => setCalendarModalOpen(false)} 
+      />
     </div>
   );
 };

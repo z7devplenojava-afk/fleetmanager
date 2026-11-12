@@ -64,6 +64,11 @@ export interface StockNfeParsedDTO {
   customerZipCode?: string;
   customerPhone?: string;
 
+  // Informações adicionais e identificação veicular
+  additionalInfo?: string;
+  vehiclePlate?: string;
+  mileage?: number;
+
   alreadyImported: boolean;
   duplicateWarning?: string;
   isNfse?: boolean;

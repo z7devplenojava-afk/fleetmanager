@@ -593,9 +593,66 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
         accessKey ? `Chave: ${accessKey}` : '',
       ].filter(Boolean);
 
+      // Identificar Veículo e Hodômetro (KM) da Nota Fiscal
+      const combinedScanText = `${parsed.additionalInfo || ''} ${descJoined} ${file.name}`;
+      let detectedPlate = (parsed.vehiclePlate || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
+      let detectedKm = (parsed.mileage && parsed.mileage > 0) ? parsed.mileage : 0;
+
+      if (!detectedPlate) {
+        const pMatch =
+          combinedScanText.match(/(?:PLACA|PL\.?|VE[ÍI]C(?:ULO)?|CARRO|FROTA|AUTO)\s*[:=-]?\s*([A-Z]{3}[-\s]?[0-9][A-Z0-9][0-9]{2})\b/i) ||
+          combinedScanText.match(/\b([A-Z]{3}[0-9][A-Z][0-9]{2})\b/i) ||
+          combinedScanText.match(/\b([A-Z]{3}[-\s][0-9]{4})\b/i);
+        if (pMatch) detectedPlate = pMatch[1].replace(/[^A-Z0-9]/gi, '').toUpperCase();
+      }
+
+      if (!detectedKm) {
+        const kmMatch =
+          combinedScanText.match(/(?:KM(?:\s*ATUAL|\s*FINAL|\s*RODADO|\s*VE[ÍI]CULO)?|HOD[ÔO]METRO|OD[ÔO]METRO|HOD\.?|ODO\.?|QUILOMETRAGEM)\s*[:=-]?\s*([0-9]{1,3}(?:\.[0-9]{3})+|[0-9]{2,7})(?:\s*KM)?\b/i) ||
+          combinedScanText.match(/(?:KM|HODOMETRO|HODÔMETRO|ODOMETRO|ODÔMETRO)[:\s]*([0-9]{1,3}(?:\.?[0-9]{3})+|[0-9]{2,7})/i);
+        if (kmMatch) {
+          const num = Number(kmMatch[1].replace(/\./g, ''));
+          if (!isNaN(num) && num > 0) detectedKm = num;
+        }
+      }
+
+      // Localizar veículo na frota (por placa ou por prefixo)
+      let matchedVeh = detectedPlate
+        ? veiculos.find((v) => (v.plate || (v as any).placa || '').replace(/[^A-Z0-9]/gi, '').toUpperCase() === detectedPlate)
+        : null;
+
+      if (!matchedVeh) {
+        for (const v of veiculos) {
+          const vp = (v.plate || (v as any).placa || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
+          if (vp.length === 7) {
+            const vHyphen = `${vp.slice(0, 3)}-${vp.slice(3)}`;
+            if (combinedScanText.toUpperCase().includes(vp) || combinedScanText.toUpperCase().includes(vHyphen)) {
+              matchedVeh = v;
+              detectedPlate = vp;
+              break;
+            }
+          }
+        }
+      }
+      if (!matchedVeh) {
+        for (const v of veiculos) {
+          const pfx = String(v.fleetNumber || (v as any).prefixo || '').trim();
+          if (pfx.length >= 2) {
+            const pfxRegex = new RegExp(`(?:PREFIXO|FROTA|CARRO|VE[ÍI]C(?:ULO)?|AUTO|#)\\s*[:=-]?\\s*\\b0*${pfx}\\b`, 'i');
+            if (pfxRegex.test(combinedScanText)) {
+              matchedVeh = v;
+              detectedPlate = (v.plate || (v as any).placa || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
+              break;
+            }
+          }
+        }
+      }
+
       setIsTotalManual(totalVal > 0);
       setFormData((prev) => ({
         ...prev,
+        vehicleId: matchedVeh ? matchedVeh.id : prev.vehicleId,
+        mileage: detectedKm > 0 ? detectedKm : prev.mileage,
         date: normDate || prev.date,
         fuelType: detectedFuel,
         liters: litersSum > 0 ? Number(litersSum.toFixed(2)) : prev.liters,
@@ -607,11 +664,17 @@ const AbastecimentoExternoFormModal: React.FC<AbastecimentoExternoFormModalProps
       }));
 
       if (!dupReason) {
+        const vehLabel = matchedVeh
+          ? `${matchedVeh.plate || (matchedVeh as any).placa}${matchedVeh.fleetNumber ? ` (${matchedVeh.fleetNumber})` : ''}`
+          : detectedPlate;
         toast({
           title: 'Nota Fiscal Lida com Sucesso',
-          description: resolvedName
-            ? `Fornecedor identificado: ${resolvedTrade || resolvedName}${nfNum ? ` | NF nº ${nfNum}` : ''}`
-            : `Dados extraídos da NF${nfNum ? ` nº ${nfNum}` : ''}.`,
+          description: [
+            resolvedName ? `Fornecedor: ${resolvedTrade || resolvedName}` : '',
+            vehLabel ? `Veículo: ${vehLabel}` : '',
+            detectedKm > 0 ? `Hodômetro: ${detectedKm.toLocaleString('pt-BR')} km` : '',
+            nfNum ? `NF nº ${nfNum}` : '',
+          ].filter(Boolean).join(' | '),
         });
       }
     } catch {

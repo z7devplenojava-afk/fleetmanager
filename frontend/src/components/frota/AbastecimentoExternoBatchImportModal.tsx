@@ -187,22 +187,105 @@ function detectFuelTypeFromDescription(desc: string): 'DIESEL' | 'GASOLINE' | 'E
   return 'DIESEL';
 }
 
-function extractPlateAndKmFromText(text: string): { plate: string; km: number } {
+function formatPlate(plate?: string): string {
+  if (!plate) return '';
+  const clean = plate.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+  if (clean.length === 7) {
+    if (/^[A-Z]{3}[0-9]{4}$/.test(clean)) {
+      return `${clean.slice(0, 3)}-${clean.slice(3)}`;
+    }
+    return clean;
+  }
+  return plate;
+}
+
+function extractPlateAndKmFromText(
+  text: string,
+  veiculosList?: Vehicle[]
+): { plate: string; km: number; matchedVehicleId?: string } {
   if (!text) return { plate: '', km: 0 };
   const upper = text.toUpperCase();
-  // Placa Mercosul ou antiga (ex: ABC-1234, ABC1D23, ABC-1D23)
-  const plateMatch =
-    upper.match(/PLACA[:\s-]*([A-Z]{3}[-\s]?[0-9][A-Z0-9][0-9]{2})/) ||
-    upper.match(/\b([A-Z]{3}-[0-9][A-Z0-9][0-9]{2})\b/) ||
-    upper.match(/\b([A-Z]{3}[0-9][A-Z][0-9]{2})\b/);
-  const rawPlate = plateMatch ? plateMatch[1].replace(/[^A-Z0-9]/g, '') : '';
+
+  let rawPlate = '';
+
+  // 1. Rótulo explícito com placa: PLACA: ABC-1234, PLACA ABC1D23, PLACA:ABC1234, PL: ABC-1234, VEIC: ABC-1234, CARRO: ABC-1234, AUTO: ABC-1234
+  const labeledMatch =
+    upper.match(/(?:PLACA|PL\.?|VE[ÍI]C(?:ULO)?|CARRO|FROTA|AUTO)\s*[:=-]?\s*([A-Z]{3}[-\s]?[0-9][A-Z0-9][0-9]{2})\b/) ||
+    upper.match(/PLACA[:\s-]*([A-Z]{3}[-\s]?[0-9][A-Z0-9][0-9]{2})/);
+
+  if (labeledMatch) {
+    rawPlate = labeledMatch[1].replace(/[^A-Z0-9]/g, '');
+  }
+
+  // 2. Padrão Mercosul (3 letras + 1 dígito + 1 letra + 2 dígitos, ex: BRA2E19)
+  if (!rawPlate) {
+    const mercosulMatch = upper.match(/\b([A-Z]{3}[0-9][A-Z][0-9]{2})\b/);
+    if (mercosulMatch) {
+      rawPlate = mercosulMatch[1].replace(/[^A-Z0-9]/g, '');
+    }
+  }
+
+  // 3. Padrão tradicional com traço ou espaço: ABC-1234
+  if (!rawPlate) {
+    const oldMatch = upper.match(/\b([A-Z]{3}[-\s][0-9]{4})\b/);
+    if (oldMatch) {
+      rawPlate = oldMatch[1].replace(/[^A-Z0-9]/g, '');
+    }
+  }
+
+  let matchedVehicleId: string | undefined;
+
+  // 4. Cruzamento direto com a frota cadastrada (por placa ou prefixo/frota)
+  if (Array.isArray(veiculosList) && veiculosList.length > 0) {
+    if (rawPlate) {
+      const found = veiculosList.find((v) => {
+        const vp = (v.plate || (v as any).placa || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
+        return vp === rawPlate;
+      });
+      if (found) {
+        matchedVehicleId = found.id;
+      }
+    }
+
+    // Busca direta pelas placas cadastradas no texto da nota
+    if (!matchedVehicleId) {
+      for (const v of veiculosList) {
+        const vp = (v.plate || (v as any).placa || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
+        if (vp.length === 7) {
+          const vHyphen = `${vp.slice(0, 3)}-${vp.slice(3)}`;
+          if (upper.includes(vp) || upper.includes(vHyphen)) {
+            rawPlate = vp;
+            matchedVehicleId = v.id;
+            break;
+          }
+        }
+      }
+    }
+
+    // Busca por número de frota / prefixo (ex: FROTA: 1020, PREFIXO: 1020, CARRO: 1020, #1020)
+    if (!matchedVehicleId) {
+      for (const v of veiculosList) {
+        const pfx = String(v.fleetNumber || (v as any).prefixo || '').trim();
+        if (pfx.length >= 2) {
+          const pfxRegex = new RegExp(`(?:PREFIXO|FROTA|CARRO|VE[ÍI]C(?:ULO)?|AUTO|#)\\s*[:=-]?\\s*\\b0*${pfx}\\b`, 'i');
+          if (pfxRegex.test(upper)) {
+            matchedVehicleId = v.id;
+            const vp = (v.plate || (v as any).placa || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
+            if (vp) rawPlate = vp;
+            break;
+          }
+        }
+      }
+    }
+  }
 
   // KM / Hodômetro
   const kmMatch =
+    upper.match(/(?:KM(?:\s*ATUAL|\s*FINAL|\s*RODADO|\s*VE[ÍI]CULO)?|HOD[ÔO]METRO|OD[ÔO]METRO|HOD\.?|ODO\.?|QUILOMETRAGEM)\s*[:=-]?\s*([0-9]{1,3}(?:\.[0-9]{3})+|[0-9]{2,7})(?:\s*KM)?\b/) ||
     upper.match(/(?:KM|HODOMETRO|HODÔMETRO|ODOMETRO|ODÔMETRO)[:\s]*([0-9]{1,3}(?:\.?[0-9]{3})+|[0-9]{2,7})/);
   const km = kmMatch ? Number(kmMatch[1].replace(/\./g, '')) : 0;
 
-  return { plate: rawPlate, km: isNaN(km) ? 0 : km };
+  return { plate: rawPlate, km: isNaN(km) ? 0 : km, matchedVehicleId };
 }
 
 const AbastecimentoExternoBatchImportModal: React.FC<AbastecimentoExternoBatchImportModalProps> = ({
@@ -564,6 +647,36 @@ const AbastecimentoExternoBatchImportModal: React.FC<AbastecimentoExternoBatchIm
       const vNF = parseFloat(getTag(icmsTotNode, 'vNF') || '0');
       const vProdTotal = parseFloat(getTag(icmsTotNode, 'vProd') || '0');
       const infCpl = getTag(infAdicNode, 'infCpl');
+      const infAdFisco = getTag(infAdicNode, 'infAdFisco');
+
+      // Extrai campos estruturados de obsContr (ex: Placa, KM) e veicProd
+      let explicitPlate = '';
+      let explicitKm = 0;
+      const obsContrTexts: string[] = [];
+      const obsContrNodes = Array.from(xmlDoc.getElementsByTagName('obsContr'));
+      obsContrNodes.forEach((obs) => {
+        const xCampo = (obs.getAttribute('xCampo') || '').toUpperCase();
+        const xTexto = getTag(obs, 'xTexto') || obs.textContent?.trim() || '';
+        obsContrTexts.push(`${xCampo}: ${xTexto}`);
+        if (xCampo.includes('PLACA') || xCampo.includes('VEIC')) {
+          const cleanP = xTexto.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+          if (cleanP.length === 7) explicitPlate = cleanP;
+        } else if (xCampo.includes('KM') || xCampo.includes('HODOMETRO') || xCampo.includes('ODOMETRO')) {
+          const num = parseInt(xTexto.replace(/\D/g, ''), 10);
+          if (!isNaN(num) && num > 0) explicitKm = num;
+        }
+      });
+
+      const veicProdNodes = Array.from(xmlDoc.getElementsByTagName('veicProd'));
+      if (veicProdNodes.length > 0) {
+        const pTag = getTag(veicProdNodes[0], 'placa');
+        if (pTag) {
+          const cleanP = pTag.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+          if (cleanP.length === 7) explicitPlate = cleanP;
+        }
+        const chassiTag = getTag(veicProdNodes[0], 'chassi');
+        if (chassiTag) obsContrTexts.push(`CHASSI: ${chassiTag}`);
+      }
 
       const detNodes = Array.from(xmlDoc.getElementsByTagName('det'));
       let totalLiters = 0;
@@ -574,10 +687,12 @@ const AbastecimentoExternoBatchImportModal: React.FC<AbastecimentoExternoBatchIm
 
       detNodes.forEach((det, idx) => {
         const xProd = getTag(det, 'xProd');
+        const infAdProd = getTag(det, 'infAdProd');
         const qCom = parseFloat(getTag(det, 'qCom') || '0');
         const vUnCom = parseFloat(getTag(det, 'vUnCom') || '0');
         const vProd = parseFloat(getTag(det, 'vProd') || '0');
         if (xProd) itemDescriptions.push(xProd);
+        if (infAdProd) itemDescriptions.push(infAdProd);
         if (idx === 0 && xProd) {
           detectedFuel = detectFuelTypeFromDescription(xProd);
         }
@@ -592,7 +707,11 @@ const AbastecimentoExternoBatchImportModal: React.FC<AbastecimentoExternoBatchIm
         weightedUnitPrice = parseFloat(getTag(detNodes[0], 'vUnCom') || '0');
       }
 
-      const { plate, km } = extractPlateAndKmFromText(`${infCpl} ${itemDescriptions.join(' ')}`);
+      const fullXmlSearch = `${infCpl} ${infAdFisco} ${obsContrTexts.join(' ')} ${itemDescriptions.join(' ')}`;
+      const { plate, km, matchedVehicleId } = extractPlateAndKmFromText(fullXmlSearch, veiculos);
+      const finalPlate = explicitPlate || plate;
+      const finalKm = explicitKm > 0 ? explicitKm : km;
+      const matchedVeh = matchedVehicleId || (finalPlate ? matchVehicleByPlate(finalPlate) : '') || defaultVehicleId || '';
 
       return {
         invoiceNumber: nNF,
@@ -611,9 +730,9 @@ const AbastecimentoExternoBatchImportModal: React.FC<AbastecimentoExternoBatchIm
         liters: Number(totalLiters.toFixed(2)),
         pricePerLiter: Number(weightedUnitPrice.toFixed(3)),
         totalValue: Number(finalTotal.toFixed(2)),
-        detectedPlate: plate,
-        vehicleId: matchVehicleByPlate(plate) || defaultVehicleId,
-        mileage: km,
+        detectedPlate: finalPlate,
+        vehicleId: matchedVeh,
+        mileage: finalKm,
         notes: infCpl ? infCpl.slice(0, 220) : '',
       };
     } catch (e) {
@@ -677,8 +796,14 @@ const AbastecimentoExternoBatchImportModal: React.FC<AbastecimentoExternoBatchIm
               litersSum > 0 && totalVal > 0
                 ? Number((totalVal / litersSum).toFixed(3))
                 : Number(items[0]?.unitPrice || 0);
-            const firstDesc = items.map((i) => i.description).join(' ');
-            const { plate, km } = extractPlateAndKmFromText(firstDesc);
+            const firstDesc = items.map((i) => i.description || '').join(' ');
+            const combinedPdfText = `${backendParsed.additionalInfo || ''} ${firstDesc} ${file.name}`;
+            const { plate, km, matchedVehicleId } = extractPlateAndKmFromText(combinedPdfText, veiculos);
+
+            const finalPlate = (backendParsed.vehiclePlate || plate || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
+            const finalKm = (backendParsed.mileage && backendParsed.mileage > 0) ? backendParsed.mileage : km;
+            const matchedVeh = matchedVehicleId || (finalPlate ? matchVehicleByPlate(finalPlate) : '') || defaultVehicleId || '';
+
             const keyMeta = extractFromAccessKey(backendParsed.accessKey);
             const cleanName = sanitizeSupplierName(backendParsed.supplierName);
             const cleanTrade = sanitizeSupplierName(backendParsed.supplierTradeName) || cleanName;
@@ -704,9 +829,10 @@ const AbastecimentoExternoBatchImportModal: React.FC<AbastecimentoExternoBatchIm
               liters: Number((litersSum || 0).toFixed(2)),
               pricePerLiter: unitPrice,
               totalValue: Number((totalVal || 0).toFixed(2)),
-              detectedPlate: plate,
-              vehicleId: matchVehicleByPlate(plate) || defaultVehicleId,
-              mileage: km,
+              detectedPlate: finalPlate,
+              vehicleId: matchedVeh,
+              mileage: finalKm,
+              notes: backendParsed.additionalInfo ? backendParsed.additionalInfo.slice(0, 220) : '',
             };
           }
         } catch {
@@ -716,7 +842,7 @@ const AbastecimentoExternoBatchImportModal: React.FC<AbastecimentoExternoBatchIm
           const keyMeta = extractFromAccessKey(keyInFile);
           const nfMatch =
             file.name.match(/(?:NF|NOTA|NFE|DANFE)[_\-\s]*(\d{2,9})/i) || file.name.match(/(\d{3,9})/);
-          const { plate, km } = extractPlateAndKmFromText(file.name);
+          const { plate, km, matchedVehicleId } = extractPlateAndKmFromText(file.name, veiculos);
           parsedData = {
             invoiceNumber: keyMeta.nfNumber || (nfMatch ? nfMatch[1] : ''),
             series: '1',
@@ -730,7 +856,7 @@ const AbastecimentoExternoBatchImportModal: React.FC<AbastecimentoExternoBatchIm
             pricePerLiter: 0,
             totalValue: 0,
             detectedPlate: plate,
-            vehicleId: matchVehicleByPlate(plate) || defaultVehicleId,
+            vehicleId: matchedVehicleId || (plate ? matchVehicleByPlate(plate) : '') || defaultVehicleId || '',
             mileage: km,
             parseWarning: 'Verifique os valores da nota PDF na linha abaixo.',
           };
@@ -1154,6 +1280,28 @@ const AbastecimentoExternoBatchImportModal: React.FC<AbastecimentoExternoBatchIm
             .map((r) => r.invoiceNumber)
             .filter(Boolean)
             .join(', ');
+
+          // Detalhar rateio e atribuição de custos/litros por veículo no lote
+          const vehicleTotals = rows.reduce((acc, r) => {
+            const vId = r.vehicleId || defaultVehicleId;
+            const veh = veiculos.find((v) => v.id === vId);
+            const vPlate = veh
+              ? `${veh.plate || (veh as any).placa}${veh.fleetNumber ? ` (${veh.fleetNumber})` : ''}`
+              : r.detectedPlate
+                ? formatPlate(r.detectedPlate)
+                : 'Veículo N/D';
+            if (!acc[vPlate]) acc[vPlate] = { liters: 0, cost: 0, count: 0 };
+            acc[vPlate].liters += Number(r.liters) || 0;
+            acc[vPlate].cost += Number(r.totalValue) || 0;
+            acc[vPlate].count += 1;
+            return acc;
+          }, {} as Record<string, { liters: number; cost: number; count: number }>);
+
+          const breakdownParts = Object.entries(vehicleTotals).map(
+            ([vPlate, data]) =>
+              `• ${vPlate}: R$ ${data.cost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (${data.liters.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} L em ${data.count} NF${data.count > 1 ? 's' : ''})`
+          );
+
           await contasAPagarService.createContaAPagar({
             invoiceNumber: nfList ? `FECH-${competenceMonth}-${rows.length}NFs` : `FECH-${competenceMonth}`,
             dataEmissao: new Date(`${competenceMonth}-01T12:00:00`),
@@ -1166,14 +1314,14 @@ const AbastecimentoExternoBatchImportModal: React.FC<AbastecimentoExternoBatchIm
             contratoId: defaultContractId || undefined,
             obra: defaultObraName || undefined,
             obraId: defaultWorkPostId || undefined,
-            descricao: `Fechamento Mensal Abastecimento Externo (${competenceLabel}) - ${finalSupplierName} (${rows.length} NFs: ${nfList || 'Lote'})`,
+            descricao: `Fechamento Mensal Abastecimento Externo (${competenceLabel}) - ${finalSupplierName} (${rows.length} NFs | ${validation.totalLiters.toFixed(2)} L)`,
             tipo: 'VARIAVEL',
             valor: Number(validation.totalCost.toFixed(2)),
             status: 'Em Aberto',
             baixa: false,
             categoria: 'COMBUSTIVEL',
             centroCusto: 'Abastecimento Externo',
-            observacoes: `Fechamento mensal importado em lote (${rows.length} notas fiscais | ${validation.totalLiters.toFixed(2)} L | Competência ${competenceLabel}). NFs: ${nfList || 'Ver Abastecimento Externo'}`,
+            observacoes: `Fechamento mensal importado em lote (${rows.length} notas fiscais | ${validation.totalLiters.toFixed(2)} L | Competência ${competenceLabel}).\nRateio e atribuição por Veículo:\n${breakdownParts.join('\n')}\nNFs: ${nfList || 'Ver Abastecimento Externo'}`,
           } as any);
           queryClient.invalidateQueries({ queryKey: ['fuel-expenses-contas'] });
           queryClient.invalidateQueries({ queryKey: ['contas-pagar'] });
@@ -1411,7 +1559,10 @@ const AbastecimentoExternoBatchImportModal: React.FC<AbastecimentoExternoBatchIm
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <div className="space-y-1">
-                <Label className="text-xs text-gray-300">Veículo Padrão do Lote *</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs text-gray-300">Veículo Padrão do Lote (Fallback)</Label>
+                  <span className="text-[10px] text-gray-400">Opcional</span>
+                </div>
                 <SearchableSelect
                   value={defaultVehicleId}
                   onChange={(val) => {
@@ -1424,10 +1575,11 @@ const AbastecimentoExternoBatchImportModal: React.FC<AbastecimentoExternoBatchIm
                     );
                   }}
                   options={vehicleOptions}
-                  placeholder="Selecionar veículo..."
+                  placeholder="Usado se a nota não tiver placa..."
                   searchPlaceholder="Placa ou prefixo..."
                   emptyText="Nenhum veículo encontrado"
                 />
+                <p className="text-[10px] text-gray-400">Identificado em cada nota. Use aqui se houver notas sem placa.</p>
               </div>
 
               <div className="space-y-1">
@@ -1723,10 +1875,14 @@ const AbastecimentoExternoBatchImportModal: React.FC<AbastecimentoExternoBatchIm
 
                           <TableCell className="py-2">
                             <Select
-                              value={row.vehicleId || defaultVehicleId || ''}
+                              value={row.vehicleId || ''}
                               onValueChange={(val) => updateRow(row.id, 'vehicleId', val)}
                             >
-                              <SelectTrigger className="h-8 text-xs bg-seguranca-black border-gray-600 text-white">
+                              <SelectTrigger
+                                className={`h-8 text-xs bg-seguranca-black text-white ${
+                                  !row.vehicleId && !defaultVehicleId ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-600'
+                                }`}
+                              >
                                 <SelectValue placeholder="Selecionar placa..." />
                               </SelectTrigger>
                               <SelectContent className="bg-gray-900 border-gray-700 text-white max-h-60">
@@ -1741,11 +1897,23 @@ const AbastecimentoExternoBatchImportModal: React.FC<AbastecimentoExternoBatchIm
                                 })}
                               </SelectContent>
                             </Select>
-                            {row.detectedPlate && (
-                              <span className="text-[10px] text-emerald-400 block mt-0.5">
-                                Placa na NF: {row.detectedPlate}
+                            {row.detectedPlate ? (
+                              row.vehicleId ? (
+                                <span className="text-[10px] text-emerald-400 font-medium flex items-center gap-1 mt-0.5">
+                                  <CheckCircle2 className="h-3 w-3 shrink-0" />
+                                  Placa na NF: {formatPlate(row.detectedPlate)}
+                                </span>
+                              ) : (
+                                <span className="text-[10px] text-amber-400 font-medium flex items-center gap-1 mt-0.5">
+                                  <AlertTriangle className="h-3 w-3 shrink-0" />
+                                  Placa na NF: {formatPlate(row.detectedPlate)} (não cadastrada)
+                                </span>
+                              )
+                            ) : defaultVehicleId && row.vehicleId === defaultVehicleId ? (
+                              <span className="text-[10px] text-gray-400 block mt-0.5">
+                                Padrão do lote aplicado
                               </span>
-                            )}
+                            ) : null}
                           </TableCell>
 
                           <TableCell className="py-2">
@@ -1807,6 +1975,11 @@ const AbastecimentoExternoBatchImportModal: React.FC<AbastecimentoExternoBatchIm
                               placeholder="KM"
                               className="h-8 text-xs text-right font-mono bg-seguranca-black border-gray-600 text-white"
                             />
+                            {row.mileage > 0 && (
+                              <span className="text-[10px] text-emerald-400 font-mono block text-right mt-0.5">
+                                {row.mileage.toLocaleString('pt-BR')} km
+                              </span>
+                            )}
                           </TableCell>
 
                           <TableCell className="py-2 text-center">

@@ -43,6 +43,9 @@ public class EmployeeProfileDTO {
     private String experience;
     private String skills;
     private String profilePhoto;
+    private String cnhNumber;
+    private String cnhCategory;
+    private LocalDate cnhExpirationDate;
 
     public static EmployeeProfileDTO fromEntity(Employee employee) {
         if (employee == null) return null;
@@ -77,6 +80,9 @@ public class EmployeeProfileDTO {
                 .experience(null)
                 .skills(null)
                 .profilePhoto(null)
+                .cnhNumber(employee.getCnhNumber())
+                .cnhCategory(employee.getCnhCategory())
+                .cnhExpirationDate(employee.getCnhExpirationDate())
                 .build();
     }
 }

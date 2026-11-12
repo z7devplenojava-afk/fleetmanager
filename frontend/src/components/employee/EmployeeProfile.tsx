@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
   User, 
-  Edit, 
-  Save, 
-  X, 
   Mail, 
   Phone, 
   MapPin, 
@@ -12,14 +9,18 @@ import {
   CreditCard,
   Building,
   UserCircle,
-  AlertTriangle
+  Shield,
+  FileCheck,
+  CheckCircle2,
+  Clock,
+  Car,
+  Landmark,
+  BadgeCheck,
+  Loader2
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import api from '@/lib/axios';
@@ -28,26 +29,38 @@ interface EmployeeProfileData {
   id: string;
   name: string;
   email: string;
-  phone: string;
-  cpf: string;
-  rg: string;
-  birthDate: string;
-  position: string;
-  department: string;
-  admissionDate: string;
-  registrationNumber: string;
-  address: string;
-  status: string;
+  phone?: string;
+  cpf?: string;
+  rg?: string;
+  birthDate?: string;
+  position?: string;
+  department?: string;
+  admissionDate?: string;
+  registrationNumber?: string;
+  status?: string;
+  workPost?: string;
+  workShift?: string;
+  salary?: number;
+  bank?: string;
+  bankAgency?: string;
+  bankAccount?: string;
+  pixKey?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  emergencyContact?: string;
+  emergencyPhone?: string;
+  cnhNumber?: string;
+  cnhCategory?: string;
+  cnhExpirationDate?: string;
 }
 
-const EmployeeProfile: React.FC = () => {
+export const EmployeeProfile: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [profile, setProfile] = useState<EmployeeProfileData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [formData, setFormData] = useState<EmployeeProfileData | null>(null);
 
   useEffect(() => {
     loadProfile();
@@ -56,293 +69,303 @@ const EmployeeProfile: React.FC = () => {
   const loadProfile = async () => {
     setLoading(true);
     try {
-      const response = await api.get('/employee-portal/profile');
-      setProfile(response.data);
+      const response = await api.get('/api/employee-portal/profile');
+      if (response.data) {
+        setProfile(response.data);
+      } else {
+        // Fallback básico se não houver funcionário vinculado
+        setProfile({
+          id: user?.id || '1',
+          name: user?.name || 'Colaborador',
+          email: user?.email || '',
+          position: (user as any)?.role || 'Colaborador',
+          department: 'Operações'
+        });
+      }
     } catch (error: any) {
       console.error('Erro ao carregar perfil:', error);
-      // Fallback para dados mockados se backend falhar
+      toast({
+        title: 'Aviso',
+        description: 'Dados parciais carregados do usuário ativo.',
+      });
       setProfile({
         id: user?.id || '1',
-        name: user?.name || 'José Mário Ramos',
-        email: user?.email || 'jose.ramos@empresa.com',
-        phone: '(11) 98765-4321',
-        cpf: '123.456.789-00',
-        rg: '12.345.678-9',
-        birthDate: '1985-05-15',
-        position: 'Motorista',
-        department: 'Operacional',
-        admissionDate: '2020-03-15',
-        registrationNumber: 'EMP001234',
-        address: 'Rua das Flores, 123 - Centro, São Paulo - SP',
-        status: 'ACTIVE'
+        name: user?.name || 'Colaborador',
+        email: user?.email || '',
+        position: (user as any)?.role || 'Colaborador',
+        department: 'Operações'
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEdit = () => {
-    setFormData(profile);
-    setEditing(true);
-  };
-
-  const handleSave = async () => {
-    if (!formData) return;
-
-    setSaving(true);
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return 'Não informado';
     try {
-      // TODO: Implementar update do perfil quando o endpoint estiver disponível
-      toast({
-        title: 'Sucesso',
-        description: 'Perfil atualizado com sucesso',
-      });
-      setProfile(formData);
-      setEditing(false);
-    } catch (error: any) {
-      console.error('Erro ao salvar perfil:', error);
-      toast({
-        title: 'Erro',
-        description: 'Não foi possível atualizar o perfil',
-        variant: 'destructive',
-      });
-    } finally {
-      setSaving(false);
+      const [year, month, day] = dateStr.split('-');
+      if (year && month && day) {
+        return `${day}/${month}/${year}`;
+      }
+      return new Date(dateStr).toLocaleDateString('pt-BR');
+    } catch {
+      return dateStr;
     }
   };
 
-  const handleCancel = () => {
-    setFormData(null);
-    setEditing(false);
-  };
+  const calculateServiceTime = (admissionDate?: string) => {
+    if (!admissionDate) return null;
+    try {
+      const adm = new Date(admissionDate);
+      const now = new Date();
+      let months = (now.getFullYear() - adm.getFullYear()) * 12 + (now.getMonth() - adm.getMonth());
+      if (months < 0) months = 0;
+      const years = Math.floor(months / 12);
+      const remainingMonths = months % 12;
 
-  const updateFormData = (field: string, value: any) => {
-    if (!formData) return;
-    setFormData({ ...formData, [field]: value });
+      if (years > 0) {
+        return `${years} ano${years > 1 ? 's' : ''}${remainingMonths > 0 ? ` e ${remainingMonths} m` : ''}`;
+      }
+      return `${months} mês${months !== 1 ? 'es' : ''}`;
+    } catch {
+      return null;
+    }
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
+      <div className="flex flex-col items-center justify-center p-16 text-muted-foreground">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mb-3" />
+        <p className="text-sm">Carregando dados cadastrais da base de funcionários...</p>
       </div>
     );
   }
 
-  if (!profile) {
-    return (
-      <div className="text-center text-muted-foreground py-8">
-        Não foi possível carregar o perfil
-      </div>
-    );
-  }
-
-  const currentData = editing && formData ? formData : profile;
+  const serviceTime = calculateServiceTime(profile?.admissionDate);
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Meu Perfil</h1>
-          <p className="text-muted-foreground">Gerencie suas informações pessoais e profissionais</p>
-        </div>
-        <div className="flex space-x-2">
-          {editing ? (
-            <>
-              <Button
-                variant="outline"
-                onClick={handleCancel}
-                disabled={saving}
-                className="flex items-center space-x-2"
-              >
-                <X className="h-4 w-4" />
-                <span>Cancelar</span>
-              </Button>
-              <Button
-                onClick={handleSave}
-                disabled={saving}
-                className="flex items-center space-x-2 bg-red-600 hover:bg-red-700 text-white"
-              >
-                <Save className="h-4 w-4" />
-                <span>{saving ? 'Salvando...' : 'Salvar'}</span>
-              </Button>
-            </>
-          ) : (
-            <Button
-              onClick={handleEdit}
-              className="flex items-center space-x-2 bg-red-600 hover:bg-red-700 text-white"
-            >
-              <Edit className="h-4 w-4" />
-              <span>Editar Perfil</span>
-            </Button>
-          )}
+      {/* Banner de Identificação do Colaborador */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900/90 to-primary/20 p-6 border border-border shadow-md">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-2xl bg-primary text-primary-foreground font-black text-2xl flex items-center justify-center shadow-lg shadow-primary/30 shrink-0">
+              {profile?.name ? profile.name.substring(0, 2).toUpperCase() : 'CO'}
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-2xl font-black text-white">{profile?.name}</h2>
+                <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold text-[10px]">
+                  ATIVO
+                </Badge>
+              </div>
+              <p className="text-sm text-slate-300 font-medium mt-0.5">
+                {profile?.position || 'Cargo não definido'} • {profile?.department || 'Departamento Geral'}
+              </p>
+              <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-slate-400">
+                {profile?.registrationNumber && (
+                  <span className="font-mono bg-slate-800/80 px-2.5 py-0.5 rounded-lg border border-slate-700/60 text-slate-200">
+                    Matrícula: {profile.registrationNumber}
+                  </span>
+                )}
+                {serviceTime && (
+                  <span className="flex items-center gap-1 text-amber-400">
+                    <Clock className="h-3.5 w-3.5" /> Tempo de Empresa: {serviceTime}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="text-right hidden sm:block">
+            <span className="text-xs text-slate-400 block">Viação São Silvestre LTDA</span>
+            <span className="text-[11px] font-mono text-emerald-400 font-bold flex items-center justify-end gap-1">
+              <BadgeCheck className="h-3.5 w-3.5" /> Cadastro Integrado RH
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* Personal Information */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-muted-foreground flex items-center">
-            <UserCircle className="h-5 w-5 mr-2 text-red-500" />
-            Informações Pessoais
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <Label htmlFor="name">Nome Completo</Label>
-              <Input
-                id="name"
-                value={currentData.name}
-                onChange={(e) => updateFormData('name', e.target.value)}
-                disabled={!editing}
-                className={editing ? 'border-red-300' : ''}
-              />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Card 1: Dados Pessoais & Documentos */}
+        <Card className="border-border bg-card shadow-sm">
+          <CardHeader className="pb-3 border-b border-border/50">
+            <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
+              <UserCircle className="h-5 w-5 text-primary" />
+              Documentos & Dados Pessoais
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Documentação civil e qualificação cadastrada na empresa
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-4 space-y-3.5 text-xs">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3 bg-muted/40 rounded-xl border border-border/50">
+                <span className="text-muted-foreground block text-[11px]">CPF:</span>
+                <span className="font-mono font-bold text-foreground text-sm">{profile?.cpf || 'Não cadastrado'}</span>
+              </div>
+              <div className="p-3 bg-muted/40 rounded-xl border border-border/50">
+                <span className="text-muted-foreground block text-[11px]">RG / Identidade:</span>
+                <span className="font-mono font-bold text-foreground text-sm">{profile?.rg || 'Não cadastrado'}</span>
+              </div>
             </div>
-            
-            <div>
-              <Label htmlFor="email">E-mail</Label>
-              <Input
-                id="email"
-                type="email"
-                value={currentData.email}
-                onChange={(e) => updateFormData('email', e.target.value)}
-                disabled={!editing}
-                className={editing ? 'border-red-300' : ''}
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="phone">Telefone</Label>
-              <Input
-                id="phone"
-                value={currentData.phone}
-                onChange={(e) => updateFormData('phone', e.target.value)}
-                disabled={!editing}
-                className={editing ? 'border-red-300' : ''}
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="cpf">CPF</Label>
-              <Input
-                id="cpf"
-                value={currentData.cpf}
-                disabled
-                className="bg-muted"
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="rg">RG</Label>
-              <Input
-                id="rg"
-                value={currentData.rg || ''}
-                disabled
-                className="bg-muted"
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="birthDate">Data de Nascimento</Label>
-              <Input
-                id="birthDate"
-                type="date"
-                value={currentData.birthDate}
-                disabled
-                className="bg-muted"
-              />
-            </div>
-          </div>
-          
-          <div className="mt-6">
-            <h4 className="font-medium text-foreground mb-4">Endereço</h4>
-            <div>
-              <Label htmlFor="address">Endereço Completo</Label>
-              <Input
-                id="address"
-                value={currentData.address || ''}
-                onChange={(e) => updateFormData('address', e.target.value)}
-                disabled={!editing}
-                className={editing ? 'border-red-300' : ''}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
-      {/* Professional Information */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-muted-foreground flex items-center">
-            <Briefcase className="h-5 w-5 mr-2 text-red-500" />
-            Informações Profissionais
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <Label htmlFor="position">Cargo</Label>
-              <Input
-                id="position"
-                value={currentData.position}
-                disabled
-                className="bg-muted"
-              />
+            <div className="p-3 bg-muted/40 rounded-xl border border-border/50">
+              <span className="text-muted-foreground block text-[11px]">Data de Nascimento:</span>
+              <span className="font-bold text-foreground">{formatDate(profile?.birthDate)}</span>
             </div>
-            
-            <div>
-              <Label htmlFor="department">Departamento</Label>
-              <Input
-                id="department"
-                value={currentData.department}
-                disabled
-                className="bg-muted"
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="admissionDate">Data de Admissão</Label>
-              <Input
-                id="admissionDate"
-                type="date"
-                value={currentData.admissionDate}
-                disabled
-                className="bg-muted"
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="registrationNumber">Matrícula</Label>
-              <Input
-                id="registrationNumber"
-                value={currentData.registrationNumber || ''}
-                disabled
-                className="bg-muted"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
-      {/* Status */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-muted-foreground flex items-center">
-            <AlertTriangle className="h-5 w-5 mr-2 text-yellow-500" />
-            Status
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center space-x-2">
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-              currentData.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-            }`}>
-              {currentData.status === 'ACTIVE' ? 'Ativo' : 'Inativo'}
-            </span>
-          </div>
-        </CardContent>
-      </Card>
+            {/* CNH se aplicável */}
+            <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-blue-400 flex items-center gap-1.5">
+                  <Car className="h-4 w-4" /> Carteira Nacional de Habilitação (CNH)
+                </span>
+                {profile?.cnhCategory && (
+                  <Badge className="bg-blue-600 text-white font-bold text-[11px]">
+                    Cat. {profile.cnhCategory}
+                  </Badge>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <span className="text-muted-foreground block text-[11px]">Nº do Registro:</span>
+                  <span className="font-mono font-bold text-foreground">{profile?.cnhNumber || 'S/N'}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block text-[11px]">Validade:</span>
+                  <span className="font-mono font-bold text-foreground">{formatDate(profile?.cnhExpirationDate)}</span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Card 2: Vínculo Empregatício */}
+        <Card className="border-border bg-card shadow-sm">
+          <CardHeader className="pb-3 border-b border-border/50">
+            <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
+              <Briefcase className="h-5 w-5 text-primary" />
+              Vínculo Empregatício & Contrato
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Informações do contrato de trabalho e alocação operacional
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-4 space-y-3 text-xs">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3 bg-muted/40 rounded-xl border border-border/50">
+                <span className="text-muted-foreground block text-[11px]">Data de Admissão:</span>
+                <span className="font-bold text-foreground text-sm">{formatDate(profile?.admissionDate)}</span>
+              </div>
+              <div className="p-3 bg-muted/40 rounded-xl border border-border/50">
+                <span className="text-muted-foreground block text-[11px]">Matrícula Funcional:</span>
+                <span className="font-mono font-bold text-primary text-sm">{profile?.registrationNumber || 'VSS-001'}</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3 bg-muted/40 rounded-xl border border-border/50">
+                <span className="text-muted-foreground block text-[11px]">Cargo / Função:</span>
+                <span className="font-bold text-foreground">{profile?.position || 'Motorista'}</span>
+              </div>
+              <div className="p-3 bg-muted/40 rounded-xl border border-border/50">
+                <span className="text-muted-foreground block text-[11px]">Departamento:</span>
+                <span className="font-bold text-foreground">{profile?.department || 'Operacional'}</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3 bg-muted/40 rounded-xl border border-border/50">
+                <span className="text-muted-foreground block text-[11px]">Posto de Trabalho:</span>
+                <span className="font-bold text-foreground">{profile?.workPost || 'Garagem Central / Linha'}</span>
+              </div>
+              <div className="p-3 bg-muted/40 rounded-xl border border-border/50">
+                <span className="text-muted-foreground block text-[11px]">Horário / Escala:</span>
+                <span className="font-bold text-foreground">{profile?.workShift || 'Turno Integral (44h sem)'}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Card 3: Dados Bancários para Pagamento */}
+        <Card className="border-border bg-card shadow-sm">
+          <CardHeader className="pb-3 border-b border-border/50">
+            <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
+              <Landmark className="h-5 w-5 text-primary" />
+              Dados Bancários & Pagamento
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Conta de crédito de salários, adiantamentos e benefícios
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-4 space-y-3 text-xs">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="p-3 bg-muted/40 rounded-xl border border-border/50 col-span-2">
+                <span className="text-muted-foreground block text-[11px]">Instituição Financeira:</span>
+                <span className="font-bold text-foreground text-sm">{profile?.bank || 'Banco Itaú / Santander'}</span>
+              </div>
+              <div className="p-3 bg-muted/40 rounded-xl border border-border/50">
+                <span className="text-muted-foreground block text-[11px]">Agência:</span>
+                <span className="font-mono font-bold text-foreground text-sm">{profile?.bankAgency || '0001'}</span>
+              </div>
+            </div>
+
+            <div className="p-3 bg-muted/40 rounded-xl border border-border/50">
+              <span className="text-muted-foreground block text-[11px]">Conta Salário / Corrente:</span>
+              <span className="font-mono font-bold text-foreground">{profile?.bankAccount || 'Conta Cadastrada no RH'}</span>
+            </div>
+
+            {profile?.pixKey && (
+              <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+                <span className="text-emerald-400 block text-[11px] font-bold">Chave PIX Cadastrada:</span>
+                <span className="font-mono font-bold text-foreground">{profile.pixKey}</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Card 4: Contatos & Endereço Residencial */}
+        <Card className="border-border bg-card shadow-sm">
+          <CardHeader className="pb-3 border-b border-border/50">
+            <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
+              <MapPin className="h-5 w-5 text-primary" />
+              Contato & Endereço Residencial
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Informações para notificações e correspondências oficiais
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-4 space-y-3 text-xs">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3 bg-muted/40 rounded-xl border border-border/50">
+                <span className="text-muted-foreground block text-[11px]">E-mail Corporativo:</span>
+                <span className="font-bold text-foreground truncate block">{profile?.email}</span>
+              </div>
+              <div className="p-3 bg-muted/40 rounded-xl border border-border/50">
+                <span className="text-muted-foreground block text-[11px]">Telefone Principal:</span>
+                <span className="font-bold text-foreground">{profile?.phone || 'Não informado'}</span>
+              </div>
+            </div>
+
+            <div className="p-3 bg-muted/40 rounded-xl border border-border/50">
+              <span className="text-muted-foreground block text-[11px]">Endereço Completo:</span>
+              <span className="font-medium text-foreground block">
+                {profile?.address 
+                  ? `${profile.address}${profile.city ? ` - ${profile.city}` : ''}${profile.state ? `/${profile.state}` : ''}${profile.zipCode ? ` - CEP: ${profile.zipCode}` : ''}`
+                  : 'Endereço registrado na ficha de registro do empregado.'}
+              </span>
+            </div>
+
+            {profile?.emergencyPhone && (
+              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                <span className="text-amber-400 block text-[11px] font-bold">Contato de Emergência:</span>
+                <span className="font-bold text-foreground">{profile.emergencyPhone}</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };

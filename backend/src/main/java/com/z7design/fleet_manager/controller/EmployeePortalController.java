@@ -11,6 +11,8 @@ import java.util.stream.Collectors;
 import java.util.Optional;
 
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -39,6 +41,9 @@ public class EmployeePortalController {
     private final SSTTrainingService sstTrainingService;
     private final VacationService vacationService;
     private final NotificationService notificationService;
+    private final EPIDeliveryFormService epiDeliveryFormService;
+    private final EPIDeliveryPdfService epiDeliveryPdfService;
+    private final BenefitService benefitService;
 
     private Employee resolveEmployee(com.z7design.fleet_manager.model.User user) {
         if (user == null || user.getId() == null) return null;
@@ -303,6 +308,17 @@ public class EmployeePortalController {
         if (employee == null) {
             return ResponseEntity.badRequest().build();
         }
+
+        // Regra de Negócio: Somente é permitido solicitar férias com mais de 12 meses de empresa baseado na data de admissão
+        LocalDate hireDate = employee.getHireDate();
+        if (hireDate == null || hireDate.plusMonths(12).isAfter(LocalDate.now())) {
+            LocalDate elegivelEm = hireDate != null ? hireDate.plusMonths(12) : null;
+            String msg = elegivelEm != null 
+                ? "Solicitação não permitida. Você deve ter no mínimo 12 meses de empresa (admitido em: " 
+                  + hireDate + "). Elegível a partir de: " + elegivelEm 
+                : "Solicitação não permitida. Data de admissão não configurada ou período aquisitivo incompleto.";
+            return ResponseEntity.badRequest().header("X-Error-Message", msg).build();
+        }
         
         Vacation vacation = new Vacation();
         vacation.setEmployee(employee);
@@ -406,10 +422,20 @@ public class EmployeePortalController {
         TimeRecord lastRecord = todayRecords.isEmpty() ? null : todayRecords.get(0);
         
         // Saldo de horas
-        TimeBalanceDTO timeBalance = timeRecordService.calculateBalance(employee.getId());
+        TimeBalanceDTO timeBalance = null;
+        try {
+            timeBalance = timeRecordService.calculateBalance(employee.getId());
+        } catch (Exception e) {
+            log.warn("Erro ao calcular saldo de horas para funcionário {}: {}", employee.getName(), e.getMessage());
+        }
         
         // Saldo de férias
-        VacationBalanceDTO vacationBalance = vacationService.calculateBalance(employee.getId());
+        VacationBalanceDTO vacationBalance = null;
+        try {
+            vacationBalance = vacationService.calculateBalance(employee.getId());
+        } catch (Exception e) {
+            log.warn("Erro ao calcular saldo de férias para funcionário {}: {}", employee.getName(), e.getMessage());
+        }
         
         // Holerites recentes (últimos 3 meses)
         List<Payslip> recentPayslips = payslipService.findByEmployeeIdAndDateRange(
@@ -451,5 +477,78 @@ public class EmployeePortalController {
         dashboard.put("lastTimePunch", lastRecord != null ? TimeRecordDTO.fromEntity(lastRecord) : null);
         
         return ResponseEntity.ok(dashboard);
+    }
+
+    // ========== FICHAS DE EPI DO FUNCIONÁRIO ==========
+
+    @GetMapping("/epi-forms")
+    @PreAuthorize("hasAnyRole('EMPLOYEE', 'SUPER_ADMIN', 'ADMIN', 'COLABORADOR')")
+    public ResponseEntity<List<EPIDeliveryFormDTO>> getEmployeeEpiForms(@AuthenticationPrincipal com.z7design.fleet_manager.model.User user) {
+        Employee employee = resolveEmployee(user);
+        if (employee == null) {
+            return ResponseEntity.ok(Collections.emptyList());
+        }
+        try {
+            List<EPIDeliveryFormDTO> forms = epiDeliveryFormService.findByEmployeeId(employee.getId());
+            return ResponseEntity.ok(forms != null ? forms : Collections.emptyList());
+        } catch (Exception e) {
+            log.warn("Erro ao buscar fichas de EPI do funcionário {}: {}", employee.getName(), e.getMessage());
+            return ResponseEntity.ok(Collections.emptyList());
+        }
+    }
+
+    @GetMapping("/epi-forms/{id}/pdf")
+    @PreAuthorize("hasAnyRole('EMPLOYEE', 'SUPER_ADMIN', 'ADMIN', 'COLABORADOR')")
+    public ResponseEntity<byte[]> downloadEmployeeEpiPdf(
+            @PathVariable UUID id,
+            @RequestParam(value = "orientation", defaultValue = "portrait") String orientation,
+            @AuthenticationPrincipal com.z7design.fleet_manager.model.User user) {
+        Employee employee = resolveEmployee(user);
+        if (employee == null) {
+            return ResponseEntity.status(403).build();
+        }
+        try {
+            com.z7design.fleet_manager.model.EPIDeliveryForm form = epiDeliveryFormService.findByIdEntity(id);
+            if (form == null || (form.getEmployee() != null && !form.getEmployee().getId().equals(employee.getId()))) {
+                // Bloqueia se o formulário pertencer a outro funcionário
+                return ResponseEntity.status(403).build();
+            }
+            boolean landscape = "landscape".equalsIgnoreCase(orientation) || "paisagem".equalsIgnoreCase(orientation);
+            byte[] pdf = epiDeliveryPdfService.generateEPIDeliveryPdfFromForm(form, landscape);
+            String fileName = "ficha-epi-" + id + ".pdf";
+            return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_PDF_VALUE)
+                .body(pdf);
+        } catch (Exception e) {
+            log.error("Erro ao gerar PDF da ficha de EPI para o funcionário: {}", e.getMessage(), e);
+            return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    // ========== BENEFÍCIOS DO FUNCIONÁRIO ==========
+
+    @GetMapping("/benefits")
+    @PreAuthorize("hasAnyRole('EMPLOYEE', 'SUPER_ADMIN', 'ADMIN', 'COLABORADOR')")
+    public ResponseEntity<List<Benefit>> getEmployeeBenefits(@AuthenticationPrincipal com.z7design.fleet_manager.model.User user) {
+        Employee employee = resolveEmployee(user);
+        if (employee == null) {
+            return ResponseEntity.ok(Collections.emptyList());
+        }
+        try {
+            List<Benefit> benefits = benefitService.findByEmployeeId(employee.getId());
+            if (benefits == null || benefits.isEmpty()) {
+                if (employee.getPosition() != null) {
+                    benefits = benefitService.findByPositionId(employee.getPosition().getId());
+                }
+            }
+            if (benefits == null || benefits.isEmpty()) {
+                benefits = benefitService.findActiveBenefits();
+            }
+            return ResponseEntity.ok(benefits != null ? benefits : Collections.emptyList());
+        } catch (Exception e) {
+            log.warn("Erro ao buscar benefícios do funcionário {}: {}", employee.getName(), e.getMessage());
+            return ResponseEntity.ok(Collections.emptyList());
+        }
     }
 }

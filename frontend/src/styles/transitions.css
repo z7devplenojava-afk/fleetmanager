@@ -1,0 +1,167 @@
+/**
+ * Transitions.dev - Core Motion Scale & Animation Utilities
+ * Drop-in, production-ready CSS motion tokens and components.
+ */
+
+:root {
+  /* Durations */
+  --t-dur-instant: 100ms;
+  --t-dur-fast: 180ms;
+  --t-dur-normal: 260ms;
+  --t-dur-smooth: 400ms;
+  --t-dur-slow: 600ms;
+
+  /* Easing curves */
+  --t-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --t-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --t-ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --t-ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Shadows for depth levels (3 contrast tiers) */
+  --t-shadow-surface-1: 0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px -1px rgba(0, 0, 0, 0.3);
+  --t-shadow-surface-2: 0 4px 6px -1px rgba(0, 0, 0, 0.35), 0 2px 4px -2px rgba(0, 0, 0, 0.35);
+  --t-shadow-surface-3: 0 12px 24px -4px rgba(0, 0, 0, 0.45), 0 4px 8px -4px rgba(0, 0, 0, 0.3);
+  --t-glow-subtle: 0 0 20px -3px rgba(239, 68, 68, 0.25);
+}
+
+/* Card Hover micro-interaction (taste-skill rule: lift 2px, scale 1.01-1.02, smooth shadow) */
+.t-card-hover {
+  transition: transform var(--t-dur-fast) var(--t-ease-out),
+              box-shadow var(--t-dur-fast) var(--t-ease-out),
+              border-color var(--t-dur-fast) var(--t-ease-out);
+  will-change: transform;
+}
+.t-card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--t-shadow-surface-2);
+}
+.t-card-hover:active {
+  transform: translateY(0);
+}
+
+/* Photo/Image Zoom inside container */
+.t-zoom-parent {
+  overflow: hidden;
+}
+.t-zoom-child {
+  transition: transform var(--t-dur-smooth) var(--t-ease-out);
+  will-change: transform;
+}
+.t-zoom-parent:hover .t-zoom-child {
+  transform: scale(1.025);
+}
+
+/* Interactive Pill & Button press */
+.t-button-press {
+  transition: transform var(--t-dur-instant) var(--t-ease-out),
+              background-color var(--t-dur-fast) var(--t-ease-out),
+              box-shadow var(--t-dur-fast) var(--t-ease-out);
+}
+.t-button-press:hover {
+  transform: translateY(-1px);
+}
+.t-button-press:active {
+  transform: translateY(1px) scale(0.985);
+}
+
+/* Module Sidebar Item */
+.t-sidebar-item {
+  position: relative;
+  transition: all var(--t-dur-fast) var(--t-ease-out);
+}
+.t-sidebar-item:hover {
+  transform: translateX(3px);
+}
+.t-sidebar-item:active {
+  transform: translateX(1px);
+}
+
+/* Shimmer Sweep Animation */
+@keyframes t-shimmer-sweep {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.t-shimmer-text {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.7) 0%,
+    rgba(255, 255, 255, 1) 50%,
+    rgba(255, 255, 255, 0.7) 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: t-shimmer-sweep 4s infinite linear;
+}
+
+/* Subtle Breathing Pulse Glow */
+@keyframes t-pulse-glow {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+}
+
+.t-pulse-glow {
+  animation: t-pulse-glow 3s infinite ease-in-out;
+}
+
+/* Stagger item entrance */
+@keyframes t-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.t-animate-fade-up {
+  animation: t-fade-up var(--t-dur-smooth) var(--t-ease-out) forwards;
+}
+
+/* Dropdown / Modal reveals */
+@keyframes t-reveal-scale {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.t-dropdown-reveal {
+  transform-origin: top;
+  animation: t-reveal-scale var(--t-dur-fast) var(--t-ease-out) forwards;
+}
+
+/* Respect user's reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .t-card-hover:hover,
+  .t-zoom-parent:hover .t-zoom-child,
+  .t-button-press:hover,
+  .t-sidebar-item:hover {
+    transform: none !important;
+  }
+}
+

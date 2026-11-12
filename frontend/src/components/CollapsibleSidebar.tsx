@@ -320,8 +320,7 @@ const emailMenuItems = [
 const comunicacaoInternaMenuItems = [
   // Chat e Mensagens Básicas
   { icon: MessageCircle, text: 'Chat Interno', to: '/chat-interno', id: 'chat-interno' },
-  // Para usuários comuns, vamos usar /mensagens (caixa de entrada / envio básico)
-  { icon: Send, text: 'Enviar Mensagens', to: '/mensagens', id: 'mensagens' },
+  { icon: Send, text: 'Enviar Mensagens', to: '/gestao-mensagens/enviar', id: 'mensagens' },
   { icon: Users, text: 'Grupos de Mensagens', to: '/gestao-mensagens/grupos', id: 'gestao-mensagens-grupos' },
   { icon: Bell, text: 'Notificações', to: '/gestao-mensagens/notificacoes', id: 'gestao-mensagens-notificacoes' },
 ];
@@ -2065,6 +2064,13 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
       }
     }
 
+    // Gestão de Mensagens / Comunicação Interna rotas aninhadas
+    if (path.startsWith('/gestao-mensagens') || path.startsWith('/mensagens')) {
+      if (path.includes('/notificacoes')) return 'gestao-mensagens-notificacoes';
+      if (path.includes('/grupos')) return 'gestao-mensagens-grupos';
+      return 'mensagens';
+    }
+
     // Sub-rotas dinâmicas de Viagens e Rotas do motorista (/driver/trip/:id ou /driver/trip/active)
     if (path.startsWith('/driver/trip/')) {
       return 'driver-trip-execution';
@@ -2081,13 +2087,49 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
       }
     }
 
+    // Se ainda não encontrou correspondência e não está explicitamente no dashboard raiz,
+    // tenta encontrar pelo primeiro segmento da rota para manter o menu referência ativo
+    if (!activeItem && path !== '/' && path !== '/dashboard' && path !== '/driver/dashboard') {
+      const segments = path.split('/').filter(Boolean);
+      if (segments.length > 0) {
+        const rootPath = `/${segments[0]}`;
+        const segmentMatch = allItems.find(item => item.to.split('?')[0].startsWith(rootPath));
+        if (segmentMatch) {
+          return segmentMatch.id;
+        }
+      }
+    }
+
     return activeItem?.id || (isMotorista ? 'driver-dashboard' : 'dashboard');
   }, [location.pathname, location.search, isMotorista]);
 
   const isActive = useCallback((id: string) => activeId === id, [activeId]);
 
+  // Paleta de cores suaves para contraste e identificação visual por módulo
+  const MODULE_THEMES: Record<string, { dot: string; border: string; bg: string; text: string; lightBorder: string }> = {
+    main:        { dot: 'bg-sky-400',     border: 'border-sky-500/25',     bg: 'bg-sky-500/5',     text: 'text-sky-400',     lightBorder: 'hover:border-sky-500/40' },
+    email:       { dot: 'bg-indigo-400',  border: 'border-indigo-500/25',  bg: 'bg-indigo-500/5',  text: 'text-indigo-400',  lightBorder: 'hover:border-indigo-500/40' },
+    manutencao:  { dot: 'bg-emerald-400', border: 'border-emerald-500/25', bg: 'bg-emerald-500/5', text: 'text-emerald-400', lightBorder: 'hover:border-emerald-500/40' },
+    mobilizacao: { dot: 'bg-cyan-400',    border: 'border-cyan-500/25',    bg: 'bg-cyan-500/5',    text: 'text-cyan-400',    lightBorder: 'hover:border-cyan-500/40' },
+    ticketing:   { dot: 'bg-purple-400',  border: 'border-purple-500/25',  bg: 'bg-purple-500/5',  text: 'text-purple-400',  lightBorder: 'hover:border-purple-500/40' },
+    financeiro:  { dot: 'bg-amber-400',   border: 'border-amber-500/25',   bg: 'bg-amber-500/5',   text: 'text-amber-400',   lightBorder: 'hover:border-amber-500/40' },
+    operacional: { dot: 'bg-blue-400',    border: 'border-blue-500/25',    bg: 'bg-blue-500/5',    text: 'text-blue-400',    lightBorder: 'hover:border-blue-500/40' },
+    rh:          { dot: 'bg-rose-400',    border: 'border-rose-500/25',    bg: 'bg-rose-500/5',    text: 'text-rose-400',    lightBorder: 'hover:border-rose-500/40' },
+    sst:         { dot: 'bg-orange-400',  border: 'border-orange-500/25',  bg: 'bg-orange-500/5',  text: 'text-orange-400',  lightBorder: 'hover:border-orange-500/40' },
+    dp:          { dot: 'bg-pink-400',    border: 'border-pink-500/25',    bg: 'bg-pink-500/5',    text: 'text-pink-400',    lightBorder: 'hover:border-pink-500/40' },
+    comercial:   { dot: 'bg-teal-400',    border: 'border-teal-500/25',    bg: 'bg-teal-500/5',    text: 'text-teal-400',    lightBorder: 'hover:border-teal-500/40' },
+    estoque:     { dot: 'bg-emerald-400', border: 'border-emerald-500/25', bg: 'bg-emerald-500/5', text: 'text-emerald-400', lightBorder: 'hover:border-emerald-500/40' },
+    compras:     { dot: 'bg-yellow-400',  border: 'border-yellow-500/25',  bg: 'bg-yellow-500/5',  text: 'text-yellow-400',  lightBorder: 'hover:border-yellow-500/40' },
+    comunicacao: { dot: 'bg-violet-400',  border: 'border-violet-500/25',  bg: 'bg-violet-500/5',  text: 'text-violet-400',  lightBorder: 'hover:border-violet-500/40' },
+    atendimento: { dot: 'bg-cyan-400',    border: 'border-cyan-500/25',    bg: 'bg-cyan-500/5',    text: 'text-cyan-400',    lightBorder: 'hover:border-cyan-500/40' },
+    trafego:     { dot: 'bg-sky-400',     border: 'border-sky-500/25',     bg: 'bg-sky-500/5',     text: 'text-sky-400',     lightBorder: 'hover:border-sky-500/40' },
+    totens:      { dot: 'bg-amber-400',   border: 'border-amber-500/25',   bg: 'bg-amber-500/5',   text: 'text-amber-400',   lightBorder: 'hover:border-amber-500/40' },
+    fiscal:      { dot: 'bg-orange-400',  border: 'border-orange-500/25',  bg: 'bg-orange-500/5',  text: 'text-orange-400',  lightBorder: 'hover:border-orange-500/40' },
+    sistema:     { dot: 'bg-slate-400',   border: 'border-slate-500/25',   bg: 'bg-slate-500/5',   text: 'text-slate-400',   lightBorder: 'hover:border-slate-500/40' },
+  };
+
   const renderNavItems = (items: any[]) => (
-    <nav className={`space-y-1.5 ${collapsed && !isMobile ? 'px-0 flex flex-col items-center' : 'px-4'}`}>
+    <nav className={`space-y-1 ${collapsed && !isMobile ? 'px-0 flex flex-col items-center' : 'px-2'}`}>
       {items.map((item) => {
         const active = isActive(item.id);
         return (
@@ -2103,23 +2145,28 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
               }
             }}
             className={`
-              flex items-center rounded-lg transition-all
+              relative flex items-center rounded-lg t-sidebar-item select-none
               ${collapsed && !isMobile
                 ? 'w-10 h-10 justify-center p-0 mx-auto'
-                : 'px-4 py-2.5 text-sm font-medium w-full'
+                : 'px-3 py-2 text-xs sm:text-sm font-medium w-full'
               }
               ${active
-                ? 'bg-red-600 text-white shadow-md font-semibold'
-                : 'text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent'
+                ? 'bg-red-500/15 text-red-500 dark:text-red-400 border border-red-500/30 font-semibold shadow-sm shadow-red-500/10'
+                : 'text-sidebar-foreground/75 hover:text-sidebar-foreground hover:bg-sidebar-accent/60'
               }
             `}
           >
+            {active && (
+              <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-full bg-red-500" />
+            )}
             <item.icon
-              size={20}
-              className={`flex-shrink-0 ${collapsed && !isMobile ? '' : 'mr-3'}`}
+              size={18}
+              className={`flex-shrink-0 transition-transform duration-200 ${
+                active ? 'text-red-500 dark:text-red-400 scale-105' : 'text-sidebar-foreground/60'
+              } ${collapsed && !isMobile ? '' : 'mr-2.5'}`}
             />
             {(!collapsed || isMobile) && (
-              <span className="truncate tracking-wide">{item.text}</span>
+              <span className="truncate tracking-tight">{item.text}</span>
             )}
           </ScrollPreservingLink>
         );
@@ -2197,26 +2244,48 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
   const renderModuleSection = (moduleId: string, title: string, items: any[]) => {
     if (!items || items.length === 0) return null;
     const isExpanded = (collapsed && !isMobile) || !collapsedModules[moduleId];
+    const theme = MODULE_THEMES[moduleId] || MODULE_THEMES.main;
 
     return (
-      <div key={moduleId} className={collapsed && !isMobile ? "mb-3" : (isExpanded ? "mb-5" : "mb-1.5")}>
+      <div
+        key={moduleId}
+        className={
+          collapsed && !isMobile
+            ? "mb-3"
+            : `mx-2 mb-2 rounded-xl transition-all duration-200 border ${
+                isExpanded
+                  ? `bg-sidebar-accent/25 ${theme.border} shadow-sm`
+                  : 'bg-transparent border-transparent hover:border-sidebar-border/60'
+              }`
+        }
+      >
         {(!collapsed || isMobile) && (
-          <div className="px-2 mb-1">
+          <div className="p-1">
             <button
               type="button"
               onClick={() => toggleModule(moduleId)}
               aria-expanded={isExpanded}
-              className="w-full flex items-center justify-between px-2 py-1.5 rounded-md text-xs font-bold text-sidebar-foreground/65 hover:text-sidebar-foreground hover:bg-sidebar-accent uppercase tracking-wider transition-all select-none group cursor-pointer text-left focus:outline-none"
+              className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[11px] font-semibold tracking-wider uppercase transition-all select-none group cursor-pointer text-left focus:outline-none ${
+                isExpanded
+                  ? `${theme.text} hover:opacity-90`
+                  : 'text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/50'
+              }`}
             >
               <span className="flex items-center gap-2 truncate">
+                <span className={`w-1.5 h-1.5 rounded-full ${theme.dot} shrink-0 transition-transform duration-200 group-hover:scale-125`} />
+                <span className="truncate">{title}</span>
+              </span>
+              <div className="flex items-center gap-1.5 shrink-0 ml-1">
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-sidebar-accent/70 text-sidebar-foreground/60">
+                  {items.length}
+                </span>
                 <ChevronDown
-                  size={14}
-                  className={`transition-transform duration-200 text-sidebar-foreground/50 group-hover:text-sidebar-foreground shrink-0 ${
+                  size={13}
+                  className={`transition-transform duration-200 text-sidebar-foreground/45 group-hover:text-sidebar-foreground ${
                     isExpanded ? 'rotate-0' : '-rotate-90'
                   }`}
                 />
-                <span className="truncate">{title}</span>
-              </span>
+              </div>
             </button>
           </div>
         )}
@@ -2224,7 +2293,7 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
         {(!collapsed || isMobile) ? (
           <div
             className={`transition-all duration-200 ease-in-out overflow-hidden ${
-              isExpanded ? 'max-h-[1500px] opacity-100 visible' : 'max-h-0 opacity-0 invisible pointer-events-none'
+              isExpanded ? 'max-h-[1500px] opacity-100 visible pb-1.5' : 'max-h-0 opacity-0 invisible pointer-events-none'
             }`}
           >
             {renderNavItems(items)}
@@ -2431,3 +2500,5 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
     </>
   );
 };
+
+export default CollapsibleSidebar;

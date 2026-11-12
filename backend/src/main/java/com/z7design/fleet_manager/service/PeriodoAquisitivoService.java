@@ -100,6 +100,11 @@ public class PeriodoAquisitivoService {
             return atual;
         }
 
+        if (employee.getHireDate() == null) {
+            log.warn("Funcionario sem data de admissao cadastrada: {} ({}) - Nao e possivel gerar PA de ferias", employee.getName(), employeeId);
+            return null;
+        }
+
         // Nenhum PA utilizavel: cria o corrente a partir do aniversario de admissao.
         return gerarProximoPeriodo(employee, hoje, PeriodoAquisitivoOrigem.ADMISSAO);
     }
@@ -111,10 +116,12 @@ public class PeriodoAquisitivoService {
     public PeriodoAquisitivo gerarProximoPeriodo(Employee employee, LocalDate referencia, PeriodoAquisitivoOrigem origem) {
         LocalDate admissao = employee.getHireDate();
         if (admissao == null) {
-            throw new IllegalArgumentException("Funcionario sem data de admissao: " + employee.getName());
+            log.warn("Funcionario sem data de admissao cadastrada: {} ({})", employee.getName(), employee.getId());
+            return null;
         }
         if (admissao.isAfter(referencia)) {
-            throw new IllegalArgumentException("Data de admissao posterior a data de referencia.");
+            log.warn("Data de admissao ({}) posterior a data de referencia ({}) para: {}", admissao, referencia, employee.getName());
+            return null;
         }
 
         LocalDate inicio = ultimaOcorrenciaAnual(admissao, referencia);

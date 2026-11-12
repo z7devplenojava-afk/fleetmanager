@@ -41,6 +41,7 @@ import ContactModal from '@/components/ContactModal';
 import SpecialistModal from '@/components/SpecialistModal';
 import { useTheme } from '@/contexts/ThemeContext';
 import { getFluxbusLogoSrc } from '@/lib/brandAssets';
+import { SpotlightCard, SplitText, DotPattern } from '@/components/ui/reactbits';
 
 const PortalHome = () => {
   const animate = useGSAP();
@@ -137,29 +138,34 @@ const PortalHome = () => {
 
         {/* Hero Section */}
         <section id="inicio" className="relative pt-10 pb-20 sm:pt-16 sm:pb-28 px-4 overflow-hidden border-b border-slate-900">
+          {/* React Bits: DotPattern Background */}
+          <DotPattern
+            width={24}
+            height={24}
+            cx={1}
+            cy={1}
+            cr={1}
+            className="text-slate-700/20 [mask-image:radial-gradient(ellipse_at_center,black_30%,transparent_75%)]"
+          />
+
           <div className="container mx-auto">
             <div className="max-w-4xl mx-auto text-center relative z-10">
               
               {/* Badge de Destaque */}
               <div 
-                className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900/90 border border-slate-800 text-cyan-400 text-xs sm:text-sm font-medium mb-6 shadow-lg shadow-cyan-950/30"
+                className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900/90 border border-slate-800 text-cyan-400 text-xs sm:text-sm font-medium mb-6 shadow-lg shadow-cyan-950/30 t-card-hover"
                 data-animate="fadeUp"
               >
                 <Sparkles className="h-4 w-4 text-cyan-400 animate-pulse" />
                 <span>Plataforma Completa para Gestão de Transporte & Frota</span>
               </div>
 
-              {/* Headline Principal */}
-              <h1 
-                className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-white mb-6 leading-[1.15]" 
-                data-animate="fadeUp"
-                data-delay="100"
-              >
-                Gestão inteligente para sua{' '}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-red-400 to-amber-500 block sm:inline">
-                  empresa de transporte
-                </span>
-              </h1>
+              {/* Headline Principal com React Bits SplitText */}
+              <SplitText
+                text="Gestão inteligente para sua empresa de transporte"
+                highlightText="empresa de transporte"
+                className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-white mb-6 leading-[1.15]"
+              />
 
               {/* Subtítulo */}
               <p 
@@ -170,11 +176,11 @@ const PortalHome = () => {
                 Centralize o controle total da sua frota, motoristas, escalas, rotas de fretamento e RH em uma única plataforma fluida, intuitiva e de alta performance.
               </p>
 
-              {/* Botões de Ação Principais (CTAs) */}
+              {/* Botões de Ação Principais (CTAs) com transitions.css microinteractions */}
               <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12" data-animate="fadeUp" data-delay="300">
                 <Button 
                   size="lg" 
-                  className="w-full sm:w-auto bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-600 text-white font-bold text-base sm:text-lg px-8 py-6 rounded-xl shadow-xl shadow-red-950/50 flex items-center justify-center transition-all hover:scale-105"
+                  className="w-full sm:w-auto bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-600 text-white font-bold text-base sm:text-lg px-8 py-6 rounded-xl shadow-xl shadow-red-950/50 flex items-center justify-center t-button-press t-card-hover"
                   onClick={() => setIsQuoteModalOpen(true)}
                 >
                   <PlayCircle className="mr-2.5 h-5 w-5" />
@@ -184,7 +190,7 @@ const PortalHome = () => {
                 <Button 
                   size="lg" 
                   variant="outline" 
-                  className="w-full sm:w-auto border-slate-700 bg-slate-900/80 hover:bg-slate-800 text-slate-200 text-base sm:text-lg px-8 py-6 rounded-xl backdrop-blur-sm transition-all"
+                  className="w-full sm:w-auto border-slate-700 bg-slate-900/80 hover:bg-slate-800 text-slate-200 text-base sm:text-lg px-8 py-6 rounded-xl backdrop-blur-sm t-button-press t-card-hover"
                   onClick={() => setIsSpecialistModalOpen(true)}
                 >
                   <Phone className="mr-2 h-5 w-5 text-cyan-400" />
@@ -346,21 +352,20 @@ const PortalHome = () => {
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
               {services.map((service, index) => (
-                <Card 
-                  key={index} 
-                  className="bg-slate-900/90 border-slate-800 hover:border-slate-700 hover:shadow-xl hover:shadow-cyan-950/20 transition-all duration-300 rounded-xl" 
-                  data-animate="fadeUp" 
-                  data-delay={index * 100}
+                <SpotlightCard
+                  key={index}
+                  spotlightColor="rgba(239, 68, 68, 0.12)"
+                  className="bg-slate-900/90 border-slate-800 hover:border-slate-700/80 t-card-hover rounded-xl flex flex-col h-full"
                 >
                   <CardHeader className="pb-3">
                     <div className="flex items-center space-x-3">
-                      <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-red-500">
+                      <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-red-500 transition-transform duration-300 group-hover:scale-110">
                         <service.icon className="h-6 w-6" />
                       </div>
                       <CardTitle className="text-lg font-bold text-white">{service.title}</CardTitle>
                     </div>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="space-y-4 flex-1 flex flex-col justify-between">
                     <p className="text-sm text-slate-300 leading-relaxed">{service.description}</p>
                     <div className="pt-2 border-t border-slate-800/80">
                       <ul className="space-y-2">
@@ -373,14 +378,14 @@ const PortalHome = () => {
                       </ul>
                     </div>
                   </CardContent>
-                </Card>
+                </SpotlightCard>
               ))}
             </div>
 
             <div className="mt-12 text-center">
               <Button 
                 size="lg" 
-                className="bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-600 text-white font-semibold px-8 py-3.5 rounded-lg shadow-lg shadow-red-950/40"
+                className="bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-600 text-white font-semibold px-8 py-3.5 rounded-lg shadow-lg shadow-red-950/40 t-button-press t-card-hover"
                 onClick={() => setIsQuoteModalOpen(true)}
               >
                 Solicitar Demonstração dos Módulos

@@ -48,6 +48,11 @@ public class StockNfeParsedDTO {
     private String customerZipCode;
     private String customerPhone;
 
+    // Dados Adicionais e Identificação Veicular (Abastecimento / Frotas)
+    private String additionalInfo;
+    private String vehiclePlate;
+    private Integer mileage;
+
     // Validação de Duplicidade
     // Tipo da Nota: NFE (Produtos) ou NFSE (Serviços)
     @Builder.Default

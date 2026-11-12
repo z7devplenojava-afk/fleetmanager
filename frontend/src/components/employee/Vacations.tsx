@@ -12,8 +12,12 @@ import {
   Send,
   X,
   Plane,
-  Umbrella
+  Umbrella,
+  Lock,
+  ShieldCheck,
+  AlertCircle
 } from 'lucide-react';
+import api from '@/lib/axios';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -52,6 +56,7 @@ const Vacations: React.FC = () => {
   const { toast } = useToast();
   const [vacations, setVacations] = useState<Vacation[]>([]);
   const [vacationBalance, setVacationBalance] = useState<VacationBalance | null>(null);
+  const [admissionDate, setAdmissionDate] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -69,7 +74,49 @@ const Vacations: React.FC = () => {
   useEffect(() => {
     loadVacations();
     loadVacationBalance();
+    loadProfileAdmission();
   }, []);
+
+  const loadProfileAdmission = async () => {
+    try {
+      const res = await api.get('/api/employee-portal/profile');
+      if (res.data?.admissionDate) {
+        setAdmissionDate(res.data.admissionDate);
+      }
+    } catch (e) {
+      console.warn('Erro ao carregar data de admissão:', e);
+    }
+  };
+
+  // Cálculo de elegibilidade: mais de 12 meses de empresa baseado na data de admissão
+  const getEligibilityInfo = () => {
+    if (!admissionDate) {
+      return { isEligible: true, months: 12, eligibleAtFormatted: '', admFormatted: '' };
+    }
+    try {
+      const adm = new Date(admissionDate);
+      const now = new Date();
+      let months = (now.getFullYear() - adm.getFullYear()) * 12 + (now.getMonth() - adm.getMonth());
+      if (now.getDate() < adm.getDate()) {
+        months -= 1;
+      }
+      const isEligible = months >= 12;
+
+      const eligibleAt = new Date(adm);
+      eligibleAt.setFullYear(adm.getFullYear() + 1);
+
+      return {
+        isEligible,
+        months: Math.max(0, months),
+        eligibleAtFormatted: eligibleAt.toLocaleDateString('pt-BR'),
+        admFormatted: adm.toLocaleDateString('pt-BR')
+      };
+    } catch {
+      return { isEligible: true, months: 12, eligibleAtFormatted: '', admFormatted: '' };
+    }
+  };
+
+  const eligibility = getEligibilityInfo();
 
   const loadVacations = async () => {
     setLoading(true);
@@ -265,19 +312,66 @@ const Vacations: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Férias</h1>
-          <p className="text-muted-foreground">Solicite e acompanhe suas férias e folgas</p>
+          <h1 className="text-2xl font-black text-foreground flex items-center gap-2">
+            <Umbrella className="h-6 w-6 text-primary" />
+            Férias & Período Aquisitivo
+          </h1>
+          <p className="text-sm text-muted-foreground">Solicite e acompanhe suas férias conforme a legislação trabalhista e política interna</p>
         </div>
-        <Button
-          onClick={() => setShowRequestForm(true)}
-          className="flex items-center space-x-2 bg-red-600 hover:bg-red-700 text-white"
-        >
-          <Plus className="h-4 w-4" />
-          <span>Nova Solicitação</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          {eligibility.isEligible ? (
+            <Button
+              onClick={() => setShowRequestForm(true)}
+              className="flex items-center space-x-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-md shadow-primary/20"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Solicitar Férias</span>
+            </Button>
+          ) : (
+            <Button
+              disabled
+              variant="outline"
+              className="flex items-center space-x-2 cursor-not-allowed border-amber-500/40 text-amber-500 bg-amber-500/10"
+              title={`Elegível apenas após 12 meses de empresa (a partir de ${eligibility.eligibleAtFormatted})`}
+            >
+              <Lock className="h-4 w-4 mr-1" />
+              <span>Solicitar Férias (Incompleto)</span>
+            </Button>
+          )}
+        </div>
       </div>
+
+      {/* Alerta de Elegibilidade Baseado na Data de Admissão */}
+      {!eligibility.isEligible ? (
+        <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-start gap-3 shadow-sm">
+          <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+          <div className="text-xs leading-relaxed space-y-1">
+            <p className="font-bold text-sm text-amber-300">
+              Período Aquisitivo em Andamento ({eligibility.months} de 12 meses cumpridos)
+            </p>
+            <p className="text-slate-300">
+              Conforme a CLT (Art. 130), o direito ao gozo de férias é adquirido após cada período de <strong>12 meses de vigência do contrato de trabalho</strong>.
+            </p>
+            <p className="text-slate-300">
+              Sua data de admissão é <strong>{eligibility.admFormatted}</strong>. A liberação para agendamento de férias estará disponível a partir de <strong className="text-amber-300">{eligibility.eligibleAtFormatted}</strong>.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-between text-xs">
+          <div className="flex items-center gap-2.5">
+            <ShieldCheck className="h-5 w-5 text-emerald-500" />
+            <span>
+              <strong>Período aquisitivo completo ({eligibility.months} meses de empresa):</strong> Você está elegível para programar seu descanso anual.
+            </span>
+          </div>
+          <Badge className="bg-emerald-600 text-white font-bold text-[10px]">
+            ELEGÍVEL
+          </Badge>
+        </div>
+      )}
 
 
       {/* Balance Card */}

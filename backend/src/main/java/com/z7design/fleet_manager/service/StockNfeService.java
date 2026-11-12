@@ -357,6 +357,77 @@ public class StockNfeService {
                         .build());
             }
 
+            // Extrair Informações Adicionais (infAdic / infCpl / obsContr / obsFisco) e Dados de Veículo/KM
+            StringBuilder addInfoBuilder = new StringBuilder();
+            String explicitPlate = null;
+            Integer explicitMileage = null;
+
+            NodeList infAdicNodes = doc.getElementsByTagName("infAdic");
+            if (infAdicNodes.getLength() > 0) {
+                Element infAdicEl = (Element) infAdicNodes.item(0);
+                String infCpl = getTagValue(infAdicEl, "infCpl");
+                if (infCpl != null && !infCpl.isBlank()) {
+                    addInfoBuilder.append(infCpl).append(" ");
+                }
+                String infAdFisco = getTagValue(infAdicEl, "infAdFisco");
+                if (infAdFisco != null && !infAdFisco.isBlank()) {
+                    addInfoBuilder.append(infAdFisco).append(" ");
+                }
+                NodeList obsContrNodes = infAdicEl.getElementsByTagName("obsContr");
+                for (int o = 0; o < obsContrNodes.getLength(); o++) {
+                    Element obsEl = (Element) obsContrNodes.item(o);
+                    String xCampo = obsEl.getAttribute("xCampo");
+                    String xTexto = getTagValue(obsEl, "xTexto");
+                    if (xTexto == null || xTexto.isBlank()) {
+                        xTexto = obsEl.getTextContent();
+                    }
+                    if (xCampo != null && !xCampo.isBlank()) {
+                        addInfoBuilder.append(xCampo).append(": ");
+                        String campoUpper = xCampo.toUpperCase();
+                        if (campoUpper.contains("PLACA") || campoUpper.contains("VEIC")) {
+                            explicitPlate = extractPlate(xTexto);
+                        } else if (campoUpper.contains("KM") || campoUpper.contains("HODOMETRO") || campoUpper.contains("ODOMETRO")) {
+                            explicitMileage = extractMileage("KM " + xTexto);
+                        }
+                    }
+                    if (xTexto != null && !xTexto.isBlank()) {
+                        addInfoBuilder.append(xTexto).append(" ");
+                    }
+                }
+            }
+
+            // Veículo do produto (veicProd)
+            NodeList veicProdNodes = doc.getElementsByTagName("veicProd");
+            if (veicProdNodes.getLength() > 0) {
+                Element veicEl = (Element) veicProdNodes.item(0);
+                String placaEl = getTagValue(veicEl, "placa");
+                if (placaEl != null && !placaEl.isBlank()) {
+                    explicitPlate = extractPlate(placaEl);
+                }
+                String chassiEl = getTagValue(veicEl, "chassi");
+                if (chassiEl != null && !chassiEl.isBlank()) {
+                    addInfoBuilder.append("CHASSI: ").append(chassiEl).append(" ");
+                }
+            }
+
+            // Descrições dos itens (det/prod/xProd)
+            StringBuilder itemsText = new StringBuilder();
+            if (dto.getItems() != null) {
+                for (StockNfeParsedDTO.StockNfeItemDTO it : dto.getItems()) {
+                    if (it.getDescription() != null) {
+                        itemsText.append(it.getDescription()).append(" ");
+                    }
+                }
+            }
+
+            String fullCorpus = addInfoBuilder.toString() + " " + itemsText.toString();
+            String finalPlate = explicitPlate != null ? explicitPlate : extractPlate(fullCorpus);
+            Integer finalMileage = explicitMileage != null ? explicitMileage : extractMileage(fullCorpus);
+
+            dto.setAdditionalInfo(addInfoBuilder.toString().trim());
+            dto.setVehiclePlate(finalPlate);
+            dto.setMileage(finalMileage);
+
             return dto;
         } catch (Exception e) {
             log.error("Erro no processamento do XML da NF-e: {}", e.getMessage(), e);
@@ -573,7 +644,7 @@ public class StockNfeService {
                 suggestedOsFromPdf = osMatcher.group(0);
             }
 
-            return StockNfeParsedDTO.builder()
+            StockNfeParsedDTO dto = StockNfeParsedDTO.builder()
                     .accessKey(accessKey)
                     .invoiceNumber(nNf)
                     .isNfse(isNfsePdf)
@@ -606,6 +677,29 @@ public class StockNfeService {
                     .items(items)
                     .installments(installments)
                     .build();
+
+            // Extrair Informações Adicionais / Complementares do DANFE (infAdic / Dados Adicionais)
+            String additionalInfo = extractAdditionalInfo(lines, flat);
+            dto.setAdditionalInfo(additionalInfo);
+
+            // Extrair Placa e Hodômetro (KM)
+            StringBuilder searchCorpus = new StringBuilder();
+            if (additionalInfo != null && !additionalInfo.isBlank()) {
+                searchCorpus.append(additionalInfo).append(" ");
+            }
+            searchCorpus.append(flat).append(" ");
+            if (items != null) {
+                for (StockNfeParsedDTO.StockNfeItemDTO it : items) {
+                    if (it.getDescription() != null) {
+                        searchCorpus.append(it.getDescription()).append(" ");
+                    }
+                }
+            }
+
+            dto.setVehiclePlate(extractPlate(searchCorpus.toString()));
+            dto.setMileage(extractMileage(searchCorpus.toString()));
+
+            return dto;
         } catch (BusinessException be) {
             throw be;
         } catch (Exception e) {
@@ -621,6 +715,84 @@ public class StockNfeService {
             41, 42, 43,
             50, 51, 52, 53
     );
+
+    public static String extractPlate(String text) {
+        if (text == null || text.isBlank()) return null;
+        String upper = text.toUpperCase();
+
+        // 1. Rótulo explícito com placa Mercosul ou Padrão: PLACA: ABC-1234, PLACA ABC1D23, PLACA:ABC1D23, PL: ABC-1234, VEIC: ABC-1234, CARRO: ABC-1234
+        Matcher m1 = Pattern.compile("(?i)(?:PLACA|PL\\.?|VE[ÍI]C(?:ULO)?|CARRO|FROTA|AUTO)\\s*[:=-]?\\s*([A-Z]{3}[-\\s]?[0-9][A-Z0-9][0-9]{2})\\b").matcher(upper);
+        if (m1.find()) {
+            return cleanPlate(m1.group(1));
+        }
+
+        // 2. Placa no padrão Mercosul (3 letras + 1 dígito + 1 letra + 2 dígitos, ex: BRA2E19)
+        Matcher mMercosul = Pattern.compile("\\b([A-Z]{3}[0-9][A-Z][0-9]{2})\\b").matcher(upper);
+        if (mMercosul.find()) {
+            return cleanPlate(mMercosul.group(1));
+        }
+
+        // 3. Placa no padrão tradicional com traço ou espaço (3 letras + 4 dígitos, ex: ABC-1234)
+        Matcher mOld = Pattern.compile("\\b([A-Z]{3}[-\\s][0-9]{4})\\b").matcher(upper);
+        if (mOld.find()) {
+            return cleanPlate(mOld.group(1));
+        }
+
+        return null;
+    }
+
+    private static String cleanPlate(String raw) {
+        if (raw == null) return null;
+        String cleaned = raw.replaceAll("[^A-Z0-9]", "").toUpperCase();
+        if (cleaned.length() == 7) {
+            return cleaned;
+        }
+        return null;
+    }
+
+    public static Integer extractMileage(String text) {
+        if (text == null || text.isBlank()) return null;
+        String upper = text.toUpperCase();
+
+        // Rótulo explícito de KM / Hodômetro: KM: 125430, HODÔMETRO: 125.430, KM ATUAL 125430, ODOMETRO: 125430, HOD: 125430, KM. 125430
+        Matcher mKm = Pattern.compile("(?i)(?:KM(?:\\s*ATUAL|\\s*FINAL|\\s*RODADO|\\s*VE[ÍI]CULO)?|HOD[ÔO]METRO|OD[ÔO]METRO|HOD\\.?|ODO\\.?|QUILOMETRAGEM)\\s*[:=-]?\\s*([0-9]{1,3}(?:\\.[0-9]{3})+|[0-9]{2,7})(?:\\s*KM)?\\b").matcher(upper);
+        if (mKm.find()) {
+            try {
+                String numStr = mKm.group(1).replace(".", "").trim();
+                int km = Integer.parseInt(numStr);
+                if (km > 0 && km < 10000000) {
+                    return km;
+                }
+            } catch (Exception ignored) {}
+        }
+        return null;
+    }
+
+    private String extractAdditionalInfo(List<String> lines, String flat) {
+        if (lines == null || lines.isEmpty()) return "";
+        int startIdx = -1;
+        for (int i = 0; i < lines.size(); i++) {
+            String norm = removeAccents(lines.get(i).toUpperCase());
+            if (norm.contains("DADOS ADICIONAIS") || norm.contains("INFORMACOES COMPLEMENTARES")) {
+                startIdx = i;
+                break;
+            }
+        }
+        if (startIdx >= 0) {
+            StringBuilder sb = new StringBuilder();
+            for (int i = startIdx + 1; i < lines.size(); i++) {
+                String line = lines.get(i);
+                String norm = removeAccents(line.toUpperCase());
+                if (norm.contains("RESERVADO AO FISCO") || norm.contains("PROTOCOLO DE AUTORIZACAO") || norm.contains("CANHOTO")
+                        || norm.contains("CONTINUACAO DADOS ADICIONAIS")) {
+                    break;
+                }
+                sb.append(line).append(" ");
+            }
+            return sb.toString().trim();
+        }
+        return "";
+    }
 
     private String extractAccessKey(String flat) {
         return extractAccessKey(flat, null);

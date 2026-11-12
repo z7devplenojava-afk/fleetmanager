@@ -16,13 +16,21 @@ import {
   Bell, 
   Users as UsersIcon, 
   Settings,
-  Eye
+  Eye,
+  Mail,
+  RefreshCw,
+  CheckCircle,
+  CheckCheck,
+  AlertCircle,
+  Clock,
+  Filter
 } from 'lucide-react';
 import { messageService } from '@/services/messageService';
 import { userService } from '@/services/userService';
 import { groupService } from '@/services/groupService';
 import { departmentService } from '@/services/departmentService';
 import { useToast } from '@/hooks/use-toast';
+import { useNotificationBell } from '@/hooks/useNotificationBell';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { MainLayout } from '@/components/MainLayout';
@@ -68,7 +76,7 @@ const GestaoMensagens: React.FC = () => {
   
   // Determinar a página atual baseado na URL
   const pathParts = location.pathname.split('/');
-  const currentPage = pathParts.length > 2 ? pathParts[2] : 'enviar';
+  const currentPage = pathParts.length > 2 && pathParts[2] ? pathParts[2] : 'inbox';
   
   const [messages, setMessages] = useState<Message[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -78,6 +86,23 @@ const GestaoMensagens: React.FC = () => {
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+
+  // Sistema de Notificações em tempo real sincronizado com o NotificationBell
+  const {
+    systemMessages,
+    unreadCount: notifUnreadCount,
+    isLoading: notifLoading,
+    loadMessages: reloadNotifications,
+    markAsRead: markNotifAsRead,
+    markAllAsRead: markAllNotifsAsRead,
+    formatDate: formatNotifDate,
+    getPriorityConfig: getNotifPriorityConfig
+  } = useNotificationBell();
+
+  const [notifFilter, setNotifFilter] = useState<'all' | 'unread' | 'read'>('all');
+  const [notifSearch, setNotifSearch] = useState('');
+  const [inboxFilter, setInboxFilter] = useState<'all' | 'unread'>('all');
+  const [inboxSearch, setInboxSearch] = useState('');
   
   // Estados para busca e seleção
   const [userSearchTerm, setUserSearchTerm] = useState('');
@@ -105,12 +130,13 @@ const GestaoMensagens: React.FC = () => {
 
   useEffect(() => {
     loadData();
+    reloadNotifications();
   }, []);
 
-  // Redirecionar para enviar se estiver na rota raiz
+  // Redirecionar para inbox se estiver na rota raiz
   useEffect(() => {
     if (location.pathname === '/gestao-mensagens') {
-      navigate('/gestao-mensagens/enviar', { replace: true });
+      navigate('/gestao-mensagens/inbox', { replace: true });
     }
   }, [location.pathname, navigate]);
 
@@ -319,6 +345,32 @@ const GestaoMensagens: React.FC = () => {
     }
   };
 
+  // Filtragem de notificações em tempo real
+  const filteredNotifications = systemMessages.filter(msg => {
+    if (notifFilter === 'unread' && msg.status !== 'UNREAD') return false;
+    if (notifFilter === 'read' && msg.status === 'UNREAD') return false;
+    if (notifSearch.trim()) {
+      const q = notifSearch.toLowerCase();
+      const matchTitle = msg.title?.toLowerCase().includes(q);
+      const matchContent = msg.content?.toLowerCase().includes(q);
+      if (!matchTitle && !matchContent) return false;
+    }
+    return true;
+  });
+
+  // Filtragem de mensagens na caixa de entrada
+  const filteredInboxMessages = messages.filter(msg => {
+    if (inboxFilter === 'unread' && msg.readAt) return false;
+    if (inboxSearch.trim()) {
+      const q = inboxSearch.toLowerCase();
+      const matchTitle = msg.title?.toLowerCase().includes(q);
+      const matchContent = msg.content?.toLowerCase().includes(q);
+      const matchSender = msg.sender?.name?.toLowerCase().includes(q);
+      if (!matchTitle && !matchContent && !matchSender) return false;
+    }
+    return true;
+  });
+
   // Função para navegar entre as páginas
   const navigateToPage = (page: string) => {
     navigate(`/gestao-mensagens/${page}`);
@@ -327,47 +379,310 @@ const GestaoMensagens: React.FC = () => {
   return (
     <MainLayout title="Gestão de Mensagens" subtitle="Gerencie mensagens internas, notificações e comunicações">
       <div className="space-y-6">
-        {/* Header com ações */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Gestão de Mensagens</h1>
-            <p className="text-muted-foreground">Gerencie mensagens internas, notificações e comunicações</p>
+        {/* Barra de Ações Rápidas (sem duplicar o título do MainLayout) */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400">
+              <Mail className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-white">Central de Mensageria & Notificações</p>
+              <p className="text-xs text-muted-foreground">Envio de comunicados, alertas de sistema e gestão de grupos</p>
+            </div>
           </div>
-          <Button onClick={() => navigateToPage('enviar')}>
-            <Send className="w-4 h-4 mr-2" />
-            Nova Mensagem
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                loadData();
+                reloadNotifications();
+              }}
+              disabled={loading || notifLoading}
+              className="text-xs border-slate-700 hover:bg-slate-800"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${loading || notifLoading ? 'animate-spin' : ''}`} />
+              Sincronizar
+            </Button>
+            {currentPage !== 'enviar' && (
+              <Button
+                size="sm"
+                onClick={() => navigateToPage('enviar')}
+                className="bg-red-600 hover:bg-red-700 text-white font-medium text-xs"
+              >
+                <Send className="w-3.5 h-3.5 mr-1.5" />
+                Nova Mensagem
+              </Button>
+            )}
+          </div>
         </div>
 
-        {/* Navegação entre páginas */}
-        <div className="flex space-x-2 border-b">
+        {/* Navegação entre abas */}
+        <div className="flex flex-wrap gap-2 border-b border-border pb-3">
+          <Button
+            variant={currentPage === 'inbox' ? 'default' : 'ghost'}
+            onClick={() => navigateToPage('inbox')}
+            className={`flex items-center gap-2 text-xs sm:text-sm ${currentPage === 'inbox' ? 'bg-red-600 text-white hover:bg-red-700' : ''}`}
+          >
+            <Inbox className="w-4 h-4" />
+            Caixa de Entrada
+            {unreadCount > 0 && (
+              <Badge variant="destructive" className="ml-1 h-5 px-1.5 text-[10px] font-bold">
+                {unreadCount}
+              </Badge>
+            )}
+          </Button>
           <Button
             variant={currentPage === 'enviar' ? 'default' : 'ghost'}
             onClick={() => navigateToPage('enviar')}
-            className="flex items-center gap-2"
+            className={`flex items-center gap-2 text-xs sm:text-sm ${currentPage === 'enviar' ? 'bg-red-600 text-white hover:bg-red-700' : ''}`}
           >
             <Send className="w-4 h-4" />
             Enviar Mensagens
           </Button>
           <Button
+            variant={currentPage === 'notificacoes' ? 'default' : 'ghost'}
+            onClick={() => navigateToPage('notificacoes')}
+            className={`flex items-center gap-2 text-xs sm:text-sm ${currentPage === 'notificacoes' ? 'bg-red-600 text-white hover:bg-red-700' : ''}`}
+          >
+            <Bell className="w-4 h-4" />
+            Notificações
+            {notifUnreadCount > 0 && (
+              <Badge variant="destructive" className="ml-1 h-5 px-1.5 text-[10px] font-bold animate-pulse">
+                {notifUnreadCount}
+              </Badge>
+            )}
+          </Button>
+          <Button
             variant={currentPage === 'grupos' ? 'default' : 'ghost'}
             onClick={() => navigateToPage('grupos')}
-            className="flex items-center gap-2"
+            className={`flex items-center gap-2 text-xs sm:text-sm ${currentPage === 'grupos' ? 'bg-red-600 text-white hover:bg-red-700' : ''}`}
           >
             <UsersIcon className="w-4 h-4" />
             Grupos de Mensagens
           </Button>
-          <Button
-            variant={currentPage === 'notificacoes' ? 'default' : 'ghost'}
-            onClick={() => navigateToPage('notificacoes')}
-            className="flex items-center gap-2"
-          >
-            <Bell className="w-4 h-4" />
-            Notificações
-          </Button>
         </div>
 
         {/* Componentes das páginas */}
+        {/* Página de Caixa de Entrada (Mensagens Recebidas) */}
+        {currentPage === 'inbox' && (
+          <div className="space-y-4">
+            {/* Header de Estatísticas */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <Card className="bg-slate-900/60 border-slate-800">
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground font-medium">Total de Mensagens</p>
+                    <p className="text-2xl font-bold text-white mt-0.5">{messages.length}</p>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-blue-500/10 text-blue-400">
+                    <Inbox className="w-5 h-5" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-slate-900/60 border-slate-800">
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground font-medium">Não Lidas</p>
+                    <p className={`text-2xl font-bold mt-0.5 ${unreadCount > 0 ? 'text-red-400' : 'text-slate-300'}`}>
+                      {unreadCount}
+                    </p>
+                  </div>
+                  <div className={`p-2.5 rounded-lg ${unreadCount > 0 ? 'bg-red-500/10 text-red-400' : 'bg-slate-800 text-slate-400'}`}>
+                    <AlertCircle className="w-5 h-5" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-slate-900/60 border-slate-800">
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground font-medium">Lidas</p>
+                    <p className="text-2xl font-bold text-emerald-400 mt-0.5">
+                      {Math.max(0, messages.length - unreadCount)}
+                    </p>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-400">
+                    <CheckCircle className="w-5 h-5" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Barra de Busca e Filtros */}
+            <Card className="bg-slate-900/80 border-slate-800">
+              <CardContent className="p-3 sm:p-4">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative flex-1 sm:w-64">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                      <Input
+                        placeholder="Buscar por assunto, remetente..."
+                        value={inboxSearch}
+                        onChange={(e) => setInboxSearch(e.target.value)}
+                        className="pl-8 h-9 text-xs"
+                      />
+                    </div>
+                    <div className="flex items-center gap-1 border border-border rounded-lg p-0.5 bg-background/50">
+                      <Button
+                        size="sm"
+                        variant={inboxFilter === 'all' ? 'default' : 'ghost'}
+                        onClick={() => setInboxFilter('all')}
+                        className="h-7 text-xs px-2.5"
+                      >
+                        Todas
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={inboxFilter === 'unread' ? 'default' : 'ghost'}
+                        onClick={() => setInboxFilter('unread')}
+                        className="h-7 text-xs px-2.5"
+                      >
+                        Não Lidas ({unreadCount})
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 self-end sm:self-auto">
+                    <Button
+                      size="sm"
+                      onClick={() => navigateToPage('enviar')}
+                      className="bg-red-600 hover:bg-red-700 text-white font-medium h-9 text-xs"
+                    >
+                      <Plus className="w-4 h-4 mr-1.5" />
+                      Nova Mensagem
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => loadData()}
+                      disabled={loading}
+                      className="h-9 text-xs border-slate-700 text-slate-300 hover:bg-slate-800"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 mr-1 ${loading ? 'animate-spin' : ''}`} />
+                      Atualizar
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Lista de Mensagens Recebidas */}
+            <div className="space-y-2">
+              {filteredInboxMessages.length === 0 ? (
+                <Card className="bg-slate-900/60 border-slate-800">
+                  <CardContent className="py-12 text-center">
+                    <div className="w-14 h-14 rounded-full bg-slate-800/80 border border-slate-700/60 flex items-center justify-center mx-auto mb-3">
+                      <Inbox className="w-7 h-7 text-slate-500" />
+                    </div>
+                    <p className="text-base font-semibold text-slate-200">
+                      {messages.length === 0 ? "Nenhuma mensagem na caixa de entrada" : "Nenhuma mensagem encontrada no filtro"}
+                    </p>
+                    <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                      {messages.length === 0
+                        ? "Quando outros usuários enviarem comunicados ou mensagens diretas, elas aparecerão aqui."
+                        : "Tente alterar o filtro ou limpar o campo de busca."}
+                    </p>
+                    <Button
+                      size="sm"
+                      onClick={() => navigateToPage('enviar')}
+                      className="mt-4 text-xs bg-red-600 hover:bg-red-700 text-white"
+                    >
+                      <Send className="w-3.5 h-3.5 mr-1.5" />
+                      Enviar uma Mensagem
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : (
+                filteredInboxMessages.map((msg) => {
+                  const isUnread = !msg.readAt;
+                  return (
+                    <Card
+                      key={msg.id}
+                      className={`transition-all duration-200 border cursor-pointer hover:border-slate-700 ${
+                        isUnread
+                          ? 'bg-slate-900/90 border-blue-500/30 shadow-md shadow-blue-950/20'
+                          : 'bg-slate-900/40 border-slate-800/80 opacity-90 hover:opacity-100'
+                      }`}
+                      onClick={() => {
+                        setSelectedMessage(msg);
+                        setShowViewModal(true);
+                        if (isUnread) handleMarkAsRead(msg.id);
+                      }}
+                    >
+                      <CardContent className="p-4 flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          <div className={`p-2.5 rounded-lg shrink-0 mt-0.5 ${
+                            isUnread ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-slate-800 text-slate-400'
+                          }`}>
+                            <Mail className="w-4 h-4" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2 mb-1">
+                              <h4 className={`text-sm font-semibold truncate ${isUnread ? 'text-white font-bold' : 'text-slate-300'}`}>
+                                {msg.title}
+                              </h4>
+                              {isUnread && (
+                                <Badge className="bg-blue-500/20 text-blue-400 border border-blue-500/40 text-[10px] font-bold px-1.5 py-0">
+                                  NÃO LIDA
+                                </Badge>
+                              )}
+                              <Badge className={getPriorityColor(msg.priority)}>
+                                {msg.priority}
+                              </Badge>
+                              <Badge variant="outline" className="text-[10px] text-slate-400 border-slate-700">
+                                {msg.type}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-slate-300 line-clamp-2 leading-relaxed">
+                              {msg.content}
+                            </p>
+                            <div className="flex items-center gap-4 mt-2 text-[11px] text-slate-500">
+                              <span>Remetente: <strong className="text-slate-400">{msg.sender?.name || 'Sistema'}</strong></span>
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                {format(new Date(msg.createdAt), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0 self-center" onClick={(e) => e.stopPropagation()}>
+                          {isUnread && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleMarkAsRead(msg.id)}
+                              className="h-8 text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
+                              title="Marcar como lida"
+                            >
+                              <CheckCircle className="w-3.5 h-3.5 mr-1" />
+                              Marcar Lida
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedMessage(msg);
+                              setShowViewModal(true);
+                            }}
+                            className="h-8 text-xs border-slate-700 text-slate-300 hover:bg-slate-800"
+                          >
+                            <Eye className="w-3.5 h-3.5 mr-1" />
+                            Abrir
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Página de Enviar Mensagem */}
         {currentPage === 'enviar' && (
           <div className="space-y-4">
@@ -654,18 +969,230 @@ const GestaoMensagens: React.FC = () => {
         {/* Página de Notificações */}
         {currentPage === 'notificacoes' && (
           <div className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Notificações</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8 text-muted-foreground">
-                  <Bell className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
-                  <p>Funcionalidade em desenvolvimento</p>
-                  <p className="text-sm">Em breve você poderá gerenciar notificações</p>
+            {/* Header de Estatísticas e Ações */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <Card className="bg-slate-900/60 border-slate-800">
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground font-medium">Total de Notificações</p>
+                    <p className="text-2xl font-bold text-white mt-0.5">{systemMessages.length}</p>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-blue-500/10 text-blue-400">
+                    <Bell className="w-5 h-5" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-slate-900/60 border-slate-800">
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground font-medium">Não Lidas</p>
+                    <p className={`text-2xl font-bold mt-0.5 ${notifUnreadCount > 0 ? 'text-red-400' : 'text-slate-300'}`}>
+                      {notifUnreadCount}
+                    </p>
+                  </div>
+                  <div className={`p-2.5 rounded-lg ${notifUnreadCount > 0 ? 'bg-red-500/10 text-red-400' : 'bg-slate-800 text-slate-400'}`}>
+                    <AlertCircle className="w-5 h-5" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-slate-900/60 border-slate-800">
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground font-medium">Lidas / Arquivadas</p>
+                    <p className="text-2xl font-bold text-emerald-400 mt-0.5">
+                      {Math.max(0, systemMessages.length - notifUnreadCount)}
+                    </p>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-400">
+                    <CheckCircle className="w-5 h-5" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Barra de Filtro e Ações */}
+            <Card className="bg-slate-900/80 border-slate-800">
+              <CardContent className="p-3 sm:p-4">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative flex-1 sm:w-64">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                      <Input
+                        placeholder="Buscar nas notificações..."
+                        value={notifSearch}
+                        onChange={(e) => setNotifSearch(e.target.value)}
+                        className="pl-8 h-9 text-xs"
+                      />
+                    </div>
+                    <div className="flex items-center gap-1 border border-border rounded-lg p-0.5 bg-background/50">
+                      <Button
+                        size="sm"
+                        variant={notifFilter === 'all' ? 'default' : 'ghost'}
+                        onClick={() => setNotifFilter('all')}
+                        className="h-7 text-xs px-2.5"
+                      >
+                        Todas
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={notifFilter === 'unread' ? 'default' : 'ghost'}
+                        onClick={() => setNotifFilter('unread')}
+                        className="h-7 text-xs px-2.5"
+                      >
+                        Não Lidas ({notifUnreadCount})
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={notifFilter === 'read' ? 'default' : 'ghost'}
+                        onClick={() => setNotifFilter('read')}
+                        className="h-7 text-xs px-2.5"
+                      >
+                        Lidas
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 self-end sm:self-auto">
+                    {notifUnreadCount > 0 && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => markAllNotifsAsRead()}
+                        className="h-9 text-xs border-slate-700 hover:bg-slate-800 text-slate-200"
+                      >
+                        <CheckCheck className="w-4 h-4 mr-1.5 text-emerald-400" />
+                        Marcar todas como lidas
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => reloadNotifications()}
+                      disabled={notifLoading}
+                      className="h-9 text-xs text-muted-foreground hover:text-white"
+                      title="Sincronizar notificações"
+                    >
+                      <RefreshCw className={`w-4 h-4 ${notifLoading ? 'animate-spin' : ''}`} />
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
+
+            {/* Lista de Notificações */}
+            <div className="space-y-2">
+              {filteredNotifications.length === 0 ? (
+                <Card className="bg-slate-900/60 border-slate-800">
+                  <CardContent className="py-12 text-center">
+                    <div className="w-14 h-14 rounded-full bg-slate-800/80 border border-slate-700/60 flex items-center justify-center mx-auto mb-3">
+                      <Bell className="w-7 h-7 text-slate-500" />
+                    </div>
+                    <p className="text-base font-semibold text-slate-200">
+                      {systemMessages.length === 0 ? "Nenhuma notificação no momento" : "Nenhuma notificação encontrada no filtro"}
+                    </p>
+                    <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                      {systemMessages.length === 0
+                        ? "Você receberá avisos operacionais, alertas de manutenções e mensagens internas aqui."
+                        : "Tente alterar o filtro ou limpar o campo de busca."}
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => { setNotifFilter('all'); setNotifSearch(''); reloadNotifications(); }}
+                      className="mt-4 text-xs"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+                      Atualizar Notificações
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : (
+                filteredNotifications.map((notif) => {
+                  const isUnread = notif.status === 'UNREAD';
+                  const priorityCfg = getNotifPriorityConfig(notif.priority);
+                  return (
+                    <Card
+                      key={notif.id}
+                      className={`transition-all duration-200 border ${
+                        isUnread
+                          ? 'bg-slate-900/90 border-red-500/30 shadow-md shadow-red-950/20'
+                          : 'bg-slate-900/40 border-slate-800/80 opacity-85 hover:opacity-100'
+                      }`}
+                    >
+                      <CardContent className="p-4 flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          <div className={`p-2 rounded-lg shrink-0 mt-0.5 ${
+                            notif.priority === 'URGENT'
+                              ? 'bg-red-500/15 text-red-400 border border-red-500/30'
+                              : notif.priority === 'HIGH'
+                              ? 'bg-orange-500/15 text-orange-400 border border-orange-500/30'
+                              : 'bg-blue-500/15 text-blue-400 border border-blue-500/30'
+                          }`}>
+                            <Bell className="w-4 h-4" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2 mb-1">
+                              <h4 className={`text-sm font-semibold truncate ${isUnread ? 'text-white' : 'text-slate-300'}`}>
+                                {notif.title}
+                              </h4>
+                              {isUnread && (
+                                <Badge className="bg-red-500/20 text-red-400 border border-red-500/40 text-[10px] font-bold px-1.5 py-0">
+                                  NOVA
+                                </Badge>
+                              )}
+                              <Badge variant="outline" className={`text-[10px] uppercase font-bold ${priorityCfg.bg} ${priorityCfg.color}`}>
+                                {priorityCfg.label}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-slate-300 leading-relaxed break-words whitespace-pre-wrap">
+                              {notif.content}
+                            </p>
+                            <div className="flex items-center gap-3 mt-2 text-[11px] text-slate-500">
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                {formatNotifDate(notif.createdAt)}
+                              </span>
+                              {notif.sender && (
+                                <span>Por: <strong className="text-slate-400">{notif.sender.name}</strong></span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0 self-center">
+                          {isUnread && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => markNotifAsRead(notif.id)}
+                              className="h-8 text-xs text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+                              title="Marcar como lida"
+                            >
+                              <CheckCircle className="w-3.5 h-3.5 mr-1" />
+                              Lida
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedMessage(notif as any);
+                              setShowViewModal(true);
+                            }}
+                            className="h-8 text-xs border-slate-700 text-slate-300 hover:bg-slate-800"
+                          >
+                            <Eye className="w-3.5 h-3.5 mr-1" />
+                            Ver
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              )}
+            </div>
           </div>
         )}
 

@@ -14,7 +14,7 @@ import {
   Building2
 } from 'lucide-react';
 import { getRoleDisplayName } from '@/utils/permissions';
-import { CollapsibleSidebar } from './CollapsibleSidebar';
+import CollapsibleSidebar from './CollapsibleSidebar';
 import { useSidebar } from '@/hooks/useSidebar';
 import { Breadcrumb } from './Breadcrumb';
 import { NotificationBell } from './NotificationBell';

@@ -32,6 +32,8 @@ public class TrainingDTO {
     private LocalDateTime createdAt;
     private Boolean isExpiringSoon;
     private Integer daysToExpiration;
+    private String certificateUrl;
+    private String certificateNumber;
 
     public static TrainingDTO fromParticipation(TrainingParticipation participation) {
         if (participation == null) return null;
@@ -67,6 +69,8 @@ public class TrainingDTO {
                 .createdAt(training.getCreatedAt())
                 .isExpiringSoon(isExpiringSoon)
                 .daysToExpiration(daysToExpiration)
+                .certificateUrl(participation.getCertificateUrl())
+                .certificateNumber(participation.getCertificateNumber())
                 .build();
     }
 }
