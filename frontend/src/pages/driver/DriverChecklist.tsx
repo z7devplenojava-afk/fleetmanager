@@ -68,8 +68,9 @@ import {
     resolveScheduleStartTime,
     resolveScheduleEndTime,
 } from '@/services/scheduleService';
-import { VehicleBodyAndTiresInspector, createInitialInspectionExtraData, VehicleInspectionExtraData, VehicleBlueprintType } from '@/components/driver/VehicleBodyAndTiresInspector';
-import fleetWorkOrderService, { WorkOrderType, WorkOrderPriority, WorkOrderStatus } from '@/services/fleetWorkOrderService';
+import { VehicleBodyAndTiresInspector, createInitialInspectionExtraData, DAMAGE_CATEGORIES, VEHICLE_BLUEPRINT_CONFIGS, VehicleInspectionExtraData, VehicleBlueprintType } from '@/components/driver/VehicleBodyAndTiresInspector';
+import FleetWorkOrderForm from '@/components/frota/FleetWorkOrderForm';
+import fleetWorkOrderService, { FleetWorkOrder, WorkOrderType, WorkOrderPriority, WorkOrderStatus } from '@/services/fleetWorkOrderService';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { getApiUrl } from '@/config/environment';
@@ -97,6 +98,8 @@ const DriverChecklist: React.FC = () => {
     const navigate = useNavigate();
     const [selectedChecklistForView, setSelectedChecklistForView] = useState<VehicleGateChecklist | null>(null);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+    const [isQuickOsModalOpen, setIsQuickOsModalOpen] = useState(false);
+    const [openedOsNumber, setOpenedOsNumber] = useState<string | null>(null);
 
     const [activeTab, setActiveTab] = useState<ChecklistType>('EXIT');
     const [vehicleId, setVehicleId] = useState('');
@@ -615,6 +618,7 @@ const DriverChecklist: React.FC = () => {
         setDriverProblemReport('');
         setObservations('');
         setInspectionExtra(createInitialInspectionExtraData());
+        setOpenedOsNumber(null);
         // Reset síncrono + reload: a configuração personalizada do veículo é recarregada
         // pelo efeito [vehicleId, reloadKey]
         setChecklistItems(DEFAULT_CHECKLIST_ITEMS.map((i) => ({ ...i, checked: false })));
@@ -772,6 +776,82 @@ const DriverChecklist: React.FC = () => {
     });
 
     const mediaBase = getApiUrl().replace(/\/api\/?$/, '');
+
+    // Pré-preenche o modal da OS com veículo, KM, avarias marcadas na imagem e descrições do checklist
+    const workOrderInitialValues = useMemo<Partial<FleetWorkOrder>>(() => {
+        const lines: string[] = [];
+        if (inspectionExtra.damageMarks.length > 0) {
+            lines.push('Avarias marcadas na vistoria visual do veículo:');
+            inspectionExtra.damageMarks.forEach((mark) => {
+                const catLabel = DAMAGE_CATEGORIES.find((c) => c.value === mark.damageType)?.label || mark.damageType;
+                const bpLabel = mark.vehicleLabel || VEHICLE_BLUEPRINT_CONFIGS[mark.blueprint || detectedBlueprint]?.label || 'Veículo';
+                const noteText = mark.notes?.trim() ? ` — Descrição: ${mark.notes.trim()}` : '';
+                lines.push(`• Ponto #${mark.number} [${bpLabel} | ${mark.regionLabel}] (${catLabel})${noteText}`);
+            });
+        }
+        if (inspectionExtra.bodyNotes.trim()) {
+            lines.push(`Obs. Carroceria: ${inspectionExtra.bodyNotes.trim()}`);
+        }
+        const flaggedTires = inspectionExtra.tires.filter((t) => t.hasIssue);
+        if (flaggedTires.length > 0) {
+            lines.push(
+                'Pneus com irregularidade: ' +
+                    flaggedTires.map((t) => `${t.label} (${t.issueType}${t.notes ? `: ${t.notes}` : ''})`).join('; ')
+            );
+        }
+        if (inspectionExtra.repairRequestNotes.trim()) {
+            lines.push(`Solicitação de reparo: ${inspectionExtra.repairRequestNotes.trim()}`);
+        }
+        if (driverProblemReport.trim()) {
+            lines.push(`Problemas relatados: ${driverProblemReport.trim()}`);
+        }
+
+        const parsedKm =
+            Number.parseInt(kmReading || kmInitial || '', 10) ||
+            selectedSchedule?.finalKm ||
+            selectedSchedule?.initialKm ||
+            selectedVehicle?.currentMileage;
+
+        const hasSevereDamage = inspectionExtra.damageMarks.some(
+            (m) => m.damageType === 'QUEBRADO' || m.damageType === 'TRINCADO'
+        );
+        const hasUrgentFluid =
+            inspectionExtra.fluidLevels.agua === 'MINIMO_URGENTE' ||
+            inspectionExtra.fluidLevels.oleoMotor === 'MINIMO_URGENTE' ||
+            inspectionExtra.fluidLevels.oleoDiesel === 'MINIMO_URGENTE' ||
+            inspectionExtra.fluidLevels.oleoHidraulico === 'MINIMO_URGENTE';
+
+        const computedPriority = hasSevereDamage || hasUrgentFluid
+            ? WorkOrderPriority.URGENT
+            : inspectionExtra.damageMarks.length > 0
+                ? WorkOrderPriority.HIGH
+                : WorkOrderPriority.MEDIUM;
+
+        const descriptionText = lines.join('\n');
+        return {
+            vehicleId: vehicleId || undefined,
+            odometerIn: parsedKm && !Number.isNaN(parsedKm) ? parsedKm : undefined,
+            priority: computedPriority,
+            anomaliesDescription: descriptionText,
+            stopReason: descriptionText || 'Abertura de OS via Checklist de Avarias',
+            otherDescription: observations.trim() || undefined,
+            clientId: selectedSchedule?.client?.id || selectedVehicle?.clientId,
+            workPostId: selectedSchedule?.workPost?.id || selectedVehicle?.workPostId,
+            sectorId: selectedSchedule?.workPost?.id || selectedVehicle?.workPostId,
+            garageId: selectedVehicle?.garageId,
+            garageName: selectedVehicle?.garageName,
+        };
+    }, [
+        inspectionExtra,
+        detectedBlueprint,
+        driverProblemReport,
+        observations,
+        kmReading,
+        kmInitial,
+        selectedSchedule,
+        selectedVehicle,
+        vehicleId,
+    ]);
 
     return (
         <StandardLayout>
@@ -1352,6 +1432,8 @@ const DriverChecklist: React.FC = () => {
                             value={inspectionExtra}
                             onChange={setInspectionExtra}
                             initialBlueprint={detectedBlueprint}
+                            onOpenWorkOrder={() => setIsQuickOsModalOpen(true)}
+                            openedWorkOrderNumber={openedOsNumber}
                         />
 
                         {/* Problemas relatados */}
@@ -1551,6 +1633,20 @@ const DriverChecklist: React.FC = () => {
                 checklist={selectedChecklistForView}
                 open={isDetailsModalOpen}
                 onOpenChange={setIsDetailsModalOpen}
+            />
+
+            {/* Modal inline de Abertura de OS a partir das avarias marcadas (mantém o checklist aberto) */}
+            <FleetWorkOrderForm
+                isOpen={isQuickOsModalOpen}
+                onClose={() => setIsQuickOsModalOpen(false)}
+                onSuccess={(savedOs) => {
+                    const osNum = savedOs?.osNumber || savedOs?.id?.slice(0, 8) || 'Aberta';
+                    setOpenedOsNumber(osNum);
+                    setIsQuickOsModalOpen(false);
+                    queryClient.invalidateQueries({ queryKey: ['driver-work-orders-list'] });
+                }}
+                initialVehicleId={vehicleId || undefined}
+                initialValues={workOrderInitialValues}
             />
         </StandardLayout>
     );

@@ -1,35 +1,104 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Tire, TireMountPayload, TireDismountPayload } from '@/services/tireService';
+import { Tire, TireLifecycleConfig } from '@/services/tireService';
 import { Vehicle } from '@/types/fleet';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AlertCircle, ArrowRightLeft, Move, Plus, Package, Bus, Wrench, Shield, CheckCircle2, RotateCw } from 'lucide-react';
+import { SearchableSelect, SearchableOption } from '@/components/frota/SearchableSelect';
+import { AlertCircle, Plus, Package, Bus, Shield, ShieldAlert } from 'lucide-react';
+import { ChassisDiagram, ChassisDiagramPosition } from '@/components/pneus/ChassisDiagram';
+import {
+    computeTireLiveMetrics,
+    DEFAULT_TIRE_LIFECYCLE_CONFIG,
+    getTireDisplayCode,
+} from '@/utils/tireLifecycle';
 
 interface BusTireMapperProps {
     tires: Tire[];
     vehicles: Vehicle[];
+    lifecycleConfig?: TireLifecycleConfig;
     onTireClick: (tire: Tire) => void;
     onMountTireSlot: (slot: { vehicleId: string; axleNumber: number; positionIndex: number; positionCode: string }) => void;
+    onMountSpecificTire?: (tire: Tire, vehicleId: string) => void;
     onDismountTire: (tire: Tire) => void;
     onRefresh: () => void;
 }
 
+type ChassisTopology =
+    | 'AUTO'
+    | '2_AXLES_DUAL'
+    | '3_AXLES_TRUCK'
+    | '3_AXLES_TAG'
+    | '2_AXLES_SINGLE'
+    | '4_AXLES_ARTICULATED';
+
+interface ChassisPositionDef {
+    axleNumber: number;
+    positionIndex: number;
+    positionCode: string;
+    label: string;
+}
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export const BusTireMapper: React.FC<BusTireMapperProps> = ({
     tires,
     vehicles,
+    lifecycleConfig = DEFAULT_TIRE_LIFECYCLE_CONFIG,
     onTireClick,
     onMountTireSlot,
+    onMountSpecificTire,
     onDismountTire,
     onRefresh,
 }) => {
-    // Seleção de veículo ativo
-    const [selectedVehicleId, setSelectedVehicleId] = useState<string>(vehicles[0]?.id || '');
-    const [chassisType, setChassisType] = useState<'AUTO' | '2_AXLES_DUAL' | '3_AXLES_TRUCK' | '2_AXLES_SINGLE' | '4_AXLES_ARTICULATED'>('AUTO');
+    const realVehicles = useMemo(
+        () => vehicles.filter((v) => UUID_REGEX.test(String(v?.id || ''))),
+        [vehicles]
+    );
+    const hasOnlyDemoVehicles = realVehicles.length === 0;
 
-    const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId) || vehicles[0];
+    const orderedVehicles = useMemo(() => {
+        const source = realVehicles.length > 0 ? realVehicles : vehicles;
+        return [...source].sort((a, b) => {
+            const aBus = Boolean(a.fleetNumber || (a.vehicleType || '').includes('BUS') || (a.model || '').toLowerCase().includes('bus') || (a.model || '').toLowerCase().includes('marcopolo') || (a.model || '').toLowerCase().includes('comil'));
+            const bBus = Boolean(b.fleetNumber || (b.vehicleType || '').includes('BUS') || (b.model || '').toLowerCase().includes('bus') || (b.model || '').toLowerCase().includes('marcopolo') || (b.model || '').toLowerCase().includes('comil'));
+            if (aBus !== bBus) return aBus ? -1 : 1;
+            return (a.fleetNumber || a.plate || '').localeCompare(b.fleetNumber || b.plate || '');
+        });
+    }, [realVehicles, vehicles]);
+
+    const vehicleOptions: SearchableOption[] = useMemo(
+        () =>
+            orderedVehicles.map((v) => ({
+                value: v.id,
+                label: `${v.fleetNumber ? `[Frota ${v.fleetNumber}] ` : ''}${v.plate} - ${v.brand} ${v.model}`.trim(),
+                subtitle: `${v.currentMileage?.toLocaleString('pt-BR') || 0} km`,
+                badge: v.fleetNumber || v.plate,
+                keywords: [
+                    v.plate || '',
+                    (v.plate || '').replace(/[-\s]/g, ''),
+                    v.fleetNumber || '',
+                    v.brand || '',
+                    v.model || '',
+                ],
+            })),
+        [orderedVehicles]
+    );
+
+    // Seleção de veículo ativo
+    const [selectedVehicleId, setSelectedVehicleId] = useState<string>(orderedVehicles[0]?.id || '');
+    const [chassisType, setChassisType] = useState<ChassisTopology>('AUTO');
+
+    useEffect(() => {
+        const existsInOrdered = orderedVehicles.some((v) => v.id === selectedVehicleId);
+        if ((!selectedVehicleId || !existsInOrdered) && orderedVehicles.length > 0) {
+            setSelectedVehicleId(orderedVehicles[0].id);
+        }
+    }, [orderedVehicles, selectedVehicleId]);
+
+    const selectedVehicle = orderedVehicles.find((v) => v.id === selectedVehicleId) || orderedVehicles[0];
 
     // Pneus instalados no veículo selecionado
     const vehicleTires = tires.filter(
@@ -39,28 +108,119 @@ export const BusTireMapper: React.FC<BusTireMapperProps> = ({
     // Pneus disponíveis no estoque
     const availableTires = tires.filter((t) => t.status === 'AVAILABLE');
 
-    // Determina o tipo de layout do chassi com base no modelo do veículo ou seleção do usuário
-    const getChassisTopology = () => {
+    // Determina o tipo de layout do chassi com base no veículo ou seleção do usuário
+    const getChassisTopology = (): Exclude<ChassisTopology, 'AUTO'> => {
         if (chassisType !== 'AUTO') return chassisType;
         if (!selectedVehicle) return '2_AXLES_DUAL';
+
         const modelLower = (selectedVehicle.model || '').toLowerCase();
-        if (modelLower.includes('articulad') || modelLower.includes('b270f')) return '4_AXLES_ARTICULATED';
-        if (modelLower.includes('truck') || modelLower.includes('6x2') || modelLower.includes('rsd') || modelLower.includes('3 eix')) return '3_AXLES_TRUCK';
-        if (modelLower.includes('van') || modelLower.includes('sprinter') || modelLower.includes('kombi')) return '2_AXLES_SINGLE';
-        return '2_AXLES_DUAL'; // Padrão Ônibus Urbano/Rodoviário 2 Eixos
+        const vehicleType = String(selectedVehicle.vehicleType || '').toUpperCase();
+        const busType = String(selectedVehicle.busType || '').toUpperCase();
+        const axleCount = Number(selectedVehicle.axleCount) || 0;
+
+        if (busType.includes('BIARTICULADO') || modelLower.includes('biarticul')) return '4_AXLES_ARTICULATED';
+        if (axleCount >= 4) return '4_AXLES_ARTICULATED';
+        if (axleCount >= 3) {
+            // Trucks com PBT alto normalmente são 6x4; rodoviários/articulados são 6x2.
+            if (vehicleType === 'TRUCK') return '3_AXLES_TRUCK';
+            return '3_AXLES_TAG';
+        }
+        if (busType.includes('ARTICULADO') || modelLower.includes('articulad')) return '3_AXLES_TAG';
+        if (vehicleType === 'TRUCK' || modelLower.includes('truck') || modelLower.includes('6x4') || modelLower.includes('trucad')) {
+            return axleCount >= 3 ? '3_AXLES_TRUCK' : '2_AXLES_DUAL';
+        }
+        if (vehicleType === 'VAN' || vehicleType === 'CAR' || vehicleType === 'CAR_UTILITY' || vehicleType === 'PICKUP' || vehicleType === 'SUV'
+            || modelLower.includes('van') || modelLower.includes('sprinter') || modelLower.includes('kombi')) {
+            return '2_AXLES_SINGLE';
+        }
+        return '2_AXLES_DUAL'; // Padrão ônibus urbano/rodoviário 2 eixos com rodado duplo
     };
 
     const currentTopology = getChassisTopology();
 
+    const currentAxleCount = (() => {
+        if (currentTopology === '4_AXLES_ARTICULATED') return 4;
+        if (currentTopology === '3_AXLES_TRUCK' || currentTopology === '3_AXLES_TAG') return 3;
+        return 2;
+    })();
+
+    const currentChassiType = (() => {
+        if (currentTopology === '4_AXLES_ARTICULATED') return '8x2';
+        if (currentTopology === '3_AXLES_TRUCK') return '6x4';
+        if (currentTopology === '3_AXLES_TAG') return '6x2';
+        return '4x2';
+    })();
+
+    const isDualRear = currentTopology !== '2_AXLES_SINGLE';
+    const isTagAxle = currentTopology === '3_AXLES_TAG' || currentTopology === '4_AXLES_ARTICULATED';
+
+    const positionDefs: ChassisPositionDef[] = (() => {
+        const defs: ChassisPositionDef[] = [
+            { axleNumber: 1, positionIndex: 0, positionCode: 'DE', label: '1. ESQ (DE)' },
+            { axleNumber: 1, positionIndex: 1, positionCode: 'DD', label: '1. DIR (DD)' },
+        ];
+
+        if (!isDualRear) {
+            defs.push(
+                { axleNumber: 2, positionIndex: 0, positionCode: 'TSE', label: '2. ESQ (TSE)' },
+                { axleNumber: 2, positionIndex: 1, positionCode: 'TSD', label: '2. DIR (TSD)' }
+            );
+            return defs;
+        }
+
+        const dualAxle = (axle: number, prefix: string) => {
+            defs.push(
+                { axleNumber: axle, positionIndex: 0, positionCode: `${prefix}OE`, label: `${axle}. ESQ EXT (${prefix}OE)` },
+                { axleNumber: axle, positionIndex: 1, positionCode: `${prefix}IE`, label: `${axle}. ESQ INT (${prefix}IE)` },
+                { axleNumber: axle, positionIndex: 2, positionCode: `${prefix}ID`, label: `${axle}. DIR INT (${prefix}ID)` },
+                { axleNumber: axle, positionIndex: 3, positionCode: `${prefix}OD`, label: `${axle}. DIR EXT (${prefix}OD)` }
+            );
+        };
+
+        dualAxle(2, 'T');
+        if (currentAxleCount >= 3) dualAxle(3, 'A');
+        if (currentAxleCount >= 4) dualAxle(4, 'B');
+
+        return defs;
+    })();
+
+    const diagramPositions: ChassisDiagramPosition[] = useMemo(
+        () =>
+            positionDefs.map((def) => {
+                const tire = vehicleTires.find(
+                    (t) => t.axleNumber === def.axleNumber && t.positionIndex === def.positionIndex
+                );
+                return {
+                    axleNumber: def.axleNumber,
+                    positionIndex: def.positionIndex,
+                    positionCode: def.positionCode,
+                    positionName: def.label,
+                    tire: tire
+                        ? {
+                              serialNumber: getTireDisplayCode(tire),
+                              brand: tire.brand,
+                              currentTreadDepth: tire.currentTreadDepth,
+                              recapCount: tire.recapCount,
+                          }
+                        : null,
+                };
+            }),
+        [positionDefs, vehicleTires]
+    );
+
     const renderTirePlace = (axle: number, index: number, label: string, positionCode: string) => {
         const tire = vehicleTires.find((t) => t.axleNumber === axle && t.positionIndex === index);
+        const metrics = tire ? computeTireLiveMetrics(tire, lifecycleConfig) : null;
+        const isFrontAxleWarning = Boolean(tire && axle === 1 && (tire.recapCount || 0) > 0);
 
         return (
             <motion.div
                 whileHover={{ scale: 1.03 }}
-                className={`relative w-28 h-40 border-2 border-dashed rounded-xl flex flex-col items-center justify-between p-2 cursor-pointer transition-all ${
+                className={`relative w-full h-40 border-2 border-dashed rounded-xl flex flex-col items-center justify-between p-2 cursor-pointer transition-all ${
                     tire
-                        ? 'bg-seguranca-black/70 border-seguranca-yellow/70 shadow-lg shadow-yellow-950/20 hover:border-seguranca-yellow'
+                        ? isFrontAxleWarning
+                            ? 'bg-red-950/50 border-red-500 shadow-lg shadow-red-950/30 hover:border-red-400'
+                            : 'bg-seguranca-black/70 border-seguranca-yellow/70 shadow-lg shadow-yellow-950/20 hover:border-seguranca-yellow'
                         : 'bg-seguranca-black/20 border-gray-700 hover:border-seguranca-yellow/50 hover:bg-seguranca-black/40'
                 }`}
                 onClick={() => {
@@ -76,32 +236,58 @@ export const BusTireMapper: React.FC<BusTireMapperProps> = ({
                     }
                 }}
             >
-                {tire ? (
+                {tire && metrics ? (
                     <>
                         <div className="flex justify-between items-center w-full">
-                            <Badge variant="outline" className="text-[9px] px-1 py-0 border-seguranca-yellow text-seguranca-yellow bg-yellow-950/40">
+                            <Badge
+                                variant="outline"
+                                className={`text-[9px] px-1 py-0 ${
+                                    isFrontAxleWarning
+                                        ? 'border-red-400 text-red-200 bg-red-900/60'
+                                        : 'border-seguranca-yellow text-seguranca-yellow bg-yellow-950/40'
+                                }`}
+                            >
                                 {tire.recapCount > 0 ? `${tire.recapCount}ª Recap` : 'Novo'}
                             </Badge>
                             <span className="text-[9px] font-mono text-gray-400">{positionCode}</span>
                         </div>
 
-                        <div className="bg-seguranca-black w-full h-20 rounded-lg border border-gray-700 flex flex-col items-center justify-center p-1 my-1">
-                            <span className="text-[9px] text-gray-500 font-mono tracking-wider">CÓDIGO / SÉRIE</span>
+                        <div className="bg-seguranca-black w-full h-22 rounded-lg border border-gray-700 flex flex-col items-center justify-center p-1 my-1">
+                            <span className="text-[8px] text-gray-500 font-mono tracking-wider">
+                                {tire.fireNumber ? 'Nº DE FOGO' : 'CÓDIGO / SÉRIE'}
+                            </span>
                             <span className="text-xs font-mono font-bold text-seguranca-yellow text-center truncate w-full px-1">
-                                {tire.serialNumber}
+                                {getTireDisplayCode(tire)}
                             </span>
 
                             <div className="w-full flex items-center justify-around mt-1 pt-1 border-t border-gray-800 text-[10px]">
                                 <div className="text-center">
                                     <span className="text-[8px] text-gray-500 block">SULCO</span>
-                                    <span className={`font-bold ${tire.currentTreadDepth && tire.currentTreadDepth < 3 ? 'text-red-400' : 'text-green-400'}`}>
+                                    <span className={`font-bold ${metrics.twiCritical ? 'text-red-400' : metrics.treadAlert ? 'text-amber-400' : 'text-green-400'}`}>
                                         {tire.currentTreadDepth != null ? `${tire.currentTreadDepth}mm` : '-'}
                                     </span>
                                 </div>
                                 <div className="text-center">
-                                    <span className="text-[8px] text-gray-500 block">KM</span>
-                                    <span className="font-bold text-blue-300">
-                                        {(tire.currentMileage / 1000).toFixed(1)}k
+                                    <span className="text-[8px] text-gray-500 block">VIDA</span>
+                                    <span className={`font-bold ${metrics.kmLimitExceeded ? 'text-red-400' : 'text-blue-300'}`}>
+                                        {(metrics.currentLifeKm / 1000).toFixed(1)}k
+                                    </span>
+                                </div>
+                                <div
+                                    className="text-center"
+                                    title={`${metrics.nextExchange.headline} • ${metrics.nextExchange.nextActionLabel}`}
+                                >
+                                    <span className="text-[8px] text-gray-500 block">PRÓX.</span>
+                                    <span
+                                        className={`font-bold ${
+                                            metrics.nextExchange.status === 'OVERDUE'
+                                                ? 'text-red-400'
+                                                : metrics.nextExchange.status === 'DUE_SOON'
+                                                ? 'text-amber-300'
+                                                : 'text-emerald-400'
+                                        }`}
+                                    >
+                                        {metrics.nextExchange.compactRemaining}
                                     </span>
                                 </div>
                             </div>
@@ -123,8 +309,12 @@ export const BusTireMapper: React.FC<BusTireMapperProps> = ({
                             </Button>
                         </div>
 
-                        {tire.currentTreadDepth != null && tire.currentTreadDepth < 3 && (
-                            <div className="absolute -top-2 -right-2 bg-red-900 border border-red-500 p-0.5 rounded-full" title="Sulco crítico (< 3mm)">
+                        {isFrontAxleWarning ? (
+                            <div className="absolute -top-2 -right-2 bg-red-700 border border-red-300 p-0.5 rounded-full" title="Exceção: Recapado no Eixo Dianteiro">
+                                <ShieldAlert size={14} className="text-white" />
+                            </div>
+                        ) : (metrics.treadAlert || metrics.dotInfo.expired) && (
+                            <div className="absolute -top-2 -right-2 bg-red-900 border border-red-500 p-0.5 rounded-full" title="Alerta de Sulco/DOT">
                                 <AlertCircle size={14} className="text-red-300" />
                             </div>
                         )}
@@ -144,39 +334,61 @@ export const BusTireMapper: React.FC<BusTireMapperProps> = ({
 
     return (
         <div className="space-y-6">
+            {hasOnlyDemoVehicles && (
+                <div className="bg-amber-950/50 border border-amber-500/60 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-amber-200">
+                    <div className="flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4 text-amber-400 shrink-0" />
+                        <span>
+                            Nenhum veículo real sincronizado no momento (exibindo frota demonstrativa). Clique em <strong>Recarregar Frota</strong> para montar pneus em veículos cadastrados.
+                        </span>
+                    </div>
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={onRefresh}
+                        className="border-amber-500/60 text-amber-200 hover:bg-amber-500/20 shrink-0 h-8 text-xs"
+                    >
+                        Recarregar Frota
+                    </Button>
+                </div>
+            )}
+
             {/* Top Bar: Vehicle Selector & Chassis Topology Selector */}
             <div className="bg-seguranca-black/60 border border-gray-700/80 rounded-xl p-4 flex flex-col lg:flex-row items-center justify-between gap-4">
                 <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
-                    <div className="flex items-center gap-2 text-seguranca-lightgray font-semibold text-sm">
+                    <div className="flex items-center gap-2 text-seguranca-lightgray font-semibold text-sm shrink-0">
                         <Bus size={18} className="text-seguranca-yellow" />
                         <span>Selecionar Veículo:</span>
                     </div>
-                    <Select value={selectedVehicleId} onValueChange={setSelectedVehicleId}>
-                        <SelectTrigger className="w-full sm:w-72 bg-seguranca-black border-gray-600 text-xs">
-                            <SelectValue placeholder="Escolha o veículo da frota..." />
-                        </SelectTrigger>
-                        <SelectContent className="bg-seguranca-graphite border-gray-600 text-xs">
-                            {vehicles.map((v) => (
-                                <SelectItem key={v.id} value={v.id}>
-                                    {v.plate} - {v.brand} {v.model} ({v.currentMileage?.toLocaleString() || 0} km)
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <div className="w-full sm:w-96">
+                        <SearchableSelect
+                            value={selectedVehicleId}
+                            onChange={(val) => {
+                                if (val) setSelectedVehicleId(val);
+                            }}
+                            options={vehicleOptions}
+                            maxVisibleOptions={60}
+                            placeholder="Escolha o veículo da frota..."
+                            searchPlaceholder="Buscar por placa, frota, marca ou modelo..."
+                            emptyText="Nenhum veículo encontrado."
+                        />
+                    </div>
                 </div>
 
                 <div className="flex items-center gap-3 w-full lg:w-auto justify-end">
                     <span className="text-xs text-gray-400">Layout do Chassi:</span>
-                    <Select value={chassisType} onValueChange={(val: any) => setChassisType(val)}>
-                        <SelectTrigger className="w-56 bg-seguranca-black border-gray-600 text-xs">
+                    <Select value={chassisType} onValueChange={(val: ChassisTopology) => setChassisType(val)}>
+                        <SelectTrigger className="w-64 bg-seguranca-black border-gray-600 text-xs">
                             <SelectValue placeholder="Topologia do Chassi" />
                         </SelectTrigger>
                         <SelectContent className="bg-seguranca-graphite border-gray-600 text-xs">
-                            <SelectItem value="AUTO">Automático (Pelo Veículo)</SelectItem>
-                            <SelectItem value="2_AXLES_DUAL">Ônibus Urbano/Padron (2 Eixos - 6 Pneus)</SelectItem>
-                            <SelectItem value="3_AXLES_TRUCK">Ônibus Trucado/RSD (3 Eixos - 10 Pneus)</SelectItem>
-                            <SelectItem value="2_AXLES_SINGLE">Van / Micro-ônibus (2 Eixos - 4 Pneus)</SelectItem>
-                            <SelectItem value="4_AXLES_ARTICULATED">Ônibus Articulado (4 Eixos - 14 Pneus)</SelectItem>
+                            <SelectItem value="AUTO">Automático (pelo veículo)</SelectItem>
+                            <SelectItem value="2_AXLES_SINGLE">Van simples — 4x2 (4 pneus)</SelectItem>
+                            <SelectItem value="2_AXLES_DUAL">Van 4 pneus traseiros / Micro-ônibus — 4x2 (6 pneus)</SelectItem>
+                            <SelectItem value="3_AXLES_TAG">Rodoviário — 6x2 (10 pneus, eixo auxiliar)</SelectItem>
+                            <SelectItem value="3_AXLES_TRUCK">Trucado / Caminhão — 6x4 (10 pneus, tração dupla)</SelectItem>
+                            <SelectItem value="4_AXLES_ARTICULATED">Biarticulado / 4 eixos — 8x2 (14 pneus)</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
@@ -224,92 +436,65 @@ export const BusTireMapper: React.FC<BusTireMapperProps> = ({
             )}
 
             {/* Chassis Diagram Box */}
-            <div className="flex flex-col items-center gap-10 p-8 bg-seguranca-black/40 rounded-2xl border border-gray-800 relative overflow-hidden shadow-2xl">
-                <div className="absolute top-3 left-4 flex items-center gap-2 text-xs font-mono text-gray-500">
-                    <Shield size={14} className="text-seguranca-yellow" />
-                    <span>CHASSIS VISUAL MAPPER • {currentTopology.replace(/_/g, ' ')}</span>
+            <div className="bg-seguranca-black/40 rounded-2xl border border-gray-800 p-4 sm:p-6 shadow-2xl space-y-5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 text-xs font-mono text-gray-500">
+                        <Shield size={14} className="text-seguranca-yellow" />
+                        <span>CHASSIS VISUAL MAPPER • {currentTopology.replace(/_/g, ' ')}</span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 text-[10px]">
+                        <Badge variant="outline" className="border-seguranca-yellow/50 text-seguranca-yellow font-mono">
+                            {currentChassiType}
+                        </Badge>
+                        <Badge variant="outline" className="border-gray-600 text-gray-300">
+                            {currentAxleCount} eixos
+                        </Badge>
+                        <Badge variant="outline" className="border-gray-600 text-gray-300">
+                            {positionDefs.length} pneus
+                        </Badge>
+                    </div>
                 </div>
 
-                {/* Eixo 1 - Dianteiro */}
-                <div className="flex justify-between w-full max-w-lg relative mt-4">
-                    <div className="absolute top-1/2 left-0 right-0 h-4 bg-gray-800/80 -translate-y-1/2 rounded-full -z-10 border-y border-gray-700" />
-                    {renderTirePlace(1, 0, '1. ESQ (DE)', 'DE')}
-                    <div className="flex flex-col items-center justify-center">
-                        <div className="w-56 h-10 bg-gray-800/60 rounded-t-2xl border-x border-t border-gray-600 flex items-center justify-center">
-                            <span className="text-[11px] font-bold text-gray-300 font-mono tracking-wider">DIANTEIRA / FRENTE</span>
-                        </div>
-                        <span className="text-[9px] font-mono text-gray-500 mt-1">EIXO 01 • DIREÇÃO</span>
-                    </div>
-                    {renderTirePlace(1, 1, '1. DIR (DD)', 'DD')}
+                <div className="rounded-xl bg-seguranca-black/70 border border-gray-800 p-2 sm:p-4 overflow-hidden">
+                    <ChassisDiagram
+                        positions={diagramPositions}
+                        axleCount={currentAxleCount}
+                        dualRear={isDualRear}
+                        tagAxle={isTagAxle}
+                        chassiType={currentChassiType}
+                        vehicleType={selectedVehicle?.vehicleType}
+                        onSelectPosition={(position) => {
+                            const tire = vehicleTires.find(
+                                (t) => t.axleNumber === position.axleNumber && t.positionIndex === position.positionIndex
+                            );
+                            if (tire) {
+                                onTireClick(tire);
+                            } else if (selectedVehicle) {
+                                onMountTireSlot({
+                                    vehicleId: selectedVehicle.id,
+                                    axleNumber: position.axleNumber,
+                                    positionIndex: position.positionIndex,
+                                    positionCode: position.positionCode,
+                                });
+                            }
+                        }}
+                    />
                 </div>
 
-                {/* Eixo 2 - Tração (Rodagem Dupla ou Simples) */}
-                {currentTopology === '2_AXLES_SINGLE' ? (
-                    <div className="flex justify-between w-full max-w-lg relative">
-                        <div className="absolute top-1/2 left-0 right-0 h-5 bg-seguranca-yellow/10 -translate-y-1/2 rounded-full -z-10 border-y border-seguranca-yellow/20" />
-                        {renderTirePlace(2, 0, '2. ESQ (TE)', 'TE')}
-                        <div className="flex flex-col items-center justify-center">
-                            <div className="w-40 h-10 bg-gray-800/60 border border-gray-700 flex items-center justify-center">
-                                <ArrowRightLeft size={16} className="text-seguranca-yellow" />
-                            </div>
-                            <span className="text-[9px] font-mono text-gray-400 mt-1">EIXO 02 • TRAÇÃO</span>
-                        </div>
-                        {renderTirePlace(2, 1, '2. DIR (TD)', 'TD')}
+                {/* Detalhes e ações por posição */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-2">
+                    {positionDefs.map((def) => (
+                        <React.Fragment key={`${def.axleNumber}-${def.positionIndex}-${def.positionCode}`}>
+                            {renderTirePlace(def.axleNumber, def.positionIndex, def.label, def.positionCode)}
+                        </React.Fragment>
+                    ))}
+                    <div className="col-span-2 sm:col-span-3 md:col-span-4 xl:col-span-6 flex items-center justify-center gap-3 pt-3 border-t border-gray-800">
+                        <span className="text-xs font-mono text-gray-400 flex items-center gap-1.5">
+                            <Package size={14} className="text-seguranca-yellow" />
+                            ESTEPE / RESERVA:
+                        </span>
+                        {renderTirePlace(0, 0, 'ESTEPE', 'ESTEPE')}
                     </div>
-                ) : (
-                    <div className="flex justify-between w-full max-w-2xl relative">
-                        <div className="absolute top-1/2 left-0 right-0 h-6 bg-seguranca-yellow/10 -translate-y-1/2 rounded-full -z-10 border-y border-seguranca-yellow/20" />
-
-                        {/* Dupla Esquerda */}
-                        <div className="flex gap-2">
-                            {renderTirePlace(2, 0, '2. ESQ EXT', 'TOE')}
-                            {renderTirePlace(2, 1, '2. ESQ INT', 'TIE')}
-                        </div>
-
-                        <div className="flex flex-col items-center justify-center">
-                            <div className="w-36 h-12 bg-gray-800/60 border border-gray-700 flex items-center justify-center gap-2">
-                                <ArrowRightLeft size={18} className="text-seguranca-yellow" />
-                                <span className="text-[10px] font-mono text-seguranca-yellow font-bold">TRAÇÃO</span>
-                            </div>
-                            <span className="text-[9px] font-mono text-gray-400 mt-1">EIXO 02 • RODAGEM DUPLA</span>
-                        </div>
-
-                        {/* Dupla Direita */}
-                        <div className="flex gap-2">
-                            {renderTirePlace(2, 2, '2. DIR INT', 'TID')}
-                            {renderTirePlace(2, 3, '2. DIR EXT', 'TOD')}
-                        </div>
-                    </div>
-                )}
-
-                {/* Eixo 3 - Auxiliar / Trucado (Se aplicável) */}
-                {currentTopology === '3_AXLES_TRUCK' && (
-                    <div className="flex justify-between w-full max-w-2xl relative">
-                        <div className="absolute top-1/2 left-0 right-0 h-5 bg-gray-800/50 -translate-y-1/2 rounded-full -z-10 border-y border-gray-700" />
-                        <div className="flex gap-2">
-                            {renderTirePlace(3, 0, '3. ESQ EXT', 'AOE')}
-                            {renderTirePlace(3, 1, '3. ESQ INT', 'AIE')}
-                        </div>
-                        <div className="flex flex-col items-center justify-center">
-                            <div className="w-32 h-8 bg-gray-800/40 border border-gray-700 flex items-center justify-center">
-                                <span className="text-[10px] font-mono text-gray-400">TRUCK / AUX</span>
-                            </div>
-                            <span className="text-[9px] font-mono text-gray-500 mt-1">EIXO 03 • AUXILIAR</span>
-                        </div>
-                        <div className="flex gap-2">
-                            {renderTirePlace(3, 2, '3. DIR INT', 'AID')}
-                            {renderTirePlace(3, 3, '3. DIR EXT', 'AOD')}
-                        </div>
-                    </div>
-                )}
-
-                {/* Estepe / Pneu Reserva */}
-                <div className="mt-4 pt-4 border-t border-gray-800 flex items-center justify-center gap-4 w-full">
-                    <span className="text-xs font-mono text-gray-400 flex items-center gap-1.5">
-                        <Package size={14} className="text-seguranca-yellow" />
-                        RESERVA DE CHASSI:
-                    </span>
-                    {renderTirePlace(0, 0, 'ESTEPE', 'ESTEPE')}
                 </div>
             </div>
 
@@ -356,14 +541,18 @@ export const BusTireMapper: React.FC<BusTireMapperProps> = ({
                                             size="sm"
                                             variant="outline"
                                             className="w-full mt-3 h-7 text-xs border-seguranca-yellow/40 text-seguranca-yellow hover:bg-seguranca-yellow hover:text-black font-medium"
-                                            onClick={() =>
-                                                onMountTireSlot({
-                                                    vehicleId: selectedVehicle.id,
-                                                    axleNumber: 1,
-                                                    positionIndex: 0,
-                                                    positionCode: 'DE',
-                                                })
-                                            }
+                                            onClick={() => {
+                                                if (onMountSpecificTire) {
+                                                    onMountSpecificTire(tire, selectedVehicle.id);
+                                                } else {
+                                                    onMountTireSlot({
+                                                        vehicleId: selectedVehicle.id,
+                                                        axleNumber: 1,
+                                                        positionIndex: 0,
+                                                        positionCode: 'DE',
+                                                    });
+                                                }
+                                            }}
                                         >
                                             <Plus size={12} className="mr-1" /> Montar no Veículo
                                         </Button>

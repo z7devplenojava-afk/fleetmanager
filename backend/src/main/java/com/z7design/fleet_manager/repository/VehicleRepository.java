@@ -30,6 +30,9 @@ public interface VehicleRepository extends JpaRepository<Vehicle, UUID> {
     @Query(value = "SELECT * FROM vehicles", nativeQuery = true)
     List<Vehicle> findAllRawIncludingDeletedAndTenants();
 
+    @Query(value = "SELECT * FROM vehicles WHERE id IN (:ids)", nativeQuery = true)
+    List<Vehicle> findAllRawByIdIn(@Param("ids") java.util.Collection<UUID> ids);
+
     @Query(value = "SELECT * FROM vehicles WHERE UPPER(REPLACE(REPLACE(plate, '-', ''), ' ', '')) = UPPER(REPLACE(REPLACE(:plate, '-', ''), ' ', '')) " +
             "AND (CAST(:companyId AS uuid) IS NULL OR company_id = CAST(:companyId AS uuid)) LIMIT 1", nativeQuery = true)
     Optional<Vehicle> findByPlateRawScoped(@Param("plate") String plate, @Param("companyId") UUID companyId);

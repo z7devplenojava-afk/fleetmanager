@@ -14,6 +14,7 @@ public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, UU
     List<ChecklistItem> findByAtivoTrueOrderByOrdemAsc();
     List<ChecklistItem> findByTipoManutencaoAndAtivoTrueOrderByOrdemAsc(String tipoManutencao);
     List<ChecklistItem> findByVehicleTypeApplicableInAndAtivoTrueOrderByOrdemAsc(List<String> vehicleTypes);
+    List<ChecklistItem> findByTemplateModelAndAtivoTrueOrderByOrdemAsc(String templateModel);
 
     @Query("SELECT c FROM ChecklistItem c WHERE c.ativo = true " +
            "AND (c.companyId = :companyId OR c.companyId IS NULL) " +

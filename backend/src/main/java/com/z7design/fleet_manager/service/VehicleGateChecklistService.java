@@ -38,6 +38,7 @@ public class VehicleGateChecklistService {
     private final DriverRepository driverRepository;
     private final FleetWorkOrderService fleetWorkOrderService;
     private final FleetWorkOrderRepository fleetWorkOrderRepository;
+    private final PreventiveModel2Service preventiveModel2Service;
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private StoredUploadService storedUploadService;
@@ -146,6 +147,11 @@ public class VehicleGateChecklistService {
             vehicle.setCurrentMileage(dto.getKmReading());
             vehicleRepository.save(vehicle);
             log.info("KM do veículo {} atualizado para {}", vehicle.getPlate(), dto.getKmReading());
+            try {
+                preventiveModel2Service.evaluateAndAutoOpenForVehicle(vehicle);
+            } catch (Exception autoEx) {
+                log.warn("Aviso ao avaliar OS Preventiva Modelo 2 automática após checklist {}: {}", vehicle.getPlate(), autoEx.getMessage());
+            }
         }
 
         // Gerar automaticamente Ordem de Serviço Corretiva se o motorista reportou avaria, pneu cortado, nível baixo ou reparo
@@ -215,6 +221,11 @@ public class VehicleGateChecklistService {
         if (dto.getType() == VehicleGateChecklist.ChecklistType.ARRIVAL && dto.getKmReading() != null) {
             entity.getVehicle().setCurrentMileage(dto.getKmReading());
             vehicleRepository.save(entity.getVehicle());
+            try {
+                preventiveModel2Service.evaluateAndAutoOpenForVehicle(entity.getVehicle());
+            } catch (Exception autoEx) {
+                log.warn("Aviso ao avaliar OS Preventiva Modelo 2 automática após edição de checklist {}: {}", entity.getVehicle().getPlate(), autoEx.getMessage());
+            }
         }
 
         return toDTO(entity);

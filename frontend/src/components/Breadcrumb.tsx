@@ -13,7 +13,7 @@ interface BreadcrumbItem {
 
 const segmentLabels: Record<string, string> = {
   dashboard: 'Dashboard',
-  'driver-dashboard': 'Portal do Motorista',
+  'driver-dashboard': 'Dashboard',
   rh: 'Recursos Humanos',
   'ponto-eletronico': 'Ponto Eletrônico',
   funcionarios: 'Funcionários',
@@ -47,6 +47,13 @@ const segmentLabels: Record<string, string> = {
   sst: 'Segurança do Trabalho (SST)',
   'departamento-pessoal': 'Departamento Pessoal',
   'chat-interno': 'Chat Interno',
+  'central-alertas': 'Central de Alertas',
+  driver: 'Motorista',
+  trip: 'Viagens e Rotas',
+  trips: 'Minhas Escalas',
+  'work-orders': 'Ordem de Serviço (OS)',
+  pneus: 'Gestão de Pneus',
+  mensagens: 'Mensagens',
 };
 
 const breadcrumbMap: Record<string, BreadcrumbItem[]> = {
@@ -54,7 +61,7 @@ const breadcrumbMap: Record<string, BreadcrumbItem[]> = {
     { label: 'Dashboard', path: '/dashboard', icon: Home }
   ],
   '/driver-dashboard': [
-    { label: 'Portal do Motorista', path: '/driver-dashboard', icon: Home }
+    { label: 'Dashboard', path: '/driver-dashboard', icon: Home }
   ],
   '/rh/ponto-eletronico': [
     { label: 'Início', path: '/dashboard', icon: Home },
@@ -62,7 +69,7 @@ const breadcrumbMap: Record<string, BreadcrumbItem[]> = {
     { label: 'Ponto Eletrônico', path: '/rh/ponto-eletronico' }
   ],
   '/driver/checklist': [
-    { label: 'Portal do Motorista', path: '/driver-dashboard', icon: Home },
+    { label: 'Dashboard', path: '/driver-dashboard', icon: Home },
     { label: 'Checklist do Veículo', path: '/driver/checklist' }
   ],
   '/funcionarios': [
@@ -165,7 +172,7 @@ export const Breadcrumb: React.FC = () => {
 
   const isDriver = isDriverUser(user);
   const homePath = isDriver ? '/driver-dashboard' : '/dashboard';
-  const homeLabel = isDriver ? 'Portal do Motorista' : 'Início';
+  const homeLabel = isDriver ? 'Dashboard' : 'Início';
 
   const breadcrumbs = useMemo(() => {
     if (breadcrumbMap[pathname]) {
@@ -177,7 +184,15 @@ export const Breadcrumb: React.FC = () => {
       return items;
     }
 
+    if (pathname.startsWith('/driver/trip/')) {
+      return [
+        { label: homeLabel, path: homePath, icon: Home },
+        { label: 'Viagens e Rotas', path: pathname }
+      ];
+    }
+
     // Gerador dinâmico a partir dos segmentos da URL
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     const segments = pathname.split('/').filter(Boolean);
     if (segments.length === 0) {
       return [{ label: homeLabel, path: homePath, icon: Home }];
@@ -190,6 +205,7 @@ export const Breadcrumb: React.FC = () => {
     let currentPath = '';
     segments.forEach((seg, idx) => {
       currentPath += `/${seg}`;
+      if (uuidRegex.test(seg)) return;
       const isLast = idx === segments.length - 1;
       const label = segmentLabels[seg] || (seg.charAt(0).toUpperCase() + seg.slice(1).replace(/-/g, ' '));
       items.push({

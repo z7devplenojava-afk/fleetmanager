@@ -13,6 +13,7 @@ import com.z7design.fleet_manager.model.StockItem;
 import com.z7design.fleet_manager.model.StockMovement;
 import com.z7design.fleet_manager.model.Supplier;
 import com.z7design.fleet_manager.model.SystemNotification;
+import com.z7design.fleet_manager.model.TireShopServiceRecord;
 import com.z7design.fleet_manager.model.Unit;
 import com.z7design.fleet_manager.model.User;
 import com.z7design.fleet_manager.model.enums.ExpenseStatus;
@@ -27,6 +28,7 @@ import com.z7design.fleet_manager.repository.MaterialRequisitionRepository;
 import com.z7design.fleet_manager.repository.StockItemRepository;
 import com.z7design.fleet_manager.repository.StockMovementRepository;
 import com.z7design.fleet_manager.repository.SupplierRepository;
+import com.z7design.fleet_manager.repository.TireShopServiceRecordRepository;
 import com.z7design.fleet_manager.repository.UnitRepository;
 import com.z7design.fleet_manager.repository.UserRepository;
 import com.z7design.fleet_manager.tenant.TenantContext;
@@ -77,6 +79,7 @@ public class StockNfeService {
     private final FleetWorkOrderHistoryRepository workOrderHistoryRepository;
     private final SystemNotificationService systemNotificationService;
     private final FuelRecordRepository fuelRecordRepository;
+    private final TireShopServiceRecordRepository tireShopServiceRecordRepository;
 
     /**
      * Faz o parse seguro do XML da NF-e e analisa previamente os itens e financeiro
@@ -278,8 +281,9 @@ public class StockNfeService {
 
                     // Detecção de bateria e pneu
                     boolean isBattery = detectBattery(xProd);
-                    boolean isTire = detectTire(xProd);
+                    boolean isTire = detectTire(xProd, ncm);
                     StockCategory suggestedCategory = detectCategory(xProd, isBattery, isTire);
+                    String[] tireMeta = isTire ? StockService.extractTireMetadata(xProd, null) : new String[] { null, null, null };
 
                     // Busca de correspondência de item já existente no estoque
                     UUID matchedId = null;
@@ -314,6 +318,9 @@ public class StockNfeService {
                             .suggestedCategory(suggestedCategory)
                             .isBattery(isBattery)
                             .isTire(isTire)
+                            .extractedBrand(tireMeta[0])
+                            .extractedModel(tireMeta[1])
+                            .extractedSize(tireMeta[2])
                             .build());
                 }
             }
@@ -1700,6 +1707,7 @@ public class StockNfeService {
             boolean isBattery = detectBattery(desc, row.ncm);
             boolean isTire = detectTire(desc, row.ncm);
             StockCategory suggestedCategory = detectCategory(desc, isBattery, isTire);
+            String[] tireMeta = isTire ? StockService.extractTireMetadata(desc, null) : new String[] { null, null, null };
             Optional<StockItem> matchedItem = matchExistingItem(row.code, desc, companyId);
 
             items.add(StockNfeParsedDTO.StockNfeItemDTO.builder()
@@ -1720,6 +1728,9 @@ public class StockNfeService {
                     .suggestedCategory(suggestedCategory)
                     .isBattery(isBattery)
                     .isTire(isTire)
+                    .extractedBrand(tireMeta[0])
+                    .extractedModel(tireMeta[1])
+                    .extractedSize(tireMeta[2])
                     .build());
         }
         return items;
@@ -2234,6 +2245,7 @@ public class StockNfeService {
         int tiresCreated = 0;
         int financialAccountsCreated = 0;
         List<String> details = new ArrayList<>();
+        List<Invoice> createdInvoices = new ArrayList<>();
         Set<String> usedCodesInBatch = new HashSet<>();
 
         // 2. Processar cada item selecionado
@@ -2292,7 +2304,10 @@ public class StockNfeService {
                 movement = stockMovementRepository.save(movement);
 
                 // Sincronizar baterias e pneus
-                stockService.syncBatteryAndTireInbound(stockItem, qty, request.getInvoiceNumber(), request.getSupplierName(), unitCost, movement.getId());
+                stockService.syncBatteryAndTireInbound(
+                        stockItem, qty, request.getInvoiceNumber(), request.getSupplierName(), unitCost, movement.getId(),
+                        itemReq.getTireBrand(), itemReq.getTireModel(), itemReq.getTireSize(), itemReq.getTireDot(),
+                        itemReq.getTireFireNumbers(), itemReq.getTireSerialNumbers());
 
                 if (stockService.isBatteryItem(stockItem)) batteriesCreated += qty;
                 if (stockService.isTireItem(stockItem)) tiresCreated += qty;
@@ -2369,7 +2384,10 @@ public class StockNfeService {
                 movement = stockMovementRepository.save(movement);
 
                 // Sincronizar baterias e pneus
-                stockService.syncBatteryAndTireInbound(newItem, qty, request.getInvoiceNumber(), request.getSupplierName(), unitCost, movement.getId());
+                stockService.syncBatteryAndTireInbound(
+                        newItem, qty, request.getInvoiceNumber(), request.getSupplierName(), unitCost, movement.getId(),
+                        itemReq.getTireBrand(), itemReq.getTireModel(), itemReq.getTireSize(), itemReq.getTireDot(),
+                        itemReq.getTireFireNumbers(), itemReq.getTireSerialNumbers());
 
                 if (stockService.isBatteryItem(newItem)) batteriesCreated += qty;
                 if (stockService.isTireItem(newItem)) tiresCreated += qty;
@@ -2461,12 +2479,16 @@ public class StockNfeService {
                         request.getAccessKey() != null && !request.getAccessKey().isBlank() ? request.getAccessKey() : "N/I",
                         instReq.getNotes() != null ? " | " + instReq.getNotes() : ""));
 
-                invoiceRepository.save(inv);
+                inv = invoiceRepository.save(inv);
+                createdInvoices.add(inv);
                 financialAccountsCreated++;
                 details.add(String.format("Conta a Pagar '%s' criada no valor de R$ %s vencendo em %s", 
                         generatedInvoiceNum, instReq.getAmount().toString(), inv.getDueDate().toString()));
             }
         }
+
+        // 4. Sincronizar automaticamente notas de recapagem/borracharia na aba Serviços de Borracharia
+        registerTireShopServicesIfApplicable(request, supplier, managedUser, userName, companyId, createdInvoices, details);
 
         return StockNfeProcessResponseDTO.builder()
                 .success(true)
@@ -2583,15 +2605,158 @@ public class StockNfeService {
     }
 
     private boolean detectTire(String description, String ncm) {
-        if (ncm != null && ncm.replaceAll("\\D", "").startsWith("4011")) {
-            return true;
-        }
-        if (description == null) return false;
-        String lower = description.toLowerCase();
-        if (lower.contains("camara") || lower.contains("câmara") || lower.contains("roda ") || lower.contains("valvula")) {
+        String lower = description != null ? description.toLowerCase() : "";
+        if (lower.contains("recapag") || lower.contains("recauchut") || lower.contains("vulcaniz")
+                || lower.contains("borrach") || lower.contains("conserto") || lower.contains("reforma")
+                || lower.contains("camara") || lower.contains("câmara") || lower.contains("roda ")
+                || lower.contains("valvula") || lower.contains("válvula")) {
             return false;
         }
+        if (ncm != null) {
+            String digits = ncm.replaceAll("\\D", "");
+            if (digits.startsWith("4011") || digits.startsWith("4012")) {
+                return true;
+            }
+        }
+        if (lower.isEmpty()) return false;
         return lower.contains("pneu") || lower.contains("tire") || lower.contains("pneumatico") || lower.contains("pneumático");
+    }
+
+    private boolean isTireShopOrRecapNfe(StockNfeProcessRequestDTO request, Supplier supplier) {
+        String sup = ((request.getSupplierName() != null ? request.getSupplierName() : "") + " "
+                + (supplier != null && supplier.getName() != null ? supplier.getName() : "")).toUpperCase();
+        if (sup.contains("RECAPAG") || sup.contains("BORRACH") || sup.contains("RECAUCHUT")) {
+            return true;
+        }
+        if (request.getItems() != null) {
+            for (StockNfeProcessRequestDTO.ProcessItemDTO item : request.getItems()) {
+                String n = (item.getName() != null ? item.getName() : "").toUpperCase();
+                if (n.contains("RECAPAG") || n.contains("RECAUCHUT") || n.contains("BORRACH")
+                        || n.contains("VULCANIZ") || n.contains("REFORMA DE PNEU") || n.contains("CONSERTO DE PNEU")) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private void registerTireShopServicesIfApplicable(
+            StockNfeProcessRequestDTO request,
+            Supplier supplier,
+            User managedUser,
+            String userName,
+            UUID companyId,
+            List<Invoice> createdInvoices,
+            List<String> details) {
+        if (supplier == null || !isTireShopOrRecapNfe(request, supplier)) {
+            return;
+        }
+        try {
+            LocalDate issueDate = request.getIssueDate() != null ? request.getIssueDate() : LocalDate.now();
+            String nfNum = request.getInvoiceNumber() != null && !request.getInvoiceNumber().isBlank()
+                    ? request.getInvoiceNumber().trim()
+                    : null;
+            String nfKey = request.getAccessKey() != null && !request.getAccessKey().isBlank()
+                    ? request.getAccessKey().trim()
+                    : null;
+
+            int totalQty = 0;
+            BigDecimal itemsTotal = BigDecimal.ZERO;
+            StringBuilder itemNames = new StringBuilder();
+            if (request.getItems() != null) {
+                for (StockNfeProcessRequestDTO.ProcessItemDTO itemReq : request.getItems()) {
+                    if (itemReq.getQuantity() == null || itemReq.getQuantity().compareTo(BigDecimal.ZERO) <= 0) {
+                        continue;
+                    }
+                    int q = itemReq.getQuantity().intValue();
+                    BigDecimal uc = itemReq.getUnitCost() != null ? itemReq.getUnitCost() : BigDecimal.ZERO;
+                    totalQty += q;
+                    itemsTotal = itemsTotal.add(uc.multiply(BigDecimal.valueOf(q)));
+                    if (itemReq.getName() != null && !itemReq.getName().isBlank()) {
+                        if (itemNames.length() > 0) itemNames.append(" | ");
+                        itemNames.append(itemReq.getName().trim());
+                    }
+                }
+            }
+            if (totalQty <= 0) totalQty = 1;
+            String baseServiceName = itemNames.length() > 0
+                    ? (itemNames.length() > 190 ? itemNames.substring(0, 190) : itemNames.toString())
+                    : "Serviço de Recapagem / Borracharia";
+
+            if (createdInvoices != null && !createdInvoices.isEmpty()) {
+                for (Invoice inv : createdInvoices) {
+                    BigDecimal amt = inv.getAmount() != null ? inv.getAmount() : itemsTotal;
+                    BigDecimal unitAmt = amt.divide(BigDecimal.valueOf(Math.max(1, totalQty)), 2, RoundingMode.HALF_UP);
+                    long existingCount = companyId != null
+                            ? tireShopServiceRecordRepository.countByCompanyId(companyId)
+                            : tireShopServiceRecordRepository.count();
+                    String svcNumber = String.format("SB-%d-%04d", issueDate.getYear(), existingCount + 1);
+
+                    TireShopServiceRecord rec = TireShopServiceRecord.builder()
+                            .companyId(companyId)
+                            .serviceNumber(svcNumber)
+                            .serviceName(baseServiceName)
+                            .supplierId(supplier.getId())
+                            .supplierName(supplier.getName())
+                            .quantity(totalQty)
+                            .unitAmount(unitAmt)
+                            .totalAmount(amt)
+                            .serviceDate(issueDate)
+                            .dueDate(inv.getDueDate() != null ? inv.getDueDate() : issueDate.plusDays(15))
+                            .boletoUrl(inv.getBoletoUrl())
+                            .boletoOriginalName(inv.getBoletoOriginalName())
+                            .linhaDigitavel(inv.getLinhaDigitavel())
+                            .barcode(inv.getBarcode())
+                            .invoiceId(inv.getId())
+                            .invoiceNumber(inv.getInvoiceNumber())
+                            .nfNumber(nfNum)
+                            .nfKey(nfKey)
+                            .beneficiaryName(supplier.getName())
+                            .beneficiaryCnpj(supplier.getCnpj())
+                            .generatePayable(true)
+                            .notes(inv.getNotes())
+                            .createdByUserId(managedUser != null ? managedUser.getId() : null)
+                            .createdByName(userName)
+                            .build();
+                    tireShopServiceRecordRepository.save(rec);
+                }
+                details.add("Serviço de Borracharia/Recapagem listado automaticamente na aba Serviços de Borracharia.");
+            } else {
+                long existingCount = companyId != null
+                        ? tireShopServiceRecordRepository.countByCompanyId(companyId)
+                        : tireShopServiceRecordRepository.count();
+                String svcNumber = String.format("SB-%d-%04d", issueDate.getYear(), existingCount + 1);
+                BigDecimal unitAmt = itemsTotal.divide(BigDecimal.valueOf(Math.max(1, totalQty)), 2, RoundingMode.HALF_UP);
+
+                TireShopServiceRecord rec = TireShopServiceRecord.builder()
+                        .companyId(companyId)
+                        .serviceNumber(svcNumber)
+                        .serviceName(baseServiceName)
+                        .supplierId(supplier.getId())
+                        .supplierName(supplier.getName())
+                        .quantity(totalQty)
+                        .unitAmount(unitAmt)
+                        .totalAmount(itemsTotal)
+                        .serviceDate(issueDate)
+                        .dueDate(issueDate.plusDays(15))
+                        .boletoUrl(request.getBoletoAttachmentUrl())
+                        .boletoOriginalName(request.getOriginalBoletoFileName())
+                        .nfNumber(nfNum)
+                        .nfKey(nfKey)
+                        .beneficiaryName(supplier.getName())
+                        .beneficiaryCnpj(supplier.getCnpj())
+                        .generatePayable(false)
+                        .notes("Importado via NF-e nº " + (nfNum != null ? nfNum : "N/I"))
+                        .createdByUserId(managedUser != null ? managedUser.getId() : null)
+                        .createdByName(userName)
+                        .build();
+                tireShopServiceRecordRepository.save(rec);
+                details.add("Serviço de Borracharia/Recapagem registrado via NF-e.");
+            }
+        } catch (Exception e) {
+            log.warn("Não foi possível registrar serviço de borracharia automático para NF-e {}: {}",
+                    request.getInvoiceNumber(), e.getMessage());
+        }
     }
 
     private StockCategory detectCategory(String description, boolean isBattery, boolean isTire) {
@@ -2600,6 +2765,9 @@ public class StockNfeService {
         if (description == null) return StockCategory.PECAS_MECANICA;
 
         String lower = description.toLowerCase();
+        if (lower.contains("recapag") || lower.contains("recauchut") || lower.contains("borrach") || lower.contains("vulcaniz")) {
+            return StockCategory.PNEUS_RODAS;
+        }
         if (lower.contains("oleo") || lower.contains("óleo") || lower.contains("lubrific") || lower.contains("fluido") || lower.contains("aditivo")) {
             return StockCategory.LUBRIFICANTES_FLUIDOS;
         }

@@ -27,10 +27,11 @@ interface SupplierFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   supplier?: Supplier | null;
+  initialData?: Partial<CreateSupplierRequest> | null;
   onSave: (payload: CreateSupplierRequest) => Promise<void> | void;
 }
 
-export const SupplierFormModal: React.FC<SupplierFormModalProps> = ({ isOpen, onClose, supplier, onSave }) => {
+export const SupplierFormModal: React.FC<SupplierFormModalProps> = ({ isOpen, onClose, supplier, initialData, onSave }) => {
   const [form, setForm] = useState<CreateSupplierRequest>({ name: '', cnpj: '', email: '', phone: '' });
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -81,10 +82,21 @@ export const SupplierFormModal: React.FC<SupplierFormModalProps> = ({ isOpen, on
           notes: supplier.notes || '',
         });
       } else {
-        setForm({ name: '', cnpj: '', email: '', phone: '', address: '', city: '', state: '', zipCode: '', category: '', notes: '' });
+        setForm({
+          name: initialData?.name || '',
+          cnpj: initialData?.cnpj ? formatCnpj(initialData.cnpj) : '',
+          email: initialData?.email || '',
+          phone: initialData?.phone || '',
+          address: initialData?.address || '',
+          city: initialData?.city || '',
+          state: initialData?.state || '',
+          zipCode: initialData?.zipCode || '',
+          category: initialData?.category || '',
+          notes: initialData?.notes || '',
+        });
       }
     }
-  }, [isOpen, supplier]);
+  }, [isOpen, supplier, initialData]);
 
   const update = (k: keyof CreateSupplierRequest, v: any) => setForm(prev => ({ ...prev, [k]: v }));
 

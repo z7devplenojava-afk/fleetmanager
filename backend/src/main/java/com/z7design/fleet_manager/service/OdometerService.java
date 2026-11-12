@@ -31,6 +31,7 @@ public class OdometerService {
     private final VehicleRepository vehicleRepository;
     private final MaintenancePlanRepository maintenancePlanRepository;
     private final MaintenancePlanService maintenancePlanService;
+    private final PreventiveModel2Service preventiveModel2Service;
 
     /**
      * Atualiza o hodômetro do veículo a partir de uma Parte Diária concluída
@@ -103,6 +104,11 @@ public class OdometerService {
             } catch (Exception e) {
                 log.error("Erro ao canalizar alertas de PMP: {}", e.getMessage());
             }
+        }
+        try {
+            preventiveModel2Service.evaluateAndAutoOpenForVehicle(vehicle);
+        } catch (Exception e) {
+            log.warn("Erro ao avaliar abertura automática de OS Preventiva Modelo 2 para {}: {}", vehicle.getPlate(), e.getMessage());
         }
         return overdue;
     }

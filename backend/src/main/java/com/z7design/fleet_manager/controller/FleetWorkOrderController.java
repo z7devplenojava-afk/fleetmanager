@@ -9,6 +9,8 @@ import com.z7design.fleet_manager.model.User;
 import com.z7design.fleet_manager.service.AuthenticationService;
 import com.z7design.fleet_manager.service.FleetWorkOrderPdfService;
 import com.z7design.fleet_manager.service.FleetWorkOrderService;
+import com.z7design.fleet_manager.service.PreventiveModel2Service;
+import com.z7design.fleet_manager.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -35,6 +37,7 @@ public class FleetWorkOrderController {
     private final FleetWorkOrderPdfService pdfService;
     private final AuthenticationService authenticationService;
     private final FileStorageService fileStorageService;
+    private final PreventiveModel2Service preventiveModel2Service;
 
     /** Upload de fotos de evidência para Ordem de Serviço (armazenamento físico) */
     @PostMapping(value = "/upload-photos", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -64,12 +67,35 @@ public class FleetWorkOrderController {
         return ResponseEntity.ok(service.getById(id));
     }
 
-    /** Lista os itens mestre de checklist ativo por tipo de veículo (BUS, VAN ou todos) */
+    /** Lista os itens mestre de checklist ativo por tipo de veículo (BUS, VAN ou todos) e modelo de OS (MODELO_1 / MODELO_2) */
     @GetMapping("/checklist-items")
     public ResponseEntity<List<com.z7design.fleet_manager.dto.ChecklistItemDTO>> getChecklistMasterItems(
             @RequestParam(value = "vehicleType", required = false) String vehicleType,
-            @RequestParam(value = "model", required = false) String model) {
-        return ResponseEntity.ok(service.getChecklistMasterItems(vehicleType, model));
+            @RequestParam(value = "model", required = false) String model,
+            @RequestParam(value = "templateModel", required = false) String templateModel) {
+        return ResponseEntity.ok(service.getChecklistMasterItems(vehicleType, model, templateModel));
+    }
+
+    /** Tabela de intervalos preventivos Urbano vs Rodoviário (Modelo 2 — inclui Alternador 15k / 150k km) */
+    @GetMapping("/preventive-schedule")
+    public ResponseEntity<List<PreventiveModel2Service.PreventiveScheduleItemDTO>> getPreventiveSchedule() {
+        return ResponseEntity.ok(preventiveModel2Service.getSchedule());
+    }
+
+    /** Executa varredura sob demanda e abre automaticamente OS Preventiva Modelo 2 para veículos no KM limite */
+    @PostMapping("/preventive-auto/run")
+    public ResponseEntity<PreventiveModel2Service.AutoSweepResultDTO> runAutoPreventiveSweep() {
+        UUID companyId = TenantContext.get();
+        if (companyId == null) {
+            try {
+                Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+                User user = authenticationService.getCurrentUser(authentication);
+                if (user != null) {
+                    companyId = user.getCompanyId();
+                }
+            } catch (Exception ignored) {}
+        }
+        return ResponseEntity.ok(preventiveModel2Service.runAutoSweepForCompany(companyId));
     }
 
     /** Lista os serviços cadastrados na oficina */
@@ -182,13 +208,14 @@ public class FleetWorkOrderController {
         }
     }
 
-    /** Gera o PDF da OS para impressão / entrega ao mecânico (suporta ?blank=true para checklist em branco) */
+    /** Gera o PDF da OS para impressão / entrega ao mecânico (suporta ?blank=true e ?templateModel=MODELO_1|MODELO_2) */
     @GetMapping(value = "/{id}/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
     public ResponseEntity<byte[]> generatePdf(
             @PathVariable("id") UUID id,
-            @RequestParam(value = "blank", required = false, defaultValue = "false") boolean blank) {
+            @RequestParam(value = "blank", required = false, defaultValue = "false") boolean blank,
+            @RequestParam(value = "templateModel", required = false) String templateModel) {
         try {
-            byte[] pdfBytes = pdfService.generatePdf(id, blank);
+            byte[] pdfBytes = pdfService.generatePdf(id, blank, templateModel);
             String fileName = "ordem-servico-" + id + (blank ? "-em-branco" : "") + ".pdf";
             return ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_PDF_VALUE)

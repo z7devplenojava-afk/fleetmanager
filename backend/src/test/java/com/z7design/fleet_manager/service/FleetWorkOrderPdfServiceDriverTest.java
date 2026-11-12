@@ -4,7 +4,11 @@ import com.z7design.fleet_manager.model.FleetWorkOrder;
 import com.z7design.fleet_manager.model.Vehicle;
 import com.z7design.fleet_manager.repository.ChecklistItemRepository;
 import com.z7design.fleet_manager.repository.CompanyRepository;
+import com.z7design.fleet_manager.repository.EmployeeRepository;
 import com.z7design.fleet_manager.repository.FleetWorkOrderRepository;
+import com.z7design.fleet_manager.repository.UserRepository;
+import com.z7design.fleet_manager.repository.VehicleGateChecklistRepository;
+import com.z7design.fleet_manager.repository.VehicleInspectionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,6 +40,21 @@ class FleetWorkOrderPdfServiceDriverTest {
     @Mock
     private ChecklistItemRepository checklistItemRepository;
 
+    @Mock
+    private EmployeeRepository employeeRepository;
+
+    @Mock
+    private UserRepository userRepository;
+
+    @Mock
+    private VehicleGateChecklistRepository vehicleGateChecklistRepository;
+
+    @Mock
+    private VehicleInspectionRepository vehicleInspectionRepository;
+
+    @Mock
+    private StoredUploadService storedUploadService;
+
     private FleetWorkOrderPdfService service;
 
     @BeforeEach
@@ -50,7 +69,15 @@ class FleetWorkOrderPdfServiceDriverTest {
         templateEngine.setTemplateResolver(resolver);
 
         service = new FleetWorkOrderPdfService(
-                repository, companyRepository, checklistItemRepository, templateEngine);
+                repository,
+                companyRepository,
+                checklistItemRepository,
+                employeeRepository,
+                userRepository,
+                vehicleGateChecklistRepository,
+                vehicleInspectionRepository,
+                storedUploadService,
+                templateEngine);
         ReflectionTestUtils.setField(service, "uploadDir", "uploads");
     }
 

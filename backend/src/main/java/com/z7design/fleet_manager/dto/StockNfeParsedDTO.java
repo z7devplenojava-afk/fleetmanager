@@ -88,6 +88,11 @@ public class StockNfeParsedDTO {
         private boolean isBattery;
         private boolean isTire;
         private boolean isService;
+
+        // Metadados extraídos automaticamente quando isTire == true
+        private String extractedBrand;
+        private String extractedModel;
+        private String extractedSize;
     }
 
     @Data

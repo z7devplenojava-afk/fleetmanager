@@ -25,4 +25,8 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
     long countBySignedTrue();
     long countBySignedFalse();
     long countByExpirationDateBefore(LocalDateTime date);
+
+    @org.springframework.data.jpa.repository.Query("SELECT d FROM Document d LEFT JOIN FETCH d.employee e " +
+            "WHERE d.expirationDate IS NOT NULL AND (:companyId IS NULL OR d.companyId = :companyId)")
+    List<Document> findWithExpirationByCompany(@org.springframework.data.repository.query.Param("companyId") UUID companyId);
 }

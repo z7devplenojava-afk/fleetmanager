@@ -80,6 +80,14 @@ public class StockNfeProcessRequestDTO {
         private String barcode;
         private String caNumber;
         private Integer minimumQuantity;
+
+        // Dados técnicos opcionais de pneus para entrada individualizada
+        private String tireBrand;
+        private String tireModel;
+        private String tireSize;
+        private String tireDot;
+        private List<String> tireFireNumbers;
+        private List<String> tireSerialNumbers;
     }
 
     @Data

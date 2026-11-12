@@ -110,15 +110,16 @@ const mainMenuItems = [
   { icon: Building2, text: 'Portal do Cliente', to: '/portal-cliente', id: 'portal-cliente' },
   { icon: UserCircle, text: 'Portal do Funcionário', to: '/employee-portal', id: 'employee-portal' },
   { icon: Users, text: 'Portal do Passageiro', to: '/passenger', id: 'passenger-portal' },
-  { icon: User2, text: 'Portal do Motorista', to: '/driver-dashboard', id: 'driver-dashboard' },
-  { icon: Clock, text: 'Ponto Eletrônico', to: '/rh/ponto-eletronico', id: 'ponto-eletronico' },
+  { icon: User2, text: 'Dashboard', to: '/driver-dashboard', id: 'driver-dashboard' },
   { icon: ClipboardCheck, text: 'Checklist & Avarias', to: '/driver/checklist', id: 'driver-checklist' },
-  { icon: Wrench, text: 'Ordem de Serviço (OS)', to: '/driver/work-orders', id: 'driver-work-orders' },
-  { icon: FileText, text: 'Lançamento de Parte Diária', to: '/driver-dashboard?action=parte-diaria', id: 'driver-parte-diaria' },
+  { icon: Bus, text: 'Viagens e Rotas', to: '/driver/trip/active', id: 'driver-trip-execution' },
   { icon: Calendar, text: 'Minhas Escalas', to: '/driver/trips', id: 'driver-trips' },
-  { icon: Bus, text: 'Gestão de Viagens', to: '/driver/trip/active', id: 'driver-trip-execution' },
+  { icon: Wrench, text: 'Ordem de Serviço (OS)', to: '/driver/work-orders', id: 'driver-work-orders' },
+  { icon: Clock, text: 'Ponto Eletrônico', to: '/rh/ponto-eletronico', id: 'ponto-eletronico' },
+  { icon: FileText, text: 'Lançamento de Parte Diária', to: '/driver-dashboard?action=parte-diaria', id: 'driver-parte-diaria' },
   { icon: CheckCircle, text: 'Controle de Horas', to: '/rh/controle-horas', id: 'driver-controle-horas' },
   { icon: FileSpreadsheet, text: 'Meus Holerites', to: '/meus-holerites', id: 'meus-holerites' },
+  { icon: Bell, text: 'Central de Alertas', to: '/central-alertas', id: 'central-alertas' },
   { icon: MessageSquare, text: 'Mensagens', to: '/mensagens', id: 'driver-mensagens' },
   { icon: FileSpreadsheet, text: 'Holerites', to: '/holerites', id: 'holerites' },
   { icon: Building2, text: 'Filiais', to: '/filiais', id: 'filiais' },
@@ -1875,6 +1876,7 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
       // Comunicação Interna e Atendimento completos liberados para todos os usuários internos
       // (Manutenção, Operacional, Comercial, Financeiro, SST, Administradores, Almoxarifados, Compras, Gestão de Tráfego, RH e DP)
       const isCommsOrAtendimento = 
+        item.id === 'central-alertas' ||
         item.id === 'chat-interno' ||
         item.id === 'mensagens' ||
         item.id === 'gestao-mensagens-grupos' ||
@@ -2060,6 +2062,22 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
       const tab = urlParams.get('tab');
       if (tab) {
         return `operacional-${tab}`;
+      }
+    }
+
+    // Sub-rotas dinâmicas de Viagens e Rotas do motorista (/driver/trip/:id ou /driver/trip/active)
+    if (path.startsWith('/driver/trip/')) {
+      return 'driver-trip-execution';
+    }
+
+    // Correspondência por prefixo mais específico (ex.: rotas de detalhe /modulo/:id)
+    if (!activeItem) {
+      const prefixMatches = allItems
+        .map(item => ({ item, itemPath: item.to.split('?')[0] }))
+        .filter(({ itemPath }) => itemPath.length > 1 && path.startsWith(itemPath + '/'))
+        .sort((a, b) => b.itemPath.length - a.itemPath.length);
+      if (prefixMatches.length > 0) {
+        activeItem = prefixMatches[0].item;
       }
     }
 

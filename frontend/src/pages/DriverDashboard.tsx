@@ -17,7 +17,8 @@ import {
     Eye,
     Wrench,
     FileText,
-    QrCode
+    QrCode,
+    Bus
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -201,18 +202,25 @@ const DriverDashboard: React.FC = () => {
 
     const quickActions = [
         {
-            title: 'Ponto Eletrônico',
-            description: 'Registre sua entrada, intervalos e saída diária',
-            icon: Clock,
-            color: 'bg-emerald-600',
-            to: '/rh/ponto-eletronico'
-        },
-        {
             title: 'Checklist & Avarias (Vistoria)',
             description: 'Mapa de avarias na carroceria, pneus, níveis e KM',
             icon: ClipboardCheck,
             color: 'bg-red-500',
             to: '/driver/checklist'
+        },
+        {
+            title: 'Viagens e Rotas',
+            description: 'Acompanhe sua viagem, embarque e fechamento de KM',
+            icon: Bus,
+            color: 'bg-indigo-600',
+            to: '/driver/trip/active'
+        },
+        {
+            title: 'Minhas Escalas',
+            description: 'Veja, visualize e baixe sua escala em PDF',
+            icon: Calendar,
+            color: 'bg-blue-500',
+            to: '/driver/trips'
         },
         {
             title: 'Ordem de Serviço (OS)',
@@ -222,18 +230,18 @@ const DriverDashboard: React.FC = () => {
             to: '/driver/work-orders'
         },
         {
+            title: 'Ponto Eletrônico',
+            description: 'Registre sua entrada, intervalos e saída diária',
+            icon: Clock,
+            color: 'bg-emerald-600',
+            to: '/rh/ponto-eletronico'
+        },
+        {
             title: 'Lançamento de Parte Diária',
             description: 'Lançar ficha de veículo, horários e KM para medição',
             icon: FileText,
             color: 'bg-amber-600',
             action: () => setIsParteDiariaModalOpen(true)
-        },
-        {
-            title: 'Minhas Escalas',
-            description: 'Veja, visualize e baixe sua escala em PDF',
-            icon: Calendar,
-            color: 'bg-blue-500',
-            to: '/driver/trips'
         },
         {
             title: 'Controle de Horas',
@@ -275,7 +283,7 @@ const DriverDashboard: React.FC = () => {
                             </div>
                         </div>
                         <p className="text-xs sm:text-sm text-muted-foreground">
-                            Portal do Motorista - Fleet Manager
+                            Dashboard do Motorista - Fleet Manager
                         </p>
                     </div>
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto">

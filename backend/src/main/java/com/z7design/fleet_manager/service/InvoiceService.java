@@ -156,15 +156,33 @@ public class InvoiceService {
     }
     
     public Invoice save(Invoice invoice) {
-        // Garantir unidade vÃ¡lida: se nÃ£o vier no DTO, usar a primeira unidade existente
+        // Garantir unidade válida: se não vier no DTO, usar a primeira unidade existente ou criar unidade padrão
         if (invoice.getUnit() == null || invoice.getUnit().getId() == null) {
             try {
                 org.springframework.data.domain.PageRequest pr = org.springframework.data.domain.PageRequest.of(0, 1);
-                Unit fallback = unitRepository.findAll(pr).stream().findFirst()
-                        .orElseThrow(() -> new IllegalArgumentException("Nenhuma unidade cadastrada"));
+                Unit fallback = unitRepository.findAll(pr).stream().findFirst().orElse(null);
+                if (fallback == null) {
+                    UUID companyId = invoice.getCompanyId() != null
+                            ? invoice.getCompanyId()
+                            : com.z7design.fleet_manager.tenant.TenantContext.get();
+                    String defaultName = "Matriz Principal";
+                    if (unitRepository.existsByName(defaultName)) {
+                        String suffix = companyId != null
+                                ? companyId.toString().substring(0, 6).toUpperCase()
+                                : UUID.randomUUID().toString().substring(0, 6).toUpperCase();
+                        defaultName = "Matriz Principal - " + suffix;
+                    }
+                    Unit defaultUnit = new Unit();
+                    defaultUnit.setName(defaultName);
+                    defaultUnit.setAddress("Endereço Principal");
+                    defaultUnit.setCompanyId(companyId);
+                    defaultUnit.setActive(true);
+                    fallback = unitRepository.save(defaultUnit);
+                    log.info("Unidade padrão criada automaticamente para fatura (companyId={}): {}", companyId, fallback.getId());
+                }
                 invoice.setUnit(fallback);
             } catch (Exception e) {
-                throw new IllegalArgumentException("Unidade Ã© obrigatÃ³ria para faturas", e);
+                throw new IllegalArgumentException("Unidade é obrigatória para faturas: " + e.getMessage(), e);
             }
         }
         return invoiceRepository.save(invoice);
@@ -281,6 +299,9 @@ public class InvoiceService {
         return invoiceRepository.findById(id)
                 .map(invoice -> {
                     invoice.setStatus(status);
+                    if (status == ExpenseStatus.PAGA && invoice.getPaymentDate() == null) {
+                        invoice.setPaymentDate(LocalDate.now());
+                    }
                     return invoiceRepository.save(invoice);
                 })
                 .orElseThrow(() -> new RuntimeException("Fatura nÃ£o encontrada"));

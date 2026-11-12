@@ -12,4 +12,8 @@ public interface TireMovementRepository extends JpaRepository<TireMovement, UUID
     List<TireMovement> findByTireIdOrderByMovementDateDesc(UUID tireId);
 
     List<TireMovement> findByVehicleIdOrderByMovementDateDesc(UUID vehicleId);
+
+    List<TireMovement> findByTireIdInOrderByMovementDateDesc(List<UUID> tireIds);
+
+    List<TireMovement> findTop200ByOrderByMovementDateDesc();
 }

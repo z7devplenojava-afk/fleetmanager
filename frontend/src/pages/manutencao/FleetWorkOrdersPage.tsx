@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Card, CardContent } from '@/components/ui/card';
@@ -29,9 +29,10 @@ import {
     ArrowUp,
     ArrowDown,
     Sparkles,
-    Warehouse
+    Warehouse,
+    Bell
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -53,6 +54,12 @@ import FleetWorkOrderForm from '@/components/frota/FleetWorkOrderForm';
 import { FleetWorkOrderViewModal } from '@/components/frota/FleetWorkOrderViewModal';
 import { FleetWorkOrderPurchaseModal } from '@/components/frota/FleetWorkOrderPurchaseModal';
 import { PartsProcurementHoverCard } from '@/components/frota/PartsProcurementHoverCard';
+import { FleetComponentControlsPanel } from '@/components/frota/FleetComponentControlsPanel';
+import { DueComponentsAlertModal } from '@/components/frota/DueComponentsAlertModal';
+import fleetComponentControlService, {
+    buildWorkOrderPrefillFromComponentRow,
+    FleetComponentControlRow
+} from '@/services/fleetComponentControlService';
 import {
     Dialog,
     DialogContent,
@@ -87,12 +94,74 @@ const formatDisplayDate = (d?: string) => {
 
 const FleetWorkOrdersPage: React.FC = () => {
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const { toast } = useToast();
     const queryClient = useQueryClient();
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [selectedOrder, setSelectedOrder] = useState<FleetWorkOrder | undefined>(undefined);
+    const [prefillOrderValues, setPrefillOrderValues] = useState<Partial<FleetWorkOrder> | undefined>(undefined);
+    const [dueModalOpen, setDueModalOpen] = useState(false);
+    const [hasTriggeredDueModal, setHasTriggeredDueModal] = useState(false);
+    const [isRunningAutoSweep, setIsRunningAutoSweep] = useState(false);
+    const tabParam = searchParams.get('tab');
+
+    const handleRunAutoPreventiveSweep = async () => {
+        setIsRunningAutoSweep(true);
+        try {
+            const res = await fleetWorkOrderService.runAutoPreventiveSweep();
+            queryClient.invalidateQueries({ queryKey: ['fleet-work-orders'] });
+            queryClient.invalidateQueries({ queryKey: ['fleet-component-controls'] });
+            toast({
+                title: res.createdCount > 0
+                    ? `${res.createdCount} OS Preventiva(s) Modelo 2 gerada(s)`
+                    : 'Frota verificada (nenhuma nova OS vencida)',
+                description: res.createdCount > 0
+                    ? `${res.checkedVehicles} veículo(s) avaliado(s) conforme perfil Urbano/Rodoviário e revisão do Alternador.`
+                    : `${res.checkedVehicles} veículo(s) avaliado(s). Nenhuma pendência nova sem OS preventiva aberta.`,
+            });
+        } catch (err: any) {
+            toast({
+                title: 'Erro ao gerar OS Preventivas automáticas',
+                description: err?.response?.data?.error || err?.message || 'Falha ao executar varredura de KM.',
+                variant: 'destructive',
+            });
+        } finally {
+            setIsRunningAutoSweep(false);
+        }
+    };
+    const resolveTabView = (param: string | null): 'os' | 'componentes' | 'alertas' => {
+        if (param === 'componentes') return 'componentes';
+        if (param === 'alertas') return 'alertas';
+        return 'os';
+    };
+    const [view, setView] = useState<'os' | 'componentes' | 'alertas'>(resolveTabView(tabParam));
     const [statusFilter, setStatusFilter] = useState<WorkOrderStatus | 'ALL'>('ALL');
     const [typeFilter, setTypeFilter] = useState<MaintenanceType | 'ALL'>('ALL');
+
+    useEffect(() => {
+        setView(resolveTabView(tabParam));
+    }, [tabParam]);
+
+    const { data: compDashboard } = useQuery({
+        queryKey: ['fleet-component-controls', 'ALL', 'ALL', String(new Date().getFullYear())],
+        queryFn: () => fleetComponentControlService.getDashboard({ controlType: 'ALL' }),
+        staleTime: 60_000,
+    });
+
+    const expiringComponentsCount = compDashboard?.expiringAlerts?.length || 0;
+
+    useEffect(() => {
+        if (!hasTriggeredDueModal && compDashboard && compDashboard.expiringAlerts.length > 0) {
+            setHasTriggeredDueModal(true);
+            setDueModalOpen(true);
+        }
+    }, [compDashboard, hasTriggeredDueModal]);
+
+    const handleOpenOsFromComponent = (vals: Partial<FleetWorkOrder>) => {
+        setSelectedOrder(undefined);
+        setPrefillOrderValues(vals);
+        setIsFormOpen(true);
+    };
     const [searchTerm, setSearchTerm] = useState('');
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
@@ -314,13 +383,23 @@ const FleetWorkOrdersPage: React.FC = () => {
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                         <Button
                             variant="outline"
+                            onClick={handleRunAutoPreventiveSweep}
+                            disabled={isRunningAutoSweep}
+                            className="border-emerald-500/70 text-emerald-300 hover:bg-emerald-500/10 font-bold text-xs sm:text-sm h-10"
+                            title="Avalia toda a frota e abre OS Preventiva Modelo 2 automática para os veículos que atingiram os intervalos Urbano/Rodoviário ou 150.000 km do Alternador"
+                        >
+                            <CheckCircle2 className={`mr-2 h-4 w-4 ${isRunningAutoSweep ? 'animate-spin' : ''}`} />
+                            {isRunningAutoSweep ? 'Avaliando Frota...' : 'Gerar Preventivas (KM)'}
+                        </Button>
+                        <Button
+                            variant="outline"
                             onClick={() => navigate('/manutencao/limpeza')}
                             className="border-seguranca-yellow text-seguranca-yellow hover:bg-seguranca-yellow/10 font-bold text-xs sm:text-sm h-10"
                         >
                             <Sparkles className="mr-2 h-4 w-4" /> Solicitar Limpeza
                         </Button>
                         <Button
-                            onClick={() => { setSelectedOrder(undefined); setIsFormOpen(true); }}
+                            onClick={() => { setSelectedOrder(undefined); setPrefillOrderValues(undefined); setIsFormOpen(true); }}
                             className="bg-seguranca-red hover:bg-seguranca-darkred text-white font-bold text-xs sm:text-sm h-10"
                         >
                             <Plus className="mr-2 h-4 w-4" /> Nova O.S.
@@ -328,6 +407,60 @@ const FleetWorkOrdersPage: React.FC = () => {
                     </div>
                 </div>
 
+                {/* Navegação entre Ordens de Serviço, Controles Preventivos e Alertas de Vencimentos */}
+                <div className="flex flex-wrap gap-2">
+                    <Button
+                        variant={view === 'os' ? 'default' : 'outline'}
+                        onClick={() => {
+                            setView('os');
+                            setSearchParams({});
+                        }}
+                        size="sm"
+                        className="h-9"
+                    >
+                        <ClipboardList className="h-4 w-4 mr-2" />
+                        Ordens de Serviço
+                    </Button>
+                    <Button
+                        variant={view === 'componentes' ? 'default' : 'outline'}
+                        onClick={() => {
+                            setView('componentes');
+                            setSearchParams({ tab: 'componentes' });
+                        }}
+                        size="sm"
+                        className={`h-9 ${view === 'componentes' ? 'bg-seguranca-yellow hover:bg-amber-400 text-black font-semibold' : 'border-seguranca-yellow/40 text-seguranca-yellow hover:bg-seguranca-yellow/10'}`}
+                    >
+                        <Wrench className="h-4 w-4 mr-2" />
+                        Controles Preventivos
+                    </Button>
+                    <Button
+                        variant={view === 'alertas' ? 'default' : 'outline'}
+                        onClick={() => {
+                            setView('alertas');
+                            setSearchParams({ tab: 'alertas' });
+                        }}
+                        size="sm"
+                        className={`h-9 ${view === 'alertas' ? 'bg-red-600 hover:bg-red-700 text-white font-semibold' : 'border-red-500/40 text-red-300 hover:bg-red-500/10'}`}
+                    >
+                        <Bell className="h-4 w-4 mr-2" />
+                        Alertas de Vencimentos
+                        {expiringComponentsCount > 0 && (
+                            <Badge className="ml-2 bg-white text-red-700 font-bold text-[10px] px-1.5 py-0">
+                                {expiringComponentsCount}
+                            </Badge>
+                        )}
+                    </Button>
+                </div>
+
+                {view === 'componentes' || view === 'alertas' ? (
+                    <FleetComponentControlsPanel
+                        key={view}
+                        defaultSubTab={view === 'alertas' ? 'ALERTS' : 'ALL'}
+                        showAutoAlertModalOnMount={false}
+                        onCreateWorkOrder={handleOpenOsFromComponent}
+                    />
+                ) : (
+                <>
                 {/* Cards/Resumo conforme PRD Seção 23 */}
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
                     <Card className="bg-seguranca-graphite border-l-4 border-l-gray-500">
@@ -523,9 +656,16 @@ const FleetWorkOrdersPage: React.FC = () => {
                                                     {order.osNumber || `OS-${order.id.slice(0, 8)}`}
                                                 </td>
                                                 <td className="p-3 sm:p-4">
-                                                    <Badge variant="outline" className={`font-bold text-[10px] sm:text-xs px-1.5 sm:px-2.5 ${order.maintenanceType === MaintenanceType.PREVENTIVA ? 'border-green-500 text-green-400' : 'border-orange-500 text-orange-400'}`}>
-                                                        {order.maintenanceType === MaintenanceType.PREVENTIVA ? 'PREV' : (order.maintenanceType === MaintenanceType.CORRETIVA ? 'CORR' : order.maintenanceType || 'CORR')}
-                                                    </Badge>
+                                                    <div className="flex flex-col gap-1 items-start">
+                                                        <Badge variant="outline" className={`font-bold text-[10px] sm:text-xs px-1.5 sm:px-2.5 ${order.maintenanceType === MaintenanceType.PREVENTIVA ? 'border-green-500 text-green-400' : 'border-orange-500 text-orange-400'}`}>
+                                                            {order.maintenanceType === MaintenanceType.PREVENTIVA ? 'PREV' : (order.maintenanceType === MaintenanceType.CORRETIVA ? 'CORR' : order.maintenanceType || 'CORR')}
+                                                        </Badge>
+                                                        {order.preventiveModel === 'MODELO_2' && (
+                                                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-950/70 border border-emerald-600/50 text-emerald-300 whitespace-nowrap">
+                                                                M2 {order.autoGenerated ? '• Auto' : ''} {order.operationProfile ? `• ${order.operationProfile}` : ''}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </td>
                                                 <td className="p-3 sm:p-4">
                                                     {order.status === WorkOrderStatus.WAITING_PARTS ? (
@@ -620,6 +760,19 @@ const FleetWorkOrdersPage: React.FC = () => {
                                                                 </DropdownMenuItem>
 
                                                                 <DropdownMenuItem
+                                                                    onClick={async () => {
+                                                                        try {
+                                                                            await generateFleetWorkOrderPDFDownload(order, { templateModel: 'MODELO_2' });
+                                                                        } catch {
+                                                                            toast({ title: 'Erro ao gerar PDF Modelo 2', variant: 'destructive' });
+                                                                        }
+                                                                    }}
+                                                                    className="text-emerald-300"
+                                                                >
+                                                                    <FileText className="mr-2 h-4 w-4" /> Baixar PDF Modelo 2 (Check-List Frota)
+                                                                </DropdownMenuItem>
+
+                                                                <DropdownMenuItem
                                                                     onClick={() => handleDownloadPDF(order)}
                                                                     disabled={generatingPdfId === order.id}
                                                                     className="text-gray-200"
@@ -691,6 +844,8 @@ const FleetWorkOrdersPage: React.FC = () => {
                         </CardContent>
                     </Card>
                 </div>
+                </>
+                )}
             </div>
 
             <FleetWorkOrderForm
@@ -698,6 +853,7 @@ const FleetWorkOrdersPage: React.FC = () => {
                 onClose={() => {
                     setIsFormOpen(false);
                     setSelectedOrder(undefined);
+                    setPrefillOrderValues(undefined);
                     setTimeout(() => {
                         if (!document.querySelector('[role="dialog"], [role="alertdialog"]')) {
                             document.body.style.pointerEvents = '';
@@ -708,7 +864,9 @@ const FleetWorkOrdersPage: React.FC = () => {
                 onSuccess={() => {
                     setIsFormOpen(false);
                     setSelectedOrder(undefined);
+                    setPrefillOrderValues(undefined);
                     queryClient.invalidateQueries({ queryKey: ['fleet-work-orders'] });
+                    queryClient.invalidateQueries({ queryKey: ['fleet-component-controls'] });
                     setTimeout(() => {
                         if (!document.querySelector('[role="dialog"], [role="alertdialog"]')) {
                             document.body.style.pointerEvents = '';
@@ -717,6 +875,21 @@ const FleetWorkOrdersPage: React.FC = () => {
                     }, 50);
                 }}
                 order={selectedOrder}
+                initialValues={prefillOrderValues}
+            />
+
+            <DueComponentsAlertModal
+                open={dueModalOpen}
+                onOpenChange={setDueModalOpen}
+                alerts={compDashboard?.expiringAlerts || []}
+                thresholdKm={compDashboard?.config?.alertThresholdKm}
+                onOpenWorkOrder={(row: FleetComponentControlRow) =>
+                    handleOpenOsFromComponent(buildWorkOrderPrefillFromComponentRow(row))
+                }
+                onGoToAlertsTab={() => {
+                    setView('alertas');
+                    setSearchParams({ tab: 'alertas' });
+                }}
             />
 
             <FleetWorkOrderViewModal

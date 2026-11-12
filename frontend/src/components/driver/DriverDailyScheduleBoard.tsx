@@ -35,6 +35,8 @@ import {
   CornerDownLeft,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { isDriverUser } from '@/utils/roleRouting';
 import driverRouteCodeService, {
   DriverRouteCode,
   DEFAULT_DRIVER_ROUTE_CODES,
@@ -123,6 +125,8 @@ export const DriverDailyScheduleBoard: React.FC<DriverDailyScheduleBoardProps> =
   onKmSummaryChange,
 }) => {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const isDriverOnly = isDriverUser(user);
   const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [roleTitle, setRoleTitle] = useState<string>(driverRole || 'Motorista');
   const [routeCodes, setRouteCodes] = useState<DriverRouteCode[]>(DEFAULT_DRIVER_ROUTE_CODES);
@@ -1428,13 +1432,15 @@ export const DriverDailyScheduleBoard: React.FC<DriverDailyScheduleBoardProps> =
               <span className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
                 <RouteIcon className="h-3.5 w-3.5 text-primary" /> Código - Percurso
               </span>
-              <button
-                type="button"
-                onClick={() => setIsCodeModalOpen(true)}
-                className="text-[11px] font-semibold text-primary hover:underline"
-              >
-                + Criar código
-              </button>
+              {!isDriverOnly && (
+                <button
+                  type="button"
+                  onClick={() => setIsCodeModalOpen(true)}
+                  className="text-[11px] font-semibold text-primary hover:underline"
+                >
+                  + Criar código
+                </button>
+              )}
             </div>
             <div className="divide-y divide-border/60 max-h-[380px] overflow-y-auto">
               {routeCodes.map((rc) => {
@@ -1571,52 +1577,56 @@ export const DriverDailyScheduleBoard: React.FC<DriverDailyScheduleBoardProps> =
               Códigos de Percurso da Empresa
             </DialogTitle>
             <DialogDescription>
-              Os códigos 01 a 15 são padrão do formulário diário. Sua empresa pode adicionar novos códigos personalizados conforme suas rotas e contratos.
+              {isDriverOnly
+                ? 'Tabela oficial de códigos de percurso disponíveis para seleção no formulário diário.'
+                : 'Os códigos 01 a 15 são padrão do formulário diário. Sua empresa pode adicionar novos códigos personalizados conforme suas rotas e contratos.'}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 p-3 rounded-xl border bg-muted/30">
-              <div>
-                <Label className="text-xs font-bold">Código *</Label>
-                <Input
-                  value={newCodeNumber}
-                  onChange={(e) => setNewCodeNumber(e.target.value)}
-                  placeholder="Ex: 16"
-                  maxLength={10}
-                  className="h-9 mt-1 font-mono font-bold uppercase"
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <Label className="text-xs font-bold">Descrição do Percurso *</Label>
-                <Input
-                  value={newCodeDesc}
-                  onChange={(e) => setNewCodeDesc(e.target.value)}
-                  placeholder="Ex: GARAGEM/MINA CUIABÁ"
-                  className="h-9 mt-1 uppercase"
-                />
-              </div>
-              <div className="sm:col-span-3 flex items-center justify-between pt-1">
-                <label className="text-xs flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={newCodeRequiresJust}
-                    onChange={(e) => setNewCodeRequiresJust(e.target.checked)}
-                    className="rounded border-input"
+            {!isDriverOnly && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 p-3 rounded-xl border bg-muted/30">
+                <div>
+                  <Label className="text-xs font-bold">Código *</Label>
+                  <Input
+                    value={newCodeNumber}
+                    onChange={(e) => setNewCodeNumber(e.target.value)}
+                    placeholder="Ex: 16"
+                    maxLength={10}
+                    className="h-9 mt-1 font-mono font-bold uppercase"
                   />
-                  Exigir preenchimento de justificativa quando selecionado
-                </label>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={handleCreateCustomCode}
-                  disabled={isSavingCode}
-                  className="gap-1.5"
-                >
-                  <Plus className="h-4 w-4" /> Adicionar Código
-                </Button>
+                </div>
+                <div className="sm:col-span-2">
+                  <Label className="text-xs font-bold">Descrição do Percurso *</Label>
+                  <Input
+                    value={newCodeDesc}
+                    onChange={(e) => setNewCodeDesc(e.target.value)}
+                    placeholder="Ex: GARAGEM/MINA CUIABÁ"
+                    className="h-9 mt-1 uppercase"
+                  />
+                </div>
+                <div className="sm:col-span-3 flex items-center justify-between pt-1">
+                  <label className="text-xs flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newCodeRequiresJust}
+                      onChange={(e) => setNewCodeRequiresJust(e.target.checked)}
+                      className="rounded border-input"
+                    />
+                    Exigir preenchimento de justificativa quando selecionado
+                  </label>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleCreateCustomCode}
+                    disabled={isSavingCode}
+                    className="gap-1.5"
+                  >
+                    <Plus className="h-4 w-4" /> Adicionar Código
+                  </Button>
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="max-h-64 overflow-y-auto border rounded-xl divide-y">
               {routeCodes.map((rc) => {
@@ -1633,7 +1643,7 @@ export const DriverDailyScheduleBoard: React.FC<DriverDailyScheduleBoardProps> =
                         </Badge>
                       )}
                     </div>
-                    {!isDefault && (
+                    {!isDefault && !isDriverOnly && (
                       <Button
                         type="button"
                         variant="ghost"

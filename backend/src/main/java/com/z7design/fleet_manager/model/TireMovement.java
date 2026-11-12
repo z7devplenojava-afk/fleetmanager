@@ -51,11 +51,65 @@ public class TireMovement {
     @Column(name = "position_index")
     private Integer positionIndex;
 
+    @Column(name = "position_code", length = 20)
+    private String positionCode;
+
     @Column(nullable = false)
     private Integer mileage;
 
+    @Column(name = "tread_depth_mm", precision = 5, scale = 2)
+    private java.math.BigDecimal treadDepthMm;
+
+    @Column(name = "km_driven_cycle")
+    private Integer kmDrivenCycle;
+
+    @Column(name = "recap_count_snapshot")
+    private Integer recapCountSnapshot;
+
+    @Column(name = "authorized_by_user_id")
+    private UUID authorizedByUserId;
+
+    @Column(name = "authorized_by_name", length = 150)
+    private String authorizedByName;
+
     @Column
     private String notes;
+
+    @Transient
+    private String tireSerialNumber;
+
+    @Transient
+    private String tireFireNumber;
+
+    @Transient
+    private String tireBrand;
+
+    @Transient
+    private String tireModel;
+
+    @Transient
+    private String tireSize;
+
+    @Transient
+    private Integer tireRecapCount;
+
+    @Transient
+    private Integer tireCurrentMileage;
+
+    @Transient
+    private Integer tireCurrentLifeMileage;
+
+    @Transient
+    private java.math.BigDecimal tireCurrentTreadDepth;
+
+    @Transient
+    private String vehiclePlate;
+
+    @Transient
+    private String vehicleFleetNumber;
+
+    @Transient
+    private Integer vehicleCurrentMileage;
 
     @Column(nullable = false)
     private LocalDateTime movementDate;

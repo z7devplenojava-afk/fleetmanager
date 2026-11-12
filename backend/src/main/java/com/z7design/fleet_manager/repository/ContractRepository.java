@@ -70,4 +70,9 @@ public interface ContractRepository extends JpaRepository<Contract, java.util.UU
     @Query("SELECT c FROM Contract c WHERE c.endDate BETWEEN :startDate AND :endDate")
     List<Contract> findContractsExpiringBetween(@Param("startDate") LocalDate startDate, 
                                                @Param("endDate") LocalDate endDate);
+
+    @Query("SELECT c FROM Contract c LEFT JOIN FETCH c.client " +
+           "WHERE c.endDate IS NOT NULL AND c.status = com.z7design.fleet_manager.model.enums.ContractStatus.ACTIVE " +
+           "AND (:companyId IS NULL OR c.client.companyId = :companyId)")
+    List<Contract> findActiveWithEndDateByCompany(@Param("companyId") UUID companyId);
 } 

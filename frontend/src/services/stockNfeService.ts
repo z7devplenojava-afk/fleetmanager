@@ -19,6 +19,9 @@ export interface StockNfeItemDTO {
   isBattery?: boolean;
   isTire?: boolean;
   isService?: boolean;
+  extractedBrand?: string;
+  extractedModel?: string;
+  extractedSize?: string;
 }
 
 export interface StockNfeInstallmentDTO {
@@ -87,6 +90,12 @@ export interface ProcessItemPayload {
   barcode?: string;
   caNumber?: string;
   minimumQuantity?: number;
+  tireBrand?: string;
+  tireModel?: string;
+  tireSize?: string;
+  tireDot?: string;
+  tireFireNumbers?: string[];
+  tireSerialNumbers?: string[];
 }
 
 export interface ProcessInstallmentPayload {

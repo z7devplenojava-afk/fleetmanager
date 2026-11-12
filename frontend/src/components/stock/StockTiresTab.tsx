@@ -13,7 +13,8 @@ import {
   Loader2,
   DollarSign,
   Layers,
-  History
+  History,
+  Edit
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,6 +27,8 @@ import { useToast } from '@/hooks/use-toast';
 import { tireFleetService, TireItem, TireMovementHistory } from '@/services/tireFleetService';
 import { fleetService } from '@/services/fleetService';
 import { TireChassisDiagramModal } from './TireChassisDiagramModal';
+import { TireFormModal } from '@/components/pneus/TireFormModal';
+import { computeTireLiveMetrics, evaluateDotExpiration, getLifeStageLabel, getPositionLabel, getTireDisplayCode } from '@/utils/tireLifecycle';
 
 export const StockTiresTab: React.FC = () => {
   const { toast } = useToast();
@@ -40,11 +43,13 @@ export const StockTiresTab: React.FC = () => {
   const [selectedVehicle, setSelectedVehicle] = useState<any | null>(null);
   const [showChassisModal, setShowChassisModal] = useState(false);
 
-  // Modal de Histórico
+  // Modal de Histórico / Edição
   const [selectedTire, setSelectedTire] = useState<TireItem | null>(null);
   const [tireHistory, setTireHistory] = useState<TireMovementHistory[]>([]);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [editingTire, setEditingTire] = useState<TireItem | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   const loadData = async () => {
     try {
@@ -96,11 +101,15 @@ export const StockTiresTab: React.FC = () => {
 
   const filteredTires = useMemo(() => {
     return tires.filter(t => {
+      const q = searchTerm.toLowerCase();
       const matchesSearch = 
-        (t.serialNumber && t.serialNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (t.brand && t.brand.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (t.model && t.model.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (t.size && t.size.toLowerCase().includes(searchTerm.toLowerCase()));
+        (t.serialNumber && t.serialNumber.toLowerCase().includes(q)) ||
+        (t.fireNumber && t.fireNumber.toLowerCase().includes(q)) ||
+        (t.dot && t.dot.toLowerCase().includes(q)) ||
+        (t.brand && t.brand.toLowerCase().includes(q)) ||
+        (t.model && t.model.toLowerCase().includes(q)) ||
+        (t.size && t.size.toLowerCase().includes(q)) ||
+        (t.vehiclePlate && t.vehiclePlate.toLowerCase().includes(q));
 
       const matchesStatus = statusFilter === 'ALL' || t.status === statusFilter;
       return matchesSearch && matchesStatus;
@@ -293,6 +302,7 @@ export const StockTiresTab: React.FC = () => {
                     <th className="py-3 px-4">Sulco Atual</th>
                     <th className="py-3 px-4">KM Rodado</th>
                     <th className="py-3 px-4">Reformas</th>
+                    <th className="py-3 px-4 text-seguranca-yellow">Próxima Troca</th>
                     <th className="py-3 px-4">CPK (Custo/KM)</th>
                     <th className="py-3 px-4 text-right">Histórico</th>
                   </tr>
@@ -300,10 +310,16 @@ export const StockTiresTab: React.FC = () => {
                 <tbody className="divide-y divide-gray-800">
                   {filteredTires.map(tire => {
                     const tread = tire.currentTreadDepth != null ? Number(tire.currentTreadDepth) : 15.0;
+                    const dotEval = evaluateDotExpiration(tire.dot, 5);
+                    const liveMetrics = computeTireLiveMetrics(tire);
                     return (
                       <tr key={tire.id} className="hover:bg-seguranca-black/40 transition-colors">
                         <td className="py-3 px-4 font-bold text-white tracking-wider">
-                          {tire.serialNumber}
+                          <div className="text-seguranca-yellow font-mono">{getTireDisplayCode(tire)}</div>
+                          <div className="text-[11px] font-normal font-mono text-gray-400">Série: {tire.serialNumber}</div>
+                          <div className="text-[10px] font-normal font-mono text-gray-500">
+                            DOT: {tire.dot || '-'} {dotEval.expired && <span className="text-red-400 font-bold">(Vencido &gt;5a)</span>}
+                          </div>
                         </td>
                         <td className="py-3 px-4">
                           <span className="font-semibold text-gray-200">{tire.brand}</span>
@@ -314,10 +330,13 @@ export const StockTiresTab: React.FC = () => {
                         </td>
                         <td className="py-3 px-4">
                           {getStatusBadge(tire.status)}
-                          {tire.axleNumber != null && (
-                            <span className="block text-[11px] text-blue-300 mt-1">
-                              Eixo {tire.axleNumber} • Pos {tire.positionIndex}
+                          {tire.status === 'IN_USE' && (tire.vehiclePlate || tire.axleNumber != null) && (
+                            <span className="block text-[11px] text-blue-300 mt-1 font-mono">
+                              {tire.vehicleFleetNumber || tire.vehiclePlate} • {getPositionLabel(tire.axleNumber, tire.positionIndex)}
                             </span>
+                          )}
+                          {tire.status === 'AVAILABLE' && tire.locationNotes && (
+                            <span className="block text-[11px] text-gray-400 mt-1">{tire.locationNotes}</span>
                           )}
                         </td>
                         <td className="py-3 px-4">
@@ -329,16 +348,29 @@ export const StockTiresTab: React.FC = () => {
                           </span>
                         </td>
                         <td className="py-3 px-4 font-mono text-gray-200">
-                          {tire.currentMileage ? tire.currentMileage.toLocaleString('pt-BR') : 0} KM
+                          <div>{tire.currentMileage ? tire.currentMileage.toLocaleString('pt-BR') : 0} KM</div>
+                          <span className="text-[10px] text-blue-300">Vida: {(tire.currentLifeMileage || 0).toLocaleString('pt-BR')} KM</span>
                         </td>
                         <td className="py-3 px-4">
-                          {tire.recapCount > 0 ? (
-                            <Badge className="bg-blue-500/20 text-blue-300 border border-blue-500/40 text-xs">
-                              {tire.recapCount}ª Reforma
-                            </Badge>
-                          ) : (
-                            <span className="text-xs text-gray-500">Novo</span>
-                          )}
+                          <Badge className="bg-blue-500/20 text-blue-300 border border-blue-500/40 text-xs">
+                            {getLifeStageLabel(tire)}
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-4 min-w-[180px]">
+                          <span
+                            className={`text-xs font-semibold block ${
+                              liveMetrics.nextExchange.status === 'OVERDUE'
+                                ? 'text-red-400'
+                                : liveMetrics.nextExchange.status === 'DUE_SOON'
+                                ? 'text-amber-300'
+                                : 'text-emerald-400'
+                            }`}
+                          >
+                            {liveMetrics.nextExchange.headline}
+                          </span>
+                          <span className="text-[10px] text-gray-400 block mt-0.5">
+                            {liveMetrics.nextExchange.nextActionLabel}
+                          </span>
                         </td>
                         <td className="py-3 px-4 font-mono text-gray-300">
                           {tire.cpk != null && Number(tire.cpk) > 0 ? (
@@ -350,15 +382,29 @@ export const StockTiresTab: React.FC = () => {
                           )}
                         </td>
                         <td className="py-3 px-4 text-right">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleOpenHistory(tire)}
-                            className="border-gray-600 text-gray-300 hover:bg-seguranca-black h-8"
-                          >
-                            <History size={14} className="mr-1" />
-                            Ver
-                          </Button>
+                          <div className="flex justify-end gap-1.5">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setEditingTire(tire);
+                                setShowEditModal(true);
+                              }}
+                              className="border-yellow-600/50 text-yellow-300 hover:bg-yellow-600 hover:text-white h-8 px-2"
+                              title="Editar Fogo / Série / DOT"
+                            >
+                              <Edit size={13} />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleOpenHistory(tire)}
+                              className="border-gray-600 text-gray-300 hover:bg-seguranca-black h-8"
+                            >
+                              <History size={14} className="mr-1" />
+                              Ver
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -381,6 +427,21 @@ export const StockTiresTab: React.FC = () => {
           onSuccess={loadData}
         />
       )}
+
+      {/* Modal de Edição de Pneu */}
+      <TireFormModal
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          setEditingTire(null);
+        }}
+        onSuccess={() => {
+          setShowEditModal(false);
+          setEditingTire(null);
+          loadData();
+        }}
+        tire={editingTire as any}
+      />
 
       {/* Modal de Histórico de Movimentações */}
       {selectedTire && (

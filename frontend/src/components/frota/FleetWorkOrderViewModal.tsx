@@ -40,6 +40,7 @@ export const FleetWorkOrderViewModal: React.FC<FleetWorkOrderViewModalProps> = (
     const [zoom, setZoom] = useState(1);
     const [rotation, setRotation] = useState(0);
     const [isBlankMode, setIsBlankMode] = useState(initialBlankMode);
+    const [selectedTemplateModel, setSelectedTemplateModel] = useState<string>(order?.preventiveModel || 'MODELO_1');
 
     const osNumber = order?.osNumber || (order?.id ? order.id.slice(0, 8) : 'OS');
     const fileName = `ordem-servico-${osNumber.replace(/[^a-zA-Z0-9-_]/g, '')}${isBlankMode ? '-em-branco' : ''}.pdf`;
@@ -49,12 +50,14 @@ export const FleetWorkOrderViewModal: React.FC<FleetWorkOrderViewModalProps> = (
         let isMounted = true;
 
         if (isOpen) {
+            const resolvedModel = order?.preventiveModel || 'MODELO_1';
             setIsBlankMode(initialBlankMode);
+            setSelectedTemplateModel(resolvedModel);
             if (initialBlob) {
                 setPdfBlob(initialBlob);
             } else if (order?.id) {
                 setIsLoading(true);
-                generateFleetWorkOrderPDFBlob(order, { blank: initialBlankMode })
+                generateFleetWorkOrderPDFBlob(order, { blank: initialBlankMode, templateModel: resolvedModel })
                     .then(blob => {
                         if (isMounted) setPdfBlob(blob);
                     })
@@ -139,18 +142,19 @@ export const FleetWorkOrderViewModal: React.FC<FleetWorkOrderViewModalProps> = (
         }
     };
 
-    const handleReload = (overrideBlank?: boolean) => {
+    const handleReload = (overrideBlank?: boolean, overrideTemplate?: string) => {
         const targetBlank = overrideBlank !== undefined ? overrideBlank : isBlankMode;
+        const targetTemplate = overrideTemplate !== undefined ? overrideTemplate : selectedTemplateModel;
         if (order?.id) {
             setIsLoading(true);
-            generateFleetWorkOrderPDFBlob(order, { blank: targetBlank })
+            generateFleetWorkOrderPDFBlob(order, { blank: targetBlank, templateModel: targetTemplate })
                 .then(blob => {
                     setPdfBlob(blob);
                     toast({
                         title: targetBlank ? 'PDF em Branco Gerado' : 'PDF Atualizado',
                         description: targetBlank
                             ? 'Campos do checklist em branco prontos para preenchimento manual.'
-                            : 'O documento foi regenerado com os dados mais recentes.'
+                            : `Documento regenerado (${targetTemplate === 'MODELO_2' ? 'Modelo 2 — Check-List Frota' : 'Modelo 1 — Padrão'}).`
                     });
                 })
                 .catch(() => {
@@ -162,7 +166,12 @@ export const FleetWorkOrderViewModal: React.FC<FleetWorkOrderViewModalProps> = (
 
     const handleSwitchMode = (blank: boolean) => {
         setIsBlankMode(blank);
-        handleReload(blank);
+        handleReload(blank, selectedTemplateModel);
+    };
+
+    const handleSwitchTemplate = (tmpl: string) => {
+        setSelectedTemplateModel(tmpl);
+        handleReload(isBlankMode, tmpl);
     };
 
     const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.2, 2.5));
@@ -282,6 +291,36 @@ export const FleetWorkOrderViewModal: React.FC<FleetWorkOrderViewModalProps> = (
                     </div>
 
                     <div className="flex items-center gap-2 flex-wrap">
+                        {order?.id && (
+                            <div className="flex items-center bg-gray-900 border border-gray-700 rounded-md p-0.5">
+                                <button
+                                    type="button"
+                                    onClick={() => handleSwitchTemplate('MODELO_1')}
+                                    disabled={isLoading}
+                                    className={`px-2 py-1 rounded text-[11px] font-bold transition-all ${
+                                        selectedTemplateModel !== 'MODELO_2'
+                                            ? 'bg-blue-600 !text-white shadow-sm'
+                                            : 'text-gray-400 hover:text-white'
+                                    }`}
+                                    title="Layout Modelo 1 (OS Completa)"
+                                >
+                                    Modelo 1
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleSwitchTemplate('MODELO_2')}
+                                    disabled={isLoading}
+                                    className={`px-2 py-1 rounded text-[11px] font-bold transition-all ${
+                                        selectedTemplateModel === 'MODELO_2'
+                                            ? 'bg-emerald-600 !text-white shadow-sm'
+                                            : 'text-gray-400 hover:text-white'
+                                    }`}
+                                    title="Layout Modelo 2 (Check-List Verificação de Frota + Matriz KM)"
+                                >
+                                    Modelo 2
+                                </button>
+                            </div>
+                        )}
                         {order?.id && (
                             <div className="flex items-center bg-gray-900 border border-gray-700 rounded-md p-0.5 mr-1">
                                 <button

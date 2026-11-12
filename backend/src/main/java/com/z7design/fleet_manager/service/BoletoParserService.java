@@ -247,7 +247,7 @@ public class BoletoParserService {
             }
         }
 
-        // 4. Identificar CNPJs (Beneficiário e Pagador)
+        // 4. Identificar Beneficiário (Nome + CNPJ) e Pagador
         Matcher matchCnpj = PATTERN_CNPJ.matcher(text);
         List<String> cnpjs = new ArrayList<>();
         while (matchCnpj.find()) {
@@ -257,8 +257,13 @@ public class BoletoParserService {
             }
         }
 
-        String beneficiaryCnpj = !cnpjs.isEmpty() ? cnpjs.get(0) : null;
-        String payerCnpj = cnpjs.size() > 1 ? cnpjs.get(1) : null;
+        String[] beneficiaryInfo = extractBeneficiaryInfo(text, cnpjs);
+        String beneficiaryName = beneficiaryInfo[0];
+        String beneficiaryCnpj = beneficiaryInfo[1];
+        String payerCnpj = cnpjs.stream()
+                .filter(c -> beneficiaryCnpj == null || !c.equals(beneficiaryCnpj))
+                .findFirst()
+                .orElse(null);
 
         // Se ainda não encontrou código de barras mas tem linha digitável
         if (barcode == null && rawDigits != null) {
@@ -272,9 +277,74 @@ public class BoletoParserService {
                 .dueDate(dueDate)
                 .bankCode(bankCode)
                 .bankName(bankName)
+                .beneficiaryName(beneficiaryName)
                 .beneficiaryCnpjCpf(beneficiaryCnpj)
                 .payerCnpjCpf(payerCnpj)
                 .build();
+    }
+
+    private String[] extractBeneficiaryInfo(String text, List<String> fallbackCnpjs) {
+        String foundCnpj = null;
+        String foundName = null;
+
+        if (text != null && !text.isBlank()) {
+            String[] lines = text.split("\\r?\\n");
+            for (int i = 0; i < lines.length; i++) {
+                String line = lines[i].trim();
+                if (line.isEmpty()) continue;
+
+                String lower = line.toLowerCase();
+                boolean isBeneficiaryHeader = (lower.contains("benefici") || lower.contains("cedente") || lower.contains("favorecido"))
+                        && !lower.contains("beneficiário final")
+                        && !lower.contains("agência/código")
+                        && !lower.contains("agencia/codigo");
+
+                if (!isBeneficiaryHeader) continue;
+
+                // Analisa a própria linha e até as próximas 2 linhas logo abaixo do cabeçalho
+                for (int offset = 0; offset <= 2 && (i + offset) < lines.length; offset++) {
+                    String candidate = lines[i + offset].trim();
+                    if (candidate.isEmpty()) continue;
+                    String candLower = candidate.toLowerCase();
+                    if (offset > 0 && (candLower.startsWith("pagador") || candLower.startsWith("sacado")
+                            || candLower.startsWith("nosso número") || candLower.startsWith("nosso numero"))) {
+                        break;
+                    }
+
+                    Matcher cnpjMatcher = PATTERN_CNPJ.matcher(candidate);
+                    if (foundCnpj == null && cnpjMatcher.find()) {
+                        foundCnpj = cnpjMatcher.group();
+                    }
+
+                    String cleaned = candidate
+                            .replaceAll("(?i)\\b(?:nome\\s+do\\s+)?(?:benefici[aá]rio|cedente|favorecido)\\b\\s*[:\\-/]*", " ")
+                            .replaceAll("(?i)\\b(?:cpf\\s*/\\s*cnpj|cnpj\\s*/\\s*cpf|cnpj|cpf|ag[eê]ncia\\s*/\\s*c[oó]digo.*)\\b\\s*[:\\-/]*", " ")
+                            .replaceAll(PATTERN_CNPJ.pattern(), " ")
+                            .replaceAll("[|\\[\\]]", " ")
+                            .replaceAll("\\s{2,}", " ")
+                            .replaceAll("^[\\s\\-:./]+|[\\s\\-:./]+$", "")
+                            .trim();
+
+                    if (foundName == null && cleaned.length() >= 3 && cleaned.matches(".*[A-Za-zÀ-ÿ]{3,}.*")) {
+                        // Evita capturar apenas cabeçalhos de coluna
+                        if (!cleaned.equalsIgnoreCase("Nome") && !cleaned.equalsIgnoreCase("Razão Social")
+                                && !cleaned.equalsIgnoreCase("Razao Social") && !cleaned.equalsIgnoreCase("Vencimento")) {
+                            foundName = cleaned.length() > 180 ? cleaned.substring(0, 180) : cleaned;
+                        }
+                    }
+                }
+
+                if (foundName != null && foundCnpj != null) {
+                    break;
+                }
+            }
+        }
+
+        if (foundCnpj == null && fallbackCnpjs != null && !fallbackCnpjs.isEmpty()) {
+            foundCnpj = fallbackCnpjs.get(0);
+        }
+
+        return new String[] { foundName, foundCnpj };
     }
 
     /**

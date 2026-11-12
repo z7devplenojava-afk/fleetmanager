@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -54,6 +55,7 @@ import { format, addDays, isBefore } from 'date-fns';
 
 const ContasAPagar: React.FC = () => {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // Estados
   const [contas, setContas] = useState<ContaAPagar[]>([]);
@@ -293,6 +295,7 @@ const ContasAPagar: React.FC = () => {
       setShowBaixaModal(false);
       setContaParaBaixa(null);
       setComprovanteFile(null);
+      queryClient.invalidateQueries({ queryKey: ['tire-shop-services'] });
       await loadData();
     } catch (err: any) {
       console.error('Erro ao efetuar baixa com comprovante:', err);
@@ -392,6 +395,7 @@ const ContasAPagar: React.FC = () => {
   const handleFormSuccess = () => {
     setShowFormModal(false);
     setEditingConta(null);
+    queryClient.invalidateQueries({ queryKey: ['tire-shop-services'] });
     loadData();
   };
 
@@ -1619,7 +1623,10 @@ const ContasAPagar: React.FC = () => {
               onEdit={handleEditConta}
               onDelete={handleDeleteConta}
               onView={handleViewConta}
-              onRefresh={loadData}
+              onRefresh={() => {
+                queryClient.invalidateQueries({ queryKey: ['tire-shop-services'] });
+                loadData();
+              }}
               onDarBaixa={handleAbrirBaixa}
               loading={loading}
             />

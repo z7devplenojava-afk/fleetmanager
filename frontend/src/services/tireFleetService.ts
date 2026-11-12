@@ -2,14 +2,20 @@ import api from './api';
 
 export interface TireItem {
   id: string;
-  serialNumber: string; // DOT / Fogo
+  serialNumber: string; // Série Fabricante / Código Interno
+  fireNumber?: string; // Número de Fogo
   brand: string;
   model: string;
   size: string;
   status: 'AVAILABLE' | 'IN_USE' | 'RECAP' | 'SCRAPPED';
   currentMileage: number;
+  currentLifeMileage?: number;
   recapCount: number;
+  lineType?: string;
   vehicleId?: string;
+  vehiclePlate?: string;
+  vehicleFleetNumber?: string;
+  vehicleCurrentMileage?: number;
   axleNumber?: number;
   positionIndex?: number;
   dot?: string;
@@ -20,6 +26,7 @@ export interface TireItem {
   cpk?: number;
   installKm?: number;
   installDate?: string;
+  locationNotes?: string;
 }
 
 export interface MountedPosition {
@@ -35,6 +42,11 @@ export interface VehicleTireChassis {
   plate: string;
   model: string;
   chassiType: string;
+  vehicleType?: string;
+  axleCount?: number;
+  dualRear?: boolean;
+  layoutLabel?: string;
+  tireCount?: number;
   currentKm: number;
   positions: MountedPosition[];
 }
@@ -47,7 +59,11 @@ export interface TireMountPayload {
   positionCode: string;
   currentVehicleKm: number;
   treadDepthMm?: number;
+  lineType?: string;
   notes?: string;
+  approverUsernameOrEmail?: string;
+  approverPassword?: string;
+  riskTermAccepted?: boolean;
 }
 
 export interface TireDismountPayload {

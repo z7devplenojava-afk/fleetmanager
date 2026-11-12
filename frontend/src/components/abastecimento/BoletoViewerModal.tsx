@@ -27,8 +27,13 @@ interface BoletoViewerModalProps {
     boletoUrl?: string;
     fileName?: string;
     invoiceNumber?: string;
+    nfNumber?: string;
     installmentText?: string;
     supplier?: string;
+    beneficiaryName?: string;
+    beneficiaryCnpj?: string;
+    status?: string;
+    paymentDate?: string;
     amount?: number;
     dueDate?: string;
     barcode?: string;
@@ -41,8 +46,13 @@ export const BoletoViewerModal: React.FC<BoletoViewerModalProps> = ({
     boletoUrl,
     fileName,
     invoiceNumber,
+    nfNumber,
     installmentText,
     supplier,
+    beneficiaryName,
+    beneficiaryCnpj,
+    status,
+    paymentDate,
     amount,
     dueDate,
     barcode,
@@ -52,6 +62,8 @@ export const BoletoViewerModal: React.FC<BoletoViewerModalProps> = ({
     const [copied, setCopied] = React.useState(false);
 
     const codeToCopy = linhaDigitavel || barcode || '';
+    const displayBeneficiary = beneficiaryName || supplier || 'Fornecedor';
+    const isPaid = status === 'PAGA' || status === 'PAID';
 
     const handleCopyCode = () => {
         if (!codeToCopy) return;
@@ -92,16 +104,31 @@ export const BoletoViewerModal: React.FC<BoletoViewerModalProps> = ({
                             <Barcode size={22} />
                         </div>
                         <div>
-                            <DialogTitle className="text-base font-bold text-white flex items-center gap-2">
+                            <DialogTitle className="text-base font-bold text-white flex flex-wrap items-center gap-2">
                                 Boleto Bancário a Pagar
                                 {installmentText && (
                                     <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30 font-mono">
                                         {installmentText}
                                     </span>
                                 )}
+                                {status && (
+                                    <span
+                                        className={`text-[11px] px-2 py-0.5 rounded-full font-mono border ${
+                                            isPaid
+                                                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                                                : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                                        }`}
+                                    >
+                                        {isPaid
+                                            ? `PAGO${paymentDate ? ` em ${new Date(paymentDate + 'T00:00:00').toLocaleDateString('pt-BR')}` : ''}`
+                                            : status}
+                                    </span>
+                                )}
                             </DialogTitle>
                             <p className="text-xs text-slate-400">
-                                {supplier || 'Fornecedor de Combustível'} {invoiceNumber ? `• NF: ${invoiceNumber}` : ''}
+                                {displayBeneficiary}
+                                {beneficiaryCnpj ? ` • CNPJ: ${beneficiaryCnpj}` : ''}
+                                {nfNumber ? ` • NF: ${nfNumber}` : invoiceNumber ? ` • Doc: ${invoiceNumber}` : ''}
                             </p>
                         </div>
                     </div>
@@ -120,12 +147,26 @@ export const BoletoViewerModal: React.FC<BoletoViewerModalProps> = ({
                     </div>
                 </div>
 
-                {/* Dados da Fatura / Linha Digitável */}
+                {/* Dados da Fatura / Beneficiário / Linha Digitável */}
                 <div className="px-5 py-3 bg-slate-900/90 border-b border-slate-800 space-y-2">
+                    {(beneficiaryName || beneficiaryCnpj) && (
+                        <div className="bg-slate-950/80 px-3 py-2 rounded-lg border border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
+                            <div>
+                                <span className="text-[10px] text-slate-400 block font-mono uppercase">Beneficiário (Cedente)</span>
+                                <span className="font-semibold text-white">{displayBeneficiary}</span>
+                            </div>
+                            {beneficiaryCnpj && (
+                                <div className="text-right">
+                                    <span className="text-[10px] text-slate-400 block font-mono uppercase">CNPJ do Beneficiário</span>
+                                    <span className="font-mono font-semibold text-amber-300">{beneficiaryCnpj}</span>
+                                </div>
+                            )}
+                        </div>
+                    )}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                         <div className="bg-slate-950/70 p-2 rounded-lg border border-slate-800">
-                            <span className="text-[10px] text-slate-400 block font-mono">Documento</span>
-                            <span className="font-semibold text-white">{invoiceNumber || 'N/A'}</span>
+                            <span className="text-[10px] text-slate-400 block font-mono">Documento / NF</span>
+                            <span className="font-semibold text-white">{nfNumber ? `NF ${nfNumber}` : invoiceNumber || 'N/A'}</span>
                         </div>
                         <div className="bg-slate-950/70 p-2 rounded-lg border border-slate-800">
                             <span className="text-[10px] text-slate-400 block font-mono">Valor a Pagar</span>

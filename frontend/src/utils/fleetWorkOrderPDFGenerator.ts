@@ -3,13 +3,14 @@ import type { FleetWorkOrder } from '@/services/fleetWorkOrderService';
 
 export interface FleetWorkOrderPDFOptions {
   blank?: boolean;
+  templateModel?: 'MODELO_1' | 'MODELO_2' | string;
 }
 
 /**
  * Busca o PDF da Ordem de Serviço de Frota no backend
  * (endpoint GET /fleet-work-orders/{id}/pdf — gerado via Thymeleaf + Flying Saucer).
- * Quando options.blank === true, gera o PDF com os campos do checklist em branco
- * ([ ] OK  [ ] NÃO OK  [ ] TROCAR  [ ] N/A) para preenchimento manual em papel.
+ * Quando options.blank === true, gera o PDF com os campos do checklist em branco.
+ * Quando options.templateModel === 'MODELO_2', usa o layout Check-List Verificação de Frota.
  */
 export async function generateFleetWorkOrderPDFBlob(
   order: FleetWorkOrder,
@@ -19,8 +20,12 @@ export async function generateFleetWorkOrderPDFBlob(
     throw new Error('Ordem de Serviço sem ID — não é possível gerar o PDF.');
   }
 
+  const params: Record<string, any> = {};
+  if (options?.blank) params.blank = true;
+  if (options?.templateModel) params.templateModel = options.templateModel;
+
   const response = await api.get(`/fleet-work-orders/${order.id}/pdf`, {
-    params: options?.blank ? { blank: true } : undefined,
+    params: Object.keys(params).length > 0 ? params : undefined,
     responseType: 'blob',
     headers: {
       'Accept': 'application/pdf',

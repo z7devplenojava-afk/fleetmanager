@@ -107,13 +107,10 @@ const DriverTripExecution: React.FC = () => {
     const [tripStatusFilter, setTripStatusFilter] = useState<TripStatusFilter>('ALL');
     const [selectedTripId, setSelectedTripId] = useState<string>(scheduleId || '');
 
-    // Códigos de Percurso / Tipo de Deslocamento
+    // Códigos de Percurso / Tipo de Deslocamento (apenas seleção pelo motorista)
     const [routeCodes, setRouteCodes] = useState<DriverRouteCode[]>(DEFAULT_DRIVER_ROUTE_CODES);
     const [selectedDisplacementCode, setSelectedDisplacementCode] = useState<string>('12 - FÁBRICA/GARAGEM');
-    const [isCreateCodeOpen, setIsCreateCodeOpen] = useState<boolean>(false);
-    const [newCodeNumber, setNewCodeNumber] = useState<string>('');
-    const [newCodeOrigin, setNewCodeOrigin] = useState<string>('');
-    const [newCodeDestination, setNewCodeDestination] = useState<string>('');
+    const formatRouteCodeLabel = (rc: DriverRouteCode) => `${rc.code} - ${rc.description}`;
 
     // Sentido da Viagem: IDA (Verde) vs VOLTA / RETORNO (Roxo)
     const [tripDirection, setTripDirection] = useState<'IDA' | 'VOLTA'>('IDA');
@@ -308,7 +305,8 @@ const DriverTripExecution: React.FC = () => {
         setTripDirection(dir);
 
         if (trip.routeCode) {
-            setSelectedDisplacementCode(trip.routeCode);
+            const matched = routeCodes.find(rc => rc.code === trip.routeCode || `${rc.code} - ${rc.description}` === trip.routeCode);
+            setSelectedDisplacementCode(matched ? formatRouteCodeLabel(matched) : trip.routeCode);
         }
 
         const initKm = Number(trip.initialKm ?? trip.kmStart ?? 167189) || 167189;
@@ -382,42 +380,6 @@ const DriverTripExecution: React.FC = () => {
     const kmViagemComercial = Math.max(0, kmEndTrip - kmStart);
     const kmDeslocamentoGaragem = Math.max(0, kmEndGarage - kmEndTrip);
     const kmTotalGeral = Math.max(0, kmEndGarage - kmStart);
-
-    // Criar novo código de percurso (CÓDIGO - PERCURSO)
-    const handleCreateRouteCode = async () => {
-        if (!newCodeNumber.trim() || !newCodeOrigin.trim() || !newCodeDestination.trim()) {
-            toast({
-                title: 'Campos obrigatórios',
-                description: 'Informe o código, origem e destino (ex: 16, GARAGEM, OBRA).',
-                variant: 'destructive',
-            });
-            return;
-        }
-        try {
-            const created = await driverRouteCodeService.create({
-                code: newCodeNumber.trim(),
-                origin: newCodeOrigin.trim(),
-                destination: newCodeDestination.trim(),
-            });
-            const updated = await driverRouteCodeService.getAll();
-            setRouteCodes(updated);
-            setSelectedDisplacementCode(created.formatted);
-            setIsCreateCodeOpen(false);
-            setNewCodeNumber('');
-            setNewCodeOrigin('');
-            setNewCodeDestination('');
-            toast({
-                title: '✅ Código de Percurso Criado!',
-                description: `O código "${created.formatted}" foi selecionado.`,
-            });
-        } catch (err: any) {
-            toast({
-                title: 'Erro ao criar código',
-                description: err?.message || 'Não foi possível salvar o código.',
-                variant: 'destructive',
-            });
-        }
-    };
 
     // Validação da rota
     const handleValidateRoute = () => {
@@ -735,78 +697,26 @@ const DriverTripExecution: React.FC = () => {
             </div>
             <div className={`${compact ? 'max-h-44' : 'max-h-56'} overflow-y-auto divide-y divide-slate-800/80`}>
                 {routeCodes.map((rc) => {
-                    const isSelected = selectedDisplacementCode === rc.formatted;
+                    const label = formatRouteCodeLabel(rc);
+                    const isSelected = selectedDisplacementCode === label || selectedDisplacementCode === rc.code;
                     return (
                         <button
-                            key={rc.id || rc.formatted}
+                            key={rc.id || rc.code}
                             type="button"
-                            onClick={() => setSelectedDisplacementCode(rc.formatted)}
+                            onClick={() => setSelectedDisplacementCode(label)}
                             className={`w-full text-left px-3.5 py-2 text-xs font-mono transition-colors flex items-center justify-between ${
                                 isSelected
                                     ? 'bg-amber-500/25 text-amber-200 font-black border-l-4 border-amber-400'
                                     : 'text-slate-300 hover:bg-slate-900/90'
                             }`}
                         >
-                            <span>{rc.formatted}</span>
+                            <span>{label}</span>
                             {isSelected && (
                                 <CheckCircle2 className="h-4 w-4 text-amber-400 shrink-0" />
                             )}
                         </button>
                     );
                 })}
-            </div>
-            <div className="p-2 bg-slate-900/90 border-t border-slate-800">
-                {!isCreateCodeOpen ? (
-                    <button
-                        type="button"
-                        onClick={() => setIsCreateCodeOpen(true)}
-                        className="w-full py-1.5 text-xs font-bold text-blue-400 hover:text-blue-300 flex items-center justify-center gap-1"
-                    >
-                        <Plus className="h-3.5 w-3.5" /> Criar código
-                    </button>
-                ) : (
-                    <div className="space-y-2 p-2 rounded-lg bg-slate-950 border border-slate-800">
-                        <div className="grid grid-cols-3 gap-1.5">
-                            <Input
-                                placeholder="Cód (16)"
-                                value={newCodeNumber}
-                                onChange={e => setNewCodeNumber(e.target.value)}
-                                className="h-8 text-xs bg-slate-900 border-slate-700 font-mono text-white"
-                            />
-                            <Input
-                                placeholder="Origem"
-                                value={newCodeOrigin}
-                                onChange={e => setNewCodeOrigin(e.target.value)}
-                                className="h-8 text-xs bg-slate-900 border-slate-700 uppercase text-white"
-                            />
-                            <Input
-                                placeholder="Destino"
-                                value={newCodeDestination}
-                                onChange={e => setNewCodeDestination(e.target.value)}
-                                className="h-8 text-xs bg-slate-900 border-slate-700 uppercase text-white"
-                            />
-                        </div>
-                        <div className="flex justify-end gap-1.5">
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => setIsCreateCodeOpen(false)}
-                                className="h-7 text-xs text-slate-400"
-                            >
-                                Cancelar
-                            </Button>
-                            <Button
-                                type="button"
-                                size="sm"
-                                onClick={handleCreateRouteCode}
-                                className="h-7 text-xs bg-blue-600 hover:bg-blue-500 text-white font-bold"
-                            >
-                                Salvar Código
-                            </Button>
-                        </div>
-                    </div>
-                )}
             </div>
         </div>
     );
@@ -1023,7 +933,7 @@ const DriverTripExecution: React.FC = () => {
     // ==========================================
     if (tripPhase === 'PREPARATION') {
         return (
-            <StandardLayout title="Gestão de Viagens" subtitle="Lista de Viagens do Motorista, Validação de Rota e Início de Operação">
+            <StandardLayout title="Viagens e Rotas" subtitle="Lista de Viagens do Motorista, Validação de Rota e Início de Operação">
                 <div className="p-4 max-w-3xl mx-auto space-y-5">
                     {/* Lista de Todas as Viagens do Motorista com seus Status */}
                     {renderDriverTripsListSection()}
@@ -1236,7 +1146,7 @@ const DriverTripExecution: React.FC = () => {
     if (tripPhase === 'IN_TRIP') {
         const isIda = tripDirection === 'IDA';
         return (
-            <StandardLayout title="Gestão de Viagens" subtitle="Viagem em Andamento — Lista de Funcionários Embarcados em Tempo Real">
+            <StandardLayout title="Viagens e Rotas" subtitle="Viagem em Andamento — Lista de Funcionários Embarcados em Tempo Real">
                 <div className="p-4 space-y-4 max-w-3xl mx-auto min-h-screen pb-24 text-white">
                     {/* Lista resumida de Todas as Viagens para troca rápida */}
                     {renderDriverTripsListSection()}
@@ -1610,7 +1520,7 @@ const DriverTripExecution: React.FC = () => {
     // =========================================================================
     if (tripPhase === 'RETURNING_TO_GARAGE') {
         return (
-            <StandardLayout title="Gestão de Viagens" subtitle="Conclusão da Viagem — Informar KM Final da Rota e Tipo de Deslocamento (Código de Percurso)">
+            <StandardLayout title="Viagens e Rotas" subtitle="Conclusão da Viagem — Informar KM Final da Rota e Tipo de Deslocamento (Código de Percurso)">
                 <div className="p-4 max-w-3xl mx-auto space-y-5 text-white">
                     {/* Lista de Todas as Viagens */}
                     {renderDriverTripsListSection()}
@@ -1778,7 +1688,7 @@ const DriverTripExecution: React.FC = () => {
     // TELA 4: RESUMO CONSOLIDADO FINAL DA JORNADA
     // ========================================================
     return (
-        <StandardLayout title="Gestão de Viagens" subtitle="Jornada Concluída — Resumo Operacional e Quilometragem Consolidada">
+        <StandardLayout title="Viagens e Rotas" subtitle="Jornada Concluída — Resumo Operacional e Quilometragem Consolidada">
             <div className="p-4 max-w-3xl mx-auto space-y-5 text-white">
                 {/* Lista de Todas as Viagens atualizada */}
                 {renderDriverTripsListSection()}

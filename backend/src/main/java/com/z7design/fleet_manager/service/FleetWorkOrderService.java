@@ -80,6 +80,7 @@ public class FleetWorkOrderService {
     private final DriverRepository driverRepository;
     private final com.z7design.fleet_manager.repository.VehicleGateChecklistRepository vehicleGateChecklistRepository;
     private final com.z7design.fleet_manager.repository.VehicleInspectionRepository vehicleInspectionRepository;
+    private final FleetComponentControlService fleetComponentControlService;
     private final ApplicationEventPublisher eventPublisher;
 
     private boolean isUserDriver(com.z7design.fleet_manager.model.User user) {
@@ -128,41 +129,12 @@ public class FleetWorkOrderService {
                     .ifPresent(wp -> dto.setWorkPostName(wp.getName()));
         }
 
-        // Completa mechanicName se ainda estiver nulo
+        // Completa mechanicName apenas a partir do mecânico ou responsável técnico (nunca com o nome do motorista)
         if (dto.getMechanicName() == null || dto.getMechanicName().isBlank()) {
             if (dto.getMechanicId() != null) {
                 dto.setMechanicName(resolvePersonName(dto.getMechanicId()));
             } else if (dto.getResponsibleId() != null) {
                 dto.setMechanicName(resolvePersonName(dto.getResponsibleId()));
-            } else if (dto.getRequesterId() != null) {
-                dto.setMechanicName(resolvePersonName(dto.getRequesterId()));
-            }
-        }
-
-        if (dto.getMechanicName() == null || dto.getMechanicName().isBlank()) {
-            String extracted = com.z7design.fleet_manager.dto.FleetWorkOrderDTO.extractDriverFromText(entity.getNotes(), entity.getAnomaliesDescription(), entity.getStopReason());
-            if (extracted != null && !extracted.isBlank()) {
-                dto.setMechanicName(extracted);
-            }
-        }
-
-        if (dto.getMechanicName() == null || dto.getMechanicName().isBlank()) {
-            List<FleetWorkOrderHistory> hist = historyRepository.findByWorkOrderIdOrderByCreatedAtAsc(entity.getId());
-            for (FleetWorkOrderHistory h : hist) {
-                if (h.getPerformedBy() != null && !h.getPerformedBy().isBlank() && !"Sistema".equalsIgnoreCase(h.getPerformedBy().trim())) {
-                    dto.setMechanicName(h.getPerformedBy().trim());
-                    break;
-                }
-            }
-        }
-
-        if (dto.getMechanicName() == null || dto.getMechanicName().isBlank()) {
-            if (entity.getVehicle() != null) {
-                if (entity.getVehicle().getResponsibleEmployee() != null) {
-                    dto.setMechanicName(entity.getVehicle().getResponsibleEmployee().getName());
-                } else if (entity.getVehicle().getAssignedDriver() != null && !entity.getVehicle().getAssignedDriver().isBlank()) {
-                    dto.setMechanicName(entity.getVehicle().getAssignedDriver() + " (Motorista)");
-                }
             }
         }
 
@@ -322,17 +294,43 @@ public class FleetWorkOrderService {
 
     @Transactional(readOnly = true)
     public List<com.z7design.fleet_manager.dto.ChecklistItemDTO> getChecklistMasterItems(String vehicleType, String model) {
+        return getChecklistMasterItems(vehicleType, model, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<com.z7design.fleet_manager.dto.ChecklistItemDTO> getChecklistMasterItems(String vehicleType, String model, String templateModel) {
         UUID currentCompanyId = TenantContext.get();
         List<com.z7design.fleet_manager.model.ChecklistItem> allItems = (currentCompanyId != null)
                 ? checklistItemRepository.findAllActiveForCompanyOrGlobal(currentCompanyId)
                 : checklistItemRepository.findByAtivoTrueOrderByOrdemAsc();
 
+        String targetModel = (templateModel != null && !templateModel.isBlank())
+                ? templateModel.trim().toUpperCase()
+                : "MODELO_1";
+
+        List<com.z7design.fleet_manager.model.ChecklistItem> modelFiltered = allItems.stream()
+                .filter(i -> {
+                    String itemModel = i.getTemplateModel() != null ? i.getTemplateModel().toUpperCase() : "MODELO_1";
+                    return "ALL".equals(targetModel) || targetModel.equals(itemModel);
+                })
+                .toList();
+
+        if ("MODELO_2".equals(targetModel)) {
+            List<com.z7design.fleet_manager.model.ChecklistItem> companyM2 = (currentCompanyId != null)
+                    ? modelFiltered.stream().filter(i -> currentCompanyId.equals(i.getCompanyId())).toList()
+                    : List.of();
+            List<com.z7design.fleet_manager.model.ChecklistItem> resolvedM2 = !companyM2.isEmpty() ? companyM2 : modelFiltered;
+            return resolvedM2.stream()
+                    .map(com.z7design.fleet_manager.dto.ChecklistItemDTO::fromEntity)
+                    .collect(Collectors.toList());
+        }
+
         // Se houver itens customizados da empresa atual, priorizá-los
         List<com.z7design.fleet_manager.model.ChecklistItem> companySpecific = (currentCompanyId != null)
-                ? allItems.stream().filter(i -> currentCompanyId.equals(i.getCompanyId())).toList()
+                ? modelFiltered.stream().filter(i -> currentCompanyId.equals(i.getCompanyId())).toList()
                 : List.of();
 
-        List<com.z7design.fleet_manager.model.ChecklistItem> sourceList = !companySpecific.isEmpty() ? companySpecific : allItems;
+        List<com.z7design.fleet_manager.model.ChecklistItem> sourceList = !companySpecific.isEmpty() ? companySpecific : modelFiltered;
 
         String vUpper = vehicleType != null ? vehicleType.toUpperCase().trim() : "";
         String mUpper = model != null ? model.toUpperCase().trim() : "";
@@ -502,28 +500,14 @@ public class FleetWorkOrderService {
             currentUser = userRepository.findByUsername(auth.getName()).orElse(null);
         }
 
-        String resolvedMechanicName = dto.getMechanicName();
-        if (resolvedMechanicName == null || resolvedMechanicName.isBlank()) {
-            if (dto.getResponsibleName() != null && !dto.getResponsibleName().isBlank()) {
-                resolvedMechanicName = dto.getResponsibleName();
-            } else if (dto.getRequesterName() != null && !dto.getRequesterName().isBlank()) {
-                resolvedMechanicName = dto.getRequesterName();
-            } else if (currentUser != null && isUserDriver(currentUser)) {
-                resolvedMechanicName = currentUser.getName() + " (Motorista)";
-            } else {
-                String extracted = com.z7design.fleet_manager.dto.FleetWorkOrderDTO.extractDriverFromText(dto.getNotes(), dto.getAnomaliesDescription(), dto.getStopReason());
-                if (extracted != null && !extracted.isBlank()) {
-                    resolvedMechanicName = extracted;
-                } else if (vehicle.getAssignedDriver() != null && !vehicle.getAssignedDriver().isBlank()) {
-                    resolvedMechanicName = vehicle.getAssignedDriver() + " (Motorista)";
-                } else if (currentUser != null) {
-                    resolvedMechanicName = currentUser.getName();
-                }
-            }
-        }
+        String resolvedMechanicName = (dto.getMechanicName() != null && !dto.getMechanicName().isBlank())
+                ? dto.getMechanicName().trim()
+                : (dto.getMechanicId() != null ? resolvePersonName(dto.getMechanicId()) : null);
 
+        boolean creatorIsDriver = currentUser != null && isUserDriver(currentUser);
         UUID resolvedRequesterId = dto.getRequesterId() != null ? dto.getRequesterId() : (currentUser != null ? currentUser.getId() : null);
-        UUID resolvedResponsibleId = dto.getResponsibleId() != null ? dto.getResponsibleId() : (currentUser != null ? currentUser.getId() : null);
+        UUID resolvedResponsibleId = dto.getResponsibleId() != null ? dto.getResponsibleId()
+                : (currentUser != null && !creatorIsDriver ? currentUser.getId() : null);
 
         String createRespSig = (dto.getResponsibleSignature() != null && !dto.getResponsibleSignature().isBlank())
                 ? dto.getResponsibleSignature().trim() : null;
@@ -587,6 +571,21 @@ public class FleetWorkOrderService {
                 .releasedByName(dto.getReleasedByName())
                 .releaseSignature(createReleaseSig)
                 .releaseSignatureDate(createReleaseSigDate)
+                .preventiveControlTypes(dto.getPreventiveControlTypes() != null && !dto.getPreventiveControlTypes().isEmpty()
+                        ? String.join(",", dto.getPreventiveControlTypes())
+                        : null)
+                .oilFilterChanged(Boolean.TRUE.equals(dto.getOilFilterChanged()))
+                .dieselFilterChanged(Boolean.TRUE.equals(dto.getDieselFilterChanged()))
+                .waterSeparatorFilterChanged(Boolean.TRUE.equals(dto.getWaterSeparatorFilterChanged()))
+                .airFilterChanged(Boolean.TRUE.equals(dto.getAirFilterChanged()))
+                .preventiveModel(dto.getPreventiveModel() != null && !dto.getPreventiveModel().isBlank()
+                        ? dto.getPreventiveModel().trim().toUpperCase()
+                        : "MODELO_1")
+                .operationProfile(dto.getOperationProfile() != null && !dto.getOperationProfile().isBlank()
+                        ? dto.getOperationProfile().trim().toUpperCase()
+                        : inferOperationProfile(vehicle))
+                .autoGenerated(Boolean.TRUE.equals(dto.getAutoGenerated()))
+                .triggeredItemsSummary(dto.getTriggeredItemsSummary())
                 .odometerIn(dto.getOdometerIn())
                 .odometerOut(dto.getOdometerOut())
                 .stopReason(dto.getStopReason())
@@ -618,7 +617,12 @@ public class FleetWorkOrderService {
                     addChecklistItemToEntity(entity, cDto);
                 }
             } else {
-                List<com.z7design.fleet_manager.model.ChecklistItem> masterItems = checklistItemRepository.findByAtivoTrueOrderByOrdemAsc();
+                String activeModel = entity.getPreventiveModel() != null ? entity.getPreventiveModel() : "MODELO_1";
+                List<com.z7design.fleet_manager.model.ChecklistItem> masterItems = "MODELO_2".equalsIgnoreCase(activeModel)
+                        ? checklistItemRepository.findByTemplateModelAndAtivoTrueOrderByOrdemAsc("MODELO_2")
+                        : checklistItemRepository.findByAtivoTrueOrderByOrdemAsc().stream()
+                                .filter(m -> m.getTemplateModel() == null || "MODELO_1".equalsIgnoreCase(m.getTemplateModel()))
+                                .toList();
                 for (com.z7design.fleet_manager.model.ChecklistItem master : masterItems) {
                     com.z7design.fleet_manager.model.FleetWorkOrderChecklist item = com.z7design.fleet_manager.model.FleetWorkOrderChecklist.builder()
                             .workOrder(entity)
@@ -634,6 +638,10 @@ public class FleetWorkOrderService {
         entity.setTotalCost(entity.getPartsCost().add(entity.getLaborCost()));
 
         FleetWorkOrder saved = repository.save(entity);
+
+        if (saved.getStatus() == FleetWorkOrder.WorkOrderStatus.COMPLETED) {
+            syncVehicleOnCompletion(saved);
+        }
 
         // Registra histórico de criação
         String historyPerformedBy = (resolvedMechanicName != null && !resolvedMechanicName.isBlank())
@@ -737,6 +745,24 @@ public class FleetWorkOrderService {
         if (dto.getReleaseDate() != null) entity.setReleaseDate(dto.getReleaseDate());
         if (dto.getReleaseTime() != null) entity.setReleaseTime(dto.getReleaseTime());
         if (dto.getReleasedByName() != null) entity.setReleasedByName(dto.getReleasedByName());
+        if (dto.getPreventiveControlTypes() != null) {
+            entity.setPreventiveControlTypes(dto.getPreventiveControlTypes().isEmpty()
+                    ? null
+                    : String.join(",", dto.getPreventiveControlTypes()));
+        }
+        if (dto.getOilFilterChanged() != null) entity.setOilFilterChanged(dto.getOilFilterChanged());
+        if (dto.getDieselFilterChanged() != null) entity.setDieselFilterChanged(dto.getDieselFilterChanged());
+        if (dto.getWaterSeparatorFilterChanged() != null) entity.setWaterSeparatorFilterChanged(dto.getWaterSeparatorFilterChanged());
+        if (dto.getAirFilterChanged() != null) entity.setAirFilterChanged(dto.getAirFilterChanged());
+        if (dto.getPreventiveModel() != null && !dto.getPreventiveModel().isBlank()) {
+            entity.setPreventiveModel(dto.getPreventiveModel().trim().toUpperCase());
+        }
+        if (dto.getOperationProfile() != null && !dto.getOperationProfile().isBlank()) {
+            entity.setOperationProfile(dto.getOperationProfile().trim().toUpperCase());
+        }
+        if (dto.getTriggeredItemsSummary() != null) {
+            entity.setTriggeredItemsSummary(dto.getTriggeredItemsSummary());
+        }
         if (dto.getReleaseSignature() != null) {
             String nextRelSig = dto.getReleaseSignature().trim();
             if (nextRelSig.isEmpty()) {
@@ -1395,6 +1421,9 @@ public class FleetWorkOrderService {
 
         // Dar baixa definitiva dos itens e peças reservadas no almoxarifado para esta OS
         materialRequisitionService.completeWorkOrderStockDeduction(entity.getId());
+
+        // Sincronizar controles preventivos (Alinhamento, Óleo de Motor, Polia, Arranque, Alternador)
+        fleetComponentControlService.syncFromCompletedWorkOrder(entity);
     }
 
     /**
@@ -1409,6 +1438,10 @@ public class FleetWorkOrderService {
             osNumber = String.format("OS-%d-%06d", currentYear, count);
         }
         return osNumber;
+    }
+
+    private String inferOperationProfile(Vehicle vehicle) {
+        return PreventiveModel2Service.inferOperationProfile(vehicle);
     }
 
     private void updateChecklistItems(FleetWorkOrder entity, List<com.z7design.fleet_manager.dto.FleetWorkOrderChecklistDTO> dtoList) {

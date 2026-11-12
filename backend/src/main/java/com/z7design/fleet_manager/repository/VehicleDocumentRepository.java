@@ -16,4 +16,8 @@ public interface VehicleDocumentRepository extends JpaRepository<VehicleDocument
     List<VehicleDocument> findByCompanyIdOrderByCreatedAtDesc(UUID companyId);
 
     List<VehicleDocument> findByExpiryDateBeforeAndCompanyId(LocalDate date, UUID companyId);
+
+    @org.springframework.data.jpa.repository.Query("SELECT vd FROM VehicleDocument vd JOIN FETCH vd.vehicle v " +
+            "WHERE v.deletedAt IS NULL AND vd.expiryDate IS NOT NULL AND (:companyId IS NULL OR vd.companyId = :companyId)")
+    List<VehicleDocument> findWithExpiryAndVehicleByCompany(@org.springframework.data.repository.query.Param("companyId") UUID companyId);
 }

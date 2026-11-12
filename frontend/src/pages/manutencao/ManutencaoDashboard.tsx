@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,7 +27,8 @@ import {
     ArrowUp,
     ArrowDown,
     Warehouse,
-    Sparkles
+    Sparkles,
+    Bell
 } from 'lucide-react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
@@ -67,6 +68,12 @@ import {
 } from '@/utils/fleetWorkOrderPDFGenerator';
 import TcoPanel from '@/components/frota/TcoPanel';
 import ModuloDespesasPanel from '@/components/financeiro/ModuloDespesasPanel';
+import { FleetComponentControlsPanel } from '@/components/frota/FleetComponentControlsPanel';
+import { DueComponentsAlertModal } from '@/components/frota/DueComponentsAlertModal';
+import fleetComponentControlService, {
+    buildWorkOrderPrefillFromComponentRow,
+    FleetComponentControlRow
+} from '@/services/fleetComponentControlService';
 
 const formatDisplayDate = (d?: string) => {
     if (!d) return '—';
@@ -90,6 +97,9 @@ const STATUS_CONFIG: Record<WorkOrderStatus, { label: string, color: string, ico
 const ManutencaoDashboard: React.FC = () => {
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
     const [selectedOrder, setSelectedOrder] = useState<FleetWorkOrder | undefined>(undefined);
+    const [prefillOrderValues, setPrefillOrderValues] = useState<Partial<FleetWorkOrder> | undefined>(undefined);
+    const [dueModalOpen, setDueModalOpen] = useState(false);
+    const [hasTriggeredDueModal, setHasTriggeredDueModal] = useState(false);
     const [statusFilter, setStatusFilter] = useState<WorkOrderStatus | 'ALL'>('ALL');
     const [typeFilter, setTypeFilter] = useState<MaintenanceType | 'ALL'>('ALL');
     const [searchTerm, setSearchTerm] = useState('');
@@ -101,8 +111,15 @@ const ManutencaoDashboard: React.FC = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const navigate = useNavigate();
     const tabParam = searchParams.get('tab');
-    const [view, setView] = useState<'os' | 'tco' | 'despesas'>(
-        tabParam === 'despesas' ? 'despesas' : tabParam === 'tco' ? 'tco' : 'os'
+    const resolveTabView = (param: string | null): 'os' | 'componentes' | 'alertas' | 'tco' | 'despesas' => {
+        if (param === 'componentes') return 'componentes';
+        if (param === 'alertas') return 'alertas';
+        if (param === 'despesas') return 'despesas';
+        if (param === 'tco') return 'tco';
+        return 'os';
+    };
+    const [view, setView] = useState<'os' | 'componentes' | 'alertas' | 'tco' | 'despesas'>(
+        resolveTabView(tabParam)
     );
     const [viewingPdfOrder, setViewingPdfOrder] = useState<FleetWorkOrder | null>(null);
     const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
@@ -115,6 +132,31 @@ const ManutencaoDashboard: React.FC = () => {
 
     const queryClient = useQueryClient();
     const { toast } = useToast();
+
+    useEffect(() => {
+        setView(resolveTabView(tabParam));
+    }, [tabParam]);
+
+    const { data: compDashboard } = useQuery({
+        queryKey: ['fleet-component-controls', 'ALL', 'ALL', String(new Date().getFullYear())],
+        queryFn: () => fleetComponentControlService.getDashboard({ controlType: 'ALL' }),
+        staleTime: 60_000,
+    });
+
+    const expiringComponentsCount = compDashboard?.expiringAlerts?.length || 0;
+
+    useEffect(() => {
+        if (!hasTriggeredDueModal && compDashboard && compDashboard.expiringAlerts.length > 0) {
+            setHasTriggeredDueModal(true);
+            setDueModalOpen(true);
+        }
+    }, [compDashboard, hasTriggeredDueModal]);
+
+    const handleOpenOsFromComponent = (vals: Partial<FleetWorkOrder>) => {
+        setSelectedOrder(undefined);
+        setPrefillOrderValues(vals);
+        setIsFormModalOpen(true);
+    };
 
     const { data: garages = [] } = useQuery({
         queryKey: ['garages-for-os-filter'],
@@ -131,8 +173,10 @@ const ManutencaoDashboard: React.FC = () => {
 
     const handleSuccess = () => {
         queryClient.invalidateQueries({ queryKey: ['fleet-work-orders'] });
+        queryClient.invalidateQueries({ queryKey: ['fleet-component-controls'] });
         setIsFormModalOpen(false);
         setSelectedOrder(undefined);
+        setPrefillOrderValues(undefined);
     };
 
     const handleUpdateStatus = async (id: string, status: WorkOrderStatus) => {
@@ -406,6 +450,35 @@ const ManutencaoDashboard: React.FC = () => {
                     Ordens de Serviço
                 </Button>
                 <Button
+                    variant={view === 'componentes' ? 'default' : 'outline'}
+                    onClick={() => {
+                        setView('componentes');
+                        setSearchParams({ tab: 'componentes' });
+                    }}
+                    size="sm"
+                    className={`h-9 ${view === 'componentes' ? 'bg-seguranca-yellow hover:bg-amber-400 text-black font-semibold' : 'border-seguranca-yellow/40 text-seguranca-yellow hover:bg-seguranca-yellow/10'}`}
+                >
+                    <Wrench className="h-4 w-4 mr-2" />
+                    Controles Preventivos
+                </Button>
+                <Button
+                    variant={view === 'alertas' ? 'default' : 'outline'}
+                    onClick={() => {
+                        setView('alertas');
+                        setSearchParams({ tab: 'alertas' });
+                    }}
+                    size="sm"
+                    className={`h-9 ${view === 'alertas' ? 'bg-red-600 hover:bg-red-700 text-white font-semibold' : 'border-red-500/40 text-red-300 hover:bg-red-500/10'}`}
+                >
+                    <Bell className="h-4 w-4 mr-2" />
+                    Alertas de Vencimentos
+                    {expiringComponentsCount > 0 && (
+                        <Badge className="ml-2 bg-white text-red-700 font-bold text-[10px] px-1.5 py-0">
+                            {expiringComponentsCount}
+                        </Badge>
+                    )}
+                </Button>
+                <Button
                     variant={view === 'tco' ? 'default' : 'outline'}
                     onClick={() => {
                         setView('tco');
@@ -440,7 +513,14 @@ const ManutencaoDashboard: React.FC = () => {
                 </Button>
             </div>
 
-            {view === 'tco' ? (
+            {view === 'componentes' || view === 'alertas' ? (
+                <FleetComponentControlsPanel
+                    key={view}
+                    defaultSubTab={view === 'alertas' ? 'ALERTS' : 'ALL'}
+                    showAutoAlertModalOnMount={false}
+                    onCreateWorkOrder={handleOpenOsFromComponent}
+                />
+            ) : view === 'tco' ? (
                 <TcoPanel />
             ) : view === 'despesas' ? (
                 <ModuloDespesasPanel
@@ -867,9 +947,25 @@ const ManutencaoDashboard: React.FC = () => {
                 onClose={() => {
                     setIsFormModalOpen(false);
                     setSelectedOrder(undefined);
+                    setPrefillOrderValues(undefined);
                 }}
                 onSuccess={handleSuccess}
                 order={selectedOrder}
+                initialValues={prefillOrderValues}
+            />
+
+            <DueComponentsAlertModal
+                open={dueModalOpen}
+                onOpenChange={setDueModalOpen}
+                alerts={compDashboard?.expiringAlerts || []}
+                thresholdKm={compDashboard?.config?.alertThresholdKm}
+                onOpenWorkOrder={(row: FleetComponentControlRow) =>
+                    handleOpenOsFromComponent(buildWorkOrderPrefillFromComponentRow(row))
+                }
+                onGoToAlertsTab={() => {
+                    setView('alertas');
+                    setSearchParams({ tab: 'alertas' });
+                }}
             />
 
             <FleetWorkOrderViewModal

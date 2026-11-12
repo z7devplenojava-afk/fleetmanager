@@ -199,12 +199,16 @@ interface VehicleBodyAndTiresInspectorProps {
   value: VehicleInspectionExtraData;
   onChange: (next: VehicleInspectionExtraData) => void;
   initialBlueprint?: VehicleBlueprintType;
+  onOpenWorkOrder?: () => void;
+  openedWorkOrderNumber?: string | null;
 }
 
 export const VehicleBodyAndTiresInspector: React.FC<VehicleBodyAndTiresInspectorProps> = ({
   value,
   onChange,
   initialBlueprint,
+  onOpenWorkOrder,
+  openedWorkOrderNumber,
 }) => {
   const [selectedBlueprint, setSelectedBlueprint] = React.useState<VehicleBlueprintType>(
     initialBlueprint || 'CONVENTIONAL'
@@ -509,12 +513,12 @@ export const VehicleBodyAndTiresInspector: React.FC<VehicleBodyAndTiresInspector
 
             {/* PLANTA TÉCNICA INTERATIVA COM MARCADORES NUMERADOS DE AVARIA */}
             <div className="space-y-2">
-              <div className="flex items-center justify-between text-[11px] font-bold text-zinc-300 px-1">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11px] font-bold text-zinc-300 px-1">
                 <span className="text-zinc-200 font-semibold flex items-center gap-1.5">
                   <span>{VEHICLE_BLUEPRINT_CONFIGS[selectedBlueprint].icon}</span>
                   <span>{VEHICLE_BLUEPRINT_CONFIGS[selectedBlueprint].description}</span>
                 </span>
-                <span className="text-amber-400 text-[10px] hidden sm:inline">
+                <span className="text-amber-400 text-[11px] font-bold">
                   {value.damageMarks.filter((m) => !m.blueprint || m.blueprint === selectedBlueprint).length} ponto(s) marcado(s) neste veículo
                   {value.damageMarks.length > value.damageMarks.filter((m) => !m.blueprint || m.blueprint === selectedBlueprint).length && (
                     <span className="text-zinc-400 ml-1">({value.damageMarks.length} no total geral)</span>
@@ -525,8 +529,8 @@ export const VehicleBodyAndTiresInspector: React.FC<VehicleBodyAndTiresInspector
               {/* CONTAINER DA IMAGEM TÉCNICA E OVERLAY CLICÁVEL */}
               <div
                 onClick={handleBlueprintClick}
-                className="relative rounded-xl border border-zinc-700 bg-zinc-900 overflow-hidden cursor-crosshair select-none group shadow-lg"
-                title="Clique em qualquer lugar da imagem para marcar uma avaria"
+                className="relative rounded-xl border border-zinc-700 bg-zinc-900 overflow-hidden cursor-crosshair select-none touch-manipulation group shadow-lg"
+                title="Toque ou clique em qualquer lugar da imagem para marcar uma avaria"
               >
                 <img
                   src={VEHICLE_BLUEPRINT_CONFIGS[selectedBlueprint].image}
@@ -695,13 +699,43 @@ export const VehicleBodyAndTiresInspector: React.FC<VehicleBodyAndTiresInspector
                               value={mark.notes}
                               onChange={(e) => handleUpdateMark(mark.id, { notes: e.target.value })}
                               placeholder="Descreva detalhes da avaria neste local..."
-                              className="h-8 text-xs bg-zinc-900 border-zinc-700 text-white"
+                              className="h-9 sm:h-8 text-xs bg-zinc-900 border-zinc-700 text-white"
                             />
                           </div>
                         </div>
                       );
                     })}
                 </div>
+
+                {/* Botão direto para abrir Ordem de Serviço sem sair do Checklist (otimizado para celular) */}
+                {onOpenWorkOrder && (
+                  <div className="mt-3 p-3 sm:p-3.5 rounded-xl border border-orange-500/40 bg-gradient-to-r from-orange-950/60 via-zinc-900 to-red-950/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="space-y-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs sm:text-sm font-black text-orange-300 flex items-center gap-1.5">
+                          <Wrench className="h-4 w-4 text-orange-400 shrink-0" />
+                          Enviar avarias para manutenção ({value.damageMarks.length} {value.damageMarks.length === 1 ? 'ponto' : 'pontos'})
+                        </span>
+                        {openedWorkOrderNumber && (
+                          <Badge className="bg-emerald-600/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold">
+                            <CheckCircle2 className="h-3 w-3 mr-1" /> OS #{openedWorkOrderNumber} aberta
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-zinc-300 leading-snug">
+                        Abre a Ordem de Serviço aqui mesmo, sem fechar este checklist, já preenchida com todos os pontos e descrições marcados.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      onClick={onOpenWorkOrder}
+                      className="w-full sm:w-auto min-h-[46px] sm:min-h-[40px] px-4 bg-orange-600 hover:bg-orange-500 active:scale-[0.99] text-white font-bold text-xs sm:text-sm rounded-xl shadow-lg shadow-orange-950/50 shrink-0 flex items-center justify-center gap-2 touch-manipulation"
+                    >
+                      <Wrench className="h-4 w-4 shrink-0" />
+                      <span>{openedWorkOrderNumber ? 'Abrir Nova OS das Avarias' : 'Abrir OS das Avarias'}</span>
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -37,6 +37,12 @@ public class NfseParserService {
             Document doc = builder.parse(xmlInputStream);
             doc.getDocumentElement().normalize();
 
+            // Suporte a NF-e modelo 55 padrão (<nfeProc> / <NFe> / <infNFe>) além de NFS-e
+            NodeList infNfeNodes = doc.getElementsByTagName("infNFe");
+            if (infNfeNodes.getLength() > 0) {
+                return parseStandardNfeXml(doc);
+            }
+
             String nfseNumber = getXmlTagValue(doc, "Numero", "nNFSe", "NumeroNfse");
             String nfseKey = getXmlTagValue(doc, "ChaveAcesso", "id", "CodigoVerificacao");
             String issueDateStr = getXmlTagValue(doc, "DataEmissao", "dhEmi", "DataEmissaoNfse");
@@ -287,9 +293,87 @@ public class NfseParserService {
             try {
                 return LocalDateTime.parse(dateStr);
             } catch (Exception ex) {
-                return null;
+                try {
+                    return java.time.OffsetDateTime.parse(dateStr).toLocalDateTime();
+                } catch (Exception ex2) {
+                    return null;
+                }
             }
         }
+    }
+
+    private NfseParsedDataDTO parseStandardNfeXml(Document doc) {
+        String nfNumber = getXmlTagValue(doc, "nNF");
+        String nfKey = getXmlTagValue(doc, "chNFe");
+        if ((nfKey == null || nfKey.isBlank()) && doc.getElementsByTagName("infNFe").getLength() > 0) {
+            Node infNfe = doc.getElementsByTagName("infNFe").item(0);
+            if (infNfe.getAttributes() != null && infNfe.getAttributes().getNamedItem("Id") != null) {
+                nfKey = infNfe.getAttributes().getNamedItem("Id").getNodeValue().replaceFirst("^NFe", "");
+            }
+        }
+        String issueDateStr = getXmlTagValue(doc, "dhEmi", "dEmi");
+
+        String emitCnpj = null;
+        String emitName = null;
+        NodeList emitNodes = doc.getElementsByTagName("emit");
+        if (emitNodes.getLength() > 0 && emitNodes.item(0) instanceof org.w3c.dom.Element emitEl) {
+            emitCnpj = getDirectOrNestedTag(emitEl, "CNPJ", "CPF");
+            emitName = getDirectOrNestedTag(emitEl, "xNome", "xFant");
+        }
+
+        String destCnpj = null;
+        String destName = null;
+        NodeList destNodes = doc.getElementsByTagName("dest");
+        if (destNodes.getLength() > 0 && destNodes.item(0) instanceof org.w3c.dom.Element destEl) {
+            destCnpj = getDirectOrNestedTag(destEl, "CNPJ", "CPF");
+            destName = getDirectOrNestedTag(destEl, "xNome");
+        }
+
+        BigDecimal totalAmount = parseBigDecimal(getXmlTagValue(doc, "vNF", "vOrig", "vLiq", "vProd"));
+
+        StringBuilder descBuilder = new StringBuilder();
+        NodeList xProdNodes = doc.getElementsByTagName("xProd");
+        for (int i = 0; i < xProdNodes.getLength(); i++) {
+            String itemText = cleanString(xProdNodes.item(i).getTextContent());
+            if (itemText != null && !itemText.isBlank()) {
+                if (descBuilder.length() > 0) descBuilder.append(" | ");
+                descBuilder.append(itemText);
+            }
+        }
+
+        LocalDateTime issueDateTime = parseDateTimeString(issueDateStr);
+
+        return NfseParsedDataDTO.builder()
+                .nfseNumber(cleanString(nfNumber))
+                .nfseKey(cleanString(nfKey))
+                .issueDate(issueDateTime != null ? issueDateTime : LocalDateTime.now())
+                .tomadorCnpjCpf(cleanCnpjCpf(destCnpj))
+                .tomadorName(cleanString(destName))
+                .prestadorCnpjCpf(cleanCnpjCpf(emitCnpj))
+                .prestadorName(cleanString(emitName))
+                .grossAmount(totalAmount)
+                .netAmount(totalAmount)
+                .issqnRetido(BigDecimal.ZERO)
+                .inssRetido(BigDecimal.ZERO)
+                .irRetido(BigDecimal.ZERO)
+                .pisRetido(BigDecimal.ZERO)
+                .cofinsRetido(BigDecimal.ZERO)
+                .csllRetido(BigDecimal.ZERO)
+                .serviceDescription(cleanString(descBuilder.toString()))
+                .build();
+    }
+
+    private String getDirectOrNestedTag(org.w3c.dom.Element parent, String... tagNames) {
+        for (String tag : tagNames) {
+            NodeList list = parent.getElementsByTagName(tag);
+            if (list != null && list.getLength() > 0) {
+                String val = list.item(0).getTextContent();
+                if (val != null && !val.trim().isEmpty()) {
+                    return val.trim();
+                }
+            }
+        }
+        return null;
     }
 
     private String cleanCnpjCpf(String str) {

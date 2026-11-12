@@ -193,6 +193,7 @@ const PayslipView = lazy(() => import('@/pages/PayslipView'));
 const MeusHolerites = lazy(() => import('@/pages/MeusHolerites'));
 const Mensagens = lazy(() => import('@/pages/Mensagens'));
 const GestaoMensagens = lazy(() => import('@/pages/GestaoMensagens'));
+const SystemAlertsCenter = lazy(() => import('@/pages/SystemAlertsCenter'));
 const GestaoAtendimento = lazy(() => import('@/pages/GestaoAtendimento'));
 const ChatInterno = lazy(() => import('@/pages/ChatInterno'));
 const WhatsAppConnection = lazy(() => import('@/pages/WhatsAppConnection'));
@@ -616,6 +617,13 @@ function App() {
                         <ProtectedRoute>
                           <Suspense fallback={<LoadingSpinner />}>
                             <Mensagens />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/central-alertas" element={
+                        <ProtectedRoute>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <SystemAlertsCenter />
                           </Suspense>
                         </ProtectedRoute>
                       } />

@@ -1963,6 +1963,23 @@ public class StockService {
             String supplier,
             BigDecimal unitCost,
             UUID movementId) {
+        syncBatteryAndTireInbound(item, quantity, documentNumber, supplier, unitCost, movementId,
+                null, null, null, null, null, null);
+    }
+
+    public void syncBatteryAndTireInbound(
+            StockItem item,
+            int quantity,
+            String documentNumber,
+            String supplier,
+            BigDecimal unitCost,
+            UUID movementId,
+            String customBrand,
+            String customModel,
+            String customSize,
+            String customDot,
+            List<String> customFireNumbers,
+            List<String> customSerialNumbers) {
         if (item == null || quantity <= 0) {
             return;
         }
@@ -1971,7 +1988,8 @@ public class StockService {
             if (isBatteryItem(item)) {
                 syncBatteriesInbound(item, quantity, documentNumber, supplier, unitCost, movementId);
             } else if (isTireItem(item)) {
-                syncTiresInbound(item, quantity, documentNumber, supplier, unitCost, movementId);
+                syncTiresInbound(item, quantity, documentNumber, supplier, unitCost, movementId,
+                        customBrand, customModel, customSize, customDot, customFireNumbers, customSerialNumbers);
             }
         } catch (Exception e) {
             log.error("Erro ao sincronizar entrada individual de bateria/pneu para item {}: {}", item.getCode(), e.getMessage(), e);
@@ -1991,8 +2009,11 @@ public class StockService {
         if (item == null) return false;
         String name = ((item.getName() != null ? item.getName() : "") + " " + (item.getDescription() != null ? item.getDescription() : "")).toLowerCase();
         
-        // Evitar falsos positivos como câmara de ar, roda, aro ou bico/válvula
-        if (name.contains("camara") || name.contains("câmara") || name.contains("roda ") || name.contains("aro ") || name.contains("valvula") || name.contains("válvula")) {
+        // Evitar falsos positivos como câmara de ar, roda, aro, válvula ou serviços de recapagem/borracharia
+        if (name.contains("camara") || name.contains("câmara") || name.contains("roda ") || name.contains("aro ")
+                || name.contains("valvula") || name.contains("válvula")
+                || name.contains("recapag") || name.contains("recauchut") || name.contains("vulcaniz")
+                || name.contains("borrach") || name.contains("conserto") || name.contains("reforma de pneu")) {
             return false;
         }
         
@@ -2047,44 +2068,116 @@ public class StockService {
         }
     }
 
-    private void syncTiresInbound(StockItem item, int quantity, String documentNumber, String supplier, BigDecimal unitCost, UUID movementId) {
+    public static String[] extractTireMetadata(String description, String fallbackBrand) {
+        String text = description != null ? description.trim() : "";
+        String upper = text.toUpperCase();
+
+        String[] knownBrands = {
+            "MICHELIN", "PIRELLI", "BRIDGESTONE", "GOODYEAR", "CONTINENTAL",
+            "FIRESTONE", "DUNLOP", "YOKOHAMA", "LINGLONG", "SAILUN",
+            "TRIANGLE", "XBRI", "APLUS", "AEOLUS", "WESTLAKE", "HANKOOK",
+            "TOYO", "KUMHO", "VIPAL", "BANDAG"
+        };
+        String brand = null;
+        for (String kb : knownBrands) {
+            if (upper.contains(kb)) {
+                brand = kb.substring(0, 1) + kb.substring(1).toLowerCase();
+                break;
+            }
+        }
+        if (brand == null) {
+            brand = (fallbackBrand != null && !fallbackBrand.isBlank()) ? fallbackBrand.trim() : "A Definir";
+        }
+        if (brand.length() > 60) brand = brand.substring(0, 60);
+
+        String size = "295/80 R22.5";
+        java.util.regex.Matcher sizeMatcher = java.util.regex.Pattern
+                .compile("\\b(\\d{3}/\\d{2}\\s*[RrXx-]?\\s*\\d{2}(?:\\.\\d)?|\\d{2}\\.\\d{2}\\s*[Rr]\\s*\\d{2}(?:\\.\\d)?)\\b")
+                .matcher(upper);
+        if (sizeMatcher.find()) {
+            size = sizeMatcher.group(1).replaceAll("\\s+", "").replace("R", " R").trim();
+        }
+
+        String model = text.isBlank() ? "Pneu Frota" : text;
+        if (model.length() > 60) model = model.substring(0, 60);
+
+        return new String[] { brand, model, size };
+    }
+
+    private void syncTiresInbound(
+            StockItem item,
+            int quantity,
+            String documentNumber,
+            String supplier,
+            BigDecimal unitCost,
+            UUID movementId,
+            String customBrand,
+            String customModel,
+            String customSize,
+            String customDot,
+            List<String> customFireNumbers,
+            List<String> customSerialNumbers) {
         UUID companyId = item.getCompanyId() != null ? item.getCompanyId() : resolveTenantCompanyId();
-        String docClean = (documentNumber != null && !documentNumber.isBlank()) 
-                ? documentNumber.trim().replaceAll("[^a-zA-Z0-9]", "") 
+        String docClean = (documentNumber != null && !documentNumber.isBlank())
+                ? documentNumber.trim().replaceAll("[^a-zA-Z0-9]", "")
                 : "EST";
         if (docClean.length() > 10) {
             docClean = docClean.substring(0, 10);
         }
 
-        String brand = (supplier != null && !supplier.isBlank()) 
-                ? supplier.trim() 
-                : (item.getSupplier() != null && !item.getSupplier().isBlank() ? item.getSupplier().trim() : "Michelin");
+        String[] extracted = extractTireMetadata(item.getName(), null);
+        String brand = (customBrand != null && !customBrand.isBlank()) ? customBrand.trim() : extracted[0];
         if (brand.length() > 60) brand = brand.substring(0, 60);
 
-        String model = item.getName() != null && !item.getName().isBlank() ? item.getName().trim() : "295/80 R22.5";
+        String model = (customModel != null && !customModel.isBlank()) ? customModel.trim() : extracted[1];
         if (model.length() > 60) model = model.substring(0, 60);
 
+        String size = (customSize != null && !customSize.isBlank()) ? customSize.trim() : extracted[2];
+        if (size.length() > 45) size = size.substring(0, 45);
+
+        java.time.LocalDate today = java.time.LocalDate.now();
+        int week = today.get(java.time.temporal.WeekFields.ISO.weekOfWeekBasedYear());
+        String defaultDot = String.format("%02d%02d", week, today.getYear() % 100);
+        String dot = (customDot != null && !customDot.isBlank()) ? customDot.trim() : defaultDot;
+
         BigDecimal cost = unitCost != null ? unitCost : (item.getUnitCost() != null ? item.getUnitCost() : BigDecimal.ZERO);
-        int currentYear = java.time.LocalDate.now().getYear();
         String movTag = movementId != null ? movementId.toString().substring(0, 8).toUpperCase() : "INIT";
 
         for (int i = 1; i <= quantity; i++) {
+            String providedSerial = (customSerialNumbers != null && i - 1 < customSerialNumbers.size()
+                    && customSerialNumbers.get(i - 1) != null && !customSerialNumbers.get(i - 1).isBlank())
+                    ? customSerialNumbers.get(i - 1).trim()
+                    : null;
+
             String serialNumber;
-            do {
-                long rand = (long) (Math.random() * 90000) + 10000;
-                serialNumber = String.format("PN-%s-M%s-%02d-%d", docClean, movTag, i, rand);
-            } while (tireRepository.existsBySerialNumber(serialNumber));
+            if (providedSerial != null && !tireRepository.existsBySerialNumber(providedSerial)) {
+                serialNumber = providedSerial;
+            } else {
+                do {
+                    long rand = (long) (Math.random() * 90000) + 10000;
+                    serialNumber = String.format("PN-%s-M%s-%02d-%d", docClean, movTag, i, rand);
+                } while (tireRepository.existsBySerialNumber(serialNumber));
+            }
+
+            String fireNumber = (customFireNumbers != null && i - 1 < customFireNumbers.size()
+                    && customFireNumbers.get(i - 1) != null && !customFireNumbers.get(i - 1).isBlank())
+                    ? customFireNumbers.get(i - 1).trim()
+                    : null;
 
             Tire tire = new Tire();
             tire.setCompanyId(companyId);
             tire.setSerialNumber(serialNumber);
-            tire.setDot("DOT-" + currentYear);
+            tire.setFireNumber(fireNumber);
+            tire.setDot(dot);
             tire.setBrand(brand);
             tire.setModel(model);
-            tire.setSize("295/80 R22.5");
+            tire.setSize(size);
             tire.setStatus(TireStatus.AVAILABLE);
             tire.setCurrentMileage(0);
+            tire.setCurrentLifeMileage(0);
             tire.setRecapCount(0);
+            tire.setLineType("URBANA");
+            tire.setLocationNotes("Almoxarifado (NF " + (documentNumber != null ? documentNumber : "N/I") + ")");
             tire.setAcquisitionCost(cost);
             tire.setInitialTreadDepth(new BigDecimal("15.00"));
             tire.setCurrentTreadDepth(new BigDecimal("15.00"));
@@ -2092,7 +2185,7 @@ public class StockService {
             tire.setUpdatedAt(LocalDateTime.now());
 
             tireRepository.save(tire);
-            log.info("🛞 Pneu individual cadastrado com sucesso: {} (NF: {})", serialNumber, documentNumber);
+            log.info("🛞 Pneu individual cadastrado com sucesso: {} / Fogo: {} (NF: {})", serialNumber, fireNumber, documentNumber);
         }
     }
 

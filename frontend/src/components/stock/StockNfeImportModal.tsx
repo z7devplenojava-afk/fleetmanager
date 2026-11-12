@@ -86,6 +86,11 @@ interface EditableItemRow {
   cfop: string;
   isBattery: boolean;
   isTire: boolean;
+  tireBrand?: string;
+  tireModel?: string;
+  tireSize?: string;
+  tireDot?: string;
+  tireFireNumbersText?: string;
 }
 
 export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
@@ -173,7 +178,12 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
           cst: it.cst || '',
           cfop: it.cfop || '',
           isBattery: it.isBattery || false,
-          isTire: it.isTire || false
+          isTire: it.isTire || false,
+          tireBrand: it.extractedBrand || '',
+          tireModel: it.extractedModel || '',
+          tireSize: it.extractedSize || '295/80 R22.5',
+          tireDot: '',
+          tireFireNumbersText: ''
         };
       });
     setItemsRows(rows);
@@ -359,7 +369,14 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
           r.ncm ? `NCM: ${r.ncm}` : '',
           r.cst ? `CST: ${r.cst}` : '',
           r.cfop ? `CFOP: ${r.cfop}` : ''
-        ].filter(Boolean).join(' | ')
+        ].filter(Boolean).join(' | '),
+        tireBrand: (r.isTire || r.category === StockCategory.PNEUS_RODAS) && r.tireBrand?.trim() ? r.tireBrand.trim() : undefined,
+        tireModel: (r.isTire || r.category === StockCategory.PNEUS_RODAS) && r.tireModel?.trim() ? r.tireModel.trim() : undefined,
+        tireSize: (r.isTire || r.category === StockCategory.PNEUS_RODAS) && r.tireSize?.trim() ? r.tireSize.trim() : undefined,
+        tireDot: (r.isTire || r.category === StockCategory.PNEUS_RODAS) && r.tireDot?.trim() ? r.tireDot.trim() : undefined,
+        tireFireNumbers: (r.isTire || r.category === StockCategory.PNEUS_RODAS) && r.tireFireNumbersText?.trim()
+          ? r.tireFireNumbersText.split(/[\n,;]+/).map((s) => s.trim()).filter(Boolean)
+          : undefined
       }));
 
     if (itemsToProcess.length === 0) {
@@ -963,7 +980,7 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
                         </div>
                       </div>
 
-                      {/* Custo Unitário */}
+                        {/* Custo Unitário */}
                       <div>
                         <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">
                           Custo Unitário (R$)
@@ -978,6 +995,71 @@ export const StockNfeImportModal: React.FC<StockNfeImportModalProps> = ({
                         />
                       </div>
                     </div>
+
+                    {/* Bloco Opcional de Rastreamento Individual de Pneus */}
+                    {(row.isTire || row.category === StockCategory.PNEUS_RODAS) && (
+                      <div className="mt-3 pt-3 border-t border-blue-800/40 bg-blue-950/20 rounded-lg p-3 space-y-2.5">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="text-[11px] font-bold text-blue-300 flex items-center gap-1.5">
+                            <CircleDot className="h-3.5 w-3.5" />
+                            Identificação dos Pneus no Estoque ({row.quantity} un) — Opcional
+                          </span>
+                          <span className="text-[10px] text-gray-400">
+                            Se não preencher agora, o sistema gera código provisório editável depois em Pneus / Estoque.
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                          <div>
+                            <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">Marca</label>
+                            <Input
+                              value={row.tireBrand || ''}
+                              onChange={(e) => updateItemRow(index, { tireBrand: e.target.value })}
+                              placeholder="Ex: Michelin"
+                              className="h-7 text-xs bg-gray-900 border-gray-700 text-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">Modelo</label>
+                            <Input
+                              value={row.tireModel || ''}
+                              onChange={(e) => updateItemRow(index, { tireModel: e.target.value })}
+                              placeholder="Ex: X Multi Z"
+                              className="h-7 text-xs bg-gray-900 border-gray-700 text-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">Medida</label>
+                            <Input
+                              value={row.tireSize || ''}
+                              onChange={(e) => updateItemRow(index, { tireSize: e.target.value })}
+                              placeholder="295/80 R22.5"
+                              className="h-7 text-xs font-mono bg-gray-900 border-gray-700 text-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">DOT (4 dígitos)</label>
+                            <Input
+                              value={row.tireDot || ''}
+                              maxLength={4}
+                              onChange={(e) => updateItemRow(index, { tireDot: e.target.value.replace(/\D/g, '').slice(0, 4) })}
+                              placeholder="Ex: 4226"
+                              className="h-7 text-xs font-mono bg-gray-900 border-gray-700 text-white"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">
+                            Números de Fogo Individuais (Opcional — separe por vírgula)
+                          </label>
+                          <Input
+                            value={row.tireFireNumbersText || ''}
+                            onChange={(e) => updateItemRow(index, { tireFireNumbersText: e.target.value.toUpperCase() })}
+                            placeholder="Ex: FG-101, FG-102, FG-103... (ou deixe em branco para preencher depois)"
+                            className="h-7 text-xs font-mono bg-gray-900 border-gray-700 text-white"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

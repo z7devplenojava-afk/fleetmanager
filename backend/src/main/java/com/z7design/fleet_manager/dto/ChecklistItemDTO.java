@@ -21,6 +21,7 @@ public class ChecklistItemDTO {
     private Boolean ativo;
     private String vehicleTypeApplicable;
     private String vehicleModelApplicable;
+    private String templateModel;
     private UUID companyId;
 
     public static ChecklistItemDTO fromEntity(ChecklistItem entity) {
@@ -32,6 +33,7 @@ public class ChecklistItemDTO {
                 .tipoManutencao(entity.getTipoManutencao())
                 .vehicleTypeApplicable(entity.getVehicleTypeApplicable())
                 .vehicleModelApplicable(entity.getVehicleModelApplicable())
+                .templateModel(entity.getTemplateModel() != null ? entity.getTemplateModel() : "MODELO_1")
                 .companyId(entity.getCompanyId())
                 .ordem(entity.getOrdem())
                 .ativo(entity.getAtivo())

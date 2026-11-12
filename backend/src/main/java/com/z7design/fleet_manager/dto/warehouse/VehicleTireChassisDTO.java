@@ -23,6 +23,11 @@ public class VehicleTireChassisDTO {
     private String plate;
     private String model;
     private String chassiType; // "4x2", "6x2", "ARTICULADO"
+    private String vehicleType; // VAN, BUS_URBAN, TRUCK, ...
+    private Integer axleCount;
+    private Boolean dualRear; // true quando o eixo traseiro usa rodado duplo
+    private String layoutLabel; // "Van simples (4x2)", "Rodado duplo (4x2)", "6x2", "6x4"
+    private Integer tireCount; // posições de rolamento (não inclui estepe)
     private Integer currentKm;
 
     @Builder.Default

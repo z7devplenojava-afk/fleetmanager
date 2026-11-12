@@ -268,4 +268,9 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID>, JpaSp
                         + "LEFT JOIN branches b ON u.branch_id = b.id "
                         + "WHERE e.user_id = :userId LIMIT 1", nativeQuery = true)
         List<Object[]> findUnitAndBranchNamesByUserIdNative(@Param("userId") UUID userId);
+
+        @Query("SELECT e FROM Employee e WHERE (:companyId IS NULL OR e.companyId = :companyId) "
+                        + "AND e.status <> com.z7design.fleet_manager.model.enums.EmploymentStatus.TERMINATED "
+                        + "AND (e.cnhExpirationDate IS NOT NULL OR e.nextExameMedico IS NOT NULL)")
+        List<Employee> findWithDocumentExpirationsByCompany(@Param("companyId") UUID companyId);
 }

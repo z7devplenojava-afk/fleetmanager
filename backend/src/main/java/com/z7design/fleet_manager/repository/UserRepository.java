@@ -129,4 +129,18 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
        @Query(value = "SELECT * FROM users WHERE LOWER(email) = LOWER(:email) LIMIT 1", nativeQuery = true)
        Optional<User> findByEmailNative(@Param("email") String email);
+
+       @Query("SELECT DISTINCT u FROM User u " +
+                     "JOIN u.roles r " +
+                     "WHERE u.active = true AND " +
+                     "(:companyId IS NULL OR u.companyId = :companyId OR UPPER(r.name) IN ('SUPER_ADMIN', 'FLEX_ADMIN')) AND " +
+                     "(UPPER(r.name) IN ('SUPER_ADMIN', 'FLEX_ADMIN', 'COMPANY_ADMIN', 'ADMIN', " +
+                     "'GESTOR_DE_MANUTENCAO', 'ENCARREGADO_DE_MANUTENCAO', 'MANUTENCAO', " +
+                     "'ENCARREGADO_DE_TRANSPORTES', 'ENCARREGADO_TRANSPORTES', 'GESTOR_OPERACIONAL', " +
+                     "'GERENTE_OPERACOES', 'OPERACIONAL', 'GESTOR', 'DIRETORIA') " +
+                     "OR UPPER(r.name) LIKE '%MANUTENCAO%' " +
+                     "OR UPPER(r.name) LIKE '%TRANSPORTE%' " +
+                     "OR UPPER(r.name) LIKE '%OPERAC%' " +
+                     "OR UPPER(r.name) LIKE '%DIRETOR%')")
+       List<User> findTireSafetyNotificationRecipients(@Param("companyId") UUID companyId);
 }

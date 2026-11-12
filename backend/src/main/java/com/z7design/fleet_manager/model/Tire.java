@@ -26,7 +26,10 @@ public class Tire {
     private UUID id;
 
     @Column(nullable = false, unique = true)
-    private String serialNumber; // DOT
+    private String serialNumber; // Número de Série (Fabricante) / Código Único
+
+    @Column(name = "fire_number", length = 80)
+    private String fireNumber; // Número de Fogo / ID Interno gravado na carcaça
 
     @Column(nullable = false)
     private String brand;
@@ -42,10 +45,28 @@ public class Tire {
     private TireStatus status;
 
     @Column(nullable = false)
-    private Integer currentMileage;
+    private Integer currentMileage; // KM Total Acumulado na carcaça (todas as vidas)
+
+    @Column(name = "current_life_mileage", nullable = false)
+    private Integer currentLifeMileage = 0; // KM rodado apenas na vida atual (reinicia pós-recapagem)
 
     @Column
     private Integer recapCount;
+
+    @Column(name = "line_type", length = 30)
+    private String lineType = "URBANA"; // URBANA | METROPOLITANA | RODOVIARIA
+
+    @Column(name = "location_notes", length = 255)
+    private String locationNotes;
+
+    @Column(name = "recap_vendor", length = 150)
+    private String recapVendor;
+
+    @Column(name = "last_recap_date")
+    private LocalDateTime lastRecapDate;
+
+    @Column(name = "scrap_reason", length = 255)
+    private String scrapReason;
 
     @Column(name = "vehicle_id")
     private UUID vehicleId;
@@ -96,6 +117,21 @@ public class Tire {
     @JsonIgnore
     private Vehicle vehicle;
 
+    @Transient
+    private String vehiclePlate;
+
+    @Transient
+    private String vehicleFleetNumber;
+
+    @Transient
+    private Integer vehicleCurrentMileage;
+
+    @Transient
+    private String vehicleModel;
+
+    @Transient
+    private String vehicleRouteName;
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
@@ -110,6 +146,10 @@ public class Tire {
             recapCount = 0;
         if (currentMileage == null)
             currentMileage = 0;
+        if (currentLifeMileage == null)
+            currentLifeMileage = 0;
+        if (lineType == null || lineType.isBlank())
+            lineType = "URBANA";
     }
 
     @PreUpdate

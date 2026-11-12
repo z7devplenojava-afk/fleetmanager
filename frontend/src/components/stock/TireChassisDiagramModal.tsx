@@ -20,7 +20,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import { tireFleetService, VehicleTireChassis, MountedPosition, TireItem } from '@/services/tireFleetService';
+import { FrontAxleSecurityApprovalBox } from '@/components/pneus/FrontAxleSecurityApprovalBox';
+import { ChassisDiagram } from '@/components/pneus/ChassisDiagram';
 
 interface TireChassisDiagramModalProps {
   open: boolean;
@@ -31,6 +34,11 @@ interface TireChassisDiagramModalProps {
   onSuccess?: () => void;
 }
 
+const apiErrorMessage = (error: unknown, fallback: string): string => {
+  const e = error as { response?: { data?: { message?: string; error?: string } }; message?: string };
+  return e?.response?.data?.message || e?.response?.data?.error || e?.message || fallback;
+};
+
 export const TireChassisDiagramModal: React.FC<TireChassisDiagramModalProps> = ({
   open,
   onOpenChange,
@@ -40,6 +48,7 @@ export const TireChassisDiagramModal: React.FC<TireChassisDiagramModalProps> = (
   onSuccess
 }) => {
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const [loading, setLoading] = useState(false);
   const [chassis, setChassis] = useState<VehicleTireChassis | null>(null);
@@ -58,6 +67,9 @@ export const TireChassisDiagramModal: React.FC<TireChassisDiagramModalProps> = (
   const [dismountTreadDepth, setDismountTreadDepth] = useState('3.5');
   const [dismountReason, setDismountReason] = useState('ENVIAR_REFORMA');
   const [submitting, setSubmitting] = useState(false);
+  const [approverUsernameOrEmail, setApproverUsernameOrEmail] = useState('');
+  const [approverPassword, setApproverPassword] = useState('');
+  const [riskTermAccepted, setRiskTermAccepted] = useState(false);
 
   const loadChassisData = async () => {
     if (!vehicleId) return;
@@ -90,21 +102,39 @@ export const TireChassisDiagramModal: React.FC<TireChassisDiagramModalProps> = (
   const handlePositionClick = (pos: MountedPosition) => {
     setSelectedPosition(pos);
     if (pos.tire) {
-      setDismountKm(pos.tire.installKm ? String(pos.tire.installKm + 30000) : '30000');
+      setDismountKm(String(chassis?.currentKm || (pos.tire.installKm ? pos.tire.installKm + 30000 : 30000)));
       setDismountTreadDepth(pos.tire.currentTreadDepth ? String(pos.tire.currentTreadDepth) : '3.5');
       setShowDismountModal(true);
     } else {
       setSelectedTireId('');
-      setMountKm('0');
+      setMountKm(String(chassis?.currentKm || 0));
       setMountTreadDepth('15.0');
+      setApproverUsernameOrEmail(user?.username || user?.email || '');
+      setApproverPassword('');
+      setRiskTermAccepted(false);
       setShowMountModal(true);
     }
   };
+
+  const selectedAvailableTire = availableTires.find((t) => t.id === selectedTireId);
+  const needsFrontAxleApproval =
+    Boolean(selectedPosition && selectedPosition.axleNumber === 1) &&
+    Boolean(selectedAvailableTire && (selectedAvailableTire.recapCount || 0) > 0);
 
   const handleConfirmMount = async () => {
     if (!selectedPosition || !selectedTireId) {
       toast({ title: 'Atenção', description: 'Selecione um pneu disponível para montagem.', variant: 'destructive' });
       return;
+    }
+    if (needsFrontAxleApproval) {
+      if (!riskTermAccepted) {
+        toast({ title: 'Termo obrigatório', description: 'Marque o Termo de Ciência de Risco.', variant: 'destructive' });
+        return;
+      }
+      if (!approverPassword.trim()) {
+        toast({ title: 'Senha obrigatória', description: 'Informe a senha do Gestor/Administrador.', variant: 'destructive' });
+        return;
+      }
     }
     try {
       setSubmitting(true);
@@ -116,7 +146,10 @@ export const TireChassisDiagramModal: React.FC<TireChassisDiagramModalProps> = (
         positionCode: selectedPosition.positionCode,
         currentVehicleKm: parseInt(mountKm) || 0,
         treadDepthMm: parseFloat(mountTreadDepth) || 15.0,
-        notes: `Montado na posição ${selectedPosition.positionName}`
+        notes: `Montado na posição ${selectedPosition.positionName}`,
+        approverUsernameOrEmail: needsFrontAxleApproval ? approverUsernameOrEmail : undefined,
+        approverPassword: needsFrontAxleApproval ? approverPassword : undefined,
+        riskTermAccepted: needsFrontAxleApproval ? riskTermAccepted : undefined,
       });
 
       toast({
@@ -127,10 +160,10 @@ export const TireChassisDiagramModal: React.FC<TireChassisDiagramModalProps> = (
       setShowMountModal(false);
       loadChassisData();
       if (onSuccess) onSuccess();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Falha ao montar pneu',
-        description: error.response?.data?.message || error.message || 'Erro ao processar montagem.',
+        description: apiErrorMessage(error, 'Erro ao processar montagem.'),
         variant: 'destructive'
       });
     } finally {
@@ -158,10 +191,10 @@ export const TireChassisDiagramModal: React.FC<TireChassisDiagramModalProps> = (
       setShowDismountModal(false);
       loadChassisData();
       if (onSuccess) onSuccess();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Falha ao desmontar pneu',
-        description: error.response?.data?.message || error.message || 'Erro ao processar desmontagem.',
+        description: apiErrorMessage(error, 'Erro ao processar desmontagem.'),
         variant: 'destructive'
       });
     } finally {
@@ -169,75 +202,81 @@ export const TireChassisDiagramModal: React.FC<TireChassisDiagramModalProps> = (
     }
   };
 
-  const getPositionByCode = (code: string) => {
-    return chassis?.positions.find(p => p.positionCode === code);
+  const rollingPositions = chassis?.positions.filter((p) => (p.axleNumber ?? 0) > 0) ?? [];
+  const sparePosition = chassis?.positions.find((p) => p.positionCode === 'ESTEPE' || (p.axleNumber ?? 0) === 0);
+  const mountedCount = rollingPositions.filter((p) => p.tire).length;
+  const criticalCount = rollingPositions.filter((p) => {
+    if (!p.tire || p.tire.currentTreadDepth == null) return false;
+    return Number(p.tire.currentTreadDepth) <= 2;
+  }).length;
+  const effectiveAxleCount =
+    chassis?.axleCount || new Set(rollingPositions.map((p) => p.axleNumber)).size || 2;
+
+  const positionWear = (pos: MountedPosition) => {
+    if (!pos.tire) {
+      return {
+        card: 'border-dashed border-gray-700 bg-seguranca-black/40 hover:border-seguranca-yellow/50',
+        dot: 'bg-gray-600',
+        text: 'text-gray-400',
+      };
+    }
+    const tread = pos.tire.currentTreadDepth != null ? Number(pos.tire.currentTreadDepth) : 15;
+    if (tread <= 2) {
+      return { card: 'border-red-500/70 bg-red-950/20', dot: 'bg-red-500', text: 'text-red-400' };
+    }
+    if (tread <= 4) {
+      return { card: 'border-amber-500/70 bg-amber-950/20', dot: 'bg-amber-500', text: 'text-amber-400' };
+    }
+    return { card: 'border-emerald-500/60 bg-emerald-950/15', dot: 'bg-emerald-500', text: 'text-emerald-400' };
   };
 
-  const renderTireSlot = (code: string, label: string) => {
-    const pos = getPositionByCode(code);
-    if (!pos) return null;
-
-    const tire = pos.tire;
-    const isOccupied = !!tire;
-    const tread = tire?.currentTreadDepth != null ? Number(tire.currentTreadDepth) : 15.0;
-    
-    // Status visual por sulco
-    let borderClass = 'border-dashed border-gray-600 hover:border-seguranca-yellow';
-    let bgClass = 'bg-seguranca-black/50';
-    let treadColor = 'text-gray-400';
-
-    if (isOccupied) {
-      if (tread <= 2.0) {
-        borderClass = 'border-red-500 bg-red-950/30 hover:border-red-400 shadow-sm shadow-red-900/40';
-        bgClass = 'bg-red-900/20';
-        treadColor = 'text-red-400 font-bold';
-      } else if (tread <= 4.0) {
-        borderClass = 'border-amber-500 bg-amber-950/30 hover:border-amber-400 shadow-sm shadow-amber-900/40';
-        bgClass = 'bg-amber-900/20';
-        treadColor = 'text-amber-400 font-semibold';
-      } else {
-        borderClass = 'border-emerald-500 bg-emerald-950/20 hover:border-emerald-400';
-        bgClass = 'bg-emerald-900/20';
-        treadColor = 'text-emerald-400 font-semibold';
-      }
-    }
+  const renderPositionCard = (pos: MountedPosition) => {
+    const wear = positionWear(pos);
+    const tread = pos.tire?.currentTreadDepth != null ? Number(pos.tire.currentTreadDepth) : null;
 
     return (
-      <div 
+      <button
+        key={`${pos.axleNumber}-${pos.positionIndex}-${pos.positionCode}`}
+        type="button"
         onClick={() => handlePositionClick(pos)}
-        className={`relative flex flex-col items-center justify-center p-2.5 rounded-xl border-2 transition-all cursor-pointer select-none min-w-[105px] h-[100px] ${borderClass} ${bgClass}`}
+        className={`text-left rounded-xl border-2 p-2.5 transition-all hover:-translate-y-0.5 hover:shadow-lg ${wear.card}`}
       >
-        <span className="text-[10px] font-bold uppercase text-gray-400 tracking-wider absolute top-1.5 left-2">
-          {code}
-        </span>
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 font-mono">
+            {pos.positionCode}
+          </span>
+          <span className={`h-2 w-2 rounded-full ${wear.dot}`} />
+        </div>
+        <p className="text-[10px] text-gray-500 truncate mt-0.5">{pos.positionName}</p>
 
-        {isOccupied ? (
-          <div className="text-center mt-2">
-            <span className="font-extrabold text-white text-xs block truncate max-w-[90px]">{tire.serialNumber}</span>
-            <span className="text-[10px] text-gray-300 block truncate max-w-[90px]">{tire.brand}</span>
-            <div className="mt-1 flex items-center justify-center gap-1">
-              <span className={`text-[11px] ${treadColor}`}>{tread.toFixed(1)} mm</span>
+        {pos.tire ? (
+          <>
+            <p className="text-xs font-bold text-white font-mono truncate mt-1">{pos.tire.serialNumber}</p>
+            <div className="flex items-center justify-between gap-1 mt-0.5">
+              <span className="text-[10px] text-gray-400 truncate">{pos.tire.brand}</span>
+              <span className={`text-[11px] font-semibold ${wear.text}`}>
+                {tread !== null ? `${tread.toFixed(1)} mm` : '—'}
+              </span>
             </div>
-            {tire.recapCount > 0 && (
-              <span className="text-[9px] bg-blue-500/20 text-blue-300 px-1 rounded border border-blue-500/40 mt-0.5 inline-block">
-                {tire.recapCount}ª Ref.
+            {pos.tire.recapCount > 0 && (
+              <span className="text-[9px] bg-blue-500/20 text-blue-300 px-1 rounded border border-blue-500/40 mt-1 inline-block">
+                {pos.tire.recapCount}ª Recap.
               </span>
             )}
-          </div>
+          </>
         ) : (
-          <div className="flex flex-col items-center justify-center text-gray-500 hover:text-seguranca-yellow mt-1">
-            <Plus size={20} className="mb-0.5" />
-            <span className="text-[10px] font-medium">Livre</span>
-          </div>
+          <p className="text-[11px] text-gray-500 mt-2 flex items-center gap-1">
+            <Plus size={12} /> Livre — montar
+          </p>
         )}
-      </div>
+      </button>
     );
   };
 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-3xl bg-seguranca-graphite border-gray-700 text-seguranca-lightgray">
+        <DialogContent className="max-w-5xl bg-seguranca-graphite border-gray-700 text-seguranca-lightgray">
           <DialogHeader>
             <div className="flex items-center justify-between">
               <div>
@@ -246,7 +285,7 @@ export const TireChassisDiagramModal: React.FC<TireChassisDiagramModalProps> = (
                   Diagrama do Chassi de Pneus: {vehiclePlate}
                 </DialogTitle>
                 <DialogDescription className="text-gray-400">
-                  {vehicleModel || 'Ônibus'} — Configuração de Eixos 4x2 (6 Pneus + Estepe)
+                  {vehicleModel || 'Veículo'} — {chassis?.layoutLabel || 'Mapeamento de pneus por eixo'}
                 </DialogDescription>
               </div>
 
@@ -285,61 +324,65 @@ export const TireChassisDiagramModal: React.FC<TireChassisDiagramModalProps> = (
           {loading ? (
             <div className="flex flex-col items-center justify-center p-12 text-gray-400">
               <Loader2 className="h-8 w-8 animate-spin text-seguranca-yellow mb-2" />
-              <p>Mapeando chassi do ônibus...</p>
+              <p>Mapeando chassi do veículo...</p>
+            </div>
+          ) : chassis ? (
+            <div className="space-y-4 my-2">
+              {/* Resumo da configuração */}
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge className="bg-seguranca-yellow/15 text-seguranca-yellow border border-seguranca-yellow/30 font-mono font-bold">
+                  {chassis.chassiType || '4x2'}
+                </Badge>
+                <Badge className="bg-seguranca-black text-gray-300 border border-gray-700">
+                  {chassis.layoutLabel || 'Chassi'}
+                </Badge>
+                <Badge className="bg-seguranca-black text-gray-300 border border-gray-700">
+                  {mountedCount}/{rollingPositions.length} pneus montados
+                </Badge>
+                {criticalCount > 0 && (
+                  <Badge className="bg-red-500/15 text-red-400 border border-red-500/30">
+                    {criticalCount} em estado crítico
+                  </Badge>
+                )}
+                <span className="text-[11px] text-gray-500 ml-auto hidden sm:inline">
+                  Clique em um pneu para montar ou desmontar
+                </span>
+              </div>
+
+              {/* Diagrama técnico (vista superior) */}
+              <div className="relative rounded-2xl bg-seguranca-black/80 border border-gray-800 p-2 sm:p-5 overflow-hidden">
+                <ChassisDiagram
+                  positions={rollingPositions}
+                  axleCount={effectiveAxleCount}
+                  dualRear={Boolean(chassis.dualRear)}
+                  tagAxle={chassis.chassiType === '6x2'}
+                  chassiType={chassis.chassiType}
+                  vehicleType={chassis.vehicleType}
+                  onSelectPosition={(position) => {
+                    const mounted = rollingPositions.find(
+                      (p) => p.positionCode === position.positionCode
+                    );
+                    if (mounted) handlePositionClick(mounted);
+                  }}
+                />
+              </div>
+
+              {/* Cards das posições (detalhes e ação) */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+                {rollingPositions.map(renderPositionCard)}
+                {sparePosition && renderPositionCard(sparePosition)}
+              </div>
+
+              {chassis.currentKm > 0 && (
+                <p className="text-[11px] text-gray-500 text-right">
+                  Odômetro: <strong className="text-gray-300 font-mono">{chassis.currentKm.toLocaleString('pt-BR')} km</strong>
+                </p>
+              )}
             </div>
           ) : (
-            <div className="relative p-6 rounded-2xl bg-seguranca-black/80 border border-gray-800 flex flex-col items-center gap-8 my-2">
-              {/* Contorno Visual do Ônibus (Top-down) */}
-              <div className="absolute inset-x-12 inset-y-4 rounded-3xl border border-dashed border-gray-700/60 pointer-events-none flex flex-col justify-between p-3">
-                <div className="text-center text-[10px] uppercase font-bold text-gray-600 tracking-widest">
-                  Frente do Ônibus (Direção)
-                </div>
-                <div className="text-center text-[10px] uppercase font-bold text-gray-600 tracking-widest">
-                  Traseira do Ônibus
-                </div>
-              </div>
-
-              {/* EIXO 1 - DIANTEIRO */}
-              <div className="relative z-10 w-full max-w-lg flex flex-col items-center">
-                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                  Eixo 1 — Direcional
-                </span>
-                <div className="w-full flex items-center justify-between px-6">
-                  {renderTireSlot('DE', 'Dianteiro Esquerdo')}
-                  <div className="h-1 flex-1 mx-4 bg-gradient-to-r from-gray-700 via-gray-600 to-gray-700 rounded"></div>
-                  {renderTireSlot('DD', 'Dianteiro Direito')}
-                </div>
-              </div>
-
-              {/* EIXO 2 - TRAÇÃO DUPLA */}
-              <div className="relative z-10 w-full max-w-lg flex flex-col items-center mt-2">
-                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                  Eixo 2 — Tração Dupla
-                </span>
-                <div className="w-full flex items-center justify-between px-4">
-                  {/* Rodado Duplo Esquerdo */}
-                  <div className="flex items-center gap-1.5">
-                    {renderTireSlot('TOE', 'Tração Ext. Esq.')}
-                    {renderTireSlot('TIE', 'Tração Int. Esq.')}
-                  </div>
-
-                  <div className="h-1 flex-1 mx-3 bg-gradient-to-r from-gray-700 via-gray-600 to-gray-700 rounded"></div>
-
-                  {/* Rodado Duplo Direito */}
-                  <div className="flex items-center gap-1.5">
-                    {renderTireSlot('TID', 'Tração Int. Dir.')}
-                    {renderTireSlot('TOD', 'Tração Ext. Dir.')}
-                  </div>
-                </div>
-              </div>
-
-              {/* ESTEPE */}
-              <div className="relative z-10 flex flex-col items-center mt-1">
-                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-                  Estepe Reserva
-                </span>
-                {renderTireSlot('ESTEPE', 'Estepe')}
-              </div>
+            <div className="flex flex-col items-center justify-center p-12 text-gray-400">
+              <AlertTriangle className="h-8 w-8 text-amber-500 mb-2" />
+              <p>Não foi possível carregar o chassi deste veículo.</p>
             </div>
           )}
 
@@ -391,7 +434,7 @@ export const TireChassisDiagramModal: React.FC<TireChassisDiagramModalProps> = (
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-xs text-gray-300">KM Atual do Ônibus:</Label>
+                <Label className="text-xs text-gray-300">KM Atual do Veículo:</Label>
                 <Input
                   type="number"
                   value={mountKm}
@@ -410,6 +453,18 @@ export const TireChassisDiagramModal: React.FC<TireChassisDiagramModalProps> = (
                 />
               </div>
             </div>
+
+            {needsFrontAxleApproval && selectedAvailableTire && (
+              <FrontAxleSecurityApprovalBox
+                recapCount={selectedAvailableTire.recapCount || 1}
+                approverUsernameOrEmail={approverUsernameOrEmail}
+                onChangeApproverUsernameOrEmail={setApproverUsernameOrEmail}
+                approverPassword={approverPassword}
+                onChangeApproverPassword={setApproverPassword}
+                riskTermAccepted={riskTermAccepted}
+                onChangeRiskTermAccepted={setRiskTermAccepted}
+              />
+            )}
           </div>
 
           <DialogFooter className="border-t border-gray-700 pt-3">

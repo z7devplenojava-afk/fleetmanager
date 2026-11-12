@@ -23,4 +23,7 @@ public interface CfmeDocumentRepository extends JpaRepository<CfmeDocument, UUID
     List<CfmeDocument> findByExpiryDateBeforeAndCompanyId(LocalDate date, UUID companyId);
 
     List<CfmeDocument> findByExpiryDateBetweenAndCompanyId(LocalDate start, LocalDate end, UUID companyId);
+
+    @org.springframework.data.jpa.repository.Query("SELECT d FROM CfmeDocument d WHERE d.expiryDate IS NOT NULL AND (:companyId IS NULL OR d.companyId = :companyId)")
+    List<CfmeDocument> findWithExpiryByCompany(@org.springframework.data.repository.query.Param("companyId") UUID companyId);
 }

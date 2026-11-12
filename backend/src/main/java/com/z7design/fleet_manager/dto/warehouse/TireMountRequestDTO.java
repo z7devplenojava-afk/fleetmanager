@@ -24,5 +24,11 @@ public class TireMountRequestDTO {
     private String positionCode; // DE, DD, TIE, TOE, TID, TOD, AIE, AOE, AID, AOD, ESTEPE
     private Integer currentVehicleKm;
     private BigDecimal treadDepthMm; // Medição do sulco no momento da montagem
+    private String lineType; // URBANA | METROPOLITANA | RODOVIARIA
     private String notes;
+
+    // Alçada de aprovação para pneu recapado no eixo dianteiro (Eixo 1 - Direcional)
+    private String approverUsernameOrEmail;
+    private String approverPassword;
+    private Boolean riskTermAccepted;
 }

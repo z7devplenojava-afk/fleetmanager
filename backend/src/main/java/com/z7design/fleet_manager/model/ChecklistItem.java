@@ -44,6 +44,10 @@ public class ChecklistItem implements TenantAware {
     @Column(name = "vehicle_model_applicable", length = 50)
     private String vehicleModelApplicable;
 
+    @Column(name = "template_model", nullable = false, length = 30)
+    @Builder.Default
+    private String templateModel = "MODELO_1";
+
     @Column(name = "ordem")
     @Builder.Default
     private Integer ordem = 0;

@@ -185,9 +185,21 @@ export const NotificationBell: React.FC = () => {
             )}
           </div>
 
-          {/* Footer com link direto para Gestão de Mensagens */}
-          {systemMessages.length > 0 && (
-            <div className="p-3 border-t border-border/80 bg-card/60 backdrop-blur-md flex-shrink-0">
+          {/* Footer com links para Central de Alertas e Mensagens */}
+          <div className="p-2.5 border-t border-border/80 bg-card/60 backdrop-blur-md flex-shrink-0 flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setIsOpen(false);
+                navigate('/central-alertas');
+              }}
+              className="flex-1 h-9 text-xs font-bold border-amber-500/40 text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 rounded-lg transition-colors flex items-center justify-center gap-1.5"
+            >
+              <Bell size={13} />
+              <span>CENTRAL DE ALERTAS</span>
+            </Button>
+            {systemMessages.length > 0 && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -195,13 +207,13 @@ export const NotificationBell: React.FC = () => {
                   setIsOpen(false);
                   navigate('/mensagens');
                 }}
-                className="w-full h-9 text-xs font-bold text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors flex items-center justify-center gap-1.5"
+                className="flex-1 h-9 text-xs font-bold text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors flex items-center justify-center gap-1.5"
               >
-                <span>VER TODAS AS MENSAGENS</span>
+                <span>MENSAGENS</span>
                 <ArrowRight size={14} />
               </Button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       )}
     </div>

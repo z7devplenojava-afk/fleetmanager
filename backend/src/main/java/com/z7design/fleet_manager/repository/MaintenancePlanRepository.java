@@ -17,4 +17,8 @@ public interface MaintenancePlanRepository extends JpaRepository<MaintenancePlan
     List<MaintenancePlan> findByIsActiveTrueAndVehicle_IdIn(Collection<UUID> vehicleIds);
 
     List<MaintenancePlan> findByIsActiveTrue();
+
+    @org.springframework.data.jpa.repository.Query("SELECT mp FROM MaintenancePlan mp JOIN FETCH mp.vehicle v " +
+            "WHERE mp.isActive = true AND v.deletedAt IS NULL AND (:companyId IS NULL OR mp.companyId = :companyId)")
+    List<MaintenancePlan> findActiveWithVehicleByCompany(@org.springframework.data.repository.query.Param("companyId") UUID companyId);
 }
