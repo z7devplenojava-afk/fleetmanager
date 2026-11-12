@@ -30,6 +30,8 @@ export interface ChassisDiagramProps {
   tagAxle?: boolean;
   /** "4x2" | "6x2" | "6x4" | "8x2" */
   chassiType?: string;
+  /** Variante visual específica: padrão, DD 4 eixos (2 direcionais + 2 traseiros) ou Bi-Articulado (3 módulos / 2 sanfonas). */
+  layoutVariant?: 'STANDARD' | 'DD_4_AXLES' | 'BIARTICULATED';
   /** VAN, BUS_URBAN, TRUCK, ... — muda o desenho da carroceria. */
   vehicleType?: string;
   onSelectPosition?: (position: ChassisDiagramPosition) => void;
@@ -86,14 +88,36 @@ const rearAxleX = (index: number, count: number): number => {
   return group[Math.min(Math.max(index, 0), group.length - 1)];
 };
 
-const axleLabel = (axleNumber: number, tagAxle: boolean, chassiType?: string): string => {
+const axleLabel = (
+  axleNumber: number,
+  tagAxle: boolean,
+  chassiType?: string,
+  variant: 'STANDARD' | 'DD_4_AXLES' | 'BIARTICULATED' = 'STANDARD'
+): string => {
+  if (variant === 'DD_4_AXLES') {
+    if (axleNumber === 1) return 'DIRECIONAL 1';
+    if (axleNumber === 2) return 'DIRECIONAL 2';
+    if (axleNumber === 3) return 'TRAÇÃO';
+    return 'AUXILIAR';
+  }
+  if (variant === 'BIARTICULATED') {
+    if (axleNumber === 1) return 'DIRECIONAL';
+    if (axleNumber === 2) return 'TRAÇÃO';
+    if (axleNumber === 3) return 'ARTIC. 1';
+    return 'ARTIC. 2';
+  }
   if (axleNumber === 1) return 'DIRECIONAL';
   if (axleNumber === 2) return 'TRAÇÃO';
   if (axleNumber === 3) return chassiType === '6x4' ? 'TRAÇÃO' : 'AUXILIAR';
   return tagAxle ? 'AUXILIAR' : 'TRAÇÃO';
 };
 
-const isDriveAxle = (axleNumber: number, chassiType?: string): boolean => {
+const isDriveAxle = (
+  axleNumber: number,
+  chassiType?: string,
+  variant: 'STANDARD' | 'DD_4_AXLES' | 'BIARTICULATED' = 'STANDARD'
+): boolean => {
+  if (variant === 'DD_4_AXLES') return axleNumber === 3;
   if (axleNumber === 2) return true;
   if (axleNumber === 3) return chassiType === '6x4';
   if (axleNumber === 4) return chassiType === '8x4';
@@ -111,6 +135,7 @@ export const ChassisDiagram: React.FC<ChassisDiagramProps> = ({
   dualRear,
   tagAxle = false,
   chassiType,
+  layoutVariant,
   vehicleType,
   onSelectPosition,
   selectedPositionCode,
@@ -132,8 +157,27 @@ export const ChassisDiagram: React.FC<ChassisDiagramProps> = ({
       positions: [...list].sort((a, b) => (a.positionIndex ?? 0) - (b.positionIndex ?? 0)),
     }));
 
+  const resolvedVariant: 'STANDARD' | 'DD_4_AXLES' | 'BIARTICULATED' = (() => {
+    if (layoutVariant) return layoutVariant;
+    if (axles.length === 4 && (axles[1]?.positions.length ?? 0) <= 2) return 'DD_4_AXLES';
+    if (axles.length === 4 && (chassiType || '').toUpperCase().includes('BIART')) return 'BIARTICULATED';
+    return 'STANDARD';
+  })();
+
   const rearAxles = axles.filter((a) => a.number > 1);
   const axleX = (axleNumber: number): number => {
+    if (resolvedVariant === 'DD_4_AXLES') {
+      if (axleNumber === 1) return 232;
+      if (axleNumber === 2) return 372;
+      if (axleNumber === 3) return 845;
+      return 1015;
+    }
+    if (resolvedVariant === 'BIARTICULATED') {
+      if (axleNumber === 1) return 215;
+      if (axleNumber === 2) return 415;
+      if (axleNumber === 3) return 685;
+      return 985;
+    }
     if (axleNumber === 1) return FRONT_AXLE_X;
     const index = rearAxles.findIndex((a) => a.number === axleNumber);
     return rearAxleX(Math.max(index, 0), rearAxles.length);
@@ -286,7 +330,28 @@ export const ChassisDiagram: React.FC<ChassisDiagramProps> = ({
       </defs>
 
       {/* Carroceria / envelope do veículo */}
-      {isTruck ? (
+      {resolvedVariant === 'BIARTICULATED' ? (
+        <>
+          {/* Módulo 1 (Dianteiro) */}
+          <rect x={26} y={16} width={478} height={396} rx={36} fill="#0b1016" stroke="#334155" strokeWidth={2} />
+          {/* Sanfona / Articulação 1 */}
+          <rect x={504} y={56} width={76} height={316} rx={8} fill="#111827" stroke="#475569" strokeWidth={1.8} />
+          {[516, 528, 540, 552, 564].map((sx) => (
+            <line key={`s1-${sx}`} x1={sx} y1={60} x2={sx} y2={368} stroke="#334155" strokeWidth={2} />
+          ))}
+          <circle cx={542} cy={CENTER_Y} r={34} fill="#0f172a" stroke="#475569" strokeWidth={1.6} />
+          {/* Módulo 2 (Intermediário) */}
+          <rect x={580} y={16} width={202} height={396} rx={20} fill="#0b1016" stroke="#334155" strokeWidth={2} />
+          {/* Sanfona / Articulação 2 */}
+          <rect x={782} y={56} width={76} height={316} rx={8} fill="#111827" stroke="#475569" strokeWidth={1.8} />
+          {[794, 806, 818, 830, 842].map((sx) => (
+            <line key={`s2-${sx}`} x1={sx} y1={60} x2={sx} y2={368} stroke="#334155" strokeWidth={2} />
+          ))}
+          <circle cx={820} cy={CENTER_Y} r={34} fill="#0f172a" stroke="#475569" strokeWidth={1.6} />
+          {/* Módulo 3 (Traseiro) */}
+          <rect x={858} y={16} width={296} height={396} rx={32} fill="#0b1016" stroke="#334155" strokeWidth={2} />
+        </>
+      ) : isTruck ? (
         <>
           <rect
             x={26}
@@ -364,7 +429,9 @@ export const ChassisDiagram: React.FC<ChassisDiagramProps> = ({
 
       {/* Cardã até o eixo de tração */}
       {(() => {
-        const driveX = axleX(2);
+        const driveAxleNum = resolvedVariant === 'DD_4_AXLES' ? 3 : 2;
+        const driveX = axleX(driveAxleNum);
+        const midX = Math.round((322 + driveX) / 2);
         return (
           <>
             <line
@@ -377,7 +444,9 @@ export const ChassisDiagram: React.FC<ChassisDiagramProps> = ({
               strokeLinecap="round"
             />
             <circle cx={330} cy={CENTER_Y} r={9} fill="#334155" stroke="#64748b" strokeWidth={1.5} />
-            <circle cx={560} cy={CENTER_Y} r={7} fill="#334155" stroke="#64748b" strokeWidth={1.5} />
+            {driveX - 322 > 140 && (
+              <circle cx={midX} cy={CENTER_Y} r={7} fill="#334155" stroke="#64748b" strokeWidth={1.5} />
+            )}
           </>
         );
       })()}
@@ -390,10 +459,10 @@ export const ChassisDiagram: React.FC<ChassisDiagramProps> = ({
         const wheelY = ys.slice(0, Math.min(axle.positions.length, ys.length));
         const minY = Math.min(...wheelY) - 10;
         const maxY = Math.max(...wheelY) + 10;
-        const drive = isDriveAxle(axle.number, chassiType);
+        const drive = isDriveAxle(axle.number, chassiType, resolvedVariant);
         const nextAxle = axles[axleIndex + 1];
         const nextDriveX =
-          drive && nextAxle && isDriveAxle(nextAxle.number, chassiType) ? axleX(nextAxle.number) : null;
+          drive && nextAxle && isDriveAxle(nextAxle.number, chassiType, resolvedVariant) ? axleX(nextAxle.number) : null;
 
         return (
           <g key={`axle-${axle.number}`}>
@@ -444,7 +513,7 @@ export const ChassisDiagram: React.FC<ChassisDiagramProps> = ({
               EIXO {axle.number}
             </text>
             <text x={x} y={452} textAnchor="middle" fontSize={9.5} fill="#475569" letterSpacing={0.8}>
-              {axleLabel(axle.number, tagAxle, chassiType)}
+              {axleLabel(axle.number, tagAxle, chassiType, resolvedVariant)}
             </text>
           </g>
         );

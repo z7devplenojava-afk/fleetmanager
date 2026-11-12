@@ -297,11 +297,10 @@ export const FleetWorkOrderViewModal: React.FC<FleetWorkOrderViewModalProps> = (
                                     type="button"
                                     onClick={() => handleSwitchTemplate('MODELO_1')}
                                     disabled={isLoading}
-                                    className={`px-2 py-1 rounded text-[11px] font-bold transition-all ${
-                                        selectedTemplateModel !== 'MODELO_2'
-                                            ? 'bg-blue-600 !text-white shadow-sm'
-                                            : 'text-gray-400 hover:text-white'
-                                    }`}
+                                    className={`px-2 py-1 rounded text-[11px] font-bold transition-all ${selectedTemplateModel !== 'MODELO_2'
+                                        ? 'bg-blue-600 !text-white shadow-sm'
+                                        : 'text-gray-400 hover:text-white'
+                                        }`}
                                     title="Layout Modelo 1 (OS Completa)"
                                 >
                                     Modelo 1
@@ -310,11 +309,10 @@ export const FleetWorkOrderViewModal: React.FC<FleetWorkOrderViewModalProps> = (
                                     type="button"
                                     onClick={() => handleSwitchTemplate('MODELO_2')}
                                     disabled={isLoading}
-                                    className={`px-2 py-1 rounded text-[11px] font-bold transition-all ${
-                                        selectedTemplateModel === 'MODELO_2'
-                                            ? 'bg-emerald-600 !text-white shadow-sm'
-                                            : 'text-gray-400 hover:text-white'
-                                    }`}
+                                    className={`px-2 py-1 rounded text-[11px] font-bold transition-all ${selectedTemplateModel === 'MODELO_2'
+                                        ? 'bg-emerald-600 !text-white shadow-sm'
+                                        : 'text-gray-400 hover:text-white'
+                                        }`}
                                     title="Layout Modelo 2 (Check-List Verificação de Frota + Matriz KM)"
                                 >
                                     Modelo 2
@@ -327,11 +325,10 @@ export const FleetWorkOrderViewModal: React.FC<FleetWorkOrderViewModalProps> = (
                                     type="button"
                                     onClick={() => handleSwitchMode(false)}
                                     disabled={isLoading}
-                                    className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all ${
-                                        !isBlankMode
-                                            ? 'bg-emerald-600 !text-white shadow-sm'
-                                            : 'text-gray-400 hover:text-white'
-                                    }`}
+                                    className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all ${!isBlankMode
+                                        ? 'bg-emerald-600 !text-white shadow-sm'
+                                        : 'text-gray-400 hover:text-white'
+                                        }`}
                                     title="PDF com os itens preenchidos no sistema"
                                 >
                                     ✓ Preenchido
@@ -340,11 +337,10 @@ export const FleetWorkOrderViewModal: React.FC<FleetWorkOrderViewModalProps> = (
                                     type="button"
                                     onClick={() => handleSwitchMode(true)}
                                     disabled={isLoading}
-                                    className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all ${
-                                        isBlankMode
-                                            ? 'bg-amber-600 !text-white shadow-sm'
-                                            : 'text-gray-400 hover:text-white'
-                                    }`}
+                                    className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all ${isBlankMode
+                                        ? 'bg-amber-600 !text-white shadow-sm'
+                                        : 'text-gray-400 hover:text-white'
+                                        }`}
                                     title="Gerar PDF com os campos do checklist em branco para preenchimento manual em papel"
                                 >
                                     ⬜ Em Branco (Manual)

@@ -32,6 +32,7 @@ type ChassisTopology =
     | '3_AXLES_TRUCK'
     | '3_AXLES_TAG'
     | '2_AXLES_SINGLE'
+    | '4_AXLES_DD'
     | '4_AXLES_ARTICULATED';
 
 interface ChassisPositionDef {
@@ -119,7 +120,10 @@ export const BusTireMapper: React.FC<BusTireMapperProps> = ({
         const axleCount = Number(selectedVehicle.axleCount) || 0;
 
         if (busType.includes('BIARTICULADO') || modelLower.includes('biarticul')) return '4_AXLES_ARTICULATED';
-        if (axleCount >= 4) return '4_AXLES_ARTICULATED';
+        if (busType.includes('DOUBLE_DECKER') || modelLower.includes('double decker') || /\bdd\b/.test(modelLower) || modelLower.includes('1800 dd')) {
+            return '4_AXLES_DD';
+        }
+        if (axleCount >= 4) return '4_AXLES_DD';
         if (axleCount >= 3) {
             // Trucks com PBT alto normalmente são 6x4; rodoviários/articulados são 6x2.
             if (vehicleType === 'TRUCK') return '3_AXLES_TRUCK';
@@ -139,20 +143,20 @@ export const BusTireMapper: React.FC<BusTireMapperProps> = ({
     const currentTopology = getChassisTopology();
 
     const currentAxleCount = (() => {
-        if (currentTopology === '4_AXLES_ARTICULATED') return 4;
+        if (currentTopology === '4_AXLES_DD' || currentTopology === '4_AXLES_ARTICULATED') return 4;
         if (currentTopology === '3_AXLES_TRUCK' || currentTopology === '3_AXLES_TAG') return 3;
         return 2;
     })();
 
     const currentChassiType = (() => {
-        if (currentTopology === '4_AXLES_ARTICULATED') return '8x2';
+        if (currentTopology === '4_AXLES_DD' || currentTopology === '4_AXLES_ARTICULATED') return '8x2';
         if (currentTopology === '3_AXLES_TRUCK') return '6x4';
         if (currentTopology === '3_AXLES_TAG') return '6x2';
         return '4x2';
     })();
 
     const isDualRear = currentTopology !== '2_AXLES_SINGLE';
-    const isTagAxle = currentTopology === '3_AXLES_TAG' || currentTopology === '4_AXLES_ARTICULATED';
+    const isTagAxle = currentTopology === '3_AXLES_TAG' || currentTopology === '4_AXLES_DD' || currentTopology === '4_AXLES_ARTICULATED';
 
     const positionDefs: ChassisPositionDef[] = (() => {
         const defs: ChassisPositionDef[] = [
@@ -177,6 +181,17 @@ export const BusTireMapper: React.FC<BusTireMapperProps> = ({
             );
         };
 
+        if (currentTopology === '4_AXLES_DD') {
+            // DD 4 Eixos (8x2 — 12 pneus): 2 direcionais simples na frente + 2 eixos duplos atrás
+            defs.push(
+                { axleNumber: 2, positionIndex: 0, positionCode: 'D2E', label: '2. DIRECIONAL ESQ (D2E)' },
+                { axleNumber: 2, positionIndex: 1, positionCode: 'D2D', label: '2. DIRECIONAL DIR (D2D)' }
+            );
+            dualAxle(3, 'T');
+            dualAxle(4, 'A');
+            return defs;
+        }
+
         dualAxle(2, 'T');
         if (currentAxleCount >= 3) dualAxle(3, 'A');
         if (currentAxleCount >= 4) dualAxle(4, 'B');
@@ -197,11 +212,11 @@ export const BusTireMapper: React.FC<BusTireMapperProps> = ({
                     positionName: def.label,
                     tire: tire
                         ? {
-                              serialNumber: getTireDisplayCode(tire),
-                              brand: tire.brand,
-                              currentTreadDepth: tire.currentTreadDepth,
-                              recapCount: tire.recapCount,
-                          }
+                            serialNumber: getTireDisplayCode(tire),
+                            brand: tire.brand,
+                            currentTreadDepth: tire.currentTreadDepth,
+                            recapCount: tire.recapCount,
+                        }
                         : null,
                 };
             }),
@@ -216,13 +231,12 @@ export const BusTireMapper: React.FC<BusTireMapperProps> = ({
         return (
             <motion.div
                 whileHover={{ scale: 1.03 }}
-                className={`relative w-full h-40 border-2 border-dashed rounded-xl flex flex-col items-center justify-between p-2 cursor-pointer transition-all ${
-                    tire
+                className={`relative w-full h-40 border-2 border-dashed rounded-xl flex flex-col items-center justify-between p-2 cursor-pointer transition-all ${tire
                         ? isFrontAxleWarning
                             ? 'bg-red-950/50 border-red-500 shadow-lg shadow-red-950/30 hover:border-red-400'
                             : 'bg-seguranca-black/70 border-seguranca-yellow/70 shadow-lg shadow-yellow-950/20 hover:border-seguranca-yellow'
                         : 'bg-seguranca-black/20 border-gray-700 hover:border-seguranca-yellow/50 hover:bg-seguranca-black/40'
-                }`}
+                    }`}
                 onClick={() => {
                     if (tire) {
                         onTireClick(tire);
@@ -241,11 +255,10 @@ export const BusTireMapper: React.FC<BusTireMapperProps> = ({
                         <div className="flex justify-between items-center w-full">
                             <Badge
                                 variant="outline"
-                                className={`text-[9px] px-1 py-0 ${
-                                    isFrontAxleWarning
+                                className={`text-[9px] px-1 py-0 ${isFrontAxleWarning
                                         ? 'border-red-400 text-red-200 bg-red-900/60'
                                         : 'border-seguranca-yellow text-seguranca-yellow bg-yellow-950/40'
-                                }`}
+                                    }`}
                             >
                                 {tire.recapCount > 0 ? `${tire.recapCount}ª Recap` : 'Novo'}
                             </Badge>
@@ -279,13 +292,12 @@ export const BusTireMapper: React.FC<BusTireMapperProps> = ({
                                 >
                                     <span className="text-[8px] text-gray-500 block">PRÓX.</span>
                                     <span
-                                        className={`font-bold ${
-                                            metrics.nextExchange.status === 'OVERDUE'
+                                        className={`font-bold ${metrics.nextExchange.status === 'OVERDUE'
                                                 ? 'text-red-400'
                                                 : metrics.nextExchange.status === 'DUE_SOON'
-                                                ? 'text-amber-300'
-                                                : 'text-emerald-400'
-                                        }`}
+                                                    ? 'text-amber-300'
+                                                    : 'text-emerald-400'
+                                            }`}
                                     >
                                         {metrics.nextExchange.compactRemaining}
                                     </span>
@@ -388,7 +400,8 @@ export const BusTireMapper: React.FC<BusTireMapperProps> = ({
                             <SelectItem value="2_AXLES_DUAL">Van 4 pneus traseiros / Micro-ônibus — 4x2 (6 pneus)</SelectItem>
                             <SelectItem value="3_AXLES_TAG">Rodoviário — 6x2 (10 pneus, eixo auxiliar)</SelectItem>
                             <SelectItem value="3_AXLES_TRUCK">Trucado / Caminhão — 6x4 (10 pneus, tração dupla)</SelectItem>
-                            <SelectItem value="4_AXLES_ARTICULATED">Biarticulado / 4 eixos — 8x2 (14 pneus)</SelectItem>
+                            <SelectItem value="4_AXLES_DD">DD (Double Decker) / 4 eixos — 8x2 (12 pneus)</SelectItem>
+                            <SelectItem value="4_AXLES_ARTICULATED">Bi-Articulado / 4 eixos — 8x2 (14 pneus, 2 articulações)</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
@@ -462,6 +475,13 @@ export const BusTireMapper: React.FC<BusTireMapperProps> = ({
                         dualRear={isDualRear}
                         tagAxle={isTagAxle}
                         chassiType={currentChassiType}
+                        layoutVariant={
+                            currentTopology === '4_AXLES_DD'
+                                ? 'DD_4_AXLES'
+                                : currentTopology === '4_AXLES_ARTICULATED'
+                                    ? 'BIARTICULATED'
+                                    : 'STANDARD'
+                        }
                         vehicleType={selectedVehicle?.vehicleType}
                         onSelectPosition={(position) => {
                             const tire = vehicleTires.find(

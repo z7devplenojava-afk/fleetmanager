@@ -166,6 +166,7 @@
 
     .sign-table {
       width: 100%;
+      table-layout: fixed;
       border-collapse: collapse;
       margin-top: 5px;
       page-break-inside: avoid;
@@ -176,9 +177,13 @@
       padding: 5px 8px;
       vertical-align: bottom;
       height: 36px;
+      overflow: hidden;
+      word-wrap: break-word;
     }
 
     .sig-img {
+      height: 24px;
+      width: auto;
       max-height: 24px;
       max-width: 130px;
       display: block;

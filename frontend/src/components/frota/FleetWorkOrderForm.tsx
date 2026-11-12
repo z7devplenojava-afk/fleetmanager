@@ -528,6 +528,43 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         }));
     }, [isOpen, employees]);
 
+    const driverOptions = React.useMemo<SearchableOption[]>(() => {
+        if (!isOpen || !employees || employees.length === 0) return [];
+        const normalize = (s: string) =>
+            s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        const isDriverRole = (e: any) => {
+            const pos = normalize([
+                e.positionDescription,
+                e.position?.name,
+                e.position?.description,
+                e.cargo,
+                e.funcao,
+                e.jobTitle,
+                e.cbo,
+            ].filter(Boolean).join(' '));
+            return pos.includes('motorista') || pos.includes('condutor');
+        };
+        const drivers = employees.filter(isDriverRole);
+        const list = drivers.length > 0 ? drivers : employees;
+        const seen = new Set<string>();
+        const opts: SearchableOption[] = [];
+        for (const e of list) {
+            const name = String(e.name || e.fullName || '').trim();
+            if (!name) continue;
+            const key = name.toLowerCase();
+            if (seen.has(key)) continue;
+            seen.add(key);
+            const pos = e.positionDescription || e.position?.name || e.cargo || e.funcao || '';
+            opts.push({
+                value: name,
+                label: name,
+                subtitle: [pos, e.registrationNumber ? `Mat. ${e.registrationNumber}` : ''].filter(Boolean).join(' • ') || undefined,
+                keywords: [name, e.registrationNumber, e.cpf, pos].filter(Boolean),
+            });
+        }
+        return opts;
+    }, [isOpen, employees]);
+
     const garageOptions = React.useMemo<SearchableOption[]>(() => {
         if (!isOpen) return [];
         return garagesForOS.map((g: Garage) => ({
@@ -909,12 +946,31 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         if (order) {
             const resp = getOrderResponsibleDisplay(order);
             const fallbackDriver = isDriverUser ? (user?.name || (user as any)?.fullName || user?.username || '') : '';
+            const openedByDriverFromText = (!order.driverName || !order.driverName.trim()) && order.requesterName
+                ? (() => {
+                    const reqName = order.requesterName.trim();
+                    const reqEmp = employees.find((e: any) =>
+                        (e.id && order.requesterId && String(e.id) === String(order.requesterId))
+                        || String(e.name || e.fullName || '').trim().toLowerCase() === reqName.toLowerCase()
+                    );
+                    const pos = [reqEmp?.positionDescription, reqEmp?.position?.name, reqEmp?.cargo, reqEmp?.funcao]
+                        .filter(Boolean).join(' ').toLowerCase();
+                    if (pos.includes('motorista') || pos.includes('condutor')
+                        || (order.notes || '').toLowerCase().includes('motorista')
+                        || (order.stopReason || '').toLowerCase().includes('motorista')) {
+                        return reqName;
+                    }
+                    return '';
+                })()
+                : '';
             const cleanMechanicName = order.mechanicName && !order.mechanicName.toLowerCase().includes('(motorista)')
                 ? order.mechanicName
                 : (resp !== 'Não atribuído' && !resp.toLowerCase().includes('(motorista)') ? resp : '');
             setFormData({
                 ...order,
-                driverName: (order.driverName && order.driverName.trim()) ? order.driverName : fallbackDriver,
+                driverName: (order.driverName && order.driverName.trim())
+                    ? order.driverName.trim()
+                    : (openedByDriverFromText || fallbackDriver),
                 requestDate: order.requestDate || order.stopDate || new Date().toISOString().split('T')[0],
                 mechanicName: cleanMechanicName,
                 responsibleName: (order.responsibleName && order.responsibleName.trim() && !order.responsibleName.toLowerCase().includes('(motorista)'))
@@ -991,6 +1047,21 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         setNewNote('');
     }, [order, isOpen, initialVehicleId, initialValues, isDriverUser]);
 
+    useEffect(() => {
+        if (!isOpen || !order || formData.driverName?.trim() || employees.length === 0) return;
+        const reqName = (order.requesterName || '').trim();
+        if (!reqName) return;
+        const reqEmp = employees.find((e: any) =>
+            (e.id && order.requesterId && String(e.id) === String(order.requesterId))
+            || String(e.name || e.fullName || '').trim().toLowerCase() === reqName.toLowerCase()
+        );
+        const pos = [reqEmp?.positionDescription, reqEmp?.position?.name, reqEmp?.cargo, reqEmp?.funcao]
+            .filter(Boolean).join(' ').toLowerCase();
+        if (pos.includes('motorista') || pos.includes('condutor')) {
+            setFormData(p => (p.driverName && p.driverName.trim()) ? p : { ...p, driverName: reqName });
+        }
+    }, [isOpen, order, employees, formData.driverName]);
+
     // Veículo selecionado atualmente
     const selectedVehicle = React.useMemo(() => {
         if (!formData.vehicleId) return null;
@@ -1017,6 +1088,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
             odometerIn: (selectedVeh?.currentMileage !== undefined && selectedVeh?.currentMileage !== null)
                 ? selectedVeh.currentMileage
                 : p.odometerIn,
+            driverName: (p.driverName && p.driverName.trim()) ? p.driverName : (selectedVeh?.assignedDriver || ''),
             operationProfile: inferVehicleOperationProfile(selectedVeh)
         }));
         if (formData.maintenanceType === MaintenanceType.PREVENTIVA && (!isEdit || !order?.checklistItems || order.checklistItems.length === 0)) {
@@ -2348,14 +2420,25 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                             />
                         </Field>
                         <Field label="Motorista">
-                            <Input
-                                value={formData.driverName || ''}
-                                onChange={e => setFormData(p => ({ ...p, driverName: e.target.value }))}
-                                readOnly={isDriverUser}
-                                disabled={isDriverUser}
-                                placeholder="Nome do motorista"
-                                className="bg-seguranca-black border-gray-600"
-                            />
+                            {isDriverUser ? (
+                                <Input
+                                    value={formData.driverName || ''}
+                                    readOnly
+                                    disabled
+                                    placeholder="Nome do motorista"
+                                    className="bg-seguranca-black border-gray-600 text-emerald-300 font-semibold cursor-not-allowed opacity-90"
+                                />
+                            ) : (
+                                <SearchableSelect
+                                    value={formData.driverName || ''}
+                                    fallbackLabel={formData.driverName || undefined}
+                                    onChange={(v, opt) => setFormData(p => ({ ...p, driverName: opt ? opt.label : (v || '') }))}
+                                    options={driverOptions}
+                                    placeholder="Selecione o motorista (cargo Motorista)…"
+                                    searchPlaceholder="Buscar motorista por nome ou matrícula..."
+                                    emptyText="Nenhum funcionário com cargo Motorista encontrado."
+                                />
+                            )}
                         </Field>
                         <Field label="Data da Solicitação">
                             <Input
