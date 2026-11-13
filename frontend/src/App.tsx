@@ -867,12 +867,16 @@ function App() {
                       {/* Frota */}
                       <Route path="/fleet" element={
                         <ProtectedRoute requiredPermissions={['EQUIPMENTS_READ']}>
-                          <Frota />
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <Frota />
+                          </Suspense>
                         </ProtectedRoute>
                       } />
                       <Route path="/frota" element={
                         <ProtectedRoute requiredPermissions={['EQUIPMENTS_READ']}>
-                          <Frota />
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <Frota />
+                          </Suspense>
                         </ProtectedRoute>
                       } />
                       <Route path="/frota/mobilizacao" element={

@@ -161,10 +161,10 @@ const mapVehicleToComponent = (vehicle: Vehicle): VeiculoComponent => {
     modelo: vehicle.model,
     ano: vehicle.year,
     cor: vehicle.color,
-    combustivel: vehicle.fuelType.toLowerCase(),
+    combustivel: (vehicle.fuelType || 'DIESEL').toLowerCase(),
     quilometragem: vehicle.currentMileage,
     quilometragemInicial: undefined, // Campo não existe na interface Vehicle
-    status: vehicle.status.toLowerCase(),
+    status: (vehicle.status || 'ACTIVE').toLowerCase(),
     vehicleType: vehicle.vehicleType,
     data_aquisicao: vehicle.acquisitionDate,
     valor_aquisicao: vehicle.acquisitionValue ? Number(vehicle.acquisitionValue) : undefined,

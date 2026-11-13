@@ -122,7 +122,7 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
   const [selectedWorkOrderForView, setSelectedWorkOrderForView] = useState<FleetWorkOrder | null>(null);
 
   // Buscar Ordens de Serviço (OS) ativas da frota (com cache de 60s para evitar refetch contínuo)
-  const { data: workOrders = [] } = useQuery({
+  const { data: rawWorkOrders = [] } = useQuery({
     queryKey: ['fleet-work-orders'],
     queryFn: () => fleetWorkOrderService.findAll(),
     staleTime: 60 * 1000,
@@ -130,36 +130,78 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
     refetchOnWindowFocus: false,
   });
 
-  // Função para obter a OS ativa do veículo
-  const getVehicleWorkOrder = (vehicleId: string, vehiclePlate?: string): FleetWorkOrder | null => {
-    if (!workOrders || workOrders.length === 0) return null;
-    const cleanPlate = vehiclePlate ? vehiclePlate.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() : '';
+  // Mapeamento O(1) de Ordens de Serviço ativas por ID de veículo e por placa
+  const activeWorkOrdersMap = React.useMemo(() => {
+    const list: FleetWorkOrder[] = Array.isArray(rawWorkOrders)
+      ? rawWorkOrders
+      : (Array.isArray((rawWorkOrders as any)?.content) ? (rawWorkOrders as any).content : []);
 
-    return workOrders.find(wo => {
+    const byId = new Map<string, FleetWorkOrder>();
+    const byPlate = new Map<string, FleetWorkOrder>();
+
+    for (const wo of list) {
       const isActive = wo.status !== WorkOrderStatus.COMPLETED && wo.status !== WorkOrderStatus.CANCELLED;
-      if (!isActive) return false;
+      if (!isActive) continue;
 
-      const matchId = Boolean(wo.vehicleId && String(wo.vehicleId) === String(vehicleId));
-      const woPlate = wo.vehiclePlate ? wo.vehiclePlate.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() : '';
-      const matchPlate = Boolean(cleanPlate && woPlate && cleanPlate === woPlate);
+      if (wo.vehicleId) {
+        byId.set(String(wo.vehicleId), wo);
+      }
+      if (wo.vehiclePlate) {
+        const clean = wo.vehiclePlate.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+        if (clean) byPlate.set(clean, wo);
+      }
+    }
+    return { byId, byPlate };
+  }, [rawWorkOrders]);
 
-      return matchId || matchPlate;
-    }) || null;
+  // Função para obter a OS ativa do veículo (lookup O(1))
+  const getVehicleWorkOrder = (vehicleId: string, vehiclePlate?: string): FleetWorkOrder | null => {
+    if (vehicleId && activeWorkOrdersMap.byId.has(String(vehicleId))) {
+      return activeWorkOrdersMap.byId.get(String(vehicleId)) || null;
+    }
+    if (vehiclePlate) {
+      const cleanPlate = vehiclePlate.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+      if (cleanPlate && activeWorkOrdersMap.byPlate.has(cleanPlate)) {
+        return activeWorkOrdersMap.byPlate.get(cleanPlate) || null;
+      }
+    }
+    return null;
   };
 
-  // Função para obter manutenção legada
+  // Mapeamento O(1) de manutenções legadas ativas
+  const activeMaintenancesMap = React.useMemo(() => {
+    const list: VehicleMaintenance[] = Array.isArray(maintenances)
+      ? maintenances
+      : (Array.isArray((maintenances as any)?.content) ? (maintenances as any).content : []);
+
+    const byId = new Map<string, VehicleMaintenance>();
+    const byPlate = new Map<string, VehicleMaintenance>();
+
+    for (const m of list) {
+      if (m.status !== 'IN_PROGRESS') continue;
+      if (m.vehicleId) {
+        byId.set(String(m.vehicleId), m);
+      }
+      if (m.vehiclePlate) {
+        const clean = m.vehiclePlate.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+        if (clean) byPlate.set(clean, m);
+      }
+    }
+    return { byId, byPlate };
+  }, [maintenances]);
+
+  // Função para obter manutenção legada (lookup O(1))
   const getVehicleLegacyMaintenance = (vehicleId: string, vehiclePlate?: string): VehicleMaintenance | null => {
-    if (!maintenances || maintenances.length === 0) return null;
-    const cleanPlate = vehiclePlate ? vehiclePlate.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() : '';
-
-    return maintenances.find(m => {
-      if (m.status !== 'IN_PROGRESS') return false;
-      const matchId = Boolean(m.vehicleId && String(m.vehicleId) === String(vehicleId));
-      const mPlate = m.vehiclePlate ? m.vehiclePlate.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() : '';
-      const matchPlate = Boolean(cleanPlate && mPlate && cleanPlate === mPlate);
-
-      return matchId || matchPlate;
-    }) || null;
+    if (vehicleId && activeMaintenancesMap.byId.has(String(vehicleId))) {
+      return activeMaintenancesMap.byId.get(String(vehicleId)) || null;
+    }
+    if (vehiclePlate) {
+      const cleanPlate = vehiclePlate.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+      if (cleanPlate && activeMaintenancesMap.byPlate.has(cleanPlate)) {
+        return activeMaintenancesMap.byPlate.get(cleanPlate) || null;
+      }
+    }
+    return null;
   };
 
   // Função para verificar se um veículo está em manutenção (OS ativa, manutenção legada ou status manutencao)
