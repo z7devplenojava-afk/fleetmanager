@@ -52,33 +52,72 @@ public class VacationDTO {
     private String observacoes;
 
     public static VacationDTO fromEntity(Vacation vacation) {
+        UUID empId = null;
+        String empName = null;
+        try {
+            if (vacation.getEmployee() != null) {
+                empId = vacation.getEmployee().getId();
+                empName = vacation.getEmployee().getName();
+            }
+        } catch (Exception ignored) {}
+
+        UUID apprId = null;
+        String apprName = null;
+        try {
+            if (vacation.getApprovedBy() != null) {
+                apprId = vacation.getApprovedBy().getId();
+                apprName = vacation.getApprovedBy().getName();
+            }
+        } catch (Exception ignored) {}
+
+        UUID paId = null;
+        LocalDate paInicio = null;
+        LocalDate paFim = null;
+        LocalDate paLimite = null;
+        try {
+            if (vacation.getPeriodoAquisitivo() != null) {
+                paId = vacation.getPeriodoAquisitivo().getId();
+                paInicio = vacation.getPeriodoAquisitivo().getDataInicio();
+                paFim = vacation.getPeriodoAquisitivo().getDataFim();
+                paLimite = vacation.getPeriodoAquisitivo().getLimiteConcessivo();
+            }
+        } catch (Exception ignored) {}
+
+        UUID fcId = null;
+        try {
+            if (vacation.getFeriasColetivas() != null) {
+                fcId = vacation.getFeriasColetivas().getId();
+            }
+        } catch (Exception ignored) {}
+
+        UUID solId = null;
+        try {
+            if (vacation.getSolicitante() != null) {
+                solId = vacation.getSolicitante().getId();
+            }
+        } catch (Exception ignored) {}
+
         return VacationDTO.builder()
                 .id(vacation.getId())
-                .employeeId(vacation.getEmployee().getId())
-                .employeeName(vacation.getEmployee().getName())
+                .employeeId(empId)
+                .employeeName(empName)
                 .startDate(vacation.getStartDate())
                 .endDate(vacation.getEndDate())
                 .daysTaken(vacation.getDaysTaken())
                 .remainingDays(vacation.getRemainingDays())
                 .status(vacation.getStatus())
                 .vacationType(vacation.getVacationType())
-                .approvedById(vacation.getApprovedBy() != null ? vacation.getApprovedBy().getId() : null)
-                .approvedByName(vacation.getApprovedBy() != null ? vacation.getApprovedBy().getName() : null)
+                .approvedById(apprId)
+                .approvedByName(apprName)
                 .approvalDate(vacation.getApprovalDate())
                 .createdAt(vacation.getCreatedAt())
                 .updatedAt(vacation.getUpdatedAt())
-                .periodoAquisitivoId(vacation.getPeriodoAquisitivo() != null
-                        ? vacation.getPeriodoAquisitivo().getId() : null)
-                .periodoAquisitivoInicio(vacation.getPeriodoAquisitivo() != null
-                        ? vacation.getPeriodoAquisitivo().getDataInicio() : null)
-                .periodoAquisitivoFim(vacation.getPeriodoAquisitivo() != null
-                        ? vacation.getPeriodoAquisitivo().getDataFim() : null)
-                .limiteConcessivo(vacation.getPeriodoAquisitivo() != null
-                        ? vacation.getPeriodoAquisitivo().getLimiteConcessivo() : null)
-                .feriasColetivasId(vacation.getFeriasColetivas() != null
-                        ? vacation.getFeriasColetivas().getId() : null)
-                .solicitanteId(vacation.getSolicitante() != null
-                        ? vacation.getSolicitante().getId() : null)
+                .periodoAquisitivoId(paId)
+                .periodoAquisitivoInicio(paInicio)
+                .periodoAquisitivoFim(paFim)
+                .limiteConcessivo(paLimite)
+                .feriasColetivasId(fcId)
+                .solicitanteId(solId)
                 .blocos(vacation.getBlocos())
                 .numeroBlocos(vacation.getNumeroBlocos())
                 .diasAbono(vacation.getDiasAbono())

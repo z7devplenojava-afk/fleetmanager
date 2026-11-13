@@ -41,7 +41,7 @@ public class DependentController {
         @ApiResponse(responseCode = "409", description = "CPF jÃ¡ cadastrado"),
         @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN','GESTOR','RH','ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_GESTOR','ROLE_RH')")
+    @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN','GESTOR','RH','SST','COMPANY_ADMIN','ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_COMPANY_ADMIN','ROLE_FLEX_ADMIN','ROLE_GESTOR','ROLE_RH','ROLE_SST','EMPLOYEES_READ','EMPLOYEES_WRITE')")
     public ResponseEntity<DependentDTO> create(
             @Valid @RequestBody DependentDTO.CreateRequest request) {
         try {
@@ -85,7 +85,7 @@ public class DependentController {
         @ApiResponse(responseCode = "404", description = "Dependente nÃ£o encontrado"),
         @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN','GESTOR','RH','ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_GESTOR','ROLE_RH')")
+    @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN','GESTOR','RH','SST','COMPANY_ADMIN','ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_COMPANY_ADMIN','ROLE_FLEX_ADMIN','ROLE_GESTOR','ROLE_RH','ROLE_SST','EMPLOYEES_READ','EMPLOYEES_WRITE')")
     public ResponseEntity<DependentDTO> findById(
             @Parameter(description = "ID do dependente") @PathVariable("id") UUID id) {
         try {
@@ -113,10 +113,9 @@ public class DependentController {
         try {
             log.info("Buscando dependentes do funcionÃ¡rio ID: {}", employeeId);
             
-            // Validar UUID - se for o UUID padrÃ£o/invÃ¡lido, retornar lista vazia
-            if (employeeId == null || employeeId.toString().equals("00000000-0000-0000-0000-000000000001") || 
-                employeeId.toString().equals("00000000-0000-0000-0000-000000000000")) {
-                log.warn("UUID invÃ¡lido ou padrÃ£o recebido: {}", employeeId);
+            // Validar UUID
+            if (employeeId == null) {
+                log.warn("UUID nulo recebido");
                 return ResponseEntity.ok(java.util.Collections.emptyList());
             }
             
@@ -137,7 +136,7 @@ public class DependentController {
         @ApiResponse(responseCode = "200", description = "Lista de dependentes retornada com sucesso"),
         @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN','GESTOR','RH','ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_GESTOR','ROLE_RH')")
+    @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN','GESTOR','RH','SST','COMPANY_ADMIN','ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_COMPANY_ADMIN','ROLE_FLEX_ADMIN','ROLE_GESTOR','ROLE_RH','ROLE_SST','EMPLOYEES_READ','EMPLOYEES_WRITE')")
     public ResponseEntity<List<DependentDTO>> findByCpf(
             @Parameter(description = "CPF do dependente") @PathVariable("cpf") String cpf) {
         try {
@@ -159,7 +158,7 @@ public class DependentController {
         @ApiResponse(responseCode = "200", description = "Lista de dependentes retornada com sucesso"),
         @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN','GESTOR','RH','ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_GESTOR','ROLE_RH')")
+    @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN','GESTOR','RH','SST','COMPANY_ADMIN','ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_COMPANY_ADMIN','ROLE_FLEX_ADMIN','ROLE_GESTOR','ROLE_RH','ROLE_SST','EMPLOYEES_READ','EMPLOYEES_WRITE')")
     public ResponseEntity<List<DependentDTO>> findByRelationship(
             @Parameter(description = "Tipo de relacionamento") @PathVariable("relationship") String relationship) {
         try {
@@ -184,7 +183,7 @@ public class DependentController {
         @ApiResponse(responseCode = "409", description = "CPF jÃ¡ cadastrado"),
         @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN','GESTOR','RH','ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_GESTOR','ROLE_RH')")
+    @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN','GESTOR','RH','SST','COMPANY_ADMIN','ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_COMPANY_ADMIN','ROLE_FLEX_ADMIN','ROLE_GESTOR','ROLE_RH','ROLE_SST','EMPLOYEES_READ','EMPLOYEES_WRITE')")
     public ResponseEntity<DependentDTO> update(
             @Parameter(description = "ID do dependente") @PathVariable("id") UUID id,
             @Valid @RequestBody DependentDTO.UpdateRequest request) {
@@ -208,7 +207,7 @@ public class DependentController {
         @ApiResponse(responseCode = "404", description = "Dependente nÃ£o encontrado"),
         @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
-    @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN','GESTOR','RH','ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_GESTOR','ROLE_RH')")
+    @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN','GESTOR','RH','SST','COMPANY_ADMIN','ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_COMPANY_ADMIN','ROLE_FLEX_ADMIN','ROLE_GESTOR','ROLE_RH','ROLE_SST','EMPLOYEES_READ','EMPLOYEES_WRITE')")
     public ResponseEntity<Void> delete(
             @Parameter(description = "ID do dependente") @PathVariable("id") UUID id) {
         try {

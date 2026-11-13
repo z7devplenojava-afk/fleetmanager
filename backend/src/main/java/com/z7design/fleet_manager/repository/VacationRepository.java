@@ -13,7 +13,8 @@ import com.z7design.fleet_manager.model.enums.VacationStatus;
 
 @Repository
 public interface VacationRepository extends JpaRepository<Vacation, UUID> {
-    List<Vacation> findByEmployeeId(UUID employeeId);
+    @Query("SELECT v FROM Vacation v LEFT JOIN FETCH v.employee LEFT JOIN FETCH v.approvedBy LEFT JOIN FETCH v.periodoAquisitivo WHERE v.employee.id = :employeeId")
+    List<Vacation> findByEmployeeId(@org.springframework.data.repository.query.Param("employeeId") UUID employeeId);
     List<Vacation> findByEmployeeIdAndStatus(UUID employeeId, VacationStatus status);
     List<Vacation> findByStartDateBetween(LocalDate startDate, LocalDate endDate);
     List<Vacation> findByStatus(VacationStatus status);

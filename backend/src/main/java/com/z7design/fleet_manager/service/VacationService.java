@@ -438,7 +438,7 @@ public class VacationService {
         balance.setAvailableDays(availableDays);
         balance.setDaysInProgress(daysInProgress);
         balance.setPeriod(pa != null && pa.getDataInicio() != null
-            ? pa.getDataInicio().getYear() + "/" + pa.getDataFim().getYear()
+            ? pa.getDataInicio().getYear() + "/" + (pa.getDataFim() != null ? pa.getDataFim().getYear() : (pa.getDataInicio().getYear() + 1))
             : java.time.Year.now().getValue() + "/" + (java.time.Year.now().getValue() + 1));
 
         // Fase 2: datas do PA para o portal exibir proxima aquisicao e limite concessivo

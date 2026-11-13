@@ -577,13 +577,6 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
               user: { id: matched.id },
               email: prev.email || matched.email || ''
             }));
-            // Se o funcionário já está salvo, persiste o vínculo no backend
-            if (employeeToEdit.id) {
-              employeeService.updateEmployee(employeeToEdit.id, {
-                ...employeeToEdit,
-                user: { id: matched.id }
-              }).catch(err => console.warn('Erro ao persistir vínculo automático:', err));
-            }
           }
         }).catch(err => console.warn('Erro ao auto-localizar usuário para funcionário:', err));
       }
@@ -711,10 +704,8 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
   const loadEmployeeDependents = async (employeeId: string) => {
     if (!employeeId) return;
     
-    // Validar UUID - não fazer chamada se for UUID inválido/padrão
-    if (employeeId === '00000000-0000-0000-0000-000000000001' || 
-        employeeId === '00000000-0000-0000-0000-000000000000' ||
-        !employeeId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+    // Validar UUID
+    if (!employeeId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
       console.warn('UUID inválido para carregar dependentes:', employeeId);
       setEmployeeDependents([]);
       return;
@@ -723,7 +714,7 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
     setLoadingDependents(true);
     try {
       const dependents = await dependentService.getDependentsByEmployee(employeeId);
-      setEmployeeDependents(dependents);
+      setEmployeeDependents(Array.isArray(dependents) ? dependents : []);
     } catch (error: any) {
       console.error('Erro ao carregar dependentes:', error);
       // Se for erro 403, apenas logar e não mostrar erro ao usuário
@@ -771,6 +762,17 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
       return;
     }
 
+    if (dependent.id && dependent.id.startsWith('temp-')) {
+      setEmployeeDependents(prev => prev.filter(d => d.id !== dependent.id));
+      setPendingDependents(prev => prev.filter(d => d.cpf !== dependent.cpf));
+      toast({
+        title: "Sucesso!",
+        description: "Dependente removido.",
+        variant: "default"
+      });
+      return;
+    }
+
     try {
       await dependentService.deleteDependent(dependent.id);
       toast({
@@ -779,9 +781,9 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
         variant: "default"
       });
       
-      // Recarregar dependentes
-      if (employeeToEdit?.id) {
-        await loadEmployeeDependents(employeeToEdit.id);
+      const activeEmpId = employeeToEdit?.id || currentEmployeeId;
+      if (activeEmpId) {
+        await loadEmployeeDependents(activeEmpId);
       }
     } catch (error: any) {
       console.error('Erro ao excluir dependente:', error);
@@ -798,16 +800,10 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
     setDependentModalOpen(false);
     setDependentToEdit(null);
     
-    // Recarregar dependentes
-    if (employeeToEdit?.id) {
-      await loadEmployeeDependents(employeeToEdit.id);
+    const activeEmpId = employeeToEdit?.id || currentEmployeeId;
+    if (activeEmpId) {
+      await loadEmployeeDependents(activeEmpId);
     }
-    
-    toast({
-      title: "Sucesso!",
-      description: dependentToEdit ? "Dependente atualizado com sucesso." : "Dependente adicionado com sucesso.",
-      variant: "default"
-    });
   };
   
   // Estados para modal de novo cargo
@@ -4858,23 +4854,21 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
            setDependentModalOpen(false);
            setDependentToEdit(null);
          }}
-         employeeId={employeeToEdit?.id}
-         employeeName={employeeToEdit?.name}
+         employeeId={employeeToEdit?.id || currentEmployeeId || undefined}
+         employeeName={employeeToEdit?.name || form.name || undefined}
          dependent={dependentToEdit || undefined}
-         onSuccess={async () => {
-           if (!isEditMode || !employeeToEdit?.id) {
-             // Se ainda não há funcionário criado, armazenar dependente temporariamente
-             // O DependentFormModal retornará os dados do dependente via callback
-             setDependentModalOpen(false);
-             setDependentToEdit(null);
-             toast({
-               title: "Aviso",
-               description: "Dependente será adicionado após salvar o funcionário.",
-               variant: "default"
-             });
-           } else {
-             // Se já há funcionário, usar o callback normal
-             await handleDependentSaved();
+         onSuccess={async (createdDepData) => {
+           setDependentModalOpen(false);
+           setDependentToEdit(null);
+           const activeEmpId = employeeToEdit?.id || currentEmployeeId;
+           if (activeEmpId) {
+             await loadEmployeeDependents(activeEmpId);
+           } else if (createdDepData) {
+             setPendingDependents(prev => [...prev, createdDepData]);
+             setEmployeeDependents(prev => [...prev, {
+               id: `temp-${Date.now()}`,
+               ...createdDepData
+             } as any]);
            }
          }}
        />

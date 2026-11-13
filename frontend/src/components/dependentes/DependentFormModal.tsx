@@ -23,12 +23,13 @@ import {
   Loader2
 } from 'lucide-react';
 import { Dependent, DependentFormData, RELATIONSHIP_OPTIONS, GENDER_OPTIONS, STATE_OPTIONS } from '@/types/dependent';
+import dependentService from '@/services/dependentService';
 import { useToast } from '@/hooks/use-toast';
 
 interface DependentFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (dependentData?: any) => void;
   dependent?: Dependent;
   employeeId?: string;
   employeeName?: string;
@@ -152,17 +153,18 @@ export const DependentFormModal: React.FC<DependentFormModalProps> = ({
           notes: formData.notes
         };
 
-        // TODO: Implementar chamada para atualizar dependente
-        console.log('Atualizando dependente:', dependent.id, updateData);
+        const updated = await dependentService.updateDependent(dependent.id, updateData);
         
         toast({
           title: "Sucesso",
           description: "Dependente atualizado com sucesso!",
         });
+        onSuccess(updated);
       } else {
         // Criar novo dependente
+        const targetEmployeeId = formData.employeeId || employeeId;
         const createData = {
-          employeeId: formData.employeeId,
+          employeeId: targetEmployeeId,
           name: formData.name,
           relationship: formData.relationship,
           birthDate: formData.birthDate,
@@ -181,22 +183,28 @@ export const DependentFormModal: React.FC<DependentFormModalProps> = ({
           notes: formData.notes
         };
 
-        // TODO: Implementar chamada para criar dependente
-        console.log('Criando dependente:', createData);
-        
-        toast({
-          title: "Sucesso",
-          description: "Dependente criado com sucesso!",
-        });
+        if (targetEmployeeId) {
+          const created = await dependentService.createDependent(createData as any);
+          toast({
+            title: "Sucesso",
+            description: "Dependente cadastrado com sucesso!",
+          });
+          onSuccess(created);
+        } else {
+          toast({
+            title: "Dependente Adicionado",
+            description: "O dependente será salvo ao salvar o funcionário.",
+          });
+          onSuccess(createData);
+        }
       }
 
-      onSuccess();
       onClose();
     } catch (error: any) {
       console.error('Erro ao salvar dependente:', error);
       toast({
         title: "Erro",
-        description: error.response?.data?.message || "Erro ao salvar dependente",
+        description: error.response?.data?.message || error.message || "Erro ao salvar dependente",
         variant: "destructive",
       });
     } finally {
