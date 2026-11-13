@@ -44,7 +44,7 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, UUID> 
     /**
      * Conta mensagens não lidas para um usuário
      */
-    @Query(value = "SELECT COUNT(*) FROM chat_messages WHERE (recipient_id = :userId AND is_read = false) OR (group_id IS NOT NULL AND is_read = false)", nativeQuery = true)
+    @Query(value = "SELECT COUNT(*) FROM chat_messages WHERE (recipient_id = CAST(:userId AS uuid) AND is_read = false) OR (group_id IS NOT NULL AND is_read = false)", nativeQuery = true)
     Long countUnreadMessagesForUser(@Param("userId") UUID userId);
     
     /**
@@ -52,13 +52,13 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, UUID> 
      */
     @Query(value = "SELECT * FROM chat_messages WHERE id IN (" +
            "SELECT DISTINCT ON (" +
-           "  COALESCE(CASE WHEN recipient_id = :userId THEN sender_id WHEN sender_id = :userId THEN recipient_id ELSE NULL END, group_id, department_id, id)" +
+           "  COALESCE(CASE WHEN recipient_id = CAST(:userId AS uuid) THEN sender_id WHEN sender_id = CAST(:userId AS uuid) THEN recipient_id ELSE NULL END, group_id, department_id, id)" +
            ") id FROM chat_messages " +
-           "WHERE (sender_id = :userId OR recipient_id = :userId " +
-           "       OR group_id IN (SELECT group_id FROM user_group_membership WHERE user_id = :userId) " +
+           "WHERE (sender_id = CAST(:userId AS uuid) OR recipient_id = CAST(:userId AS uuid) " +
+           "       OR group_id IN (SELECT group_id FROM user_group_membership WHERE user_id = CAST(:userId AS uuid)) " +
            "       OR department_id IS NOT NULL) " +
            "ORDER BY " +
-           "  COALESCE(CASE WHEN recipient_id = :userId THEN sender_id WHEN sender_id = :userId THEN recipient_id ELSE NULL END, group_id, department_id, id), " +
+           "  COALESCE(CASE WHEN recipient_id = CAST(:userId AS uuid) THEN sender_id WHEN sender_id = CAST(:userId AS uuid) THEN recipient_id ELSE NULL END, group_id, department_id, id), " +
            "  created_at DESC" +
            ") ORDER BY created_at DESC", nativeQuery = true)
     List<ChatMessage> findRecentConversationsForUser(@Param("userId") UUID userId);
@@ -66,12 +66,12 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, UUID> 
     /**
      * Conta o total de conversas (individuais + grupos) de um usuário
      */
-    @Query(value = "SELECT COUNT(DISTINCT COALESCE(CASE WHEN recipient_id = :userId THEN sender_id WHEN sender_id = :userId THEN recipient_id ELSE NULL END, group_id)) FROM chat_messages WHERE sender_id = :userId OR recipient_id = :userId OR group_id IS NOT NULL", nativeQuery = true)
+    @Query(value = "SELECT COUNT(DISTINCT COALESCE(CASE WHEN recipient_id = CAST(:userId AS uuid) THEN sender_id WHEN sender_id = CAST(:userId AS uuid) THEN recipient_id ELSE NULL END, group_id)) FROM chat_messages WHERE sender_id = CAST(:userId AS uuid) OR recipient_id = CAST(:userId AS uuid) OR group_id IS NOT NULL", nativeQuery = true)
     Long countConversationsForUser(@Param("userId") UUID userId);
 
     /**
      * Conta conversas abertas (com mensagens não lidas) de um usuário
      */
-    @Query(value = "SELECT COUNT(DISTINCT COALESCE(CASE WHEN recipient_id = :userId THEN sender_id ELSE NULL END, group_id)) FROM chat_messages WHERE (recipient_id = :userId AND is_read = false) OR (group_id IS NOT NULL AND is_read = false)", nativeQuery = true)
+    @Query(value = "SELECT COUNT(DISTINCT COALESCE(CASE WHEN recipient_id = CAST(:userId AS uuid) THEN sender_id ELSE NULL END, group_id)) FROM chat_messages WHERE (recipient_id = CAST(:userId AS uuid) AND is_read = false) OR (group_id IS NOT NULL AND is_read = false)", nativeQuery = true)
     Long countOpenConversationsForUser(@Param("userId") UUID userId);
 } 

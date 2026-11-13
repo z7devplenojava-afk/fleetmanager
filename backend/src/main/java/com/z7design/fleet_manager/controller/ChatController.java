@@ -228,20 +228,22 @@ public class ChatController {
     @GetMapping("/recent")
     public ResponseEntity<List<ChatMessageResponseDTO>> getRecentConversations(Authentication authentication) {
         try {
-            // Obter o ID do usuÃ¡rio a partir do username
+            if (authentication == null || authentication.getName() == null) {
+                return ResponseEntity.ok(java.util.Collections.emptyList());
+            }
             String username = authentication.getName();
             UUID userId = getUserIdFromUsername(username);
             
             if (userId == null) {
-                log.error("UsuÃ¡rio nÃ£o encontrado para username: {}", username);
-                return ResponseEntity.badRequest().build();
+                log.warn("Usuário não encontrado para username: {}. Retornando lista vazia.", username);
+                return ResponseEntity.ok(java.util.Collections.emptyList());
             }
             
             List<ChatMessageResponseDTO> messages = chatService.getRecentConversations(userId);
-            return ResponseEntity.ok(messages);
+            return ResponseEntity.ok(messages != null ? messages : java.util.Collections.emptyList());
         } catch (Exception e) {
             log.error("Erro ao buscar conversas recentes: {}", e.getMessage(), e);
-            return ResponseEntity.internalServerError().build();
+            return ResponseEntity.ok(java.util.Collections.emptyList());
         }
     }
     
@@ -315,19 +317,22 @@ public class ChatController {
     @GetMapping("/unread")
     public ResponseEntity<List<ChatMessageResponseDTO>> getUnreadMessages(Authentication authentication) {
         try {
+            if (authentication == null || authentication.getName() == null) {
+                return ResponseEntity.ok(java.util.Collections.emptyList());
+            }
             String username = authentication.getName();
             UUID userId = getUserIdFromUsername(username);
             
             if (userId == null) {
-                log.error("UsuÃ¡rio nÃ£o encontrado para username: {}", username);
-                return ResponseEntity.badRequest().build();
+                log.warn("Usuário não encontrado para username: {}. Retornando lista vazia.", username);
+                return ResponseEntity.ok(java.util.Collections.emptyList());
             }
             
             List<ChatMessageResponseDTO> messages = chatService.getUnreadMessages(userId);
-            return ResponseEntity.ok(messages);
+            return ResponseEntity.ok(messages != null ? messages : java.util.Collections.emptyList());
         } catch (Exception e) {
-            log.error("Erro ao buscar mensagens nÃ£o lidas: {}", e.getMessage(), e);
-            return ResponseEntity.internalServerError().build();
+            log.error("Erro ao buscar mensagens não lidas: {}", e.getMessage(), e);
+            return ResponseEntity.ok(java.util.Collections.emptyList());
         }
     }
     

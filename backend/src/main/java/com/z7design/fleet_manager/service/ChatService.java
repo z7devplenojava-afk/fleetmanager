@@ -200,13 +200,23 @@ public class ChatService {
     }
     
     /**
-     * Busca conversas recentes de um usuÃ¡rio
+     * Busca conversas recentes de um usuário
      */
     public List<ChatMessageResponseDTO> getRecentConversations(UUID userId) {
-        log.info("Buscando conversas recentes para usuÃ¡rio: {}", userId);
-        
-        List<ChatMessage> messages = chatMessageRepository.findRecentConversationsForUser(userId);
-        return messages.stream().map(this::convertToDTO).collect(Collectors.toList());
+        log.info("Buscando conversas recentes para usuário: {}", userId);
+        try {
+            if (userId == null) {
+                return java.util.Collections.emptyList();
+            }
+            List<ChatMessage> messages = chatMessageRepository.findRecentConversationsForUser(userId);
+            if (messages == null || messages.isEmpty()) {
+                return java.util.Collections.emptyList();
+            }
+            return messages.stream().map(this::convertToDTO).collect(Collectors.toList());
+        } catch (Exception e) {
+            log.warn("Aviso ao buscar conversas recentes para o usuário {}: {}. Retornando lista vazia.", userId, e.getMessage());
+            return java.util.Collections.emptyList();
+        }
     }
     
     /**
@@ -340,38 +350,54 @@ public class ChatService {
         dto.setUpdatedAt(message.getUpdatedAt());
         
         // Converter sender
-        if (message.getSender() != null) {
-            com.z7design.fleet_manager.dto.UserResponseDTO senderDTO = new com.z7design.fleet_manager.dto.UserResponseDTO();
-            senderDTO.setId(message.getSender().getId());
-            senderDTO.setName(message.getSender().getName());
-            senderDTO.setEmail(message.getSender().getEmail());
-            dto.setSender(senderDTO);
+        try {
+            if (message.getSender() != null) {
+                com.z7design.fleet_manager.dto.UserResponseDTO senderDTO = new com.z7design.fleet_manager.dto.UserResponseDTO();
+                senderDTO.setId(message.getSender().getId());
+                senderDTO.setName(message.getSender().getName());
+                senderDTO.setEmail(message.getSender().getEmail());
+                dto.setSender(senderDTO);
+            }
+        } catch (Exception e) {
+            log.debug("Aviso ao converter remetente da mensagem {}: {}", message.getId(), e.getMessage());
         }
         
         // Converter recipient
-        if (message.getRecipient() != null) {
-            com.z7design.fleet_manager.dto.UserResponseDTO recipientDTO = new com.z7design.fleet_manager.dto.UserResponseDTO();
-            recipientDTO.setId(message.getRecipient().getId());
-            recipientDTO.setName(message.getRecipient().getName());
-            recipientDTO.setEmail(message.getRecipient().getEmail());
-            dto.setRecipient(recipientDTO);
+        try {
+            if (message.getRecipient() != null) {
+                com.z7design.fleet_manager.dto.UserResponseDTO recipientDTO = new com.z7design.fleet_manager.dto.UserResponseDTO();
+                recipientDTO.setId(message.getRecipient().getId());
+                recipientDTO.setName(message.getRecipient().getName());
+                recipientDTO.setEmail(message.getRecipient().getEmail());
+                dto.setRecipient(recipientDTO);
+            }
+        } catch (Exception e) {
+            log.debug("Aviso ao converter destinatário da mensagem {}: {}", message.getId(), e.getMessage());
         }
         
         // Converter group
-        if (message.getGroup() != null) {
-            com.z7design.fleet_manager.dto.UserGroupDTO groupDTO = new com.z7design.fleet_manager.dto.UserGroupDTO();
-            groupDTO.setId(message.getGroup().getId());
-            groupDTO.setName(message.getGroup().getDisplayName());
-            dto.setGroup(groupDTO);
+        try {
+            if (message.getGroup() != null) {
+                com.z7design.fleet_manager.dto.UserGroupDTO groupDTO = new com.z7design.fleet_manager.dto.UserGroupDTO();
+                groupDTO.setId(message.getGroup().getId());
+                groupDTO.setName(message.getGroup().getDisplayName());
+                dto.setGroup(groupDTO);
+            }
+        } catch (Exception e) {
+            log.debug("Aviso ao converter grupo da mensagem {}: {}", message.getId(), e.getMessage());
         }
         
         // Converter department
-        if (message.getDepartment() != null) {
-            com.z7design.fleet_manager.dto.DepartmentDTO deptDTO = new com.z7design.fleet_manager.dto.DepartmentDTO();
-            deptDTO.setId(message.getDepartment().getId());
-            deptDTO.setName(message.getDepartment().getName());
-            deptDTO.setDescription(message.getDepartment().getDescription());
-            dto.setDepartment(deptDTO);
+        try {
+            if (message.getDepartment() != null) {
+                com.z7design.fleet_manager.dto.DepartmentDTO deptDTO = new com.z7design.fleet_manager.dto.DepartmentDTO();
+                deptDTO.setId(message.getDepartment().getId());
+                deptDTO.setName(message.getDepartment().getName());
+                deptDTO.setDescription(message.getDepartment().getDescription());
+                dto.setDepartment(deptDTO);
+            }
+        } catch (Exception e) {
+            log.debug("Aviso ao converter departamento da mensagem {}: {}", message.getId(), e.getMessage());
         }
         
         // ReaÃ§Ãµes serÃ£o carregadas via endpoint especÃ­fico quando necessÃ¡rio
