@@ -242,12 +242,7 @@ class FleetService {
     this.vehiclesInFlight = (async () => {
       console.log('🔍 FleetService - Buscando veículos...');
       try {
-        let response;
-        try {
-          response = await api.get('/api/vehicles');
-        } catch (e) {
-          response = await api.get('/api/frota/vehicles');
-        }
+        const response = await api.get('/api/vehicles');
         
         const list = Array.isArray(response?.data) 
           ? response.data 

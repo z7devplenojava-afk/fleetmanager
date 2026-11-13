@@ -821,3 +821,4 @@ export const VehicleScannedDetailsModal: React.FC<VehicleScannedDetailsModalProp
 };
 
 export default VehicleScannedDetailsModal;
+

@@ -258,13 +258,12 @@ export const DueComponentsAlertModal: React.FC<DueComponentsAlertModalProps> = (
                         <div
                           key={itemKey}
                           onClick={() => toggleItem(itemKey)}
-                          className={`rounded-xl border p-2.5 sm:p-3 flex items-center justify-between gap-3 cursor-pointer transition-colors ${
-                            isChecked
-                              ? isOverdue
-                                ? 'bg-red-950/30 border-red-500/50 hover:bg-red-950/40'
-                                : 'bg-amber-950/20 border-amber-500/40 hover:bg-amber-950/30'
-                              : 'bg-slate-950/40 border-gray-800 opacity-60 hover:opacity-100'
-                          }`}
+                          className={`rounded-xl border p-2.5 sm:p-3 flex items-center justify-between gap-3 cursor-pointer transition-colors ${isChecked
+                            ? isOverdue
+                              ? 'bg-red-950/30 border-red-500/50 hover:bg-red-950/40'
+                              : 'bg-amber-950/20 border-amber-500/40 hover:bg-amber-950/30'
+                            : 'bg-slate-950/40 border-gray-800 opacity-60 hover:opacity-100'
+                            }`}
                         >
                           <div className="flex items-center gap-3 min-w-0">
                             <Checkbox
@@ -277,11 +276,10 @@ export const DueComponentsAlertModal: React.FC<DueComponentsAlertModalProps> = (
                             <div className="space-y-0.5 min-w-0">
                               <div className="flex flex-wrap items-center gap-2">
                                 <Badge
-                                  className={`text-[9px] font-bold py-0 h-4 ${
-                                    isOverdue
-                                      ? 'bg-red-600 text-white'
-                                      : 'bg-amber-500 text-black'
-                                  }`}
+                                  className={`text-[9px] font-bold py-0 h-4 ${isOverdue
+                                    ? 'bg-red-600 text-white'
+                                    : 'bg-amber-500 text-black'
+                                    }`}
                                 >
                                   {isOverdue ? (
                                     <>

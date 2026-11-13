@@ -30,7 +30,6 @@ export const SplitText: React.FC<SplitTextProps> = ({
     visible: {
       opacity: 1,
       y: 0,
-      filter: 'blur(0px)',
       transition: {
         y: {
           type: 'spring',
@@ -38,10 +37,6 @@ export const SplitText: React.FC<SplitTextProps> = ({
           stiffness: 120,
         },
         opacity: {
-          duration: 0.35,
-          ease: 'easeOut',
-        },
-        filter: {
           duration: 0.35,
           ease: 'easeOut',
         },
@@ -50,7 +45,6 @@ export const SplitText: React.FC<SplitTextProps> = ({
     hidden: {
       opacity: 0,
       y: 20,
-      filter: 'blur(6px)',
       transition: {
         y: {
           type: 'spring',
@@ -58,10 +52,6 @@ export const SplitText: React.FC<SplitTextProps> = ({
           stiffness: 120,
         },
         opacity: {
-          duration: 0.35,
-          ease: 'easeOut',
-        },
-        filter: {
           duration: 0.35,
           ease: 'easeOut',
         },

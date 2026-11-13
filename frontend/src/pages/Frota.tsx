@@ -336,6 +336,7 @@ const Frota: React.FC = () => {
   } = useQuery({
     queryKey: ['drivers'],
     queryFn: () => driverService.getDrivers(),
+    enabled: activeTab === 'motoristas',
     staleTime: 120 * 1000,
     refetchOnWindowFocus: false,
     retry: 1
@@ -353,6 +354,7 @@ const Frota: React.FC = () => {
         (emp) => emp?.cnhNumber && String(emp.cnhNumber).trim() !== ''
       );
     },
+    enabled: activeTab === 'motoristas',
     staleTime: 120 * 1000,
     refetchOnWindowFocus: false,
     retry: 1
@@ -429,6 +431,7 @@ const Frota: React.FC = () => {
   } = useQuery({
     queryKey: ['kmControls'],
     queryFn: () => kmControlService.getKmControls(),
+    enabled: activeTab === 'controle-km',
     staleTime: 60 * 1000,
     refetchOnWindowFocus: false,
     retry: 1
@@ -1407,6 +1410,8 @@ const Frota: React.FC = () => {
           </TabsList>
 
           <TabsContent value="veiculos" className="mt-6 space-y-4">
+            {activeTab === 'veiculos' && (
+              <>
             <div className="bg-seguranca-graphite border border-gray-600 rounded-lg p-3 sm:p-4 space-y-3">
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
                 <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2 flex-1">
@@ -1518,9 +1523,13 @@ const Frota: React.FC = () => {
                 }}
               />
             )}
+            </>
+            )}
           </TabsContent>
 
           <TabsContent value="abastecimentos" className="mt-6 space-y-4">
+            {activeTab === 'abastecimentos' && (
+              <>
             <div className="flex justify-between items-center bg-seguranca-graphite border border-gray-600 rounded-lg p-4">
               <h3 className="text-seguranca-lightgray font-semibold">Controle de Abastecimento</h3>
               <div className="flex gap-2">
@@ -1570,9 +1579,13 @@ const Frota: React.FC = () => {
                 />
               </TabsContent>
             </Tabs>
+            </>
+            )}
           </TabsContent>
 
           <TabsContent value="manutencoes" className="mt-6 space-y-4">
+            {activeTab === 'manutencoes' && (
+              <>
             {/* Alternador: Ordens de Serviço / Registros de Manutenção */}
             <div className="flex items-center gap-2 bg-seguranca-graphite border border-gray-600 rounded-lg p-2 w-fit">
               <Button
@@ -1675,18 +1688,24 @@ const Frota: React.FC = () => {
             />
             </>
             )}
+            </>
+            )}
           </TabsContent>
 
           <TabsContent value="plano-manutencao" className="mt-6 space-y-4">
-            <GestaoPlanoManutencaoFrota
-              veiculos={vehicles || []}
-              onOpenOs={(placa, taskName) => {
-                navigate(`/frota/ordens-servico?placa=${placa}&servico=${encodeURIComponent(taskName)}`);
-              }}
-            />
+            {activeTab === 'plano-manutencao' && (
+              <GestaoPlanoManutencaoFrota
+                veiculos={vehicles || []}
+                onOpenOs={(placa, taskName) => {
+                  navigate(`/frota/ordens-servico?placa=${placa}&servico=${encodeURIComponent(taskName)}`);
+                }}
+              />
+            )}
           </TabsContent>
 
           <TabsContent value="controle-km" className="mt-6 space-y-4">
+            {activeTab === 'controle-km' && (
+              <>
             <div className="flex justify-between items-center bg-seguranca-graphite border border-gray-600 rounded-lg p-4">
               <h3 className="text-seguranca-lightgray font-semibold flex items-center gap-2">
                 <Car className="h-5 w-5" />
@@ -1777,9 +1796,13 @@ const Frota: React.FC = () => {
               onEdit={handleEditKmControl}
               onDelete={handleDeleteKmControl}
             />
+              </>
+            )}
           </TabsContent>
 
           <TabsContent value="estatisticas" className="mt-6 space-y-6">
+            {activeTab === 'estatisticas' && (
+              <>
             <div className="bg-seguranca-graphite border border-gray-600 rounded-lg p-4">
               <h3 className="text-seguranca-lightgray font-semibold flex items-center gap-2">
                 <TrendingUp className="h-5 w-5 text-seguranca-yellow" />
@@ -1788,9 +1811,13 @@ const Frota: React.FC = () => {
             </div>
             <FuelConsumptionOverview vehicles={veiculosComponent} />
             <FuelConsumptionStats vehicles={veiculosComponent} />
+              </>
+            )}
           </TabsContent>
 
           <TabsContent value="motoristas" className="mt-6 space-y-6">
+            {activeTab === 'motoristas' && (
+              <>
             <div className="flex justify-between items-center bg-seguranca-graphite border border-gray-600 rounded-lg p-4">
               <h3 className="text-seguranca-lightgray font-semibold flex items-center gap-2">
                 <Plus size={16} className="text-seguranca-yellow" />
@@ -1838,9 +1865,12 @@ const Frota: React.FC = () => {
                 </div>
               </div>
             )}
+              </>
+            )}
           </TabsContent>
 
           <TabsContent value="multas" className="mt-6">
+            {activeTab === 'multas' && (
             <div className="space-y-6">
               {/* Alertas de Multas */}
               {(finesNearDue.length > 0 || overdueFines.length > 0) && (
@@ -1981,17 +2011,20 @@ const Frota: React.FC = () => {
                 />
               </div>
             </div>
+            )}
           </TabsContent>
 
           <TabsContent value="baterias" className="mt-6 space-y-4">
-            <BateriasTable />
+            {activeTab === 'baterias' && <BateriasTable />}
           </TabsContent>
 
           <TabsContent value="documentos" className="mt-6 space-y-4">
-            <VehicleDocumentsTable />
+            {activeTab === 'documentos' && <VehicleDocumentsTable />}
           </TabsContent>
 
           <TabsContent value="agregados" className="mt-6 space-y-4">
+            {activeTab === 'agregados' && (
+              <>
             <AgregadosDashboard veiculos={vehicles || []} />
             <div className="flex justify-between items-center bg-seguranca-graphite border border-gray-600 rounded-lg p-4">
               <h3 className="text-seguranca-lightgray font-semibold flex items-center gap-2">
@@ -2019,16 +2052,18 @@ const Frota: React.FC = () => {
                 setIsAgregadoModalOpen(true);
               }}
             />
+              </>
+            )}
           </TabsContent>
 
           {/* PRD Módulo 3: Elegibilidade, Vistorias de Mobilização e Talões */}
           <TabsContent value="mobilizacao" className="mt-6">
-            <MobilizationPanel />
+            {activeTab === 'mobilizacao' && <MobilizationPanel />}
           </TabsContent>
 
           {/* Aba de Uploads e Importação de CRLV / DUT (PDF) */}
           <TabsContent value="crlv" className="mt-6">
-            <CrlvUploadTab onSuccess={refetchVehicles} />
+            {activeTab === 'crlv' && <CrlvUploadTab onSuccess={refetchVehicles} />}
           </TabsContent>
         </Tabs>
 
