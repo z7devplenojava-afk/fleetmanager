@@ -416,7 +416,7 @@ const DriverTripList: React.FC = () => {
       title="Minhas Escalas"
       subtitle="Consulte sua escala, registre seu ponto (tolerância 10 min), informe KM Inicial/Final e anexe fotos com a câmera"
     >
-      <div className="p-4 md:p-6 space-y-6 max-w-5xl mx-auto">
+      <div className="p-4 md:p-6 space-y-6 max-w-5xl mx-auto pb-32 sm:pb-24">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-lg">
@@ -454,30 +454,37 @@ const DriverTripList: React.FC = () => {
                 variant="outline"
                 onClick={() => openPdfBlob('view')}
                 disabled={!!pdfLoading || isLoading}
+                className="h-auto min-h-[42px] py-2 px-3 text-xs sm:text-sm font-semibold rounded-xl transition-all active:scale-95"
               >
                 {pdfLoading === 'view' ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin shrink-0" />
                 ) : (
-                  <Eye className="h-4 w-4 mr-2" />
+                  <Eye className="h-4 w-4 mr-2 shrink-0" />
                 )}
                 Visualizar PDF
               </Button>
               <Button
                 onClick={() => openPdfBlob('download')}
                 disabled={!!pdfLoading || isLoading}
+                className="h-auto min-h-[42px] py-2 px-3 text-xs sm:text-sm font-semibold rounded-xl transition-all active:scale-95"
               >
                 {pdfLoading === 'download' ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin shrink-0" />
                 ) : (
-                  <Download className="h-4 w-4 mr-2" />
+                  <Download className="h-4 w-4 mr-2 shrink-0" />
                 )}
                 Baixar PDF
               </Button>
-              <Button variant="ghost" onClick={() => refetch()} disabled={isFetching}>
+              <Button
+                variant="ghost"
+                onClick={() => refetch()}
+                disabled={isFetching}
+                className="h-auto min-h-[42px] py-2 px-3 text-xs sm:text-sm rounded-xl transition-all active:scale-95"
+              >
                 {isFetching ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin shrink-0" />
                 ) : (
-                  <RefreshCw className="h-4 w-4 mr-2" />
+                  <RefreshCw className="h-4 w-4 mr-2 shrink-0" />
                 )}
                 Atualizar
               </Button>
@@ -822,12 +829,12 @@ const DriverTripList: React.FC = () => {
                               type="button"
                               onClick={() => handleRegisterPoint(schedule)}
                               disabled={state.submittingPoint}
-                              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs h-9"
+                              className="w-full h-auto min-h-[44px] py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm rounded-xl leading-tight whitespace-normal break-words text-center justify-center gap-1.5 shadow-md transition-all active:scale-95"
                             >
                               {state.submittingPoint ? (
-                                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                                <Loader2 className="h-4 w-4 mr-1.5 animate-spin shrink-0" />
                               ) : (
-                                <Clock className="h-4 w-4 mr-1.5" />
+                                <Clock className="h-4 w-4 mr-1.5 shrink-0" />
                               )}
                               Registrar Ponto & KM Inicial
                             </Button>
@@ -835,9 +842,9 @@ const DriverTripList: React.FC = () => {
                             <Button
                               type="button"
                               onClick={() => updateExecState(schedule, { isFinishingTrip: true })}
-                              className="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs h-9"
+                              className="w-full h-auto min-h-[44px] py-2.5 px-3 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs sm:text-sm rounded-xl leading-tight whitespace-normal break-words text-center justify-center gap-1.5 shadow-md transition-all active:scale-95"
                             >
-                              <Flag className="h-4 w-4 mr-1.5" />
+                              <Flag className="h-4 w-4 mr-1.5 shrink-0" />
                               Finalizar Viagem (Liberar KM Final)
                             </Button>
                           ) : (
@@ -845,12 +852,12 @@ const DriverTripList: React.FC = () => {
                               type="button"
                               onClick={() => handleFinishTripOnCard(schedule)}
                               disabled={state.submittingFinish}
-                              className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs h-9"
+                              className="w-full h-auto min-h-[44px] py-2.5 px-3 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs sm:text-sm rounded-xl leading-tight whitespace-normal break-words text-center justify-center gap-1.5 shadow-md transition-all active:scale-95"
                             >
                               {state.submittingFinish ? (
-                                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                                <Loader2 className="h-4 w-4 mr-1.5 animate-spin shrink-0" />
                               ) : (
-                                <CheckCircle2 className="h-4 w-4 mr-1.5" />
+                                <CheckCircle2 className="h-4 w-4 mr-1.5 shrink-0" />
                               )}
                               Salvar KM Final e Fotos
                             </Button>

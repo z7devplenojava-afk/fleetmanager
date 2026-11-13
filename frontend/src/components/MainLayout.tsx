@@ -202,12 +202,14 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
             </div>
 
             {/* Lado direito: Ações, Perfil e Notificações */}
-            <div className="flex items-center space-x-1 sm:space-x-2">
-              {/* Assistente Virtual BiliFlux */}
-              <BiliFluxAssistant
-                userName={user.name}
-                onOpenHelp={() => setIsHelpModalOpen(true)}
-              />
+            <div className="flex items-center space-x-1 sm:space-x-2 shrink-0">
+              {/* Assistente Virtual BiliFlux (Apenas tablet/desktop para não invadir ou sobrepor a logomarca no mobile) */}
+              <div className="hidden md:flex items-center shrink-0">
+                <BiliFluxAssistant
+                  userName={user.name}
+                  onOpenHelp={() => setIsHelpModalOpen(true)}
+                />
+              </div>
 
               {actions && (
                 <div className="hidden lg:block">

@@ -934,7 +934,7 @@ const DriverTripExecution: React.FC = () => {
     if (tripPhase === 'PREPARATION') {
         return (
             <StandardLayout title="Viagens e Rotas" subtitle="Lista de Viagens do Motorista, Validação de Rota e Início de Operação">
-                <div className="p-4 max-w-3xl mx-auto space-y-5">
+                <div className="p-4 max-w-3xl mx-auto space-y-5 pb-32 sm:pb-24">
                     {/* Lista de Todas as Viagens do Motorista com seus Status */}
                     {renderDriverTripsListSection()}
 
@@ -1047,7 +1047,7 @@ const DriverTripExecution: React.FC = () => {
                         <Button
                             size="lg"
                             onClick={handleStartTrip}
-                            className={`w-full text-white font-black py-4 rounded-2xl shadow-xl text-sm uppercase tracking-wider transition-all ${
+                            className={`w-full h-auto min-h-[48px] py-3 px-3 text-white font-bold rounded-2xl shadow-xl text-xs sm:text-sm normal-case leading-snug whitespace-normal break-words text-center justify-center transition-all active:scale-95 ${
                                 isRouteValidated
                                     ? tripDirection === 'IDA'
                                         ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/30 ring-2 ring-emerald-400'
@@ -1055,7 +1055,7 @@ const DriverTripExecution: React.FC = () => {
                                     : 'bg-slate-800 text-slate-500 cursor-not-allowed opacity-60'
                             }`}
                         >
-                            <Play className="h-5 w-5 mr-2 fill-current" />
+                            <Play className="h-4 w-4 sm:h-5 sm:w-5 mr-2 fill-current shrink-0" />
                             Iniciar Viagem ({tripDirection === 'IDA' ? 'IDA' : 'RETORNO'})
                         </Button>
 
@@ -1063,9 +1063,9 @@ const DriverTripExecution: React.FC = () => {
                             size="lg"
                             variant="outline"
                             onClick={() => setTripPhase('RETURNING_TO_GARAGE')}
-                            className="w-full border-purple-500/40 bg-purple-950/30 hover:bg-purple-900/50 text-purple-200 font-black py-4 rounded-2xl text-sm uppercase tracking-wider"
+                            className="w-full h-auto min-h-[48px] py-3 px-3 border-purple-500/40 bg-purple-950/30 hover:bg-purple-900/50 text-purple-200 font-bold rounded-2xl text-xs sm:text-sm normal-case leading-snug whitespace-normal break-words text-center justify-center transition-all active:scale-95"
                         >
-                            <Warehouse className="h-5 w-5 mr-2 text-purple-400" />
+                            <Warehouse className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-purple-400 shrink-0" />
                             Informar KM Final & Deslocamento
                         </Button>
                     </div>
@@ -1147,7 +1147,7 @@ const DriverTripExecution: React.FC = () => {
         const isIda = tripDirection === 'IDA';
         return (
             <StandardLayout title="Viagens e Rotas" subtitle="Viagem em Andamento — Lista de Funcionários Embarcados em Tempo Real">
-                <div className="p-4 space-y-4 max-w-3xl mx-auto min-h-screen pb-24 text-white">
+                <div className="p-4 space-y-4 max-w-3xl mx-auto min-h-screen pb-32 sm:pb-24 text-white">
                     {/* Lista resumida de Todas as Viagens para troca rápida */}
                     {renderDriverTripsListSection()}
 
@@ -1412,9 +1412,9 @@ const DriverTripExecution: React.FC = () => {
                     <Card className="bg-slate-900 border-slate-800 p-4 rounded-2xl">
                         <Button
                             onClick={() => setIsFinishTripModalOpen(true)}
-                            className="w-full bg-red-600 hover:bg-red-500 text-white font-black py-4 rounded-xl shadow-lg shadow-red-600/30 text-sm uppercase tracking-wider"
+                            className="w-full h-auto min-h-[48px] py-3 px-4 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl shadow-lg shadow-red-600/30 text-xs sm:text-sm normal-case leading-snug whitespace-normal break-words text-center justify-center transition-all active:scale-95"
                         >
-                            <Square className="h-4 w-4 mr-2 fill-current" />
+                            <Square className="h-4 w-4 mr-2 fill-current shrink-0" />
                             Concluir Viagem e Informar KM Final / Deslocamento
                         </Button>
                     </Card>
@@ -1521,7 +1521,7 @@ const DriverTripExecution: React.FC = () => {
     if (tripPhase === 'RETURNING_TO_GARAGE') {
         return (
             <StandardLayout title="Viagens e Rotas" subtitle="Conclusão da Viagem — Informar KM Final da Rota e Tipo de Deslocamento (Código de Percurso)">
-                <div className="p-4 max-w-3xl mx-auto space-y-5 text-white">
+                <div className="p-4 max-w-3xl mx-auto space-y-5 pb-32 sm:pb-24 text-white">
                     {/* Lista de Todas as Viagens */}
                     {renderDriverTripsListSection()}
 
@@ -1604,16 +1604,16 @@ const DriverTripExecution: React.FC = () => {
                             <Button
                                 onClick={() => setIsArriveGarageModalOpen(true)}
                                 variant="outline"
-                                className="w-full border-purple-500/40 bg-slate-950 hover:bg-slate-800 text-purple-300 font-bold py-4 rounded-xl text-xs uppercase tracking-wider"
+                                className="w-full h-auto min-h-[48px] border-purple-500/40 bg-slate-950 hover:bg-slate-800 text-purple-300 font-bold py-3 px-3 rounded-xl text-xs sm:text-sm normal-case leading-snug whitespace-normal break-words text-center justify-center transition-all active:scale-95 shadow-md"
                             >
-                                <Gauge className="h-4 w-4 mr-2" />
+                                <Gauge className="h-4 w-4 mr-2 shrink-0" />
                                 Conferir Resumo no Modal
                             </Button>
                             <Button
                                 onClick={handleConfirmArriveGarage}
-                                className="w-full bg-purple-600 hover:bg-purple-500 text-white font-black py-4 rounded-xl shadow-lg shadow-purple-600/30 text-sm uppercase tracking-wider"
+                                className="w-full h-auto min-h-[48px] bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 px-3 rounded-xl shadow-lg shadow-purple-600/30 text-xs sm:text-sm normal-case leading-snug whitespace-normal break-words text-center justify-center transition-all active:scale-95"
                             >
-                                <CheckCircle2 className="h-4 w-4 mr-2" />
+                                <CheckCircle2 className="h-4 w-4 mr-2 shrink-0" />
                                 Salvar KM Final e Deslocamento
                             </Button>
                         </div>
@@ -1689,7 +1689,7 @@ const DriverTripExecution: React.FC = () => {
     // ========================================================
     return (
         <StandardLayout title="Viagens e Rotas" subtitle="Jornada Concluída — Resumo Operacional e Quilometragem Consolidada">
-            <div className="p-4 max-w-3xl mx-auto space-y-5 text-white">
+            <div className="p-4 max-w-3xl mx-auto space-y-5 pb-32 sm:pb-24 text-white">
                 {/* Lista de Todas as Viagens atualizada */}
                 {renderDriverTripsListSection()}
 

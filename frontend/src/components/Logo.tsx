@@ -29,10 +29,17 @@ const Logo: React.FC<LogoProps> = ({
   const [imgError, setImgError] = useState(false);
 
   const heightClasses = {
-    sm: 'h-8 md:h-9',
-    md: 'h-10 md:h-11',
+    sm: 'h-7 sm:h-8 md:h-9',
+    md: 'h-9 sm:h-10 md:h-11',
     lg: 'h-12 sm:h-14 md:h-16',
     xl: 'h-16 sm:h-20 md:h-24'
+  };
+
+  const maxWidthClasses = {
+    sm: 'max-w-[120px] xs:max-w-[135px] sm:max-w-[180px]',
+    md: 'max-w-[140px] xs:max-w-[160px] sm:max-w-[200px]',
+    lg: 'max-w-[180px] sm:max-w-[240px]',
+    xl: 'max-w-[240px] sm:max-w-[300px]'
   };
 
   // Determinar fonte da imagem (Logomarca da Empresa) sem mutação de estado global
@@ -74,7 +81,7 @@ const Logo: React.FC<LogoProps> = ({
           src={resolvedLogoUrl}
           alt={companyName || 'Empresa'}
           onError={() => setImgError(true)}
-          className={`${heightClasses[size]} w-auto max-w-[200px] object-contain drop-shadow-md hover:scale-[1.02] transition-all duration-300 rounded-md`}
+          className={`${heightClasses[size]} w-auto ${maxWidthClasses[size]} object-contain drop-shadow-md hover:scale-[1.02] transition-all duration-300 rounded-md shrink-0`}
         />
       </div>
     );

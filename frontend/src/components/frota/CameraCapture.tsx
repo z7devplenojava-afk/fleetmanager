@@ -227,16 +227,16 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
             className="hidden"
           />
 
-          {/* Botão Principal: Tirar Foto usando a câmera traseira do celular (Largura total no mobile para máxima visibilidade) */}
+          {/* Botão Principal: Tirar Foto usando a câmera traseira do celular */}
           <Button
             type="button"
             variant="default"
             onClick={() => nativeCameraInputRef.current?.click()}
             disabled={disabled || capturedPhotos.length >= maxPhotos}
-            className="col-span-2 sm:w-auto bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm h-12 sm:h-10 px-4 rounded-xl shadow-md justify-center gap-2"
+            className="col-span-2 w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm h-auto min-h-[46px] py-2.5 px-3 rounded-xl shadow-md justify-center gap-2 leading-tight text-center whitespace-normal break-words transition-all active:scale-95"
             title="Abrir câmera traseira do dispositivo para tirar foto"
           >
-            <Camera className="h-5 w-5 shrink-0" />
+            <Camera className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
             <span>Tirar Foto (Câmera do Celular)</span>
           </Button>
 
@@ -246,7 +246,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
               type="button"
               variant="outline"
               onClick={stopStream}
-              className="w-full sm:w-auto border-red-500/40 bg-red-950/40 text-red-300 hover:bg-red-900/50 text-xs sm:text-sm font-bold h-11 sm:h-10 px-3.5 rounded-xl justify-center gap-1.5"
+              className="w-full sm:w-auto border-red-500/40 bg-red-950/40 text-red-300 hover:bg-red-900/50 text-xs font-semibold h-auto min-h-[42px] py-2 px-2.5 rounded-xl justify-center gap-1.5 leading-tight whitespace-normal break-words text-center transition-all active:scale-95"
             >
               <span>Fechar Câmera</span>
             </Button>
@@ -256,10 +256,10 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
               variant="outline"
               onClick={() => startCamera('environment')}
               disabled={disabled || capturedPhotos.length >= maxPhotos}
-              className="w-full sm:w-auto border-gray-600 bg-seguranca-black hover:bg-zinc-800 text-zinc-100 text-xs sm:text-sm font-bold h-11 sm:h-10 px-3.5 rounded-xl justify-center gap-1.5"
+              className="w-full sm:w-auto border-gray-600 bg-seguranca-black hover:bg-zinc-800 text-zinc-100 text-xs font-semibold h-auto min-h-[42px] py-2 px-2 rounded-xl justify-center gap-1.5 leading-tight whitespace-normal break-words text-center transition-all active:scale-95"
               title="Abrir câmera ao vivo na tela"
             >
-              <Camera className="h-4 w-4 text-yellow-400 shrink-0" />
+              <Camera className="h-3.5 w-3.5 text-yellow-400 shrink-0" />
               <span>Câmera na Tela</span>
             </Button>
           )}
@@ -270,10 +270,10 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
             variant="outline"
             onClick={() => fileInputRef.current?.click()}
             disabled={disabled || capturedPhotos.length >= maxPhotos}
-            className="w-full sm:w-auto border-gray-600 bg-seguranca-black hover:bg-zinc-800 text-zinc-100 text-xs sm:text-sm font-bold h-11 sm:h-10 px-3.5 rounded-xl justify-center gap-1.5"
+            className="w-full sm:w-auto border-gray-600 bg-seguranca-black hover:bg-zinc-800 text-zinc-100 text-xs font-semibold h-auto min-h-[42px] py-2 px-2 rounded-xl justify-center gap-1.5 leading-tight whitespace-normal break-words text-center transition-all active:scale-95"
             title="Selecionar fotos existentes na galeria"
           >
-            <Upload className="h-4 w-4 text-zinc-300 shrink-0" />
+            <Upload className="h-3.5 w-3.5 text-zinc-300 shrink-0" />
             <span>Galeria</span>
           </Button>
         </div>

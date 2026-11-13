@@ -323,23 +323,23 @@ export const DriverWorkOrdersPage: React.FC = () => {
     const getStatusBadge = (status?: string) => {
         switch (status) {
             case WorkOrderStatus.OPEN:
-                return <Badge className="bg-blue-600 text-white">Aberta</Badge>;
+                return <Badge className="bg-blue-600/25 text-blue-300 border border-blue-500/40 font-bold text-[11px] px-2 py-0.5">Aberta</Badge>;
             case WorkOrderStatus.IN_PROGRESS:
-                return <Badge className="bg-amber-600 text-white">Em Manutenção</Badge>;
+                return <Badge className="bg-amber-600/25 text-amber-300 border border-amber-500/40 font-bold text-[11px] px-2 py-0.5">Em Manutenção</Badge>;
             case WorkOrderStatus.WAITING_PARTS:
-                return <Badge className="bg-orange-600 text-white">Aguardando Peças</Badge>;
+                return <Badge className="bg-orange-600/25 text-orange-300 border border-orange-500/40 font-bold text-[11px] px-2 py-0.5">Aguardando Peças</Badge>;
             case WorkOrderStatus.COMPLETED:
-                return <Badge className="bg-emerald-600 text-white">Concluída</Badge>;
+                return <Badge className="bg-emerald-600/25 text-emerald-300 border border-emerald-500/40 font-bold text-[11px] px-2 py-0.5">Concluída</Badge>;
             case WorkOrderStatus.CANCELLED:
-                return <Badge className="bg-zinc-700 text-zinc-300">Cancelada</Badge>;
+                return <Badge className="bg-zinc-700/40 text-zinc-300 border border-zinc-600/40 font-bold text-[11px] px-2 py-0.5">Cancelada</Badge>;
             default:
-                return <Badge variant="outline">{status || 'Pendente'}</Badge>;
+                return <Badge variant="outline" className="text-zinc-300 border-zinc-700 font-bold text-[11px] px-2 py-0.5">{status || 'Pendente'}</Badge>;
         }
     };
 
     return (
         <StandardLayout title="Manutenção & Ordens de Serviço" subtitle="Área do Condutor / Motorista">
-            <div className="w-full max-w-7xl mx-auto p-3 sm:p-6 lg:p-8 space-y-6">
+            <div className="w-full max-w-7xl mx-auto p-3 sm:p-6 lg:p-8 space-y-6 pb-32 sm:pb-24">
                 {/* Cabeçalho de Navegação Mobile */}
                 <div className="flex items-center justify-between gap-3">
                     <Button
@@ -697,15 +697,15 @@ export const DriverWorkOrdersPage: React.FC = () => {
                                                     </div>
                                                 )}
                                             </div>
-                                            <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap sm:self-center border-t sm:border-t-0 border-zinc-800/80 pt-2.5 sm:pt-0">
+                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full sm:w-auto border-t sm:border-t-0 border-zinc-800/80 pt-2.5 sm:pt-0">
                                                 <Button
                                                     variant="outline"
                                                     size="sm"
                                                     onClick={() => handleViewPdf(order)}
-                                                    className="h-8 px-2.5 bg-zinc-900 border-zinc-700 hover:bg-zinc-800 text-zinc-200 text-xs gap-1.5"
+                                                    className="w-full h-auto min-h-[38px] py-2 px-2 bg-zinc-900 border-zinc-700 hover:bg-zinc-800 text-zinc-200 text-xs rounded-xl justify-center gap-1.5 transition-all active:scale-95"
                                                     title="Visualizar OS em PDF"
                                                 >
-                                                    <Eye className="h-3.5 w-3.5 text-blue-400" />
+                                                    <Eye className="h-3.5 w-3.5 text-blue-400 shrink-0" />
                                                     <span>Visualizar</span>
                                                 </Button>
 
@@ -714,13 +714,13 @@ export const DriverWorkOrdersPage: React.FC = () => {
                                                     size="sm"
                                                     disabled={generatingPdfId === order.id}
                                                     onClick={() => handleDownloadPdf(order)}
-                                                    className="h-8 px-2.5 bg-zinc-900 border-zinc-700 hover:bg-zinc-800 text-zinc-200 text-xs gap-1.5"
+                                                    className="w-full h-auto min-h-[38px] py-2 px-2 bg-zinc-900 border-zinc-700 hover:bg-zinc-800 text-zinc-200 text-xs rounded-xl justify-center gap-1.5 transition-all active:scale-95"
                                                     title="Baixar PDF"
                                                 >
                                                     {generatingPdfId === order.id ? (
-                                                        <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-400" />
+                                                        <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-400 shrink-0" />
                                                     ) : (
-                                                        <Download className="h-3.5 w-3.5 text-emerald-400" />
+                                                        <Download className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
                                                     )}
                                                     <span>Baixar</span>
                                                 </Button>
@@ -730,10 +730,10 @@ export const DriverWorkOrdersPage: React.FC = () => {
                                                     size="sm"
                                                     disabled={generatingPdfId === order.id}
                                                     onClick={() => handlePrintPdf(order)}
-                                                    className="h-8 px-2.5 bg-zinc-900 border-zinc-700 hover:bg-zinc-800 text-zinc-200 text-xs gap-1.5"
+                                                    className="w-full h-auto min-h-[38px] py-2 px-2 bg-zinc-900 border-zinc-700 hover:bg-zinc-800 text-zinc-200 text-xs rounded-xl justify-center gap-1.5 transition-all active:scale-95"
                                                     title="Imprimir OS"
                                                 >
-                                                    <Printer className="h-3.5 w-3.5 text-purple-400" />
+                                                    <Printer className="h-3.5 w-3.5 text-purple-400 shrink-0" />
                                                     <span>Imprimir</span>
                                                 </Button>
 
@@ -741,10 +741,10 @@ export const DriverWorkOrdersPage: React.FC = () => {
                                                     variant="outline"
                                                     size="sm"
                                                     onClick={() => handleEditOrder(order)}
-                                                    className="h-8 px-2.5 bg-zinc-900 border-zinc-700 hover:bg-zinc-800 text-zinc-200 text-xs gap-1.5"
+                                                    className="w-full h-auto min-h-[38px] py-2 px-2 bg-zinc-900 border-zinc-700 hover:bg-zinc-800 text-zinc-200 text-xs rounded-xl justify-center gap-1.5 transition-all active:scale-95"
                                                     title="Editar Ordem de Serviço"
                                                 >
-                                                    <Edit className="h-3.5 w-3.5 text-amber-400" />
+                                                    <Edit className="h-3.5 w-3.5 text-amber-400 shrink-0" />
                                                     <span>Editar</span>
                                                 </Button>
                                             </div>

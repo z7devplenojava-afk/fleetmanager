@@ -513,46 +513,46 @@ const MessageDashboard: React.FC = () => {
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={handleTabChange}>
-            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 bg-seguranca-black p-2">
+            <TabsList className="grid w-full grid-cols-3 sm:grid-cols-5 gap-1.5 bg-seguranca-black/90 border border-slate-800 p-1.5 rounded-2xl h-auto min-h-[48px]">
               <TabsTrigger 
                 value="received" 
-                className="data-[state='active']:bg-blue-600 data-[state='active']:text-white transition-all text-xs sm:text-sm"
+                className="data-[state='active']:bg-blue-600 data-[state='active']:text-white transition-all text-xs sm:text-sm h-auto min-h-[40px] py-2 px-2 rounded-xl flex items-center justify-center gap-1 leading-tight whitespace-normal break-words"
               >
-                <Inbox className="w-4 h-4 sm:mr-2" />
+                <Inbox className="w-4 h-4 shrink-0 sm:mr-1" />
                 <span className="hidden sm:inline">Recebidas</span>
                 <span className="sm:hidden">Inbox</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="sent"
-                className="data-[state='active']:bg-cyan-600 data-[state='active']:text-white transition-all text-xs sm:text-sm"
+                className="data-[state='active']:bg-cyan-600 data-[state='active']:text-white transition-all text-xs sm:text-sm h-auto min-h-[40px] py-2 px-2 rounded-xl flex items-center justify-center gap-1 leading-tight whitespace-normal break-words"
               >
-                <SendHorizontal className="w-4 h-4 sm:mr-2" />
+                <SendHorizontal className="w-4 h-4 shrink-0 sm:mr-1" />
                 <span className="hidden sm:inline">Enviadas</span>
                 <span className="sm:hidden">Enviadas</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="unread"
-                className="data-[state='active']:bg-red-600 data-[state='active']:text-white transition-all text-xs sm:text-sm"
+                className="data-[state='active']:bg-red-600 data-[state='active']:text-white transition-all text-xs sm:text-sm h-auto min-h-[40px] py-2 px-2 rounded-xl flex items-center justify-center gap-1 leading-tight whitespace-normal break-words"
               >
-                <Eye className="w-4 h-4 sm:mr-2" />
+                <Eye className="w-4 h-4 shrink-0 sm:mr-1" />
                 <span className="hidden sm:inline">Não Lidas</span>
                 <span className="sm:hidden">Novas</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="read"
-                className="data-[state='active']:bg-green-600 data-[state='active']:text-white transition-all text-xs sm:text-sm"
+                className="data-[state='active']:bg-green-600 data-[state='active']:text-white transition-all text-xs sm:text-sm h-auto min-h-[40px] py-2 px-2 rounded-xl flex items-center justify-center gap-1 leading-tight whitespace-normal break-words"
               >
-                <CheckCircle className="w-4 h-4 sm:mr-2" />
+                <CheckCircle className="w-4 h-4 shrink-0 sm:mr-1" />
                 <span className="hidden sm:inline">Lidas</span>
                 <span className="sm:hidden">Lidas</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="archived"
-                className="data-[state='active']:bg-purple-600 data-[state='active']:text-white transition-all text-xs sm:text-sm"
+                className="data-[state='active']:bg-purple-600 data-[state='active']:text-white transition-all text-xs sm:text-sm h-auto min-h-[40px] py-2 px-2 rounded-xl flex items-center justify-center gap-1 leading-tight whitespace-normal break-words col-span-2 sm:col-span-1"
               >
-                <Archive className="w-4 h-4 sm:mr-2" />
+                <Archive className="w-4 h-4 shrink-0 sm:mr-1" />
                 <span className="hidden sm:inline">Arquivadas</span>
-                <span className="sm:hidden">Arquiv.</span>
+                <span className="sm:hidden">Arquivadas</span>
               </TabsTrigger>
             </TabsList>
 

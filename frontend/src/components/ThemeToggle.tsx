@@ -49,7 +49,7 @@ const ThemeToggle: React.FC = () => {
       variant="outline"
       size="sm"
       onClick={cycleTheme}
-      className={`flex items-center gap-2 rounded-full px-3 transition-colors ${
+      className={`flex items-center gap-1.5 rounded-full h-8 w-8 sm:h-9 sm:w-auto p-0 sm:px-3 justify-center shrink-0 transition-all ${
         isDark
           ? 'bg-slate-900/90 border-slate-700 text-slate-100 hover:bg-slate-800 hover:text-white'
           : 'bg-slate-100 border-slate-300 text-slate-900 hover:bg-slate-200 hover:text-slate-950'
@@ -57,7 +57,7 @@ const ThemeToggle: React.FC = () => {
       title={`Contraste atual: ${getThemeLabel()}. Clique para alternar (Dark / Grafite / Branco).`}
     >
       {getThemeIcon()}
-      <span className="text-xs font-semibold">{getThemeLabel()}</span>
+      <span className="text-xs font-semibold hidden sm:inline">{getThemeLabel()}</span>
     </Button>
   );
 };
