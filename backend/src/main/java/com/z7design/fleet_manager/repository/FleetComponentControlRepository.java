@@ -14,6 +14,8 @@ public interface FleetComponentControlRepository extends JpaRepository<FleetComp
 
     List<FleetComponentControl> findByIsLatestTrue();
 
+    List<FleetComponentControl> findByVehicleIdAndIsLatestTrue(UUID vehicleId);
+
     List<FleetComponentControl> findByVehicleIdAndControlTypeAndIsLatestTrue(UUID vehicleId, String controlType);
 
     List<FleetComponentControl> findByVehicleIdAndControlTypeOrderByServiceDateDescCreatedAtDesc(UUID vehicleId, String controlType);

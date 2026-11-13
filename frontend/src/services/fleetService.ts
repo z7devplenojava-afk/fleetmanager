@@ -703,6 +703,12 @@ class FleetService {
     return response.data;
   }
 
+  async getVehicleQRCodeByPlate(plate: string): Promise<VehicleQRCodeData> {
+    const cleanPlate = (plate || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
+    const response = await api.get(`/api/vehicles/plate/${cleanPlate}/qrcode`);
+    return response.data;
+  }
+
   getVehicleQRCodeImageUrl(vehicleId: string, width = 350, height = 350): string {
     return `/api/vehicles/${vehicleId}/qrcode/image?width=${width}&height=${height}`;
   }
@@ -781,9 +787,21 @@ export interface CrlvImportResult {
   items: CrlvImportItem[];
 }
 
+export interface VehiclePreventiveAlertItem {
+  controlType: string;
+  componentName: string;
+  lastServiceKm?: number;
+  nextDueKm?: number;
+  remainingKm?: number;
+  status: 'OVERDUE' | 'UPCOMING' | 'OK' | string;
+  lastServiceDate?: string;
+}
+
 export interface VehicleQRCodeData {
-  vehicleId: string;
+  id?: string;
+  vehicleId?: string;
   plate: string;
+  fleetNumber?: string;
   model: string;
   brand: string;
   year: number;
@@ -803,12 +821,18 @@ export interface VehicleQRCodeData {
   workPostId?: string;
   workPostName?: string;
   workPostCode?: string;
+  contractNumber?: string;
 
   driverId?: string;
   driverName?: string;
+  assignedDriver?: string;
+  responsibleEmployeeName?: string;
+  responsibleEmployeeId?: string;
   driverCpf?: string;
   driverLicenseNumber?: string;
+  driverCnh?: string;
 
+  // Última OS
   lastWorkOrderId?: string;
   lastWorkOrderNumber?: string;
   lastWorkOrderDate?: string;
@@ -816,9 +840,73 @@ export interface VehicleQRCodeData {
   lastWorkOrderType?: string;
   lastWorkOrderCost?: number;
   lastWorkOrderDescription?: string;
+  lastOsNumber?: string;
+  lastOsStatus?: string;
+  lastOsType?: string;
+  lastOsDate?: string;
+  lastOsCost?: number;
+  lastOsMaintenancePerformed?: string;
+
+  // Documentos
+  chassisNumber?: string;
+  renavan?: string;
+  documentationExpiryDate?: string;
+  documentationStatus?: 'OK' | 'EXPIRING_SOON' | 'EXPIRED' | string;
+  documentationDaysRemaining?: number;
+  insuranceExpiryDate?: string;
+  insuranceStatus?: 'OK' | 'EXPIRING_SOON' | 'EXPIRED' | string;
+  insuranceDaysRemaining?: number;
+  insuranceCompany?: string;
+  insurancePolicyNumber?: string;
+
+  // Último abastecimento
+  lastFuelDate?: string;
+  lastFuelLiters?: number;
+  lastFuelCost?: number;
+  lastFuelStation?: string;
+  lastFuelType?: string;
+  lastFuelMileage?: number;
+
+  // Última rota executada
+  lastRouteCode?: string;
+  lastRouteName?: string;
+  lastTripDate?: string;
+  lastTripStartTime?: string;
+  lastTripEndTime?: string;
+  lastTripDriverName?: string;
+  lastTripInitialKm?: number;
+  lastTripFinalKm?: number;
+  lastTripStatus?: string;
+
+  // Gestão de Agregado (SÓ EXIBIDO SE FOR VEÍCULO DE AGREGADO)
+  isAggregated?: boolean;
+  aggregatedOwnerName?: string;
+  aggregatedOwnerCpfCnpj?: string;
+  aggregatedOwnerPhone?: string;
+  aggregatedOwnerEmail?: string;
+  aggregatedDailyRate?: number;
+  aggregatedMonthlyRate?: number;
+  aggregatedPaymentType?: string;
+  aggregatedContractStartDate?: string;
+  aggregatedContractEndDate?: string;
+  aggregatedNotes?: string;
+
+  // Localização
+  currentLocation?: string;
+  currentLatitude?: number;
+  currentLongitude?: number;
+
+  // Preventivas
+  preventiveOverdueCount?: number;
+  preventiveUpcomingCount?: number;
+  preventiveAlertsSummary?: string;
+  preventiveItems?: VehiclePreventiveAlertItem[];
 
   qrCodeTextPayload?: string;
+  qrCodeText?: string;
+  qrCodeImageUrl?: string;
   qrCodeGeneratedAt?: string;
+  generatedAt?: string;
 }
 
 export const fleetService = new FleetService();

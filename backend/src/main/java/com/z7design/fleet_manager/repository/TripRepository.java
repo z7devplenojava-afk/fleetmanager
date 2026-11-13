@@ -18,5 +18,7 @@ public interface TripRepository extends JpaRepository<Trip, UUID> {
 
     List<Trip> findByEscalaId(UUID escalaId);
 
+    List<Trip> findByVehicleIdOrderByTripDateDescStartTimeDesc(UUID vehicleId);
+
     boolean existsByEscalaIdAndStatusIn(UUID escalaId, Collection<Trip.TripStatus> statuses);
 }

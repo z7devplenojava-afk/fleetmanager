@@ -1,17 +1,10 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogDescription,
-    DialogFooter
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { QrCode, X } from 'lucide-react';
+import React, { useCallback, useState } from 'react';
+import { UniversalQrScannerModal } from '@/components/common/UniversalQrScannerModal';
+import { VehicleScannedDetailsModal } from './VehicleScannedDetailsModal';
+import fleetService, { VehicleQRCodeData } from '@/services/fleetService';
+import { useToast } from '@/hooks/use-toast';
 
 export interface QRScanResult {
     driverId?: string;
@@ -28,6 +21,10 @@ interface QRCodeScannerProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onScan: (result: QRScanResult) => void;
+    /** Se true, abre automaticamente o modal de detalhes do veículo escaneado (Padrão: true) */
+    showDetailsOnVehicleScan?: boolean;
+    /** Callback opcional quando usuário clica para abrir OS do veículo escaneado */
+    onOpenWorkOrder?: (vehicleId: string, plate: string) => void;
 }
 
 /**
@@ -137,38 +134,74 @@ const parseQRContent = (decodedText: string): QRScanResult | null => {
     }
 };
 
-import { UniversalQrScannerModal } from '@/components/common/UniversalQrScannerModal';
-
 export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
     open,
     onOpenChange,
     onScan,
+    showDetailsOnVehicleScan = true,
+    onOpenWorkOrder,
 }) => {
+    const { toast } = useToast();
+    const [scannedVehicleData, setScannedVehicleData] = useState<VehicleQRCodeData | null>(null);
+    const [showVehicleDetails, setShowVehicleDetails] = useState<boolean>(false);
+
     const handleScanSuccess = useCallback(
-        (decodedText: string) => {
+        async (decodedText: string) => {
             console.log('📡 QR Code detectado:', decodedText);
-            const result = parseQRContent(decodedText);
+            const result = parseQRContent(decodedText) || { rawText: decodedText };
             console.log('🔍 Resultado do parse:', result);
-            if (result) {
-                onScan(result);
-                onOpenChange(false);
-            } else {
-                onScan({ rawText: decodedText });
-                onOpenChange(false);
+
+            // Fechar o modal de leitura de câmera
+            onOpenChange(false);
+            onScan(result);
+
+            // Se for identificado como veículo e a opção de exibir detalhes estiver habilitada
+            if (showDetailsOnVehicleScan && (result.plate || result.vehicleId)) {
+                try {
+                    let vehicleData: VehicleQRCodeData | null = null;
+                    if (result.plate) {
+                        vehicleData = await fleetService.getVehicleQRCodeByPlate(result.plate);
+                    } else if (result.vehicleId) {
+                        vehicleData = await fleetService.getVehicleQRCodeData(result.vehicleId);
+                    }
+
+                    if (vehicleData) {
+                        setScannedVehicleData(vehicleData);
+                        setShowVehicleDetails(true);
+                    }
+                } catch (err: any) {
+                    console.warn('Não foi possível carregar dados detalhados do veículo escaneado:', err);
+                    // Não bloqueia o fluxo de scan caso seja apenas uma leitura simples
+                }
             }
         },
-        [onScan, onOpenChange]
+        [onScan, onOpenChange, showDetailsOnVehicleScan]
     );
 
     return (
-        <UniversalQrScannerModal
-            isOpen={open}
-            onClose={() => onOpenChange(false)}
-            onScanSuccess={handleScanSuccess}
-            title="Ler QR Code da Portaria / Frota"
-            description="Aponte a câmera para o QR Code do motorista ou do veículo"
-            placeholderManual="Digite a placa, ID ou cole o conteúdo do QR Code..."
-            allowManualInput={true}
-        />
+        <>
+            <UniversalQrScannerModal
+                isOpen={open}
+                onClose={() => onOpenChange(false)}
+                onScanSuccess={handleScanSuccess}
+                title="Ler QR Code da Frota / Portaria"
+                description="Aponte a câmera para o QR Code do veículo ou motorista"
+                placeholderManual="Digite a placa, ID ou cole o conteúdo do QR Code..."
+                allowManualInput={true}
+            />
+
+            {/* Modal de Detalhes Completo do Veículo Escaneado */}
+            <VehicleScannedDetailsModal
+                isOpen={showVehicleDetails}
+                data={scannedVehicleData}
+                onClose={() => {
+                    setShowVehicleDetails(false);
+                    setScannedVehicleData(null);
+                }}
+                onOpenWorkOrder={onOpenWorkOrder}
+            />
+        </>
     );
 };
+
+export default QRCodeScanner;

@@ -20,10 +20,15 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import com.z7design.fleet_manager.model.FleetComponentControl;
+import com.z7design.fleet_manager.model.FuelRecord;
+import com.z7design.fleet_manager.model.Trip;
 
 @Service
 @RequiredArgsConstructor
@@ -39,6 +44,9 @@ public class VehicleService {
     private final com.z7design.fleet_manager.service.GarageService garageService;
     private final TenantSecurityValidator tenantSecurityValidator;
     private final PreventiveModel2Service preventiveModel2Service;
+    private final com.z7design.fleet_manager.repository.FuelRecordRepository fuelRecordRepository;
+    private final com.z7design.fleet_manager.repository.TripRepository tripRepository;
+    private final com.z7design.fleet_manager.repository.FleetComponentControlRepository fleetComponentControlRepository;
     
     @Transactional(readOnly = true)
     public List<VehicleDTO> getAllVehicles() {
@@ -365,7 +373,10 @@ public class VehicleService {
 
     /**
      * Retorna os dados completos para o passaporte / QR Code do veículo:
-     * Placa, Modelo/Ano, Status, Garagem, Cliente/Obra, Motorista Responsável e Última OS.
+     * - Padrão: Placa, Status, KM atual, Documentação, Manutenção
+     * - Completo: Motorista atual, Cliente atendido, Último abastecimento, KM atual,
+     *   Vencimentos, Agregado (apenas se for agregado), Última OS, Documentos,
+     *   Última rota executada e Localização atual.
      */
     @Transactional(readOnly = true)
     public VehicleQRCodeDTO getVehicleQRCodeData(UUID id) {
@@ -376,18 +387,21 @@ public class VehicleService {
         // Resolver Garagem
         String garageName = vehicle.getGarageName();
         UUID garageId = vehicle.getGarageId();
-        if (garageId != null && (garageName == null || garageName.isBlank())) {
-            garageRepository.findById(garageId).ifPresent(g -> {});
+        String garageAddress = null;
+        if (garageId != null) {
+            Optional<com.z7design.fleet_manager.model.Garage> g = garageRepository.findById(garageId);
+            if (g.isPresent()) {
+                if (garageName == null || garageName.isBlank()) {
+                    garageName = g.get().getName();
+                }
+                garageAddress = g.get().getAddress();
+            }
         }
 
-        // Resolver Cliente
+        // Resolver Cliente e Obra / Posto
         String clientName = vehicle.getClientName();
         UUID clientId = vehicle.getClientId();
-        if (clientId != null && (clientName == null || clientName.isBlank())) {
-            clientRepository.findById(clientId).ifPresent(c -> {});
-        }
-
-        // Resolver Obra / Posto
+        String clientCnpj = null;
         String workPostName = null;
         UUID workPostId = vehicle.getWorkPostId();
         if (workPostId != null) {
@@ -400,16 +414,30 @@ public class VehicleService {
                 }
             }
         }
+        if (clientId != null) {
+            Optional<com.z7design.fleet_manager.model.Client> cl = clientRepository.findById(clientId);
+            if (cl.isPresent()) {
+                clientCnpj = cl.get().getCnpj();
+                if (clientName == null || clientName.isBlank()) {
+                    clientName = cl.get().getName();
+                }
+            }
+        }
+        String contractNumber = vehicle.getAllocationContractNumber();
 
         // Resolver Motorista / Responsável
         String assignedDriver = vehicle.getAssignedDriver();
         String responsibleEmployeeName = null;
         UUID responsibleEmployeeId = vehicle.getResponsibleEmployeeId();
+        String driverCnh = null;
+        String driverCpf = null;
         if (responsibleEmployeeId != null) {
-            employeeRepository.findById(responsibleEmployeeId)
-                    .ifPresent(e -> {});
-            if (vehicle.getResponsibleEmployee() != null) {
-                responsibleEmployeeName = vehicle.getResponsibleEmployee().getName();
+            Optional<com.z7design.fleet_manager.model.Employee> empOpt = employeeRepository.findById(responsibleEmployeeId);
+            if (empOpt.isPresent()) {
+                com.z7design.fleet_manager.model.Employee emp = empOpt.get();
+                responsibleEmployeeName = emp.getName();
+                driverCnh = emp.getCnhNumber();
+                driverCpf = emp.getCpf();
             }
         }
         if ((assignedDriver == null || assignedDriver.isBlank()) && responsibleEmployeeName != null) {
@@ -437,6 +465,161 @@ public class VehicleService {
             lastOsMaintenancePerformed = last.getMaintenancePerformed();
         }
 
+        // Documentação (CRLV) e Seguro
+        String chassisNumber = vehicle.getChassisNumber();
+        String renavan = vehicle.getRenavan();
+        LocalDate docDate = vehicle.getDocumentationExpiryDate();
+        String docStatus = "OK";
+        Long docDaysRemaining = null;
+        if (docDate != null) {
+            docDaysRemaining = ChronoUnit.DAYS.between(LocalDate.now(), docDate);
+            if (docDaysRemaining < 0) {
+                docStatus = "EXPIRED";
+            } else if (docDaysRemaining <= 30) {
+                docStatus = "EXPIRING_SOON";
+            } else {
+                docStatus = "OK";
+            }
+        }
+
+        LocalDate insuranceDate = vehicle.getInsuranceExpiryDate();
+        String insuranceStatus = "OK";
+        Long insuranceDaysRemaining = null;
+        if (insuranceDate != null) {
+            insuranceDaysRemaining = ChronoUnit.DAYS.between(LocalDate.now(), insuranceDate);
+            if (insuranceDaysRemaining < 0) {
+                insuranceStatus = "EXPIRED";
+            } else if (insuranceDaysRemaining <= 30) {
+                insuranceStatus = "EXPIRING_SOON";
+            } else {
+                insuranceStatus = "OK";
+            }
+        }
+        String insuranceCompany = vehicle.getInsuranceCompany();
+        String insurancePolicyNumber = vehicle.getInsurancePolicyNumber();
+
+        // Último Abastecimento
+        LocalDate lastFuelDate = null;
+        BigDecimal lastFuelLiters = null;
+        BigDecimal lastFuelCost = null;
+        String lastFuelStation = null;
+        String lastFuelType = null;
+        Integer lastFuelMileage = null;
+        List<FuelRecord> fuelRecords = fuelRecordRepository.findLastFuelRecordByVehicle(id);
+        if (fuelRecords != null && !fuelRecords.isEmpty()) {
+            FuelRecord fr = fuelRecords.get(0);
+            lastFuelDate = fr.getDate();
+            lastFuelLiters = fr.getQuantity();
+            lastFuelCost = fr.getCost();
+            lastFuelStation = fr.getStation();
+            lastFuelType = fr.getFuelType() != null ? fr.getFuelType().name() : null;
+            lastFuelMileage = fr.getMileage();
+        }
+
+        // Última Rota Executada
+        String lastRouteCode = vehicle.getRouteNumber();
+        String lastRouteName = vehicle.getRouteName();
+        LocalDate lastTripDate = null;
+        LocalDateTime lastTripStartTime = null;
+        LocalDateTime lastTripEndTime = null;
+        String lastTripDriverName = null;
+        Integer lastTripInitialKm = null;
+        Integer lastTripFinalKm = null;
+        String lastTripStatus = null;
+        Double currentLatitude = null;
+        Double currentLongitude = null;
+
+        List<Trip> trips = tripRepository.findByVehicleIdOrderByTripDateDescStartTimeDesc(id);
+        if (trips != null && !trips.isEmpty()) {
+            Trip lastTrip = trips.get(0);
+            if (lastTrip.getRoute() != null) {
+                lastRouteCode = lastTrip.getRoute().getCode();
+                lastRouteName = lastTrip.getRoute().getName();
+            }
+            lastTripDate = lastTrip.getTripDate();
+            lastTripStartTime = lastTrip.getStartTime();
+            lastTripEndTime = lastTrip.getEndTime();
+            if (lastTrip.getDriver() != null) {
+                lastTripDriverName = lastTrip.getDriver().getName();
+            }
+            lastTripInitialKm = lastTrip.getInitialKm();
+            lastTripFinalKm = lastTrip.getFinalKm();
+            lastTripStatus = lastTrip.getStatus() != null ? lastTrip.getStatus().name() : null;
+            currentLatitude = lastTrip.getCurrentLat();
+            currentLongitude = lastTrip.getCurrentLng();
+        }
+
+        // Gestão de Agregado (SÓ EXIBIDO SE FOR VEÍCULO DE AGREGADO)
+        Boolean isAggregated = Boolean.TRUE.equals(vehicle.getIsAggregated());
+        String aggOwnerName = null;
+        String aggOwnerCpfCnpj = null;
+        String aggOwnerPhone = null;
+        String aggOwnerEmail = null;
+        BigDecimal aggDailyRate = null;
+        BigDecimal aggMonthlyRate = null;
+        String aggPaymentType = null;
+        LocalDate aggStartDate = null;
+        LocalDate aggEndDate = null;
+        String aggNotes = null;
+
+        if (isAggregated) {
+            aggOwnerName = vehicle.getAggregatedOwnerName();
+            aggOwnerCpfCnpj = vehicle.getAggregatedOwnerCpfCnpj();
+            aggOwnerPhone = vehicle.getAggregatedOwnerPhone();
+            aggOwnerEmail = vehicle.getAggregatedOwnerEmail();
+            aggDailyRate = vehicle.getAggregatedDailyRate();
+            aggMonthlyRate = vehicle.getAggregatedMonthlyRate();
+            aggPaymentType = vehicle.getAggregatedPaymentType() != null ? vehicle.getAggregatedPaymentType().name() : null;
+            aggStartDate = vehicle.getAggregatedContractStartDate();
+            aggEndDate = vehicle.getAggregatedContractEndDate();
+            aggNotes = vehicle.getAggregatedNotes();
+        }
+
+        // Localização Atual
+        String currentLocation = vehicle.getLocation() != null && !vehicle.getLocation().isBlank()
+                ? vehicle.getLocation()
+                : (garageName != null ? garageName : (workPostName != null ? workPostName : "Não informada"));
+
+        // Manutenção Preventiva & Controles de Componentes
+        int currentKm = vehicle.getCurrentMileage() != null ? vehicle.getCurrentMileage() : 0;
+        List<FleetComponentControl> controls = fleetComponentControlRepository.findByVehicleIdAndIsLatestTrue(id);
+        List<VehicleQRCodeDTO.PreventiveAlertItemDTO> preventiveItems = new ArrayList<>();
+        int overdueCount = 0;
+        int upcomingCount = 0;
+
+        for (FleetComponentControl c : controls) {
+            int remaining = c.getNextDueKm() - currentKm;
+            String status = "OK";
+            if (remaining <= 0) {
+                status = "OVERDUE";
+                overdueCount++;
+            } else if (remaining <= 3000) {
+                status = "UPCOMING";
+                upcomingCount++;
+            }
+            
+            String label = c.getControlType();
+            if ("ALIGNMENT".equalsIgnoreCase(c.getControlType())) label = "Alinhamento e Balanceamento";
+            else if ("ENGINE_OIL".equalsIgnoreCase(c.getControlType())) label = "Troca de Óleo de Motor";
+            else if ("PULLEY_BEARING".equalsIgnoreCase(c.getControlType())) label = "Rolamento da Polia";
+            else if ("STARTER".equalsIgnoreCase(c.getControlType())) label = "Motor de Arranque";
+            else if ("ALTERNATOR".equalsIgnoreCase(c.getControlType())) label = "Alternador";
+
+            preventiveItems.add(VehicleQRCodeDTO.PreventiveAlertItemDTO.builder()
+                    .controlType(c.getControlType())
+                    .componentName(label)
+                    .lastServiceKm(c.getServiceKm())
+                    .nextDueKm(c.getNextDueKm())
+                    .remainingKm(remaining)
+                    .status(status)
+                    .lastServiceDate(c.getServiceDate())
+                    .build());
+        }
+
+        String preventiveSummary = overdueCount > 0
+                ? String.format("%d preventiva(s) vencida(s)", overdueCount)
+                : (upcomingCount > 0 ? String.format("%d preventiva(s) próxima(s)", upcomingCount) : "Preventivas em dia");
+
         // Texto legível contido no QR Code
         String qrPayload = String.format(
                 "VEICULO: %s | MODELO: %s (%d)\n" +
@@ -444,8 +627,10 @@ public class VehicleService {
                 "GARAGEM: %s\n" +
                 "CLIENTE: %s\n" +
                 "MOTORISTA/RESP: %s\n" +
-                "ULTIMA OS: %s (%s - %s)\n" +
                 "KM: %s\n" +
+                (isAggregated ? ("AGREGADO: " + (aggOwnerName != null ? aggOwnerName : "Sim") + "\n") : "") +
+                "ULTIMA OS: %s (%s - %s)\n" +
+                "DOC CRLV: %s\n" +
                 "ID: %s",
                 vehicle.getPlate(),
                 vehicle.getModel() != null ? vehicle.getModel() : "-",
@@ -454,10 +639,11 @@ public class VehicleService {
                 garageName != null && !garageName.isBlank() ? garageName : "Não informada",
                 clientName != null && !clientName.isBlank() ? clientName : (workPostName != null ? workPostName : "Não vinculado"),
                 assignedDriver != null && !assignedDriver.isBlank() ? assignedDriver : "Não atribuído",
+                vehicle.getCurrentMileage() != null ? vehicle.getCurrentMileage() + " KM" : "-",
                 lastOsNumber,
                 lastOsType,
                 lastOsStatus,
-                vehicle.getCurrentMileage() != null ? vehicle.getCurrentMileage() + " KM" : "-",
+                docDate != null ? docDate.toString() : "Em dia",
                 vehicle.getId()
         );
 
@@ -468,28 +654,86 @@ public class VehicleService {
                 .brand(vehicle.getBrand())
                 .model(vehicle.getModel())
                 .year(vehicle.getYear())
+                .color(vehicle.getColor())
                 .status(vehicle.getStatus() != null ? vehicle.getStatus().name() : "ACTIVE")
                 .fuelType(vehicle.getFuelType() != null ? vehicle.getFuelType().name() : null)
                 .currentMileage(vehicle.getCurrentMileage())
                 .garageName(garageName != null && !garageName.isBlank() ? garageName : "Não informada")
                 .garageId(garageId)
+                .garageAddress(garageAddress)
                 .clientName(clientName != null && !clientName.isBlank() ? clientName : "Não vinculado")
                 .clientId(clientId)
+                .clientCnpj(clientCnpj)
                 .workPostName(workPostName)
                 .workPostId(workPostId)
+                .contractNumber(contractNumber)
                 .assignedDriver(assignedDriver != null && !assignedDriver.isBlank() ? assignedDriver : "Não atribuído")
                 .responsibleEmployeeName(responsibleEmployeeName)
                 .responsibleEmployeeId(responsibleEmployeeId)
+                .driverCnh(driverCnh)
+                .driverCpf(driverCpf)
                 .lastOsNumber(lastOsNumber)
                 .lastOsStatus(lastOsStatus)
                 .lastOsType(lastOsType)
                 .lastOsDate(lastOsDate)
                 .lastOsCost(lastOsCost)
                 .lastOsMaintenancePerformed(lastOsMaintenancePerformed)
+                .chassisNumber(chassisNumber)
+                .renavan(renavan)
+                .documentationExpiryDate(docDate)
+                .documentationStatus(docStatus)
+                .documentationDaysRemaining(docDaysRemaining)
+                .insuranceExpiryDate(insuranceDate)
+                .insuranceStatus(insuranceStatus)
+                .insuranceDaysRemaining(insuranceDaysRemaining)
+                .insuranceCompany(insuranceCompany)
+                .insurancePolicyNumber(insurancePolicyNumber)
+                .lastFuelDate(lastFuelDate)
+                .lastFuelLiters(lastFuelLiters)
+                .lastFuelCost(lastFuelCost)
+                .lastFuelStation(lastFuelStation)
+                .lastFuelType(lastFuelType)
+                .lastFuelMileage(lastFuelMileage)
+                .lastRouteCode(lastRouteCode)
+                .lastRouteName(lastRouteName)
+                .lastTripDate(lastTripDate)
+                .lastTripStartTime(lastTripStartTime)
+                .lastTripEndTime(lastTripEndTime)
+                .lastTripDriverName(lastTripDriverName)
+                .lastTripInitialKm(lastTripInitialKm)
+                .lastTripFinalKm(lastTripFinalKm)
+                .lastTripStatus(lastTripStatus)
+                .isAggregated(isAggregated)
+                .aggregatedOwnerName(aggOwnerName)
+                .aggregatedOwnerCpfCnpj(aggOwnerCpfCnpj)
+                .aggregatedOwnerPhone(aggOwnerPhone)
+                .aggregatedOwnerEmail(aggOwnerEmail)
+                .aggregatedDailyRate(aggDailyRate)
+                .aggregatedMonthlyRate(aggMonthlyRate)
+                .aggregatedPaymentType(aggPaymentType)
+                .aggregatedContractStartDate(aggStartDate)
+                .aggregatedContractEndDate(aggEndDate)
+                .aggregatedNotes(aggNotes)
+                .currentLocation(currentLocation)
+                .currentLatitude(currentLatitude)
+                .currentLongitude(currentLongitude)
+                .preventiveOverdueCount(overdueCount)
+                .preventiveUpcomingCount(upcomingCount)
+                .preventiveAlertsSummary(preventiveSummary)
+                .preventiveItems(preventiveItems)
                 .qrCodeText(qrPayload)
                 .qrCodeImageUrl("/api/vehicles/" + vehicle.getId() + "/qrcode/image")
                 .generatedAt(LocalDateTime.now())
                 .build();
+    }
+
+    @Transactional(readOnly = true)
+    public VehicleQRCodeDTO getVehicleQRCodeDataByPlate(String plate) {
+        String cleanPlate = plate != null ? plate.replaceAll("[^a-zA-Z0-9]", "").toUpperCase() : "";
+        Vehicle vehicle = vehicleRepository.findByPlate(cleanPlate)
+                .or(() -> vehicleRepository.findByPlateRaw(cleanPlate))
+                .orElseThrow(() -> new RuntimeException("Veículo não encontrado com placa: " + plate));
+        return getVehicleQRCodeData(vehicle.getId());
     }
 
     /**

@@ -17,7 +17,11 @@ import {
   Fuel, 
   Calendar, 
   FileText,
-  AlertCircle
+  AlertCircle,
+  Handshake,
+  Route as RouteIcon,
+  ShieldAlert,
+  ShieldCheck
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -362,21 +366,21 @@ export const VehicleQRCodeModal: React.FC<VehicleQRCodeModalProps> = ({
                     <Wrench className="h-4 w-4 text-seguranca-red" />
                     <span>Última Ordem de Serviço (OS)</span>
                   </div>
-                  {data.lastWorkOrderNumber ? (
+                  {(data.lastOsNumber || data.lastWorkOrderNumber) && (data.lastOsNumber !== 'Nenhuma' && data.lastWorkOrderNumber !== 'Nenhuma') ? (
                     <div className="space-y-2 text-sm">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="font-mono font-bold text-seguranca-yellow text-sm">
-                          OS #{data.lastWorkOrderNumber}
+                          OS #{data.lastOsNumber || data.lastWorkOrderNumber}
                         </span>
                         <div className="flex items-center gap-2">
-                          {data.lastWorkOrderType && (
+                          {(data.lastOsType || data.lastWorkOrderType) && (
                             <Badge variant="outline" className="text-xs border-gray-600 text-gray-300">
-                              {data.lastWorkOrderType}
+                              {data.lastOsType || data.lastWorkOrderType}
                             </Badge>
                           )}
-                          {data.lastWorkOrderStatus && (
+                          {(data.lastOsStatus || data.lastWorkOrderStatus) && (
                             <Badge className="bg-blue-600 text-white text-xs">
-                              {data.lastWorkOrderStatus}
+                              {data.lastOsStatus || data.lastWorkOrderStatus}
                             </Badge>
                           )}
                         </div>
@@ -385,21 +389,21 @@ export const VehicleQRCodeModal: React.FC<VehicleQRCodeModalProps> = ({
                         <div>
                           <span className="text-gray-400">Data de Abertura: </span>
                           <span className="font-medium">
-                            {data.lastWorkOrderDate ? new Date(data.lastWorkOrderDate).toLocaleDateString('pt-BR') : '—'}
+                            {(data.lastOsDate || data.lastWorkOrderDate) ? new Date(data.lastOsDate || data.lastWorkOrderDate!).toLocaleDateString('pt-BR') : '—'}
                           </span>
                         </div>
                         <div>
                           <span className="text-gray-400">Valor Total: </span>
                           <span className="font-mono font-semibold text-emerald-400">
-                            {data.lastWorkOrderCost !== undefined
-                              ? data.lastWorkOrderCost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                            {(data.lastOsCost !== undefined || data.lastWorkOrderCost !== undefined)
+                              ? ((data.lastOsCost ?? data.lastWorkOrderCost)!).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
                               : 'R$ 0,00'}
                           </span>
                         </div>
                       </div>
-                      {data.lastWorkOrderDescription && (
+                      {(data.lastOsMaintenancePerformed || data.lastWorkOrderDescription) && (
                         <p className="text-xs text-gray-400 line-clamp-2 italic bg-black/30 p-2 rounded border border-gray-800">
-                          "{data.lastWorkOrderDescription}"
+                          "{data.lastOsMaintenancePerformed || data.lastWorkOrderDescription}"
                         </p>
                       )}
                     </div>
@@ -407,6 +411,83 @@ export const VehicleQRCodeModal: React.FC<VehicleQRCodeModalProps> = ({
                     <p className="text-xs text-gray-400 italic">Nenhuma Ordem de Serviço registrada para este veículo.</p>
                   )}
                 </div>
+
+                {/* 6. Documentação & Seguro */}
+                <div className="bg-gray-900/60 p-4 rounded-xl border border-gray-800">
+                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">
+                    <FileText className="h-4 w-4 text-indigo-400" />
+                    <span>Documentação & Seguro</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <span className="text-gray-400 block">CRLV Digital:</span>
+                      <span className="font-medium text-gray-200">
+                        {data.documentationExpiryDate ? `Vence em: ${new Date(data.documentationExpiryDate).toLocaleDateString('pt-BR')}` : 'Em dia'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400 block">Seguro de Frota:</span>
+                      <span className="font-medium text-gray-200">
+                        {data.insuranceCompany ? `${data.insuranceCompany} ` : ''}
+                        {data.insuranceExpiryDate ? `(Até ${new Date(data.insuranceExpiryDate).toLocaleDateString('pt-BR')})` : 'Ativo'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 7. Último Abastecimento */}
+                {data.lastFuelDate && (
+                  <div className="bg-gray-900/60 p-4 rounded-xl border border-gray-800">
+                    <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">
+                      <Fuel className="h-4 w-4 text-seguranca-yellow" />
+                      <span>Último Abastecimento</span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                      <div>
+                        <span className="text-gray-400 block">Data:</span>
+                        <span className="font-medium text-gray-200">{new Date(data.lastFuelDate).toLocaleDateString('pt-BR')}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-400 block">Volume:</span>
+                        <span className="font-mono font-bold text-gray-100">{data.lastFuelLiters ? `${data.lastFuelLiters} L` : '—'}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-400 block">Valor:</span>
+                        <span className="font-mono font-bold text-emerald-400">
+                          {data.lastFuelCost !== undefined ? data.lastFuelCost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-400 block">Posto:</span>
+                        <span className="text-gray-200 truncate">{data.lastFuelStation || 'Interno'}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 8. VEÍCULO AGREGADO - SÓ APARECE SE FOR VEÍCULO DE AGREGADO */}
+                {data.isAggregated && (
+                  <div className="bg-amber-950/20 border border-amber-500/40 p-4 rounded-xl">
+                    <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-amber-300 mb-2">
+                      <Handshake className="h-4 w-4" />
+                      <span>Veículo Agregado (Terceiro)</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                      <div>
+                        <span className="text-gray-400 block">Proprietário:</span>
+                        <strong className="text-gray-100">{data.aggregatedOwnerName || 'Não informado'}</strong>
+                      </div>
+                      <div>
+                        <span className="text-gray-400 block">Documento:</span>
+                        <span className="font-mono text-gray-200">{data.aggregatedOwnerCpfCnpj || '—'}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-400 block">Contato:</span>
+                        <span className="text-gray-200">{data.aggregatedOwnerPhone || '—'}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ) : (
