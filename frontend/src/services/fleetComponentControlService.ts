@@ -126,6 +126,35 @@ export function buildWorkOrderPrefillFromComponentRow(
   };
 }
 
+export function buildWorkOrderPrefillFromMultipleComponentRows(
+  rows: FleetComponentControlRow[],
+): Partial<FleetWorkOrder> {
+  if (!rows || rows.length === 0) return {};
+  const first = rows[0];
+  const controlTypes = rows.map((r) => r.controlType);
+  const hasOil = controlTypes.includes('ENGINE_OIL');
+  const summaryList = rows
+    .map(
+      (r) =>
+        `• ${r.controlLabel}: ${
+          r.alertStatus === 'OVERDUE' ? 'VENCIDO' : 'PRÓXIMO'
+        } (Próx. troca: ${r.nextDueKm.toLocaleString('pt-BR')} km | Falta: ${r.kmRemaining.toLocaleString('pt-BR')} km)`
+    )
+    .join('\n');
+
+  return {
+    vehicleId: first.vehicleId,
+    odometerIn: first.currentKm,
+    maintenanceType: MaintenanceType.PREVENTIVA,
+    preventiveControlTypes: controlTypes,
+    oilFilterChanged: hasOil,
+    dieselFilterChanged: hasOil,
+    waterSeparatorFilterChanged: hasOil,
+    airFilterChanged: hasOil,
+    anomaliesDescription: `Revisão Preventiva Unificada (${rows.length} serviços selecionados):\n${summaryList}`,
+  };
+}
+
 class FleetComponentControlService {
   async getDashboard(params?: {
     controlType?: ComponentControlType | 'ALL';

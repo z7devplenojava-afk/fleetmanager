@@ -26,6 +26,7 @@ import { useToast } from '@/hooks/use-toast';
 import fleetService from '@/services/fleetService';
 import fleetComponentControlService, {
   buildWorkOrderPrefillFromComponentRow,
+  buildWorkOrderPrefillFromMultipleComponentRows,
   COMPONENT_CONTROLS_META,
   ComponentControlType,
   FleetComponentControlConfig,
@@ -864,6 +865,9 @@ export const FleetComponentControlsPanel: React.FC<FleetComponentControlsPanelPr
         alerts={dashboard?.expiringAlerts || []}
         thresholdKm={dashboard?.config?.alertThresholdKm}
         onOpenWorkOrder={triggerOsForRow}
+        onOpenMultipleWorkOrders={(rows) =>
+          onCreateWorkOrder(buildWorkOrderPrefillFromMultipleComponentRows(rows))
+        }
         onGoToAlertsTab={() => setSubTab('ALERTS')}
       />
     </div>

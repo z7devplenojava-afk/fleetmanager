@@ -72,6 +72,7 @@ import { FleetComponentControlsPanel } from '@/components/frota/FleetComponentCo
 import { DueComponentsAlertModal } from '@/components/frota/DueComponentsAlertModal';
 import fleetComponentControlService, {
     buildWorkOrderPrefillFromComponentRow,
+    buildWorkOrderPrefillFromMultipleComponentRows,
     FleetComponentControlRow
 } from '@/services/fleetComponentControlService';
 
@@ -961,6 +962,9 @@ const ManutencaoDashboard: React.FC = () => {
                 thresholdKm={compDashboard?.config?.alertThresholdKm}
                 onOpenWorkOrder={(row: FleetComponentControlRow) =>
                     handleOpenOsFromComponent(buildWorkOrderPrefillFromComponentRow(row))
+                }
+                onOpenMultipleWorkOrders={(rows: FleetComponentControlRow[]) =>
+                    handleOpenOsFromComponent(buildWorkOrderPrefillFromMultipleComponentRows(rows))
                 }
                 onGoToAlertsTab={() => {
                     setView('alertas');
