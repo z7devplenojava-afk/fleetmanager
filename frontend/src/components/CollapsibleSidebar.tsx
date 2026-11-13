@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { useScrollPreservation } from '@/hooks/useScrollPreservation';
 import { Button } from '@/components/ui/button';
 import { ScrollPreservingLink } from './ScrollPreservingLink';
@@ -1808,6 +1809,7 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
 }) => {
   const location = useLocation();
   const { user, empresa, logout } = useAuth();
+  const { theme } = useTheme();
   const rawCompanyName = empresa?.nome || (user as any)?.company?.name || (user as any)?.companyName || '';
   const hasSelectedCompany = Boolean(
     (empresa?.id || (user as any)?.companyId || (user as any)?.company?.id) &&
@@ -2244,7 +2246,7 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
   const renderModuleSection = (moduleId: string, title: string, items: any[]) => {
     if (!items || items.length === 0) return null;
     const isExpanded = (collapsed && !isMobile) || !collapsedModules[moduleId];
-    const theme = MODULE_THEMES[moduleId] || MODULE_THEMES.main;
+    const moduleTheme = MODULE_THEMES[moduleId] || MODULE_THEMES.main;
 
     return (
       <div
@@ -2254,7 +2256,7 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
             ? "mb-3"
             : `mx-2 mb-2 rounded-xl transition-all duration-200 border ${
                 isExpanded
-                  ? `bg-sidebar-accent/25 ${theme.border} shadow-sm`
+                  ? `bg-sidebar-accent/25 ${moduleTheme.border} shadow-sm`
                   : 'bg-transparent border-transparent hover:border-sidebar-border/60'
               }`
         }
@@ -2267,12 +2269,12 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
               aria-expanded={isExpanded}
               className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[11px] font-semibold tracking-wider uppercase transition-all select-none group cursor-pointer text-left focus:outline-none ${
                 isExpanded
-                  ? `${theme.text} hover:opacity-90`
+                  ? `${moduleTheme.text} hover:opacity-90`
                   : 'text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/50'
               }`}
             >
               <span className="flex items-center gap-2 truncate">
-                <span className={`w-1.5 h-1.5 rounded-full ${theme.dot} shrink-0 transition-transform duration-200 group-hover:scale-125`} />
+                <span className={`w-1.5 h-1.5 rounded-full ${moduleTheme.dot} shrink-0 transition-transform duration-200 group-hover:scale-125`} />
                 <span className="truncate">{title}</span>
               </span>
               <div className="flex items-center gap-1.5 shrink-0 ml-1">
