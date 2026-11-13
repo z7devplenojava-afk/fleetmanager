@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,27 +13,35 @@ import { isDriverUser } from '@/utils/roleRouting';
 import systemAlertCenterService, {
   AlertCategory,
   AlertEntityType,
+  AlertModule,
   AlertPriority,
   SystemAlertItem,
 } from '@/services/systemAlertCenterService';
 import {
   AlertTriangle,
+  ArrowDownLeft,
   Bell,
   Building2,
   Bus,
   Calendar,
+  CalendarClock,
   CheckCircle2,
   ChevronRight,
   CircleDot,
+  DollarSign,
   Droplet,
   FileWarning,
+  HeartPulse,
   Home,
   Info,
   MessageSquare,
+  Palmtree,
+  Receipt,
   RefreshCw,
   Search,
   ShieldCheck,
   UserCheck,
+  Users,
   Wrench,
 } from 'lucide-react';
 
@@ -88,6 +96,8 @@ const ENTITY_LABELS: Record<AlertEntityType, string> = {
   VEHICLE: 'Veículo',
   DRIVER: 'Motorista',
   COMPANY: 'Empresa',
+  FINANCIAL: 'Financeiro',
+  EMPLOYEE: 'Funcionário',
 };
 
 const CATEGORY_LABELS: Record<AlertCategory, string> = {
@@ -97,26 +107,57 @@ const CATEGORY_LABELS: Record<AlertCategory, string> = {
   TIRE_CHANGE: 'Troca de Pneu',
   OIL_CHANGE: 'Troca de Óleo de Motor',
   COMPANY_DOCUMENT: 'Empresa & Contratos',
+  FINANCIAL_PAYABLE: 'Contas a Pagar',
+  FINANCIAL_RECEIVABLE: 'Contas a Receber',
+  RH_VACATION: 'Férias (Limite Concessivo)',
+  RH_PROBATION: 'Contrato de Experiência',
+  RH_EXAM: 'Exame ASO / Laudo',
 };
+
+const MODULE_OPTIONS: { id: AlertModule; label: string; icon: React.ElementType }[] = [
+  { id: 'ALL', label: 'Todos os Módulos', icon: Bell },
+  { id: 'FINANCEIRO', label: 'Financeiro (Pagar & Receber)', icon: DollarSign },
+  { id: 'RH', label: 'RH & Pessoal (Férias, CNH, ASO)', icon: Users },
+  { id: 'FROTA', label: 'Frota & Manutenção', icon: Bus },
+  { id: 'EMPRESA', label: 'Empresa & Contratos', icon: Building2 },
+];
 
 const SystemAlertsCenter: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const isDriver = isDriverUser(user);
 
+  const initialModParam = (searchParams.get('modulo') || searchParams.get('module') || 'ALL').toUpperCase();
+  const initialModule: AlertModule = ['ALL', 'FINANCEIRO', 'RH', 'FROTA', 'EMPRESA'].includes(initialModParam)
+    ? (initialModParam as AlertModule)
+    : 'ALL';
+
+  const [activeModule, setActiveModule] = useState<AlertModule>(initialModule);
   const [priorityFilter, setPriorityFilter] = useState<'ALL' | AlertPriority>('ALL');
   const [entityFilter, setEntityFilter] = useState<'ALL' | AlertEntityType>('ALL');
   const [categoryFilter, setCategoryFilter] = useState<'ALL' | AlertCategory>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
 
   const { data, isLoading, isFetching, refetch } = useQuery({
-    queryKey: ['system-alerts-center', user?.id],
-    queryFn: () => systemAlertCenterService.getAlerts(),
+    queryKey: ['system-alerts-center', user?.id, activeModule],
+    queryFn: () => systemAlertCenterService.getAlerts(activeModule),
     refetchInterval: 60000,
   });
 
   const alerts = data?.alerts || [];
   const visibleScopes = data?.visibleScopes || [];
+
+  const handleModuleChange = (mod: AlertModule) => {
+    setActiveModule(mod);
+    if (mod === 'ALL') {
+      searchParams.delete('modulo');
+      searchParams.delete('module');
+    } else {
+      searchParams.set('modulo', mod.toLowerCase());
+    }
+    setSearchParams(searchParams);
+  };
 
   const filteredAlerts = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
@@ -161,6 +202,18 @@ const SystemAlertsCenter: React.FC = () => {
         return <Droplet className="h-6 w-6" />;
       case 'COMPANY_DOCUMENT':
         return <Building2 className="h-6 w-6" />;
+      case 'FINANCIAL_PAYABLE':
+        return <Receipt className="h-6 w-6 text-red-400" />;
+      case 'FINANCIAL_RECEIVABLE':
+        return <DollarSign className="h-6 w-6 text-emerald-400" />;
+      case 'RH_VACATION':
+        return <Palmtree className="h-6 w-6 text-amber-400" />;
+      case 'RH_PROBATION':
+        return <CalendarClock className="h-6 w-6 text-blue-400" />;
+      case 'RH_EXAM':
+        return <HeartPulse className="h-6 w-6 text-rose-400" />;
+      default:
+        return <Bell className="h-6 w-6" />;
     }
   };
 
@@ -199,7 +252,7 @@ const SystemAlertsCenter: React.FC = () => {
                   ))}
                 </div>
                 <p className="text-xs sm:text-sm text-gray-300 mt-0.5">
-                  Monitoramento automático de vencimentos (Preventiva, Documentos, Pneus, Óleo e Empresa)
+                  Monitoramento inteligente de vencimentos por módulo: Financeiro (Pagar/Receber), RH (Férias, CNH, ASO), Frota e Contratos
                 </p>
               </div>
             </div>
@@ -233,6 +286,51 @@ const SystemAlertsCenter: React.FC = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Abas de Seleção de Módulo Contextual */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-0.5 scrollbar-thin">
+          {MODULE_OPTIONS.map((m) => {
+            const Icon = m.icon;
+            const isSelected = activeModule === m.id;
+            const count =
+              m.id === 'ALL'
+                ? data?.totalCount
+                : m.id === 'FINANCEIRO'
+                ? data?.financialCount
+                : m.id === 'RH'
+                ? data?.rhCount
+                : m.id === 'FROTA'
+                ? data?.vehicleCount
+                : data?.companyCount;
+
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => handleModuleChange(m.id)}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 border cursor-pointer ${
+                  isSelected
+                    ? 'bg-seguranca-red text-white border-red-500 shadow-md shadow-red-950/40'
+                    : 'bg-card hover:bg-accent text-muted-foreground hover:text-foreground border-border'
+                }`}
+              >
+                <Icon className={`h-4 w-4 ${isSelected ? 'text-white' : 'text-primary'}`} />
+                <span>{m.label}</span>
+                {count !== undefined && count > 0 && (
+                  <span
+                    className={`ml-1 text-[10px] font-bold px-1.5 py-0.2 rounded-full ${
+                      isSelected
+                        ? 'bg-white/20 text-white'
+                        : 'bg-red-500/15 text-red-400 border border-red-500/30'
+                    }`}
+                  >
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
 
         {/* 4 Summary Priority Cards (Interactive Filters) */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

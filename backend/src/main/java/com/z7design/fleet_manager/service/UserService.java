@@ -214,6 +214,14 @@ public class UserService {
                 .anyMatch(this::isAdminRoleName);
     }
 
+    private boolean hasGlobalAdminRole(User user) {
+        return user != null && user.getRoles() != null && user.getRoles().stream()
+                .filter(java.util.Objects::nonNull)
+                .map(Role::getName)
+                .map(this::normalizeRoleName)
+                .anyMatch(GLOBAL_MANAGER_ROLE_NAMES::contains);
+    }
+
     public User getCurrentUserOrThrow() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated()) {
@@ -242,14 +250,16 @@ public class UserService {
             throw new IllegalArgumentException("Dados do usuário não fornecidos");
         }
 
-        if (!isSuperAdmin()) {
-            if (!isCurrentUserGlobalManager() && !isCurrentUserTenantManager()) {
+        if (!isSuperAdmin() && !isCurrentUserGlobalManager()) {
+            if (!isCurrentUserTenantManager()) {
                 throw new AccessDeniedException("Apenas administradores podem criar usuários.");
             }
-            boolean assignsAdminRole = request.getRoles() != null && request.getRoles().stream()
-                    .anyMatch(this::isAdminRoleName);
-            if (assignsAdminRole) {
-                throw new AccessDeniedException("Somente SUPER_ADMIN pode criar contas de administrador.");
+            boolean assignsGlobalAdminRole = request.getRoles() != null && request.getRoles().stream()
+                    .filter(java.util.Objects::nonNull)
+                    .map(this::normalizeRoleName)
+                    .anyMatch(GLOBAL_MANAGER_ROLE_NAMES::contains);
+            if (assignsGlobalAdminRole) {
+                throw new AccessDeniedException("Somente administradores globais podem criar contas com privilégios de SUPER_ADMIN/FLEX_ADMIN.");
             }
         }
 
@@ -273,16 +283,13 @@ public class UserService {
         User currentUser = getCurrentUserOrThrow();
         boolean isSelf = currentUser.getId() != null && currentUser.getId().equals(targetUser.getId());
 
-        if (isSuperAdmin()) {
+        if (isSuperAdmin() || isCurrentUserGlobalManager()) {
             return;
         }
 
-        if (hasAdminRole(targetUser) && !isSelf) {
-            throw new AccessDeniedException("Somente SUPER_ADMIN pode gerenciar contas de administrador.");
-        }
-
-        if (isCurrentUserGlobalManager()) {
-            return;
+        // Se o usuário alvo for um administrador global (SUPER_ADMIN ou FLEX_ADMIN), somente administradores globais podem gerenciá-lo
+        if (hasGlobalAdminRole(targetUser) && !isSelf) {
+            throw new AccessDeniedException("Somente administradores globais podem gerenciar contas com privilégios globais de plataforma.");
         }
 
         if (isCurrentUserTenantManager()) {
@@ -299,31 +306,18 @@ public class UserService {
     }
 
     private void assertCanAssignRoles(User targetUser, List<String> requestedRoles) {
-        if (requestedRoles == null || requestedRoles.isEmpty() || isSuperAdmin()) {
+        if (requestedRoles == null || requestedRoles.isEmpty() || isSuperAdmin() || isCurrentUserGlobalManager()) {
             return;
         }
 
-        java.util.Set<String> requestedAdminRoles = requestedRoles.stream()
+        // Administrador de empresa (Tenant Manager) não pode atribuir papéis globais de plataforma
+        boolean assignsGlobalRole = requestedRoles.stream()
                 .filter(java.util.Objects::nonNull)
                 .map(this::normalizeRoleName)
-                .filter(ADMIN_ROLE_NAMES::contains)
-                .collect(java.util.stream.Collectors.toSet());
+                .anyMatch(GLOBAL_MANAGER_ROLE_NAMES::contains);
 
-        if (requestedAdminRoles.isEmpty()) {
-            return;
-        }
-
-        java.util.Set<String> existingAdminRoles = targetUser.getRoles() == null
-                ? java.util.Collections.emptySet()
-                : targetUser.getRoles().stream()
-                        .filter(java.util.Objects::nonNull)
-                        .map(Role::getName)
-                        .map(this::normalizeRoleName)
-                        .filter(ADMIN_ROLE_NAMES::contains)
-                        .collect(java.util.stream.Collectors.toSet());
-
-        if (!existingAdminRoles.containsAll(requestedAdminRoles)) {
-            throw new AccessDeniedException("Somente SUPER_ADMIN pode atribuir perfis de administrador.");
+        if (assignsGlobalRole) {
+            throw new AccessDeniedException("Somente administradores globais podem atribuir privilégios de SUPER_ADMIN/FLEX_ADMIN.");
         }
     }
 

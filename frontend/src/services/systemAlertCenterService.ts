@@ -1,17 +1,24 @@
 import api from '@/lib/axios';
 
-export type AlertEntityType = 'VEHICLE' | 'DRIVER' | 'COMPANY';
+export type AlertEntityType = 'VEHICLE' | 'DRIVER' | 'COMPANY' | 'FINANCIAL' | 'EMPLOYEE';
+export type AlertModule = 'ALL' | 'FINANCEIRO' | 'RH' | 'FROTA' | 'EMPRESA';
 export type AlertCategory =
   | 'PREVENTIVE'
   | 'VEHICLE_DOCUMENT'
   | 'DRIVER_DOCUMENT'
   | 'TIRE_CHANGE'
   | 'OIL_CHANGE'
-  | 'COMPANY_DOCUMENT';
+  | 'COMPANY_DOCUMENT'
+  | 'FINANCIAL_PAYABLE'
+  | 'FINANCIAL_RECEIVABLE'
+  | 'RH_VACATION'
+  | 'RH_PROBATION'
+  | 'RH_EXAM';
 export type AlertPriority = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
 
 export interface SystemAlertItem {
   id: string;
+  module?: string;
   entityType: AlertEntityType;
   category: AlertCategory;
   categoryLabel: string;
@@ -35,13 +42,16 @@ export interface SystemAlertCenterResponse {
   vehicleCount: number;
   driverCount: number;
   companyCount: number;
-  visibleScopes: AlertEntityType[];
+  financialCount?: number;
+  rhCount?: number;
+  visibleScopes: string[];
   alerts: SystemAlertItem[];
 }
 
 class SystemAlertCenterService {
-  async getAlerts(): Promise<SystemAlertCenterResponse> {
-    const response = await api.get<SystemAlertCenterResponse>('/api/system-alerts');
+  async getAlerts(module?: string): Promise<SystemAlertCenterResponse> {
+    const params = module && module !== 'ALL' ? { module } : {};
+    const response = await api.get<SystemAlertCenterResponse>('/api/system-alerts', { params });
     return response.data;
   }
 }

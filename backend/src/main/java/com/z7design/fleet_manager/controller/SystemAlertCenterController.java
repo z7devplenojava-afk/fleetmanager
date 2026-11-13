@@ -23,9 +23,11 @@ public class SystemAlertCenterController {
     private final SystemAlertCenterService alertCenterService;
 
     @GetMapping
-    @Operation(summary = "Lista os alertas do sistema priorizados e filtrados pelo perfil do usuário autenticado")
-    public ResponseEntity<SystemAlertCenterResponseDTO> getSystemAlerts(@AuthenticationPrincipal User user) {
-        return ResponseEntity.ok(alertCenterService.getAlertsForUser(user));
+    @Operation(summary = "Lista os alertas do sistema priorizados e filtrados pelo perfil do usuário autenticado e módulo")
+    public ResponseEntity<SystemAlertCenterResponseDTO> getSystemAlerts(
+            @AuthenticationPrincipal User user,
+            @org.springframework.web.bind.annotation.RequestParam(value = "module", required = false) String module) {
+        return ResponseEntity.ok(alertCenterService.getAlertsForUser(user, module));
     }
 }
 

@@ -25,7 +25,7 @@ const Logo: React.FC<LogoProps> = ({
   forceDefault = false
 }) => {
   const { empresa, user } = useAuth();
-  const { isDark } = useTheme();
+  const { theme, isDark } = useTheme();
   const [imgError, setImgError] = useState(false);
 
   const heightClasses = {
@@ -72,16 +72,25 @@ const Logo: React.FC<LogoProps> = ({
     setImgError(false);
   }, [resolvedLogoUrl]);
 
+  const isSaoSilvestre =
+    resolvedLogoUrl?.includes('78376e24-fce4-4b76-8140-3d6ddc2cf1f5') ||
+    resolvedLogoUrl?.includes('sao-silvestre') ||
+    companyName?.toLowerCase().includes('silvestre');
+
+  const activeLogoUrl = isSaoSilvestre
+    ? (!isDark || theme === 'white' ? '/images/sao-silvestre-logo-light.png' : '/images/sao-silvestre-logo.png')
+    : resolvedLogoUrl;
+
   // Se houver logo de empresa configurada e não deu erro de carregamento:
   // Regra: O nome da empresa só aparece quando NÃO tiver a logo
-  if (!forceDefault && resolvedLogoUrl && !imgError) {
+  if (!forceDefault && activeLogoUrl && !imgError) {
     return (
       <div className={`flex items-center select-none ${className}`}>
         <img
-          src={resolvedLogoUrl}
+          src={activeLogoUrl}
           alt={companyName || 'Empresa'}
           onError={() => setImgError(true)}
-          className={`${heightClasses[size]} w-auto ${maxWidthClasses[size]} object-contain drop-shadow-md hover:scale-[1.02] transition-all duration-300 rounded-md shrink-0`}
+          className={`${heightClasses[size]} w-auto ${maxWidthClasses[size]} object-contain drop-shadow-sm hover:scale-[1.02] transition-all duration-300 shrink-0 bg-transparent`}
         />
       </div>
     );

@@ -1,5 +1,6 @@
 import { Input } from '@/components/ui/input';
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -42,6 +43,7 @@ import { Landmark } from 'lucide-react';
 
 const ContasAPagarTab: React.FC = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   // Estados
   const [contas, setContas] = useState<ContaAPagar[]>([]);
@@ -1037,12 +1039,20 @@ const ContasAPagarTab: React.FC = () => {
 
       {/* Alertas de Vencimento */}
       {alertasVencimento.length > 0 && (
-        <Card className="border-yellow-200 bg-yellow-50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-yellow-800">
-              <Bell className="text-yellow-600" />
-              Alertas de Vencimento
+        <Card className="border-yellow-200 bg-yellow-50/80 dark:bg-yellow-950/20 dark:border-yellow-900/40">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="flex items-center gap-2 text-yellow-800 dark:text-yellow-400 text-sm sm:text-base font-bold">
+              <Bell className="text-yellow-600 dark:text-yellow-400 h-4 w-4" />
+              Alertas de Vencimento de Contas a Pagar
             </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/central-alertas?modulo=financeiro')}
+              className="border-yellow-400/60 text-yellow-800 dark:text-yellow-300 hover:bg-yellow-200/50 text-xs h-7 gap-1"
+            >
+              <span>Ver Todos na Central</span>
+            </Button>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">

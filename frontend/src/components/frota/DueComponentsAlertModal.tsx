@@ -19,6 +19,8 @@ interface DueComponentsAlertModalProps {
   thresholdKm?: number;
   onOpenWorkOrder: (row: FleetComponentControlRow) => void;
   onGoToAlertsTab?: () => void;
+  title?: string;
+  description?: string;
 }
 
 export const DueComponentsAlertModal: React.FC<DueComponentsAlertModalProps> = ({
@@ -28,6 +30,8 @@ export const DueComponentsAlertModal: React.FC<DueComponentsAlertModalProps> = (
   thresholdKm = 3000,
   onOpenWorkOrder,
   onGoToAlertsTab,
+  title,
+  description,
 }) => {
   const overdue = alerts.filter((a) => a.alertStatus === 'OVERDUE');
   const dueSoon = alerts.filter((a) => a.alertStatus === 'DUE_SOON');
@@ -40,12 +44,16 @@ export const DueComponentsAlertModal: React.FC<DueComponentsAlertModalProps> = (
             <div className="p-2 rounded-xl bg-red-500/20 border border-red-500/40 text-red-400">
               <Bell className="h-5 w-5" />
             </div>
-            Alertas de Vencimento — Controles Preventivos de Frota
+            {title || 'Alertas de Vencimento — Controles Preventivos de Frota'}
           </DialogTitle>
           <DialogDescription className="text-gray-300 text-xs sm:text-sm">
-            Existem <strong>{overdue.length} item(ns) vencido(s)</strong> e{' '}
-            <strong>{dueSoon.length} item(ns) próximo(s) do vencimento</strong> (antecedência de{' '}
-            {thresholdKm.toLocaleString('pt-BR')} km) para Alinhamento, Óleo de Motor, Polia, Arranque e Alternador.
+            {description || (
+              <>
+                Existem <strong>{overdue.length} item(ns) vencido(s)</strong> e{' '}
+                <strong>{dueSoon.length} item(ns) próximo(s) do vencimento</strong> (antecedência de{' '}
+                {thresholdKm.toLocaleString('pt-BR')} km) para Alinhamento, Óleo de Motor, Polia, Arranque e Alternador.
+              </>
+            )}
           </DialogDescription>
         </DialogHeader>
 

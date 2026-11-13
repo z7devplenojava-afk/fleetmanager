@@ -32,6 +32,11 @@ export function resolveCompanyLogoUrl(logoUrl?: string | null): string | null {
     return null;
   }
 
+  // Interceptar logomarca da Viação São Silvestre para servir imagem sem fundo escuro em todos os contrastes
+  if (trimmed.includes('78376e24-fce4-4b76-8140-3d6ddc2cf1f5')) {
+    return '/images/sao-silvestre-logo.png';
+  }
+
   // Ignorar caminhos que terminam em rota sem nome de arquivo (ex: /companies/logo ou /companies/logos)
   if (isInvalidImageTarget(trimmed, ['logo', 'logos', 'upload', 'uploads'])) {
     return null;

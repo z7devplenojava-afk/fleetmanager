@@ -13,7 +13,9 @@ import java.time.LocalDate;
 @Builder
 public class SystemAlertItemDTO {
     private String id;
-    private String entityType; // VEHICLE | DRIVER | COMPANY
+    @Builder.Default
+    private String module = "FROTA"; // FINANCEIRO | RH | FROTA | EMPRESA
+    private String entityType; // VEHICLE | DRIVER | COMPANY | FINANCIAL | EMPLOYEE
     private String category; // PREVENTIVE | VEHICLE_DOCUMENT | DRIVER_DOCUMENT | TIRE_CHANGE | OIL_CHANGE | COMPANY_DOCUMENT
     private String categoryLabel;
     private String priority; // CRITICAL | HIGH | MEDIUM | LOW

@@ -21,6 +21,8 @@ public class SystemAlertCenterResponseDTO {
     private int vehicleCount;
     private int driverCount;
     private int companyCount;
+    private int financialCount;
+    private int rhCount;
 
     @Builder.Default
     private List<String> visibleScopes = new ArrayList<>();

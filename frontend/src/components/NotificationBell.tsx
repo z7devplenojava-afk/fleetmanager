@@ -192,7 +192,18 @@ export const NotificationBell: React.FC = () => {
               size="sm"
               onClick={() => {
                 setIsOpen(false);
-                navigate('/central-alertas');
+                const path = window.location.pathname.toLowerCase();
+                let mod = '';
+                if (path.includes('financeiro') || path.includes('contas-')) {
+                  mod = '?modulo=financeiro';
+                } else if (path.includes('rh') || path.includes('dp') || path.includes('funcionario') || path.includes('sst') || path.includes('ferias') || path.includes('portal')) {
+                  mod = '?modulo=rh';
+                } else if (path.includes('manutencao') || path.includes('frota') || path.includes('veiculo') || path.includes('pneu')) {
+                  mod = '?modulo=frota';
+                } else if (path.includes('contrato') || path.includes('empresa')) {
+                  mod = '?modulo=empresa';
+                }
+                navigate(`/central-alertas${mod}`);
               }}
               className="flex-1 h-9 text-xs font-bold border-amber-500/40 text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 rounded-lg transition-colors flex items-center justify-center gap-1.5"
             >

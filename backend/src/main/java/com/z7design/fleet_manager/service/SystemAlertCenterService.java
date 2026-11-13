@@ -3,6 +3,8 @@ package com.z7design.fleet_manager.service;
 import com.z7design.fleet_manager.dto.SystemAlertCenterResponseDTO;
 import com.z7design.fleet_manager.dto.SystemAlertItemDTO;
 import com.z7design.fleet_manager.model.*;
+import com.z7design.fleet_manager.model.enums.ExpenseStatus;
+import com.z7design.fleet_manager.model.enums.ReceivableStatus;
 import com.z7design.fleet_manager.model.enums.TireStatus;
 import com.z7design.fleet_manager.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -39,9 +41,16 @@ public class SystemAlertCenterService {
     private final ContractRepository contractRepository;
     private final ScheduleRepository scheduleRepository;
     private final CompanyRepository companyRepository;
+    private final InvoiceRepository invoiceRepository;
+    private final AccountsReceivableRepository accountsReceivableRepository;
 
     @Transactional(readOnly = true)
     public SystemAlertCenterResponseDTO getAlertsForUser(User user) {
+        return getAlertsForUser(user, null);
+    }
+
+    @Transactional(readOnly = true)
+    public SystemAlertCenterResponseDTO getAlertsForUser(User user, String moduleFilter) {
         UUID companyId = user != null ? user.getCompanyId() : null;
         ScopeContext scope = resolveScope(user);
 
@@ -55,24 +64,29 @@ public class SystemAlertCenterService {
         if (scope.includeDrivers) {
             collectDriverAlerts(companyId, today, scope, collected, dedupKeys);
         }
+        if (scope.includeRh) {
+            collectRhAlerts(companyId, today, scope, collected, dedupKeys);
+        }
+        if (scope.includeFinancial) {
+            collectFinancialAlerts(companyId, today, collected, dedupKeys);
+        }
         if (scope.includeCompany) {
             collectCompanyAlerts(companyId, today, collected, dedupKeys);
         }
 
-        collected.sort(Comparator
-                .comparing(SystemAlertItemDTO::getPriorityRank)
-                .thenComparing(SystemAlertItemDTO::getDaysRemaining, Comparator.nullsLast(Comparator.naturalOrder()))
-                .thenComparing(SystemAlertItemDTO::getKmRemaining, Comparator.nullsLast(Comparator.naturalOrder()))
-                .thenComparing(SystemAlertItemDTO::getSubjectTitle));
-
         int critical = 0, high = 0, medium = 0, low = 0;
-        int vehicleCount = 0, driverCount = 0, companyCount = 0;
+        int vehicleCount = 0, driverCount = 0, companyCount = 0, financialCount = 0, rhCount = 0;
         for (SystemAlertItemDTO a : collected) {
             switch (a.getPriority()) {
                 case "CRITICAL" -> critical++;
                 case "HIGH" -> high++;
                 case "MEDIUM" -> medium++;
                 default -> low++;
+            }
+            if ("FINANCEIRO".equalsIgnoreCase(a.getModule()) || "FINANCIAL".equalsIgnoreCase(a.getEntityType())) {
+                financialCount++;
+            } else if ("RH".equalsIgnoreCase(a.getModule()) || "EMPLOYEE".equalsIgnoreCase(a.getEntityType())) {
+                rhCount++;
             }
             switch (a.getEntityType()) {
                 case "VEHICLE" -> vehicleCount++;
@@ -82,13 +96,31 @@ public class SystemAlertCenterService {
             }
         }
 
+        // Filtro contextual por módulo
+        List<SystemAlertItemDTO> resultAlerts = collected;
+        if (moduleFilter != null && !moduleFilter.isBlank() && !"ALL".equalsIgnoreCase(moduleFilter)) {
+            String target = moduleFilter.trim().toUpperCase();
+            resultAlerts = collected.stream()
+                    .filter(a -> target.equalsIgnoreCase(a.getModule()) || target.equalsIgnoreCase(a.getEntityType()))
+                    .toList();
+        }
+
+        resultAlerts = new ArrayList<>(resultAlerts);
+        resultAlerts.sort(Comparator
+                .comparing(SystemAlertItemDTO::getPriorityRank)
+                .thenComparing(SystemAlertItemDTO::getDaysRemaining, Comparator.nullsLast(Comparator.naturalOrder()))
+                .thenComparing(SystemAlertItemDTO::getKmRemaining, Comparator.nullsLast(Comparator.naturalOrder()))
+                .thenComparing(SystemAlertItemDTO::getSubjectTitle));
+
         List<String> scopes = new ArrayList<>();
         if (scope.includeVehicles) scopes.add("VEHICLE");
         if (scope.includeDrivers) scopes.add("DRIVER");
+        if (scope.includeRh) scopes.add("RH");
+        if (scope.includeFinancial) scopes.add("FINANCIAL");
         if (scope.includeCompany) scopes.add("COMPANY");
 
         return SystemAlertCenterResponseDTO.builder()
-                .totalCount(collected.size())
+                .totalCount(resultAlerts.size())
                 .criticalCount(critical)
                 .highCount(high)
                 .mediumCount(medium)
@@ -96,8 +128,10 @@ public class SystemAlertCenterService {
                 .vehicleCount(vehicleCount)
                 .driverCount(driverCount)
                 .companyCount(companyCount)
+                .financialCount(financialCount)
+                .rhCount(rhCount)
                 .visibleScopes(scopes)
-                .alerts(collected)
+                .alerts(resultAlerts)
                 .build();
     }
 
@@ -547,6 +581,197 @@ public class SystemAlertCenterService {
         }
     }
 
+    private void collectFinancialAlerts(
+            UUID companyId,
+            LocalDate today,
+            List<SystemAlertItemDTO> out,
+            Set<String> dedupKeys) {
+
+        // 1. Contas a Pagar (Invoices) não pagas vencidas ou vencendo em até 30 dias
+        try {
+            LocalDate maxDate = today.plusDays(ALERT_WINDOW_DAYS);
+            List<Invoice> payableList = invoiceRepository.findByDueDateBetween(today.minusDays(180), maxDate);
+            for (Invoice inv : payableList) {
+                if (companyId != null && inv.getCompanyId() != null && !companyId.equals(inv.getCompanyId())) {
+                    continue;
+                }
+                if (inv.getStatus() == ExpenseStatus.PAGO || inv.getStatus() == ExpenseStatus.CANCELADO) {
+                    continue;
+                }
+                if (inv.getDueDate() == null) continue;
+
+                long daysRem = ChronoUnit.DAYS.between(today, inv.getDueDate());
+                String priority = classifyByDays(daysRem);
+                String dedup = "FIN-PAYABLE-" + inv.getId();
+                if (dedupKeys.add(dedup)) {
+                    String title = inv.getDescription() != null && !inv.getDescription().isBlank()
+                            ? inv.getDescription()
+                            : ("Conta a Pagar nº " + (inv.getInvoiceNumber() != null ? inv.getInvoiceNumber() : inv.getId().toString().substring(0, 8)));
+                    String valFormatted = inv.getAmount() != null ? String.format("R$ %,.2f", inv.getAmount()) : "Valor N/I";
+                    String sub = "Valor: " + valFormatted + (inv.getCategory() != null ? " • " + inv.getCategory() : "");
+
+                    out.add(SystemAlertItemDTO.builder()
+                            .id(dedup)
+                            .module("FINANCEIRO")
+                            .entityType("FINANCIAL")
+                            .category("FINANCIAL_PAYABLE")
+                            .categoryLabel("Contas a Pagar • " + (daysRem < 0 ? "VENCIDO" : "A Vencer"))
+                            .priority(priority)
+                            .priorityRank(priorityRank(priority))
+                            .subjectTitle(title)
+                            .subjectSubtitle(sub)
+                            .dueDate(inv.getDueDate())
+                            .daysRemaining(daysRem)
+                            .statusText(formatDueDateText(inv.getDueDate(), daysRem))
+                            .routeTo("/financeiro/contas-a-pagar")
+                            .build());
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Erro ao coletar alertas de contas a pagar: {}", e.getMessage());
+        }
+
+        // 2. Contas a Receber (AccountsReceivable) pendentes vencidas ou vencendo em até 30 dias
+        try {
+            LocalDate maxDate = today.plusDays(ALERT_WINDOW_DAYS);
+            List<AccountsReceivable> receivableList = accountsReceivableRepository.findByDueDateBetween(today.minusDays(180), maxDate);
+            for (AccountsReceivable ar : receivableList) {
+                if (companyId != null && ar.getCompanyId() != null && !companyId.equals(ar.getCompanyId())) {
+                    continue;
+                }
+                if (ar.getStatus() == ReceivableStatus.PAID || ar.getStatus() == ReceivableStatus.CANCELLED) {
+                    continue;
+                }
+                if (ar.getDueDate() == null) continue;
+
+                long daysRem = ChronoUnit.DAYS.between(today, ar.getDueDate());
+                String priority = classifyByDays(daysRem);
+                String dedup = "FIN-RECEIVABLE-" + ar.getId();
+                if (dedupKeys.add(dedup)) {
+                    String clientName = ar.getClient() != null ? ar.getClient().getName() : "Cliente N/I";
+                    String title = "Conta a Receber: " + clientName;
+                    String valFormatted = ar.getAmount() != null ? String.format("R$ %,.2f", ar.getAmount()) : "Valor N/I";
+                    String docInfo = ar.getInvoiceNumber() != null ? ("Fatura nº " + ar.getInvoiceNumber()) : ("Título " + ar.getId().toString().substring(0, 8));
+                    String sub = docInfo + " • " + valFormatted;
+
+                    out.add(SystemAlertItemDTO.builder()
+                            .id(dedup)
+                            .module("FINANCEIRO")
+                            .entityType("FINANCIAL")
+                            .category("FINANCIAL_RECEIVABLE")
+                            .categoryLabel("Contas a Receber • " + (daysRem < 0 ? "VENCIDO" : "A Receber"))
+                            .priority(priority)
+                            .priorityRank(priorityRank(priority))
+                            .subjectTitle(title)
+                            .subjectSubtitle(sub)
+                            .dueDate(ar.getDueDate())
+                            .daysRemaining(daysRem)
+                            .statusText(formatDueDateText(ar.getDueDate(), daysRem))
+                            .routeTo("/financeiro/contas-a-receber")
+                            .build());
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Erro ao coletar alertas de contas a receber: {}", e.getMessage());
+        }
+    }
+
+    private void collectRhAlerts(
+            UUID companyId,
+            LocalDate today,
+            ScopeContext scope,
+            List<SystemAlertItemDTO> out,
+            Set<String> dedupKeys) {
+
+        List<Employee> employees = employeeRepository.findWithDocumentExpirationsByCompany(companyId);
+        for (Employee e : employees) {
+            if (scope.driverOnlySelf && !matchesEmployeeSelf(e, scope)) continue;
+
+            // 1. Limite concessivo de férias (para funcionários com mais de 12 meses de admissão)
+            if (e.getHireDate() != null) {
+                long monthsSinceAdmission = ChronoUnit.MONTHS.between(e.getHireDate(), today);
+                if (monthsSinceAdmission >= 12) {
+                    long cycleYears = monthsSinceAdmission / 12;
+                    LocalDate limitDate = e.getHireDate().plusYears(cycleYears).plusMonths(11);
+                    long daysRem = ChronoUnit.DAYS.between(today, limitDate);
+                    if (daysRem <= 60) {
+                        String priority = classifyByDays(daysRem);
+                        String dedup = "RH-VACATION-LIMIT-" + e.getId() + "-" + limitDate.getYear();
+                        if (dedupKeys.add(dedup)) {
+                            out.add(SystemAlertItemDTO.builder()
+                                    .id(dedup)
+                                    .module("RH")
+                                    .entityType("EMPLOYEE")
+                                    .category("RH_VACATION")
+                                    .categoryLabel("Férias • Limite Concessivo (Vencimento em Dobro)")
+                                    .priority(priority)
+                                    .priorityRank(priorityRank(priority))
+                                    .subjectTitle("Funcionário: " + e.getName())
+                                    .subjectSubtitle("Admissão: " + e.getHireDate().format(BR_DATE) + " — Limite concessivo: " + limitDate.format(BR_DATE))
+                                    .dueDate(limitDate)
+                                    .daysRemaining(daysRem)
+                                    .statusText(formatDueDateText(limitDate, daysRem))
+                                    .routeTo("/rh/ferias")
+                                    .build());
+                        }
+                    }
+                }
+            }
+
+            // 2. Fim do período de experiência / contrato de experiência
+            if (e.getProbationEndDate() != null) {
+                long daysRem = ChronoUnit.DAYS.between(today, e.getProbationEndDate());
+                if (daysRem <= 30) {
+                    String priority = classifyByDays(daysRem);
+                    String dedup = "RH-PROBATION-" + e.getId();
+                    if (dedupKeys.add(dedup)) {
+                        out.add(SystemAlertItemDTO.builder()
+                                .id(dedup)
+                                .module("RH")
+                                .entityType("EMPLOYEE")
+                                .category("RH_PROBATION")
+                                .categoryLabel("RH • Término de Contrato de Experiência")
+                                .priority(priority)
+                                .priorityRank(priorityRank(priority))
+                                .subjectTitle("Funcionário: " + e.getName())
+                                .subjectSubtitle("Término do período de experiência em " + e.getProbationEndDate().format(BR_DATE))
+                                .dueDate(e.getProbationEndDate())
+                                .daysRemaining(daysRem)
+                                .statusText(formatDueDateText(e.getProbationEndDate(), daysRem))
+                                .routeTo("/rh/funcionarios")
+                                .build());
+                    }
+                }
+            }
+
+            // 3. Exames Médicos / Laudo Psicológico
+            if (e.getNextLaudoPsicologico() != null) {
+                long daysRem = ChronoUnit.DAYS.between(today, e.getNextLaudoPsicologico());
+                if (daysRem <= ALERT_WINDOW_DAYS) {
+                    String priority = classifyByDays(daysRem);
+                    String dedup = "RH-PSICO-" + e.getId() + "-" + e.getNextLaudoPsicologico();
+                    if (dedupKeys.add(dedup)) {
+                        out.add(SystemAlertItemDTO.builder()
+                                .id(dedup)
+                                .module("RH")
+                                .entityType("EMPLOYEE")
+                                .category("RH_EXAM")
+                                .categoryLabel("RH / SST • Validade de Laudo Psicológico")
+                                .priority(priority)
+                                .priorityRank(priorityRank(priority))
+                                .subjectTitle("Funcionário: " + e.getName())
+                                .subjectSubtitle("Laudo Psicológico Periódico")
+                                .dueDate(e.getNextLaudoPsicologico())
+                                .daysRemaining(daysRem)
+                                .statusText(formatDueDateText(e.getNextLaudoPsicologico(), daysRem))
+                                .routeTo("/sst")
+                                .build());
+                    }
+                }
+            }
+        }
+    }
+
     // ==================== ROLE SCOPE & HELPERS ====================
 
     private ScopeContext resolveScope(User user) {
@@ -572,12 +797,16 @@ public class SystemAlertCenterService {
                 rn.contains("TRAFEGO") || rn.contains("TRANSPORTE") || rn.contains("OPERAC") || rn.equals("SUPERVISOR"));
         boolean isRhOrSst = roleNames.stream().anyMatch(rn ->
                 rn.equals("RH") || rn.contains("RH") || rn.contains("DEPARTAMENTO_PESSOAL") || rn.contains("SST") || rn.contains("SEGURANCA"));
+        boolean isFinancial = roleNames.stream().anyMatch(rn ->
+                rn.contains("FINANC") || rn.contains("CONTAB") || rn.contains("FISCAL") || rn.contains("FATUR"));
         boolean isDriver = roleNames.stream().anyMatch(rn -> rn.contains("MOTORISTA"));
 
         if (isAdminOrBoard) {
             ctx.includeVehicles = true;
             ctx.includeDrivers = true;
             ctx.includeCompany = true;
+            ctx.includeFinancial = true;
+            ctx.includeRh = true;
             return ctx;
         }
 
@@ -587,7 +816,12 @@ public class SystemAlertCenterService {
             ctx.includeDrivers = true;
         }
         if (isRhOrSst) {
+            ctx.includeRh = true;
             ctx.includeDrivers = true;
+            ctx.includeCompany = true;
+        }
+        if (isFinancial) {
+            ctx.includeFinancial = true;
             ctx.includeCompany = true;
         }
 
@@ -766,6 +1000,8 @@ public class SystemAlertCenterService {
         boolean includeVehicles;
         boolean includeDrivers;
         boolean includeCompany;
+        boolean includeFinancial;
+        boolean includeRh;
         boolean driverOnlySelf;
         Employee selfEmployee;
         Driver selfDriver;
