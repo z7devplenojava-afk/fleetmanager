@@ -32,9 +32,19 @@ export const SplitText: React.FC<SplitTextProps> = ({
       y: 0,
       filter: 'blur(0px)',
       transition: {
-        type: 'spring',
-        damping: 18,
-        stiffness: 120,
+        y: {
+          type: 'spring',
+          damping: 18,
+          stiffness: 120,
+        },
+        opacity: {
+          duration: 0.35,
+          ease: 'easeOut',
+        },
+        filter: {
+          duration: 0.35,
+          ease: 'easeOut',
+        },
       },
     },
     hidden: {
@@ -42,9 +52,19 @@ export const SplitText: React.FC<SplitTextProps> = ({
       y: 20,
       filter: 'blur(6px)',
       transition: {
-        type: 'spring',
-        damping: 18,
-        stiffness: 120,
+        y: {
+          type: 'spring',
+          damping: 18,
+          stiffness: 120,
+        },
+        opacity: {
+          duration: 0.35,
+          ease: 'easeOut',
+        },
+        filter: {
+          duration: 0.35,
+          ease: 'easeOut',
+        },
       },
     },
   };
