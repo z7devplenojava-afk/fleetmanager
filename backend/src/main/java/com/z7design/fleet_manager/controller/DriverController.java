@@ -97,6 +97,25 @@ public class DriverController {
         }
     }
 
+    @PostMapping("/batch-delete")
+    public ResponseEntity<?> deleteDriversBatch(@RequestBody List<UUID> ids) {
+        System.out.println("🗑️ DriverController.deleteDriversBatch - Exclusão em lote de " + (ids != null ? ids.size() : 0) + " motoristas");
+        try {
+            int deletedCount = driverService.deleteDriversBatch(ids);
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "deletedCount", deletedCount,
+                    "message", deletedCount + " motorista(s) excluído(s) com sucesso."
+            ));
+        } catch (Exception e) {
+            System.err.println("❌ DriverController.deleteDriversBatch - Erro: " + e.getMessage());
+            return ResponseEntity.status(500).body(Map.of(
+                    "success", false,
+                    "error", "Erro ao excluir motoristas em lote: " + e.getMessage()
+            ));
+        }
+    }
+
     @GetMapping("/debug")
     public ResponseEntity<Map<String, Object>> debugDrivers() {
         try {

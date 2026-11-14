@@ -206,4 +206,22 @@ public class DriverService {
         driverRepository.delete(driver);
         System.out.println("âœ… Motorista excluÃ­do com sucesso do banco de dados");
     }
+
+    @Transactional
+    public int deleteDriversBatch(List<UUID> ids) {
+        if (ids == null || ids.isEmpty()) return 0;
+        int count = 0;
+        for (UUID id : ids) {
+            try {
+                if (driverRepository.existsById(id)) {
+                    driverRepository.deleteById(id);
+                    count++;
+                }
+            } catch (Exception e) {
+                System.err.println("⚠️ Erro ao excluir motorista ID " + id + ": " + e.getMessage());
+            }
+        }
+        System.out.println("✅ DriverService.deleteDriversBatch - Total excluído: " + count + " de " + ids.size());
+        return count;
+    }
 } 

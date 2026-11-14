@@ -126,6 +126,28 @@ const Motoristas: React.FC = () => {
     }
   });
 
+  const deleteBatchMutation = useMutation<any, Error, Driver[]>({
+    mutationFn: async (selectedDrivers: Driver[]) => {
+      const ids = selectedDrivers.map(d => d.id);
+      return await driverService.deleteDriversBatch(ids);
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['drivers'] });
+      toast({
+        title: "✅ Exclusão em Lote Concluída",
+        description: `${variables.length} motorista(s) excluído(s) com sucesso!`
+      });
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || error.message || "Erro ao excluir motoristas em lote";
+      toast({
+        title: "❌ Erro na Exclusão em Lote",
+        description: errorMessage,
+        variant: "destructive"
+      });
+    }
+  });
+
   // Handlers
   const openNewModal = () => {
     setEditingDriver(null);
@@ -283,6 +305,7 @@ const Motoristas: React.FC = () => {
           onAdd={openNewModal}
           onEdit={openEditModal}
           onDelete={handleDelete}
+          onDeleteBatch={(selectedList) => deleteBatchMutation.mutate(selectedList)}
           isLoading={isLoading}
         />
 

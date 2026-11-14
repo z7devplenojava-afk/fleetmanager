@@ -28,7 +28,8 @@ import {
     ArrowDown,
     Warehouse,
     Sparkles,
-    Bell
+    Bell,
+    Folder
 } from 'lucide-react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
@@ -69,6 +70,7 @@ import {
 import TcoPanel from '@/components/frota/TcoPanel';
 import ModuloDespesasPanel from '@/components/financeiro/ModuloDespesasPanel';
 import { FleetComponentControlsPanel } from '@/components/frota/FleetComponentControlsPanel';
+import { ClientMaintenancePlanPanel } from '@/components/frota/ClientMaintenancePlanPanel';
 import { DueComponentsAlertModal } from '@/components/frota/DueComponentsAlertModal';
 import fleetComponentControlService, {
     buildWorkOrderPrefillFromComponentRow,
@@ -112,14 +114,15 @@ const ManutencaoDashboard: React.FC = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const navigate = useNavigate();
     const tabParam = searchParams.get('tab');
-    const resolveTabView = (param: string | null): 'os' | 'componentes' | 'alertas' | 'tco' | 'despesas' => {
+    const resolveTabView = (param: string | null): 'os' | 'componentes' | 'plano-cliente' | 'alertas' | 'tco' | 'despesas' => {
         if (param === 'componentes') return 'componentes';
+        if (param === 'plano-cliente' || param === 'plano_cliente') return 'plano-cliente';
         if (param === 'alertas') return 'alertas';
         if (param === 'despesas') return 'despesas';
         if (param === 'tco') return 'tco';
         return 'os';
     };
-    const [view, setView] = useState<'os' | 'componentes' | 'alertas' | 'tco' | 'despesas'>(
+    const [view, setView] = useState<'os' | 'componentes' | 'plano-cliente' | 'alertas' | 'tco' | 'despesas'>(
         resolveTabView(tabParam)
     );
     const [viewingPdfOrder, setViewingPdfOrder] = useState<FleetWorkOrder | null>(null);
@@ -463,6 +466,18 @@ const ManutencaoDashboard: React.FC = () => {
                     Controles Preventivos
                 </Button>
                 <Button
+                    variant={view === 'plano-cliente' ? 'default' : 'outline'}
+                    onClick={() => {
+                        setView('plano-cliente');
+                        setSearchParams({ tab: 'plano-cliente' });
+                    }}
+                    size="sm"
+                    className={`h-9 ${view === 'plano-cliente' ? 'bg-amber-500 hover:bg-amber-600 text-black font-semibold shadow-md' : 'border-amber-400/40 text-amber-300 hover:bg-amber-400/10'}`}
+                >
+                    <Folder className="h-4 w-4 mr-2 text-amber-400" />
+                    Plano de Manutenção por Cliente
+                </Button>
+                <Button
                     variant={view === 'alertas' ? 'default' : 'outline'}
                     onClick={() => {
                         setView('alertas');
@@ -520,6 +535,22 @@ const ManutencaoDashboard: React.FC = () => {
                     defaultSubTab={view === 'alertas' ? 'ALERTS' : 'ALL'}
                     showAutoAlertModalOnMount={false}
                     onCreateWorkOrder={handleOpenOsFromComponent}
+                />
+            ) : view === 'plano-cliente' ? (
+                <ClientMaintenancePlanPanel
+                    onViewOrder={(order) => {
+                        setViewingPdfOrder(order);
+                        setIsPdfModalOpen(true);
+                    }}
+                    onCreateWorkOrder={(plate, clientName) => {
+                        setSelectedOrder(undefined);
+                        setPrefillOrderValues({
+                            vehiclePlate: plate,
+                            clientName: clientName,
+                            maintenanceType: MaintenanceType.PREVENTIVA
+                        });
+                        setIsFormModalOpen(true);
+                    }}
                 />
             ) : view === 'tco' ? (
                 <TcoPanel />

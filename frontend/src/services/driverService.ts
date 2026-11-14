@@ -85,6 +85,12 @@ const driverService = {
       throw new Error(error.response?.data?.message || error.message || 'Erro ao excluir motorista');
     }
   },
+
+  async deleteDriversBatch(ids: string[]): Promise<{ success: boolean; deletedCount: number }> {
+    console.log('🔗 driverService.deleteDriversBatch - IDs:', ids);
+    const response = await api.post('/api/drivers/batch-delete', ids);
+    return response.data;
+  },
 };
 
 export default driverService; 

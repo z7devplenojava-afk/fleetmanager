@@ -397,6 +397,34 @@ const Frota: React.FC = () => {
     }
   });
 
+  // Exclusão de motoristas em lote
+  const deleteDriversBatchMutation = useMutation<void, any, Driver[]>({
+    mutationFn: async (selectedDrivers: Driver[]) => {
+      const validIds = selectedDrivers
+        .map(d => d.id)
+        .filter(id => id && !id.startsWith('emp-'));
+      if (validIds.length === 0) return;
+      console.log('🗑️ Frota - Excluindo motoristas em lote:', validIds);
+      await driverService.deleteDriversBatch(validIds);
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['drivers'] });
+      toast({
+        title: "✅ Sucesso",
+        description: `${variables.length} motorista(s) excluído(s) com sucesso!`
+      });
+    },
+    onError: (error: any) => {
+      const errorMessage = error?.response?.data?.error || error?.response?.data?.message || error?.message || 'Erro ao excluir motoristas em lote';
+      console.error('❌ Frota - Erro ao excluir lote de motoristas:', error);
+      toast({
+        title: "❌ Erro",
+        description: errorMessage,
+        variant: "destructive"
+      });
+    }
+  });
+
   // Buscar registros de manutenção
   const {
     data: maintenances,
@@ -1856,6 +1884,7 @@ const Frota: React.FC = () => {
                       setDriverToDelete(driver);
                       setIsDriverDeleteDialogOpen(true);
                     }}
+                    onDeleteBatch={(selectedList) => deleteDriversBatchMutation.mutate(selectedList)}
                   />
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
