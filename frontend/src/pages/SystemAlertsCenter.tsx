@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -138,6 +139,8 @@ const SystemAlertsCenter: React.FC = () => {
   const [entityFilter, setEntityFilter] = useState<'ALL' | AlertEntityType>('ALL');
   const [categoryFilter, setCategoryFilter] = useState<'ALL' | AlertCategory>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
+  const [frotaViewMode, setFrotaViewMode] = useState<'vehicle' | 'priority'>('vehicle');
+  const [selectedAlertKeys, setSelectedAlertKeys] = useState<Record<string, boolean>>({});
 
   const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['system-alerts-center', user?.id, activeModule],
@@ -187,6 +190,47 @@ const SystemAlertsCenter: React.FC = () => {
     });
     return map;
   }, [filteredAlerts]);
+
+  // Agrupamento por veículo para o módulo de Frota & Manutenção
+  const groupedByVehicle = useMemo(() => {
+    const map = new Map<string, { plate: string; items: SystemAlertItem[]; criticalCount: number; highCount: number }>();
+    filteredAlerts.forEach((item) => {
+      const key = item.subjectTitle || 'Geral';
+      let group = map.get(key);
+      if (!group) {
+        group = { plate: key, items: [], criticalCount: 0, highCount: 0 };
+        map.set(key, group);
+      }
+      group.items.push(item);
+      if (item.priority === 'CRITICAL') group.criticalCount++;
+      else if (item.priority === 'HIGH') group.highCount++;
+    });
+    return Array.from(map.values()).sort((a, b) => (b.criticalCount * 2 + b.highCount) - (a.criticalCount * 2 + a.highCount));
+  }, [filteredAlerts]);
+
+  const toggleAlertSelection = (alertId: string) => {
+    setSelectedAlertKeys((prev) => ({
+      ...prev,
+      [alertId]: prev[alertId] === false ? true : !prev[alertId],
+    }));
+  };
+
+  const toggleAllVehicleAlerts = (items: SystemAlertItem[], selectAll: boolean) => {
+    setSelectedAlertKeys((prev) => {
+      const next = { ...prev };
+      items.forEach((it) => {
+        next[it.id] = selectAll;
+      });
+      return next;
+    });
+  };
+
+  const handleCreateUnifiedWorkOrder = (plate: string, items: SystemAlertItem[]) => {
+    const selected = items.filter((it) => selectedAlertKeys[it.id] !== false);
+    const toExecute = selected.length > 0 ? selected : items;
+    const servicesParam = encodeURIComponent(toExecute.map((it) => it.categoryLabel).join(', '));
+    navigate(`/manutencao?tab=os&action=create&vehiclePlate=${encodeURIComponent(plate)}&services=${servicesParam}`);
+  };
 
   const renderCategoryIcon = (category: AlertCategory) => {
     switch (category) {
@@ -468,17 +512,52 @@ const SystemAlertsCenter: React.FC = () => {
                 </SelectTrigger>
                 <SelectContent className="bg-seguranca-graphite border-gray-600 text-xs text-white">
                   <SelectItem value="ALL">Todos os Tipos</SelectItem>
-                  <SelectItem value="PREVENTIVE">{CATEGORY_LABELS.PREVENTIVE}</SelectItem>
-                  <SelectItem value="VEHICLE_DOCUMENT">{CATEGORY_LABELS.VEHICLE_DOCUMENT}</SelectItem>
-                  <SelectItem value="DRIVER_DOCUMENT">{CATEGORY_LABELS.DRIVER_DOCUMENT}</SelectItem>
-                  <SelectItem value="TIRE_CHANGE">{CATEGORY_LABELS.TIRE_CHANGE}</SelectItem>
-                  <SelectItem value="OIL_CHANGE">{CATEGORY_LABELS.OIL_CHANGE}</SelectItem>
-                  <SelectItem value="COMPANY_DOCUMENT">{CATEGORY_LABELS.COMPANY_DOCUMENT}</SelectItem>
+                  <SelectItem value="FINANCIAL_PAYABLE">💳 {CATEGORY_LABELS.FINANCIAL_PAYABLE}</SelectItem>
+                  <SelectItem value="FINANCIAL_RECEIVABLE">💰 {CATEGORY_LABELS.FINANCIAL_RECEIVABLE}</SelectItem>
+                  <SelectItem value="PREVENTIVE">🔧 {CATEGORY_LABELS.PREVENTIVE}</SelectItem>
+                  <SelectItem value="OIL_CHANGE">🛢️ {CATEGORY_LABELS.OIL_CHANGE}</SelectItem>
+                  <SelectItem value="TIRE_CHANGE">⚙️ {CATEGORY_LABELS.TIRE_CHANGE}</SelectItem>
+                  <SelectItem value="VEHICLE_DOCUMENT">📄 {CATEGORY_LABELS.VEHICLE_DOCUMENT}</SelectItem>
+                  <SelectItem value="DRIVER_DOCUMENT">🪪 {CATEGORY_LABELS.DRIVER_DOCUMENT}</SelectItem>
+                  <SelectItem value="RH_VACATION">🏖️ {CATEGORY_LABELS.RH_VACATION}</SelectItem>
+                  <SelectItem value="RH_PROBATION">📝 {CATEGORY_LABELS.RH_PROBATION}</SelectItem>
+                  <SelectItem value="RH_EXAM">🩺 {CATEGORY_LABELS.RH_EXAM}</SelectItem>
+                  <SelectItem value="COMPANY_DOCUMENT">🏢 {CATEGORY_LABELS.COMPANY_DOCUMENT}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </CardContent>
         </Card>
+
+        {/* Alternador de visualização exclusivo do Módulo de Frota & Manutenção */}
+        {activeModule === 'FROTA' && filteredAlerts.length > 0 && (
+          <div className="flex items-center justify-between bg-seguranca-graphite border border-gray-700/80 rounded-xl p-2.5">
+            <div className="flex items-center gap-2">
+              <Bus className="h-4 w-4 text-seguranca-yellow" />
+              <span className="text-xs text-gray-200 font-semibold">Visualização no Módulo de Manutenção:</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Button
+                type="button"
+                size="sm"
+                variant={frotaViewMode === 'vehicle' ? 'default' : 'ghost'}
+                onClick={() => setFrotaViewMode('vehicle')}
+                className={`h-7 px-2.5 text-xs font-bold ${frotaViewMode === 'vehicle' ? 'bg-seguranca-red text-white' : 'text-gray-400 hover:text-white'}`}
+              >
+                Agrupar por Veículo (Criar OS)
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={frotaViewMode === 'priority' ? 'default' : 'ghost'}
+                onClick={() => setFrotaViewMode('priority')}
+                className={`h-7 px-2.5 text-xs font-bold ${frotaViewMode === 'priority' ? 'bg-seguranca-red text-white' : 'text-gray-400 hover:text-white'}`}
+              >
+                Por Prioridade
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Empty State */}
         {filteredAlerts.length === 0 ? (
@@ -491,6 +570,135 @@ const SystemAlertsCenter: React.FC = () => {
               </p>
             </CardContent>
           </Card>
+        ) : activeModule === 'FROTA' && frotaViewMode === 'vehicle' ? (
+          /* Visualização Agrupada por Veículo no Módulo de Manutenção */
+          <div className="space-y-4">
+            {groupedByVehicle.map((group) => {
+              const selectedItems = group.items.filter((it) => selectedAlertKeys[it.id] !== false);
+              const allSelected = selectedItems.length === group.items.length;
+              const hasSelected = selectedItems.length > 0;
+
+              return (
+                <div
+                  key={group.plate}
+                  className="rounded-2xl border border-gray-700 bg-slate-900/90 overflow-hidden shadow-lg"
+                >
+                  {/* Cabeçalho do Veículo com Botão de Criar OS Unificada */}
+                  <div className="bg-slate-950 p-3 sm:p-4 border-b border-gray-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 rounded-xl bg-red-500/15 border border-red-500/30 text-red-400">
+                        <Bus className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-black text-base sm:text-lg text-white">
+                            {group.plate}
+                          </span>
+                          {group.criticalCount > 0 && (
+                            <Badge className="bg-red-600 text-white text-[10px] font-bold">
+                              {group.criticalCount} crítico(s)
+                            </Badge>
+                          )}
+                          {group.highCount > 0 && (
+                            <Badge className="bg-amber-500 text-black text-[10px] font-bold">
+                              {group.highCount} atenção
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-400 font-mono mt-0.5">
+                          {group.items.length} serviço(s) preventivo(s) no veículo
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 self-end sm:self-center">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toggleAllVehicleAlerts(group.items, !allSelected)}
+                        className="text-[11px] h-8 px-2 text-gray-300 hover:text-white hover:bg-slate-800"
+                      >
+                        {allSelected ? 'Desmarcar Todos' : 'Marcar Todos'}
+                      </Button>
+
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => handleCreateUnifiedWorkOrder(group.plate, group.items)}
+                        disabled={!hasSelected}
+                        className="bg-seguranca-red hover:bg-seguranca-darkred text-white text-xs font-bold h-9 gap-1.5 shadow-md shadow-red-950/40"
+                      >
+                        <Wrench className="h-4 w-4" />
+                        <span>Criar OS ({selectedItems.length}/{group.items.length})</span>
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Lista de Alertas do Veículo com Checkboxes */}
+                  <div className="p-3 space-y-2">
+                    {group.items.map((item) => {
+                      const isChecked = selectedAlertKeys[item.id] !== false;
+                      const isCritical = item.priority === 'CRITICAL';
+
+                      return (
+                        <div
+                          key={item.id}
+                          onClick={() => toggleAlertSelection(item.id)}
+                          className={`rounded-xl border p-2.5 sm:p-3 flex items-center justify-between gap-3 cursor-pointer transition-colors ${
+                            isChecked
+                              ? isCritical
+                                ? 'bg-red-950/30 border-red-500/50 hover:bg-red-950/40'
+                                : 'bg-amber-950/20 border-amber-500/40 hover:bg-amber-950/30'
+                              : 'bg-slate-950/40 border-gray-800 opacity-60 hover:opacity-100'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <Checkbox
+                              checked={isChecked}
+                              onCheckedChange={() => toggleAlertSelection(item.id)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="border-gray-500 data-[state=checked]:bg-seguranca-red data-[state=checked]:border-red-500 shrink-0"
+                            />
+                            <div className="space-y-0.5 min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Badge
+                                  className={`text-[9px] font-bold py-0 h-4 ${
+                                    isCritical ? 'bg-red-600 text-white' : 'bg-amber-500 text-black'
+                                  }`}
+                                >
+                                  {isCritical ? 'VENCIDO' : 'PRÓXIMO'}
+                                </Badge>
+                                <span className="font-semibold text-xs sm:text-sm text-seguranca-yellow truncate">
+                                  {item.categoryLabel}
+                                </span>
+                              </div>
+                              <p className="text-xs text-gray-300 font-mono">
+                                {item.statusText}
+                              </p>
+                            </div>
+                          </div>
+
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(item.routeTo);
+                            }}
+                            className="text-[11px] h-7 px-2 text-gray-400 hover:text-white hover:bg-slate-800 shrink-0 hidden sm:flex"
+                          >
+                            <span>OS Individual</span>
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         ) : (
           /* Grouped Priority Sections */
           <div className="space-y-5">

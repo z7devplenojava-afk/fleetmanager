@@ -65,7 +65,7 @@ const Funcionarios: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'ACTIVE' | 'INACTIVE' | 'VACATION' | 'MATERNITY_LEAVE' | 'MEDICAL_CERTIFICATE' | 'TERMINATED' | 'SUSPENDED'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'ACTIVE' | 'INACTIVE' | 'VACATION' | 'MATERNITY_LEAVE' | 'MEDICAL_CERTIFICATE' | 'TERMINATED' | 'SUSPENDED' | 'HISTORY'>('all');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
   const [workPostFilter, setWorkPostFilter] = useState<string>('all');
   const [clientFilter, setClientFilter] = useState<string>('all');
@@ -302,13 +302,20 @@ const Funcionarios: React.FC = () => {
   // Filtrar funcionários (filtros locais combinados)
   const normalizedSearch = searchTerm.trim().toLowerCase();
   const searchDigits = searchTerm.replace(/\D/g, '');
+  const activeCount = useMemo(() => employees.filter(e => e.status === 'ACTIVE').length, [employees]);
+  const historyCount = useMemo(() => employees.filter(e => e.status === 'INACTIVE' || e.status === 'TERMINATED').length, [employees]);
+
   const filteredEmployees = employees.filter(employee => {
     const matchesDepartment = departmentFilter === 'all' || 
       employee.department?.id === departmentFilter ||
       employee.unit?.id === departmentFilter || 
       employee.position?.id === departmentFilter;
     
-    const matchesStatus = statusFilter === 'all' || employee.status === statusFilter;
+    const matchesStatus = statusFilter === 'all'
+      ? true
+      : statusFilter === 'HISTORY'
+        ? (employee.status === 'INACTIVE' || employee.status === 'TERMINATED')
+        : employee.status === statusFilter;
 
     const matchesWorkPost = workPostFilter === 'all' ||
       employee.workPost?.id === workPostFilter ||
@@ -477,9 +484,60 @@ const Funcionarios: React.FC = () => {
     }
   };
 
-  // Excluir funcionário
+  // Desativar funcionário individual (Inativação segura mantendo histórico no banco)
+  const handleDeactivateEmployee = async (employee: Employee) => {
+    if (!confirm(`📋 Deseja desativar o colaborador "${employee.name}" da lista ativa?
+
+ℹ️ HISTÓRICO PRESERVADO:
+O colaborador sairá da lista ativa de operações, mas todo o seu histórico (dados cadastrais, CNH, holerites, pontos, viagens e documentos) permanecerá gravado com segurança no banco de dados para consultas futuras.
+
+Confirmar desativação?`)) {
+      return;
+    }
+
+    try {
+      await employeeService.updateStatus(employee.id, 'INACTIVE');
+      toast({
+        title: "✅ Colaborador Desativado",
+        description: `"${employee.name}" foi inativado. Seu histórico permanece salvo para consultas futuras.`,
+      });
+      loadEmployeesWithFilters();
+    } catch (err: any) {
+      console.error('Erro ao desativar funcionário:', err);
+      toast({
+        title: "❌ Erro ao desativar",
+        description: err?.message || "Não foi possível desativar o funcionário.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Reativar funcionário
+  const handleReactivateEmployee = async (employee: Employee) => {
+    if (!confirm(`Deseja reativar o colaborador "${employee.name}" para o quadro de funcionários ativos?`)) {
+      return;
+    }
+
+    try {
+      await employeeService.updateStatus(employee.id, 'ACTIVE');
+      toast({
+        title: "✅ Colaborador Reativado",
+        description: `"${employee.name}" agora está ativo novamente no sistema.`,
+      });
+      loadEmployeesWithFilters();
+    } catch (err: any) {
+      console.error('Erro ao reativar funcionário:', err);
+      toast({
+        title: "❌ Erro ao reativar",
+        description: err?.message || "Não foi possível reativar o funcionário.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Excluir funcionário da lista (Exclusão lógica preservando histórico no banco de dados)
   const deleteEmployee = async (employeeId: string) => {
-    // Encontrar o funcionário para verificar o status
+    // Encontrar o funcionário para exibir nome e detalhes na confirmação
     const employee = employees.find(emp => emp.id === employeeId);
     
     if (!employee) {
@@ -491,48 +549,60 @@ const Funcionarios: React.FC = () => {
       return;
     }
 
-    // Verificar se o funcionário pode ser excluído
-    if (employee.status !== 'TERMINATED') {
-      toast({
-        title: "❌ Não é possível excluir",
-        description: `Apenas funcionários com status "Demitido" podem ser excluídos. 
-        
-Status atual: ${getStatusText(employee.status)}
+    if (!confirm(`📋 Deseja excluir/desativar o colaborador "${employee.name}" da lista?
 
-Para excluir este funcionário:
-1. Clique no botão "Demitir" 
-2. Confirme a alteração de status
-3. Depois clique em "Excluir"`,
-        variant: "destructive"
-      });
-      return;
-    }
+ℹ️ HISTÓRICO PRESERVADO NO BANCO:
+O colaborador será removido da lista ativa, mas todo o seu histórico (dados cadastrais, CPF: ${employee.cpf || 'N/A'}, CNH, viagens, ponto e holerites) continuará registrado com segurança no banco de dados para futuras consultas e auditorias.
 
-    if (!confirm(`🗑️ Tem certeza que deseja excluir o funcionário "${employee.name}"?
-
-⚠️ ATENÇÃO: Esta ação é irreversível e removerá permanentemente todos os dados do funcionário do sistema.
-
-Status: ${getStatusText(employee.status)}
-CPF: ${employee.cpf}
-
-Confirma a exclusão?`)) {
+Confirmar remoção da lista?`)) {
       return;
     }
 
     try {
       await employeeService.deleteEmployee(employeeId);
       toast({
-        title: "✅ Sucesso",
-        description: `Funcionário "${employee.name}" foi excluído permanentemente do sistema.`,
+        title: "✅ Colaborador Removido da Lista",
+        description: `"${employee.name}" foi desativado. O histórico segue registrado no banco de dados.`,
       });
       loadEmployeesWithFilters(); // Recarregar lista
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erro ao excluir funcionário:', err);
       toast({
-        title: "❌ Erro na exclusão",
-        description: "Não foi possível excluir o funcionário. Verifique se ele pode ser excluído ou se há dependências no sistema.",
+        title: "❌ Erro na operação",
+        description: err?.message || "Não foi possível desativar o funcionário.",
         variant: "destructive"
       });
+    }
+  };
+
+  // Excluir/Desativar múltiplos funcionários em massa (preservando histórico)
+  const handleBulkDelete = async (selectedIds: string[]) => {
+    if (!selectedIds || selectedIds.length === 0) return;
+
+    if (!confirm(`📋 Deseja desativar/remover ${selectedIds.length} colaborador(es) selecionado(s) da lista ativa?
+
+ℹ️ HISTÓRICO PRESERVADO NO BANCO:
+Os colaboradores selecionados sairão da listagem ativa, porém todos os seus registros e históricos no banco de dados continuarão intactos para consultas e auditorias futuras.
+
+Confirmar operação em lote?`)) {
+      return;
+    }
+
+    try {
+      const res = await employeeService.bulkDeleteEmployees(selectedIds);
+      toast({
+        title: "✅ Operação em Lote Concluída",
+        description: `${res.deleted} colaborador(es) desativado(s) com sucesso. Histórico preservado no banco de dados.${res.failed?.length ? ` (${res.failed.length} falharam)` : ''}`,
+      });
+      loadEmployeesWithFilters();
+    } catch (err: any) {
+      console.error('Erro na desativação em massa:', err);
+      toast({
+        title: "❌ Erro na operação em massa",
+        description: err?.message || "Erro ao processar desativação em massa.",
+        variant: "destructive"
+      });
+      loadEmployeesWithFilters();
     }
   };
 
@@ -980,28 +1050,66 @@ Confirma a exclusão?`)) {
                   </div>
                 </div>
 
-                <Button 
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setRefreshing(true);
-                    clearFilters();
-                    setTimeout(() => setRefreshing(false), 800);
-                  }}
-                  disabled={refreshing}
-                  className={`text-xs h-8 px-3 rounded-lg transition-all ${
-                    activeFiltersCount > 0
-                      ? 'border-seguranca-red/50 text-seguranca-red hover:bg-seguranca-red/10'
-                      : 'border-gray-700 text-gray-400 hover:text-white hover:bg-seguranca-graphite'
-                  }`}
-                >
-                  {refreshing ? (
-                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <RefreshCw size={13} className="mr-1.5" />
-                  )}
-                  {activeFiltersCount > 0 ? `Limpar (${activeFiltersCount})` : 'Limpar'}
-                </Button>
+                {/* Botões Rápidos de Status (Ativos / Inativos / Todos) */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter('all')}
+                    className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${
+                      statusFilter === 'all'
+                        ? 'bg-seguranca-red text-white shadow-md shadow-red-950/40'
+                        : 'bg-seguranca-black/80 border border-gray-700/80 text-gray-400 hover:text-white hover:border-gray-600'
+                    }`}
+                  >
+                    Todos ({employees.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter('ACTIVE')}
+                    className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${
+                      statusFilter === 'ACTIVE'
+                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950/40'
+                        : 'bg-seguranca-black/80 border border-gray-700/80 text-gray-400 hover:text-emerald-300 hover:border-emerald-600/50'
+                    }`}
+                  >
+                    Ativos ({activeCount})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter('HISTORY')}
+                    className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${
+                      statusFilter === 'HISTORY'
+                        ? 'bg-amber-600 text-white shadow-md shadow-amber-950/40'
+                        : 'bg-seguranca-black/80 border border-gray-700/80 text-gray-400 hover:text-amber-300 hover:border-amber-600/50'
+                    }`}
+                    title="Funcionários inativos ou demitidos com histórico preservado no banco de dados"
+                  >
+                    🏛️ Inativos / Histórico ({historyCount})
+                  </button>
+
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setRefreshing(true);
+                      clearFilters();
+                      setTimeout(() => setRefreshing(false), 800);
+                    }}
+                    disabled={refreshing}
+                    className={`text-xs h-8 px-3 rounded-lg transition-all ${
+                      activeFiltersCount > 0
+                        ? 'border-seguranca-red/50 text-seguranca-red hover:bg-seguranca-red/10'
+                        : 'border-gray-700 text-gray-400 hover:text-white hover:bg-seguranca-graphite'
+                    }`}
+                  >
+                    {refreshing ? (
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <RefreshCw size={13} className="mr-1.5" />
+                    )}
+                    {activeFiltersCount > 0 ? `Limpar (${activeFiltersCount})` : 'Limpar'}
+                  </Button>
+                </div>
               </div>
 
               {/* Grid de Filtros: 2 linhas perfeitas de 4 colunas em desktop */}
@@ -1039,11 +1147,12 @@ Confirma a exclusão?`)) {
                 >
                   <option value="all">📋 Todos os status</option>
                   <option value="ACTIVE">✅ Ativo</option>
+                  <option value="HISTORY">🏛️ Inativos & Demitidos (Histórico)</option>
                   <option value="INACTIVE">⭕ Inativo</option>
+                  <option value="TERMINATED">❌ Demitido</option>
                   <option value="VACATION">🏖️ Férias</option>
                   <option value="MATERNITY_LEAVE">👶 Licença Maternidade</option>
                   <option value="MEDICAL_CERTIFICATE">🏥 Atestado</option>
-                  <option value="TERMINATED">❌ Demitido</option>
                   <option value="SUSPENDED">⏸️ Suspenso</option>
                 </select>
                 
@@ -1196,12 +1305,15 @@ Confirma a exclusão?`)) {
             </Card>
 
             {/* Lista de Funcionários Moderna */}
-            <Card className="bg-gradient-to-br from-seguranca-graphite to-seguranca-black border-gray-600/50 p-6" data-animate="fadeUp">
+            <Card className="bg-gradient-to-br from-seguranca-graphite to-seguranca-black border-gray-600/50 p-2 sm:p-4" data-animate="fadeUp">
               <FuncionariosTable
                 employees={filteredEmployees}
                 onView={handleViewEmployee}
                 onEdit={handleEditEmployee}
                 onDelete={deleteEmployee}
+                onBulkDelete={handleBulkDelete}
+                onDeactivate={handleDeactivateEmployee}
+                onReactivate={handleReactivateEmployee}
                 onTerminate={handleTerminateEmployee}
                 onViewDocuments={handleViewDocuments}
                 onViewDependents={(employee) => {

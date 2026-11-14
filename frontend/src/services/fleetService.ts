@@ -218,55 +218,95 @@ export const DEFAULT_FLEET_VEHICLES: Vehicle[] = [
 class FleetService {
   private vehiclesCache: { data: Vehicle[]; timestamp: number } | null = null;
   private vehiclesInFlight: Promise<Vehicle[]> | null = null;
-  private readonly CACHE_TTL_MS = 30000; // 30 segundos de cache de alta performance
+  private readonly CACHE_TTL_MS = 60000; // 60 segundos de cache de alta performance na memória
 
   constructor() {
     this.getVehicles = this.getVehicles.bind(this);
     this.invalidateVehiclesCache = this.invalidateVehiclesCache.bind(this);
+    this.getInitialCachedVehicles = this.getInitialCachedVehicles.bind(this);
+    this.getInitialCachedVehiclesTimestamp = this.getInitialCachedVehiclesTimestamp.bind(this);
+
+    // Inicializar cache em memória / localStorage para resposta instantânea (0ms)
+    let initialList: Vehicle[] = DEFAULT_FLEET_VEHICLES;
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const stored = localStorage.getItem('fleet_vehicles_cache');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            initialList = parsed;
+          }
+        }
+      }
+    } catch (_) {}
+
+    this.vehiclesCache = { data: initialList, timestamp: Date.now() };
+  }
+
+  public getInitialCachedVehicles(): Vehicle[] {
+    if (this?.vehiclesCache?.data?.length) {
+      return this.vehiclesCache.data;
+    }
+    return DEFAULT_FLEET_VEHICLES;
+  }
+
+  public getInitialCachedVehiclesTimestamp(): number {
+    return this.vehiclesCache?.timestamp || Date.now();
   }
 
   public invalidateVehiclesCache(): void {
     this.vehiclesCache = null;
     this.vehiclesInFlight = null;
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.removeItem('fleet_vehicles_cache');
+      }
+    } catch (_) {}
   }
 
   // Veículos
   getVehicles = async (forceRefresh = false): Promise<Vehicle[]> => {
+    // 1. Resposta instantânea da memória se cache for recente
     if (!forceRefresh && this?.vehiclesCache && Date.now() - this.vehiclesCache.timestamp < this.CACHE_TTL_MS) {
       return this.vehiclesCache.data;
     }
+    // 2. Reutilizar requisição em voo para evitar chamadas duplicadas simultâneas
     if (!forceRefresh && this?.vehiclesInFlight) {
       return this.vehiclesInFlight;
     }
 
     this.vehiclesInFlight = (async () => {
-      console.log('🔍 FleetService - Buscando veículos...');
       try {
-        const response = await api.get('/api/vehicles');
+        // Timeout ágil de 3.5s para evitar que a UI do usuário congele caso o backend esteja ocupado
+        const response = await api.get('/api/vehicles', { timeout: 3500 });
         
         const list = Array.isArray(response?.data) 
           ? response.data 
           : (Array.isArray(response?.data?.content) ? response.data.content : []);
         
-        if (list.length === 0) {
-          console.warn('⚠️ FleetService - Retorno vazio do backend. Aplicando frota operacional padrão.');
-          return DEFAULT_FLEET_VEHICLES;
-        }
-
-        console.log('✅ FleetService - Veículos carregados:', list.length);
-        if (this) {
-          this.vehiclesCache = { data: list, timestamp: Date.now() };
-        }
-        return list;
+        const validList = list.length > 0 ? list : (this?.vehiclesCache?.data?.length ? this.vehiclesCache.data : DEFAULT_FLEET_VEHICLES);
+        this.vehiclesCache = { data: validList, timestamp: Date.now() };
+        try {
+          if (typeof window !== 'undefined' && window.localStorage && validList.length > 0) {
+            localStorage.setItem('fleet_vehicles_cache', JSON.stringify(validList));
+          }
+        } catch (_) {}
+        return validList;
       } catch (error: any) {
-        console.error('❌ FleetService - Erro ao buscar veículos, aplicando fallback padrão:', error);
+        console.warn('⚠️ FleetService - Falha ao buscar veículos do servidor, aplicando dados em cache:', error?.message);
+        if (this?.vehiclesCache?.data?.length) {
+          return this.vehiclesCache.data;
+        }
         return DEFAULT_FLEET_VEHICLES;
       } finally {
-        if (this) {
-          this.vehiclesInFlight = null;
-        }
+        this.vehiclesInFlight = null;
       }
     })();
+
+    // Se temos dados em cache (mesmo que com timestamp anterior), retorna imediatamente para zero latência
+    if (this?.vehiclesCache?.data?.length && !forceRefresh) {
+      return this.vehiclesCache.data;
+    }
 
     return this.vehiclesInFlight;
   };

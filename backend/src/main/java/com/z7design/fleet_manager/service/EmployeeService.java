@@ -2,6 +2,7 @@ package com.z7design.fleet_manager.service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.Arrays;
@@ -51,6 +52,8 @@ public class EmployeeService {
     private com.z7design.fleet_manager.repository.WorkPostRepository workPostRepository;
     @Autowired
     private com.z7design.fleet_manager.repository.DepartmentRepository departmentRepository;
+    @Autowired
+    private com.z7design.fleet_manager.repository.DriverRepository driverRepository;
     
     @Transactional
     @CacheEvict(value = {"employees", "employees-by-company", "dashboard-summary"}, allEntries = true)
@@ -523,10 +526,47 @@ public class EmployeeService {
     @CacheEvict(value = {"employees", "employees-by-company", "dashboard-summary"}, allEntries = true)
     public void delete(UUID id) {
         Employee employee = findById(id);
-        if (employee.getStatus() != EmploymentStatus.TERMINATED) {
-            throw new RuntimeException("Apenas funcionÃ¡rios demitidos podem ser excluÃ­dos");
+        
+        // Se houver usuário associado, desativar acesso
+        if (employee.getUser() != null) {
+            try {
+                User user = employee.getUser();
+                user.setStatus(UserStatus.INACTIVE);
+                user.setActive(false);
+                userRepository.save(user);
+            } catch (Exception e) {
+                System.err.println("Aviso ao desativar usuário do funcionário " + id + ": " + e.getMessage());
+            }
         }
-        employeeRepository.delete(employee);
+        
+        // Exclusão lógica / desativação segura:
+        // Mantém o registro e todo o histórico do funcionário gravado no banco de dados
+        // para consultas futuras, relatórios trabalhistas e auditoria
+        employee.setStatus(EmploymentStatus.INACTIVE);
+        employeeRepository.save(employee);
+    }
+
+    @Transactional
+    @CacheEvict(value = {"employees", "employees-by-company", "dashboard-summary"}, allEntries = true)
+    public Map<String, Object> deleteMultiple(List<UUID> ids) {
+        int deleted = 0;
+        List<String> failed = new ArrayList<>();
+        if (ids != null) {
+            for (UUID id : ids) {
+                try {
+                    delete(id);
+                    deleted++;
+                } catch (Exception e) {
+                    System.err.println("Erro ao desativar funcionário ID " + id + ": " + e.getMessage());
+                    failed.add(id.toString());
+                }
+            }
+        }
+        Map<String, Object> result = new HashMap<>();
+        result.put("requested", ids != null ? ids.size() : 0);
+        result.put("deleted", deleted);
+        result.put("failed", failed);
+        return result;
     }
 
     private void applyTerminationRules(Employee employee, EmployeeDTO dto) {
@@ -782,16 +822,35 @@ public class EmployeeService {
     }
     
     @Transactional
+    @CacheEvict(value = {"employees", "employees-by-company", "dashboard-summary"}, allEntries = true)
     public Employee updateStatus(UUID id, EmploymentStatus status) {
         Employee employee = findById(id);
         employee.setStatus(status);
+
+        // Se inativado ou demitido, desativar usuário vinculado
+        if (employee.getUser() != null) {
+            try {
+                User user = employee.getUser();
+                if (status == EmploymentStatus.INACTIVE || status == EmploymentStatus.TERMINATED) {
+                    user.setStatus(UserStatus.INACTIVE);
+                    user.setActive(false);
+                } else if (status == EmploymentStatus.ACTIVE) {
+                    user.setStatus(UserStatus.ACTIVE);
+                    user.setActive(true);
+                }
+                userRepository.save(user);
+            } catch (Exception e) {
+                log.warn("Aviso ao atualizar status de usuário vinculado ao funcionário {}: {}", id, e.getMessage());
+            }
+        }
+
         return employeeRepository.save(employee);
     }
 
     @Transactional
     @CacheEvict(value = {"employees", "employees-by-company", "dashboard-summary"}, allEntries = true)
     public void deleteById(UUID id) {
-        employeeRepository.deleteById(id);
+        delete(id);
     }
 
     // MÃ©todos utilitÃ¡rios de mapeamento
@@ -1607,6 +1666,33 @@ public class EmployeeService {
             dto.setProcessoJudicialDataDistribuicao(e.getProcessoJudicialDataDistribuicao());
             dto.setProcessoJudicialObservacoes(e.getProcessoJudicialObservacoes());
             
+            // Validação e auto-correção de nome e documento na serialização:
+            if (dto.getName() == null || dto.getName().isBlank() || dto.getName().equalsIgnoreCase("CPF:") || dto.getName().toLowerCase().startsWith("cpf:") || dto.getName().matches("(?i).*funcion[aá]rio.*")) {
+                String docClean = dto.getCpf() != null ? dto.getCpf().replaceAll("[^0-9]", "") : "";
+                String realName = EmployeePdfImportService.getKnownNameForCpf(docClean);
+                String realCpf = docClean;
+                if (realName == null && dto.getRegistrationNumber() != null) {
+                    EmployeePdfImportService.KnownEmployee known = EmployeePdfImportService.getKnownEmployeeByRegistration(dto.getRegistrationNumber());
+                    if (known != null) {
+                        realName = known.name();
+                        realCpf = known.cpf();
+                    }
+                }
+                if (realName != null) {
+                    dto.setName(realName);
+                    if (realCpf != null && !realCpf.isBlank() && (dto.getCpf() == null || dto.getCpf().isBlank() || dto.getCpf().length() != 11)) {
+                        dto.setCpf(realCpf);
+                    }
+                    try {
+                        e.setName(realName);
+                        if (realCpf != null && !realCpf.isBlank()) e.setDocument(realCpf);
+                        employeeRepository.save(e);
+                    } catch (Exception ignored) {}
+                } else if (dto.getName() != null && (dto.getName().equalsIgnoreCase("CPF:") || dto.getName().toLowerCase().startsWith("cpf:"))) {
+                    dto.setName(dto.getRegistrationNumber() != null ? "COLABORADOR " + dto.getRegistrationNumber() : "COLABORADOR");
+                }
+            }
+
             System.out.println("[DEBUG] DTO criado com sucesso para: " + dto.getName());
             return dto;
             
@@ -1739,5 +1825,99 @@ public class EmployeeService {
         
         log.debug("Dados bÃ¡sicos encontrados para funcionÃ¡rio: {}", employee.getName());
         return data;
+    }
+
+    @org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
+    public int autoFixPlaceholderEmployeeNames() {
+        int fixedCount = 0;
+        try {
+            log.info("🔍 Verificando e corrigindo funcionários com nome placeholder, 'CPF:' ou dados desatualizados...");
+            List<Employee> allEmployees = employeeRepository.findAll();
+            for (Employee emp : allEmployees) {
+                try {
+                    String currentName = emp.getName() != null ? emp.getName().trim() : "";
+                    boolean isPlaceholder = currentName.isEmpty()
+                            || currentName.equalsIgnoreCase("CPF:")
+                            || currentName.toLowerCase().startsWith("cpf:")
+                            || currentName.equalsIgnoreCase("Colaborador Importado")
+                            || currentName.matches("(?i).*funcion[aá]rio.*");
+
+                    if (isPlaceholder) {
+                        // 1. Tentar por CPF
+                        String docClean = emp.getDocument() != null ? emp.getDocument().replaceAll("[^0-9]", "") : "";
+                        if (docClean.isEmpty()) {
+                            docClean = currentName.replaceAll("[^0-9]", "");
+                        }
+                        String realName = EmployeePdfImportService.getKnownNameForCpf(docClean);
+                        String realCpf = docClean;
+
+                        // 2. Se não achou por CPF, tentar por Driver ou User
+                        if (realName == null && !docClean.isEmpty()) {
+                            try {
+                                Optional<com.z7design.fleet_manager.model.Driver> drv = driverRepository.findByCpf(docClean);
+                                if (drv.isPresent() && drv.get().getName() != null && !drv.get().getName().isBlank()) {
+                                    realName = drv.get().getName().trim();
+                                }
+                            } catch (Exception ignored) {}
+                            if (realName == null) {
+                                try {
+                                    Optional<User> usr = userRepository.findByUsername(docClean);
+                                    if (usr.isPresent() && usr.get().getName() != null && !usr.get().getName().isBlank()) {
+                                        String uName = usr.get().getName().trim();
+                                        if (!uName.equalsIgnoreCase("CPF:") && !uName.toLowerCase().startsWith("cpf:")) {
+                                            realName = uName;
+                                        }
+                                    }
+                                } catch (Exception ignored) {}
+                            }
+                        }
+
+                        // 3. Se não achou, tentar por matrícula ou código de funcionário
+                        if (realName == null && emp.getRegistrationNumber() != null) {
+                            EmployeePdfImportService.KnownEmployee known = EmployeePdfImportService.getKnownEmployeeByRegistration(emp.getRegistrationNumber());
+                            if (known != null) {
+                                realName = known.name();
+                                realCpf = known.cpf();
+                            }
+                        }
+                        if (realName == null && emp.getCodigoFuncionario() != null) {
+                            EmployeePdfImportService.KnownEmployee known = EmployeePdfImportService.getKnownEmployeeByRegistration(emp.getCodigoFuncionario());
+                            if (known != null) {
+                                realName = known.name();
+                                realCpf = known.cpf();
+                            }
+                        }
+
+                        if (realName != null) {
+                            String targetCpf = null;
+                            if (realCpf != null && !realCpf.isBlank()) {
+                                String cleanTargetCpf = realCpf.replaceAll("[^0-9]", "");
+                                Optional<Employee> conflict = employeeRepository.findByDocument(cleanTargetCpf);
+                                if (conflict.isPresent() && !conflict.get().getId().equals(emp.getId())) {
+                                    log.warn("⚠️ CPF {} já associado ao funcionário ID {}. Mantendo registro sem alterar CPF duplicado.",
+                                            cleanTargetCpf, conflict.get().getId());
+                                } else {
+                                    targetCpf = cleanTargetCpf;
+                                }
+                            }
+                            employeeRepository.updateEmployeeNameAndDocumentNative(emp.getId(), realName, targetCpf);
+                            fixedCount++;
+                        } else if (currentName.equalsIgnoreCase("CPF:") || currentName.toLowerCase().startsWith("cpf:")) {
+                            String fallback = emp.getRegistrationNumber() != null ? "COLABORADOR " + emp.getRegistrationNumber() : "COLABORADOR";
+                            employeeRepository.updateEmployeeNameAndDocumentNative(emp.getId(), fallback, null);
+                            fixedCount++;
+                        }
+                    }
+                } catch (Exception ex) {
+                    log.warn("⚠️ Não foi possível auto-corrigir funcionário ID {}: {}", emp.getId(), ex.getMessage());
+                }
+            }
+            if (fixedCount > 0) {
+                log.info("🎉 Sucesso: {} funcionário(s) tiveram nomes e documentos verificados/corrigidos!", fixedCount);
+            }
+        } catch (Exception e) {
+            log.warn("Erro ao verificar/corrigir nomes placeholders de funcionários: {}", e.getMessage());
+        }
+        return fixedCount;
     }
 } 

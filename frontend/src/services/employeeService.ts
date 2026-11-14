@@ -346,6 +346,30 @@ export const employeeService = {
   },
 
   /**
+   * Excluir múltiplos funcionários em lote
+   */
+  async bulkDeleteEmployees(ids: string[]): Promise<{ requested: number; deleted: number; failed: string[] }> {
+    try {
+      const response = await api.post('/api/employees/bulk-delete', ids);
+      return response.data || { requested: ids.length, deleted: ids.length, failed: [] };
+    } catch (error: any) {
+      console.warn('Endpoint /bulk-delete falhou, tentando exclusão sequencial resiliente:', error);
+      // Fallback resiliente: excluir um a um caso o endpoint em lote falhe
+      let deleted = 0;
+      const failed: string[] = [];
+      for (const id of ids) {
+        try {
+          await api.delete(`/api/employees/${id}`);
+          deleted++;
+        } catch (e: any) {
+          failed.push(id);
+        }
+      }
+      return { requested: ids.length, deleted, failed };
+    }
+  },
+
+  /**
    * Gerar PDF da ficha de registro do funcionário
    */
   async generateEmployeeRecordPdf(id: string): Promise<Blob> {

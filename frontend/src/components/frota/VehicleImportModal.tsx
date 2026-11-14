@@ -39,14 +39,14 @@ export const VehicleImportModal: React.FC<VehicleImportModalProps> = ({
   };
 
   const validateAndSetFile = (selectedFile: File) => {
-    const validExtensions = ['.xlsx', '.xls'];
+    const validExtensions = ['.xlsx', '.xls', '.xlsb'];
     const fileName = selectedFile.name.toLowerCase();
     const isValid = validExtensions.some(ext => fileName.endsWith(ext));
 
     if (!isValid) {
       toast({
         title: "Formato inválido",
-        description: "Selecione um arquivo Excel válido (.xlsx ou .xls).",
+        description: "Selecione um arquivo Excel válido (.xlsx, .xls ou .xlsb).",
         variant: "destructive"
       });
       return;
@@ -130,7 +130,7 @@ export const VehicleImportModal: React.FC<VehicleImportModalProps> = ({
             Importação de Veículos por Excel
           </DialogTitle>
           <DialogDescription className="text-gray-400">
-            Envie sua planilha de veículos (.xlsx / .xls). O sistema analisa todas as abas e mapeia os campos automaticamente.
+            Envie sua planilha de veículos (.xlsx / .xls / .xlsb). O sistema analisa abas de patrimônio da frota (VSS - FROTA) com divisão por categorias.
           </DialogDescription>
         </DialogHeader>
 
@@ -143,7 +143,7 @@ export const VehicleImportModal: React.FC<VehicleImportModalProps> = ({
           <AlertDescription className="text-xs space-y-1">
             <p>• <strong>Placa / Patrimônio:</strong> Colunas <code className="text-seguranca-yellow">Placa</code> ou <code className="text-seguranca-yellow">PATRIMÔNIO</code> (caso a Placa esteja vazia, a coluna PATRIMÔNIO é inserida no campo Placa).</p>
             <p>• <strong>Outros Campos:</strong> <code className="text-seguranca-yellow">Chassi</code>, <code className="text-seguranca-yellow">Renavam</code>, <code className="text-seguranca-yellow">Modelo</code>, <code className="text-seguranca-yellow">Ano/Mod</code>.</p>
-            <p>• <strong>Abas da Planilha:</strong> Todas as abas/guias da planilha são varridas automaticamente.</p>
+            <p>• <strong>Abas da Planilha:</strong> Prioriza a aba <code className="text-seguranca-yellow">PATRIMONI VSS - FROTA</code> identificando as categorias (Ônibus Rodoviários, Double Decker, Vans, Micros, Urbanos, Utilitários, Agregados).</p>
           </AlertDescription>
         </Alert>
 
@@ -164,7 +164,7 @@ export const VehicleImportModal: React.FC<VehicleImportModalProps> = ({
             <input
               type="file"
               id="excel-file-input"
-              accept=".xlsx, .xls"
+              accept=".xlsx, .xls, .xlsb"
               onChange={handleFileChange}
               className="hidden"
               disabled={loading}
@@ -201,7 +201,7 @@ export const VehicleImportModal: React.FC<VehicleImportModalProps> = ({
                   <p className="font-semibold text-seguranca-lightgray text-sm">
                     Arraste a planilha de veículos aqui ou <span className="text-seguranca-yellow underline">clique para procurar</span>
                   </p>
-                  <p className="text-xs text-gray-400 mt-1">Formatos suportados: .xlsx, .xls</p>
+                  <p className="text-xs text-gray-400 mt-1">Formatos suportados: .xlsx, .xls, .xlsb</p>
                 </div>
               </label>
             )}

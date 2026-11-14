@@ -128,13 +128,34 @@ const Usuarios: React.FC = () => {
     return (roles as any[]).map((r) => r.name);
   };
 
-  const normalizeRoleName = (role: string) => role.replace(/^ROLE_/, '').toUpperCase();
-  const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
+  const normalizeRoleName = (role: string) => (role || '').replace(/^ROLE_/, '').toUpperCase();
+  const currentUserRoleList = useMemo(() => {
+    const list: string[] = [];
+    if (currentUser?.role) list.push(normalizeRoleName(currentUser.role));
+    if (Array.isArray(currentUser?.roles)) {
+      list.push(...currentUser.roles.map((r: any) => normalizeRoleName(typeof r === 'string' ? r : r?.name || '')));
+    }
+    return list;
+  }, [currentUser]);
+
+  const isGlobalSuperAdmin = currentUserRoleList.some(r => ['SUPER_ADMIN', 'FLEX_ADMIN'].includes(r));
+  const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN' || isGlobalSuperAdmin;
+  const isCompanyAdmin = currentUserRoleList.some(r => ['SUPER_ADMIN', 'FLEX_ADMIN', 'COMPANY_ADMIN', 'ADMIN_EMPRESA', 'ADMIN'].includes(r));
+
   const isAdminUser = (user: User) => extractRoleNames(user.roles)
     .some(role => ['SUPER_ADMIN', 'FLEX_ADMIN', 'COMPANY_ADMIN', 'ADMIN'].includes(normalizeRoleName(role)));
-  const canManageUser = (user: User) => isSuperAdmin
-    || String(user.id) === String(currentUser?.id)
-    || !isAdminUser(user);
+  const isTargetGlobalAdmin = (user: User) => extractRoleNames(user.roles)
+    .some(role => ['SUPER_ADMIN', 'FLEX_ADMIN'].includes(normalizeRoleName(role)));
+
+  const canManageUser = (user: User) => {
+    if (isGlobalSuperAdmin) return true;
+    if (String(user.id) === String(currentUser?.id)) return true;
+    // O usuário administrador da empresa pode Criar, Editar, Atualizar, Visualizar, Excluir e Desativar usuários da Empresa que ele representa
+    if (isCompanyAdmin) {
+      return !isTargetGlobalAdmin(user);
+    }
+    return !isAdminUser(user);
+  };
 
   const filterUsers = () => {
     let filtered = users;
@@ -380,8 +401,8 @@ const Usuarios: React.FC = () => {
                 <option value="all">Todos os cargos</option>
                 {roles
                   .filter(role => {
-                    if (!isSuperAdmin) {
-                      return !['SUPER_ADMIN', 'FLEX_ADMIN', 'COMPANY_ADMIN', 'ADMIN', 'TI_SUPORTE'].includes(normalizeRoleName(role));
+                    if (!isGlobalSuperAdmin) {
+                      return !['SUPER_ADMIN', 'FLEX_ADMIN', 'TI_SUPORTE'].includes(normalizeRoleName(role));
                     }
                     return true;
                   })

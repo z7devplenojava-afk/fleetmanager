@@ -595,7 +595,7 @@ public class SystemAlertCenterService {
                 if (companyId != null && inv.getCompanyId() != null && !companyId.equals(inv.getCompanyId())) {
                     continue;
                 }
-                if (inv.getStatus() == ExpenseStatus.PAGO || inv.getStatus() == ExpenseStatus.CANCELADO) {
+                if (inv.getStatus() == ExpenseStatus.PAGA || inv.getStatus() == ExpenseStatus.CANCELADA) {
                     continue;
                 }
                 if (inv.getDueDate() == null) continue;

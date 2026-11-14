@@ -30,7 +30,8 @@ import {
     ArrowDown,
     Sparkles,
     Warehouse,
-    Bell
+    Bell,
+    Folder
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -55,6 +56,7 @@ import { FleetWorkOrderViewModal } from '@/components/frota/FleetWorkOrderViewMo
 import { FleetWorkOrderPurchaseModal } from '@/components/frota/FleetWorkOrderPurchaseModal';
 import { PartsProcurementHoverCard } from '@/components/frota/PartsProcurementHoverCard';
 import { FleetComponentControlsPanel } from '@/components/frota/FleetComponentControlsPanel';
+import { ClientMaintenancePlanPanel } from '@/components/frota/ClientMaintenancePlanPanel';
 import { DueComponentsAlertModal } from '@/components/frota/DueComponentsAlertModal';
 import fleetComponentControlService, {
     buildWorkOrderPrefillFromComponentRow,
@@ -130,12 +132,13 @@ const FleetWorkOrdersPage: React.FC = () => {
             setIsRunningAutoSweep(false);
         }
     };
-    const resolveTabView = (param: string | null): 'os' | 'componentes' | 'alertas' => {
+    const resolveTabView = (param: string | null): 'os' | 'componentes' | 'alertas' | 'plano-cliente' => {
         if (param === 'componentes') return 'componentes';
         if (param === 'alertas') return 'alertas';
+        if (param === 'plano-cliente' || param === 'clientes' || param === 'plano') return 'plano-cliente';
         return 'os';
     };
-    const [view, setView] = useState<'os' | 'componentes' | 'alertas'>(resolveTabView(tabParam));
+    const [view, setView] = useState<'os' | 'componentes' | 'alertas' | 'plano-cliente'>(resolveTabView(tabParam));
     const [statusFilter, setStatusFilter] = useState<WorkOrderStatus | 'ALL'>('ALL');
     const [typeFilter, setTypeFilter] = useState<MaintenanceType | 'ALL'>('ALL');
 
@@ -408,7 +411,7 @@ const FleetWorkOrdersPage: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Navegação entre Ordens de Serviço, Controles Preventivos e Alertas de Vencimentos */}
+                {/* Navegação entre Ordens de Serviço, Plano por Cliente, Controles Preventivos e Alertas de Vencimentos */}
                 <div className="flex flex-wrap gap-2">
                     <Button
                         variant={view === 'os' ? 'default' : 'outline'}
@@ -421,6 +424,18 @@ const FleetWorkOrdersPage: React.FC = () => {
                     >
                         <ClipboardList className="h-4 w-4 mr-2" />
                         Ordens de Serviço
+                    </Button>
+                    <Button
+                        variant={view === 'plano-cliente' ? 'default' : 'outline'}
+                        onClick={() => {
+                            setView('plano-cliente');
+                            setSearchParams({ tab: 'plano-cliente' });
+                        }}
+                        size="sm"
+                        className={`h-9 ${view === 'plano-cliente' ? 'bg-amber-500 hover:bg-amber-600 text-black font-bold shadow-md shadow-amber-950/40' : 'border-amber-500/50 text-amber-300 hover:bg-amber-500/10 font-semibold'}`}
+                    >
+                        <Folder className="h-4 w-4 mr-2" />
+                        Plano de Manutenção por Cliente
                     </Button>
                     <Button
                         variant={view === 'componentes' ? 'default' : 'outline'}
@@ -453,7 +468,11 @@ const FleetWorkOrdersPage: React.FC = () => {
                     </Button>
                 </div>
 
-                {view === 'componentes' || view === 'alertas' ? (
+                {view === 'plano-cliente' ? (
+                    <ClientMaintenancePlanPanel
+                        onViewOrder={(o) => { setSelectedOrder(o); setIsFormOpen(true); }}
+                    />
+                ) : view === 'componentes' || view === 'alertas' ? (
                     <FleetComponentControlsPanel
                         key={view}
                         defaultSubTab={view === 'alertas' ? 'ALERTS' : 'ALL'}
@@ -658,12 +677,19 @@ const FleetWorkOrdersPage: React.FC = () => {
                                                 </td>
                                                 <td className="p-3 sm:p-4">
                                                     <div className="flex flex-col gap-1 items-start">
-                                                        <Badge variant="outline" className={`font-bold text-[10px] sm:text-xs px-1.5 sm:px-2.5 ${order.maintenanceType === MaintenanceType.PREVENTIVA ? 'border-green-500 text-green-400' : 'border-orange-500 text-orange-400'}`}>
+                                                        <Badge
+                                                            variant="outline"
+                                                            className={`font-bold text-[10px] sm:text-xs px-1.5 sm:px-2.5 ${
+                                                                order.maintenanceType === MaintenanceType.PREVENTIVA
+                                                                    ? 'bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-400 dark:border-emerald-500/50'
+                                                                    : 'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950/60 dark:text-amber-400 dark:border-amber-500/50'
+                                                            }`}
+                                                        >
                                                             {order.maintenanceType === MaintenanceType.PREVENTIVA ? 'PREV' : (order.maintenanceType === MaintenanceType.CORRETIVA ? 'CORR' : order.maintenanceType || 'CORR')}
                                                         </Badge>
-                                                        {order.preventiveModel === 'MODELO_2' && (
-                                                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-950/70 border border-emerald-600/50 text-emerald-300 whitespace-nowrap">
-                                                                M2 {order.autoGenerated ? '• Auto' : ''} {order.operationProfile ? `• ${order.operationProfile}` : ''}
+                                                        {(order.preventiveModel === 'MODELO_2' || order.preventiveModel === 'MODELO_RESUMIDO') && (
+                                                            <span className="preventiva-badge-resumido text-[9px] font-bold px-1.5 py-0.5 rounded border whitespace-nowrap bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-950/80 dark:text-emerald-300 dark:border-emerald-600/50">
+                                                                Resumido {order.autoGenerated ? '• Auto' : ''} {order.operationProfile ? `• ${order.operationProfile}` : ''}
                                                             </span>
                                                         )}
                                                     </div>

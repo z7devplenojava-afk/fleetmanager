@@ -10,7 +10,7 @@ import {
   Plus, Download, ExternalLink, Award, FileCheck
 } from 'lucide-react';
 import { Employee } from '@/types/employee';
-import { getEmployeeTerminationDate } from './FuncionariosTable';
+import { getEmployeeTerminationDate, getDisplayName } from './FuncionariosTable';
 import { EmployeeDocuments } from '@/components/funcionarios/EmployeeDocuments';
 import DependentesList from '@/components/dependentes/DependentesList';
 import { medicalCertificateService, MedicalCertificate } from '@/services/medicalCertificateService';
@@ -128,7 +128,7 @@ export const EmployeeViewModal: React.FC<EmployeeViewModalProps> = ({
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-5xl max-h-[92vh] overflow-hidden flex flex-col p-0 bg-transparent border-0 shadow-2xl">
         {/* DialogTitle oculto para satisfazer acessibilidade do Radix UI (leitores de tela) */}
-        <DialogTitle className="sr-only">Visualizar Funcionário: {employee.name}</DialogTitle>
+        <DialogTitle className="sr-only">Visualizar Funcionário: {getDisplayName(employee)}</DialogTitle>
         <div className="flex flex-col h-full bg-[#16181f] border border-gray-800 rounded-3xl overflow-hidden shadow-2xl">
           
           {/* ── HEADER SUPERIOR (FIEL ÀS IMAGENS 3 E 4) ── */}
@@ -141,7 +141,7 @@ export const EmployeeViewModal: React.FC<EmployeeViewModalProps> = ({
               
               <div className="min-w-0">
                 <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-wide truncate">
-                  {employee.name}
+                  {getDisplayName(employee)}
                 </h2>
                 <div className="flex items-center gap-3 mt-1.5 flex-wrap text-xs text-gray-400">
                   <span className="flex items-center gap-1 font-medium">

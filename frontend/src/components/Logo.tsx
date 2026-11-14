@@ -78,8 +78,8 @@ const Logo: React.FC<LogoProps> = ({
     companyName?.toLowerCase().includes('silvestre');
 
   const activeLogoUrl = isSaoSilvestre
-    ? (!isDark || theme === 'white' ? '/images/sao-silvestre-logo-light.png' : '/images/sao-silvestre-logo.png')
-    : resolvedLogoUrl;
+    ? (!isDark || theme === 'white' ? '/images/sao-silvestre-logo-light.png?v=clean3' : '/images/sao-silvestre-logo.png?v=clean3')
+    : (resolvedLogoUrl ? `${resolvedLogoUrl}${resolvedLogoUrl.includes('?') ? '&' : '?'}v=clean3` : null);
 
   // Se houver logo de empresa configurada e não deu erro de carregamento:
   // Regra: O nome da empresa só aparece quando NÃO tiver a logo

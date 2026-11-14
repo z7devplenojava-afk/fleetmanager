@@ -24,15 +24,16 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.Parameter;
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/overtimes")
-@Tag(name = "Horas Extras", description = "Endpoints para gestÃ£o de solicitaÃ§Ãµes de horas extras.")
+@RequiredArgsConstructor
+@Tag(name = "Horas Extras", description = "Endpoints para gestão de solicitações de horas extras.")
 @SecurityRequirement(name = "bearerAuth")
 public class OvertimeController {
 
-    @Autowired
-    private OvertimeService overtimeService;
+    private final OvertimeService overtimeService;
 
     @Operation(summary = "Cria uma nova solicitaÃ§Ã£o de horas extras",
                description = "Adiciona uma nova solicitaÃ§Ã£o de horas extras ao sistema. Requer o papel de ADMIN, GESTOR ou SUPERVISOR.")

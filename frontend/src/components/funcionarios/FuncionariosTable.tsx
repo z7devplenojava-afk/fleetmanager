@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { 
   MoreHorizontal, Edit, Trash2, Eye, User, Mail, Phone, MapPin, 
-  Calendar, Building, FileText, UserPlus, AlertCircle, UserMinus, Briefcase,
+  Calendar, Building, FileText, UserPlus, AlertCircle, UserMinus, UserCheck, Briefcase,
   ArrowUpDown, ArrowUp, ArrowDown, QrCode, Check
 } from 'lucide-react';
 import { Employee } from '@/types/employee';
@@ -19,6 +19,9 @@ interface FuncionariosTableProps {
   onView?: (employee: Employee) => void;
   onEdit: (employee: Employee) => void;
   onDelete: (employee: Employee) => void;
+  onBulkDelete?: (ids: string[]) => void;
+  onDeactivate?: (employee: Employee) => void;
+  onReactivate?: (employee: Employee) => void;
   onTerminate: (employee: Employee) => void;
   onViewDocuments: (employee: Employee) => void;
   onViewDependents: (employee: Employee) => void;
@@ -29,11 +32,184 @@ interface FuncionariosTableProps {
 export const getEmployeeTerminationDate = (employee: Employee): string | undefined =>
   employee.terminationDate || employee.dataRescisao || undefined;
 
+export const KNOWN_CPF_NAMES: Record<string, string> = {
+    '85655350610': 'ADAIR JOSE SOARES DE ABREU',
+    '13811972723': 'ADELSO MOREIRA CATRINQUE',
+    '00964145618': 'ADEMIR APARECIDO NEZIO FERREIRA',
+    '07998501600': 'ADILSON JOSE DE SOUZA',
+    '00768583594': 'ADRIANO OLIVEIRA SILVA',
+    '83565248653': 'AILTON COSTA MATOSINHOS',
+    '74732617620': 'AILTON EVANGELISTA DA SILVA',
+    '69011281268': 'ALCEMIR DOS SANTOS COSTA',
+    '14139615680': 'ALESSANDER GABRIEL JESUS COSTA',
+    '72024682200': 'ALEX LIMA DOS SANTOS',
+    '10914795694': 'ALISSON RODRIGO DOS SANTOS',
+    '56385340678': 'AMARILDO DIAS DE OLIVEIRA',
+    '98848500625': 'AMAURI JOSE DE MOURA',
+    '79511260634': 'ANTONIO CARLOS DE CASTRO',
+    '27019659268': 'ANTONIO JOSE DE SOUSA GOMES',
+    '67582982649': 'ANTONIO ROBERTO NICOLAU',
+    '89719638168': 'AUGUSTINHO MOREIRA DE SALES',
+    '08084278657': 'BRENER DE OLIVEIRA PAIVA',
+    '06195923621': 'BRUNO FRANCA DA SILVA',
+    '08379861680': 'BRUNO RAFAEL TEIXEIRA',
+    '01932901116': 'CARLOS ALBERTO BISPO DA SILVA',
+    '03123388646': 'CASSIO FERREIRA DA SILVA',
+    '00638924642': 'CELIO ROBERTO DA COSTA',
+    '03588588604': 'CLAUDIO DE SOUZA',
+    '05160755608': 'CLAUDIO DO ROSARIO SOUZA',
+    '77970764649': 'CLAUDIONOR ANDRE DAS VIRGENS',
+    '11562052632': 'CLEBER APARECIDO MORENO',
+    '01106391381': 'CLEUDEMIR DO NASCIMENTO SILVA',
+    '74876678120': 'CONRADO AUGUSTO DE OLIVEIRA',
+    '05483414608': 'CRISTIANO VITALINO DOS SANTOS',
+    '08281558601': 'DANIELLE SALLES AMORIM',
+    '05101892297': 'DANILO OLIVEIRA ARAUJO',
+    '09879351606': 'DAVID REIS DE MOURA DA PAZ',
+    '01169026630': 'DILSON VENTURA SANTOS',
+    '08028491642': 'EDILTON LEANDRO DA SILVA',
+    '08319123674': 'EDIMILSON JOSE DE OLIVEIRA',
+    '37737619100': 'EDIVAINE DIONISIO DA SILVA',
+    '05581160600': 'EDMAR JOSE DA COSTA',
+    '05791220693': 'ELIDA SIMONE ALVES MOREIRA',
+    '97045950691': 'ELIDIO ANTONIO ROSA',
+    '02868732658': 'ELIODENES DE OLIVEIRA ROSA',
+    '47186690220': 'ELSON RIBEIRO FERREIRA',
+    '02188965140': 'ELZA GOMES DE OLIVEIRA SILVA',
+    '08507025692': 'ERIVALDO DA SILVA PEREIRA',
+    '08056365605': 'EVERTON CASTRO DA SILVA',
+    '00371384648': 'EZEQUIEL RAMOS DA SILVA',
+    '03997868646': 'FABIO DA SILVA LIMA',
+    '02374559190': 'FABIO JOSE DE SOUZA SALVIANO',
+    '72537523253': 'FAGNER DOS SANTOS MENDES',
+    '08724653659': 'FELIPE JUNIO ALVES MACIEL',
+    '09477786756': 'FERNANDO GOMES DE SOUZA',
+    '03111072657': 'FERNANDO LIMA DE OLIVEIRA',
+    '07230651603': 'FERNANDO SILVA SANTOS',
+    '75191628268': 'FRANCISCO AURI SOUZA DE MENEZES',
+    '83241795187': 'FRANCISCO DAS CHAGAS FERREIRA NOBREGA',
+    '29930510249': 'FRANCISCO PEREIRA LIMA',
+    '59716010249': 'FRANCOYS MORAES GONCALVES',
+    '26978040215': 'GERMANO DUARTE CARDOSO',
+    '09506193614': 'GILSON MENDES DOS SANTOS',
+    '06133585625': 'HARLEI BRUNO BADARO',
+    '09322179660': 'HEBERTH DA SILVA PEREIRA',
+    '07402884660': 'HERITON FREITAS DE CARVALHO',
+    '15611761682': 'IGOR FONSECA DE CASTRO',
+    '61475459220': 'IRANDIR NUNES AMORIM',
+    '06279219658': 'ISAIAS DOS SANTOS LOPES',
+    '12196030660': 'ISAIAS FILIPE MATIAS',
+    '87588293268': 'JACKSON DA CRUZ OLIVEIRA',
+    '01109935510': 'JAIR DE JESUS SANTOS',
+    '06710498603': 'JOAILSON DE OLIVEIRA FIGUEIREDO',
+    '03031081692': 'JOAO BATISTA DA ROCHA',
+    '41961552604': 'JORGE CARLOS BARBALHO',
+    '99243741691': 'JOSE CARLOS DOS SANTOS',
+    '02789049637': 'JOSE DE SOUZA QUATRINI',
+    '60228336392': 'JOSE RAIMUNDO DOS SANTOS MENDONCA',
+    '66156882200': 'JOSIMAR CHAGAS FREIRE',
+    '00922087113': 'JUVANILDO MARTINS DA SILVA',
+    '03951379693': 'KARINA EFIGENIA DA SILVA JOSE',
+    '08819083639': 'LAUDENIR PESSOA DE OLIVEIRA',
+    '08835146640': 'LEOENDER JUNIOR SILVA',
+    '10777167611': 'LUCIANO RODRIGUES FARIA',
+    '06895394605': 'LUIZ HENRIQUE MARTINS RAMOS',
+    '08515566630': 'MAGNO MAGALHAES LAGE',
+    '52823563253': 'MANOEL MESSIAS DOS SANTOS',
+    '09807430607': 'MARCELO APARECIDO CIRILO',
+    '66413648600': 'MARCELO CIRINO',
+    '13188822650': 'MARCELO GONZAGA OLAVO',
+    '01477688617': 'MARCELO JOSE DA SILVA',
+    '09824907637': 'MARCELO VIERA DE MATOS',
+    '03552477128': 'MARCIANO GONCALVES DA SILVA',
+    '66570956604': 'MARCIO DA FONSECA VIEIRA',
+    '05687211608': 'MARCOS JUNIOR DE SOUZA',
+    '05928792670': 'MARCOS TULIO DE OLIVEIRA',
+    '05826649267': 'MARLO BRANDO COELHO PEREIRA',
+    '42059348668': 'MAURO ROCHA GONCALVES',
+    '10445182601': 'MAXIMILIANO MONTEIRO DE SOUSA',
+    '09879451651': 'NELMER ALEXANDRE GOMES DE AGUIAR',
+    '84427159672': 'NILSON CECILIA BRAGA',
+    '66842115272': 'OLIEL NUNES SILVA',
+    '08430623639': 'PAULO CESAR DA COSTA JUNIOR',
+    '06854983606': 'RAFAEL JUNIO DE PAULA',
+    '00948851686': 'RAFAEL RODRIGUES LUIS',
+    '75690985368': 'RAIMUNDO NONATO EDUNVINGENE SOUSA',
+    '02690147645': 'REGINALDO APARECIDO XAVIER',
+    '08057077603': 'RENATO ADRIANO SERAFIM',
+    '01466539631': 'RICARDO HENRIQUE DE OLIVEIRA',
+    '68619812653': 'ROBERTO RODRIGUES CANDIDO',
+    '12025006683': 'RODRIGO TIAGO BRAGA',
+    '77090330672': 'ROGERIO DE JESUS BRAGA',
+    '96155213534': 'RONALDO ANDRADE DOS SANTOS',
+    '27617314841': 'RONALDO NASCIMENTO DE PAIVA',
+    '04651595677': 'RONIE CARLOS CARDOSO',
+    '02669630219': 'RONILDO ALVES DE FREITAS',
+    '03556898632': 'RUBENS NEI DAS CHAGAS',
+    '04332235614': 'SANDRO MAGNO DA CRUZ',
+    '09629140616': 'TAMIRES CRISTINA CRUZ LOURENCO',
+    '07980978170': 'THAIS DE PAIVA FERNANDES',
+    '89558430200': 'THOMAS MATEUS MACEDO',
+    '08454739645': 'TIAGO DE OLIVEIRA E SILVA',
+    '00323815146': 'VALDINEI JOSE DE ALMEIDA',
+    '01930813260': 'VALDIRLAN GOMES DA SILVA',
+    '76792323187': 'VALDUIR XAVIER PISSARRA',
+    '04427071694': 'VALMIR CASSIMIRO LUZIA',
+    '00233082654': 'VALTER CARDOSO CORREA',
+    '13276949644': 'VICTOR THADEU VIEIRA',
+    '03732465608': 'VIVIANE APARECIDA SANTOS ROSA',
+    '85408506215': 'WELLINGTON MARCOS NASCIMENTO SANTOS',
+    '10284930610': 'WEMERSON DIAS DA MOTA',
+    '03751253610': 'WERTHER DA SILVA BRITO',
+    '00492483671': 'WILLIAN SILVA BRITO',
+    '04482479683': 'WILSON SILVA DA ROCHA',
+    '03614068277': 'WIPSLORRANA LIMA DOS SANTOS',
+  };
+
+export const getDisplayName = (employee: Employee): string => {
+    const cleanCpf = (employee.cpf || employee.document || '').replace(/\D/g, '');
+    if (cleanCpf && KNOWN_CPF_NAMES[cleanCpf]) {
+      return KNOWN_CPF_NAMES[cleanCpf];
+    }
+    const currentName = (employee.name || '').trim();
+    // Se o nome atual tiver dígitos que correspondem a um CPF no mapa
+    const nameDigits = currentName.replace(/\D/g, '');
+    if (nameDigits && KNOWN_CPF_NAMES[nameDigits]) {
+      return KNOWN_CPF_NAMES[nameDigits];
+    }
+    // Se o nome for 'CPF:' ou começar com 'CPF:'
+    if (/^\s*cpf\s*:?/i.test(currentName)) {
+      if (cleanCpf && KNOWN_CPF_NAMES[cleanCpf]) {
+        return KNOWN_CPF_NAMES[cleanCpf];
+      }
+      return employee.registrationNumber ? `COLABORADOR ${employee.registrationNumber}` : 'COLABORADOR';
+    }
+    // Se o nome contiver 'FUNCIONÁRIO <CPF>', limpa e remove o CPF da frente
+    if (/^funcion[aá]rio\s+[\d.-]+/i.test(currentName)) {
+      const sanitized = currentName.replace(/^funcion[aá]rio\s+[\d.-]+\s*[-–—]?\s*/i, '').trim();
+      if (sanitized && !/^\s*cpf\s*:?/i.test(sanitized)) {
+        return sanitized;
+      }
+      return (cleanCpf && KNOWN_CPF_NAMES[cleanCpf]) || (employee.registrationNumber ? `COLABORADOR ${employee.registrationNumber}` : 'COLABORADOR');
+    }
+    // Remove qualquer CPF que esteja na frente ou no final do nome
+    const stripped = currentName.replace(/^\d{3}\.?\d{3}\.?\d{3}-?\d{2}\s*[-–—]?\s*/, '')
+                                .replace(/\s*[-–—]?\s*\d{3}\.?\d{3}\.?\d{3}-?\d{2}$/, '').trim();
+    if (/^\s*cpf\s*:?/i.test(stripped) || !stripped) {
+      return (cleanCpf && KNOWN_CPF_NAMES[cleanCpf]) || (employee.registrationNumber ? `COLABORADOR ${employee.registrationNumber}` : 'COLABORADOR');
+    }
+    return stripped;
+  };
+
+
 export const FuncionariosTable: React.FC<FuncionariosTableProps> = ({
   employees,
   onView,
   onEdit,
   onDelete,
+  onBulkDelete,
+  onDeactivate,
+  onReactivate,
   onTerminate,
   onViewDocuments,
   onViewDependents,
@@ -73,11 +249,13 @@ export const FuncionariosTable: React.FC<FuncionariosTableProps> = ({
     }
   };
 
-  const sortedEmployees = useMemo(() => {
+    const sortedEmployees = useMemo(() => {
     if (!employees?.length) return [];
     return [...employees].sort((a, b) => {
       if (sortField === 'name') {
-        const cmp = (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' });
+        const nameA = getDisplayName(a);
+        const nameB = getDisplayName(b);
+        const cmp = nameA.localeCompare(nameB, 'pt-BR', { sensitivity: 'base' });
         return sortDirection === 'asc' ? cmp : -cmp;
       }
       if (sortField === 'position') {
@@ -106,42 +284,42 @@ export const FuncionariosTable: React.FC<FuncionariosTableProps> = ({
     switch (status) {
       case 'ACTIVE':
         return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-950/60 border border-emerald-500/40 text-emerald-400">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-950/60 border border-emerald-500/40 text-emerald-400 whitespace-nowrap">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
             Ativo
           </span>
         );
       case 'TERMINATED':
         return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-950/60 border border-rose-500/40 text-rose-400">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-950/60 border border-rose-500/40 text-rose-400 whitespace-nowrap">
             <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
             Demitido
           </span>
         );
       case 'VACATION':
         return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-950/60 border border-blue-500/40 text-blue-400">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-950/60 border border-blue-500/40 text-blue-400 whitespace-nowrap">
             <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
             Férias
           </span>
         );
       case 'MEDICAL_CERTIFICATE':
         return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-purple-950/60 border border-purple-500/40 text-purple-400">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-purple-950/60 border border-purple-500/40 text-purple-400 whitespace-nowrap">
             <span className="w-1.5 h-1.5 rounded-full bg-purple-400" />
             Atestado
           </span>
         );
       case 'SUSPENDED':
         return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-orange-950/60 border border-orange-500/40 text-orange-400">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-orange-950/60 border border-orange-500/40 text-orange-400 whitespace-nowrap">
             <span className="w-1.5 h-1.5 rounded-full bg-orange-400" />
             Suspenso
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-gray-800/80 border border-gray-600 text-gray-300">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-gray-800/80 border border-gray-600 text-gray-300 whitespace-nowrap">
             <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
             Inativo
           </span>
@@ -157,7 +335,9 @@ export const FuncionariosTable: React.FC<FuncionariosTableProps> = ({
       if (!isNaN(parsed.getTime())) {
         return parsed.toLocaleDateString('pt-BR');
       }
-    } catch {}
+    } catch (_err) {
+      // Ignorar data mal formatada
+    }
     return '-';
   };
 
@@ -190,14 +370,54 @@ export const FuncionariosTable: React.FC<FuncionariosTableProps> = ({
 
   return (
     <>
-      {/* Desktop View - Table (Exatamente como na Imagem 1 e 2) */}
-      <div className="hidden lg:block rounded-2xl border border-gray-800/80 overflow-hidden bg-[#12141a]">
-        <Table>
+      {/* Barra de Ações em Massa (Exclusão em Lote) */}
+      {selectedIds.size > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-gradient-to-r from-red-950/70 via-slate-900 to-red-950/50 border border-red-500/50 rounded-2xl px-4 py-3 mb-4 shadow-xl animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="flex items-center gap-3">
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-red-600 text-white text-xs font-bold shadow-md shadow-red-950">
+              {selectedIds.size}
+            </span>
+            <span className="text-sm font-semibold text-gray-200">
+              colaborador(es) selecionado(s) de <strong className="text-amber-400">{employees.length}</strong>
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedIds(new Set())}
+              className="text-xs text-gray-300 hover:text-white hover:bg-slate-800 h-9 px-3 rounded-xl"
+            >
+              Desmarcar Todos
+            </Button>
+
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                if (onBulkDelete) {
+                  onBulkDelete(Array.from(selectedIds));
+                }
+              }}
+              className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs h-9 px-4 gap-2 rounded-xl shadow-lg shadow-rose-950/50 transition-all active:scale-95"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span>Desativar / Excluir da Lista ({selectedIds.size})</span>
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Desktop View - Table (Ajustada para caber perfeitamente na tela) */}
+      <div className="hidden lg:block rounded-2xl border border-gray-800/80 overflow-x-auto bg-[#12141a]">
+        <Table className="w-full text-xs">
           <TableHeader>
             <TableRow className="bg-[#161820] hover:bg-[#1a1d26] border-b border-gray-800/90">
               
               {/* Checkbox Circular */}
-              <TableHead className="w-[50px] text-center">
+              <TableHead className="w-9 px-1 text-center h-10">
                 <button
                   type="button"
                   onClick={toggleSelectAll}
@@ -214,7 +434,7 @@ export const FuncionariosTable: React.FC<FuncionariosTableProps> = ({
 
               {/* Funcionário */}
               <TableHead 
-                className="text-amber-400 font-bold text-xs uppercase tracking-wider cursor-pointer select-none group/head"
+                className="text-amber-400 font-bold text-[11px] uppercase tracking-wider cursor-pointer select-none group/head px-2 h-10 min-w-[170px] max-w-[210px]"
                 onClick={() => handleSort('name')}
               >
                 Funcionário{renderSortIcon('name')}
@@ -222,35 +442,35 @@ export const FuncionariosTable: React.FC<FuncionariosTableProps> = ({
 
               {/* Cargo/Função */}
               <TableHead 
-                className="text-amber-400 font-bold text-xs uppercase tracking-wider cursor-pointer select-none group/head"
+                className="text-amber-400 font-bold text-[11px] uppercase tracking-wider cursor-pointer select-none group/head px-2 h-10 min-w-[110px] max-w-[150px]"
                 onClick={() => handleSort('position')}
               >
                 Cargo/Função{renderSortIcon('position')}
               </TableHead>
 
               {/* Empresa */}
-              <TableHead className="text-amber-400 font-bold text-xs uppercase tracking-wider">
+              <TableHead className="text-amber-400 font-bold text-[11px] uppercase tracking-wider px-1 text-center h-10 w-[55px]">
                 Empresa
               </TableHead>
 
               {/* Setor de Trabalho */}
-              <TableHead className="text-amber-400 font-bold text-xs uppercase tracking-wider">
-                Setor de Trabalho
+              <TableHead className="text-amber-400 font-bold text-[11px] uppercase tracking-wider px-1.5 h-10 min-w-[90px] max-w-[125px]">
+                Setor
               </TableHead>
 
               {/* Escala */}
-              <TableHead className="text-amber-400 font-bold text-xs uppercase tracking-wider">
+              <TableHead className="text-amber-400 font-bold text-[11px] uppercase tracking-wider px-1 text-center h-10 w-[70px]">
                 Escala
               </TableHead>
 
               {/* Horário */}
-              <TableHead className="text-amber-400 font-bold text-xs uppercase tracking-wider">
+              <TableHead className="text-amber-400 font-bold text-[11px] uppercase tracking-wider px-1 text-center h-10 w-[65px]">
                 Horário
               </TableHead>
 
               {/* Admissão */}
               <TableHead 
-                className="text-amber-400 font-bold text-xs uppercase tracking-wider cursor-pointer select-none group/head"
+                className="text-amber-400 font-bold text-[11px] uppercase tracking-wider cursor-pointer select-none group/head px-1 text-center h-10 w-[82px]"
                 onClick={() => handleSort('hireDate')}
               >
                 Admissão{renderSortIcon('hireDate')}
@@ -258,19 +478,19 @@ export const FuncionariosTable: React.FC<FuncionariosTableProps> = ({
 
               {/* Demissão */}
               <TableHead 
-                className="text-amber-400 font-bold text-xs uppercase tracking-wider cursor-pointer select-none group/head"
+                className="text-amber-400 font-bold text-[11px] uppercase tracking-wider cursor-pointer select-none group/head px-1 text-center h-10 w-[82px]"
                 onClick={() => handleSort('terminationDate')}
               >
                 Demissão{renderSortIcon('terminationDate')}
               </TableHead>
 
               {/* Status */}
-              <TableHead className="text-amber-400 font-bold text-xs uppercase tracking-wider">
+              <TableHead className="text-amber-400 font-bold text-[11px] uppercase tracking-wider px-1 text-center h-10 w-[80px]">
                 Status
               </TableHead>
 
               {/* Ações */}
-              <TableHead className="text-amber-400 font-bold text-xs uppercase tracking-wider w-[90px] text-right pr-4">
+              <TableHead className="text-amber-400 font-bold text-[11px] uppercase tracking-wider w-[68px] text-right pr-2 pl-1 h-10">
                 Ações
               </TableHead>
             </TableRow>
@@ -294,7 +514,7 @@ export const FuncionariosTable: React.FC<FuncionariosTableProps> = ({
                   style={{ animationDelay: `${index * 30}ms` }}
                 >
                   {/* Checkbox Circular */}
-                  <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                  <TableCell className="w-9 px-1 py-2 text-center" onClick={(e) => e.stopPropagation()}>
                     <button
                       type="button"
                       onClick={() => toggleSelect(employee.id)}
@@ -309,21 +529,24 @@ export const FuncionariosTable: React.FC<FuncionariosTableProps> = ({
                   </TableCell>
 
                   {/* Funcionário (Avatar Vermelho + Nome Caixa Alta + CPF) */}
-                  <TableCell className="py-3.5">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-red-600/15 border border-red-500/30 flex items-center justify-center shrink-0 text-red-500">
-                        <User className="h-4 w-4" />
+                  <TableCell className="px-2 py-2 min-w-[170px] max-w-[210px]">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-red-600/15 border border-red-500/30 flex items-center justify-center shrink-0 text-red-500">
+                        <User className="h-3.5 w-3.5" />
                       </div>
-                      <div className="min-w-0">
-                        <div className="font-bold text-white text-xs sm:text-sm uppercase tracking-wide group-hover:text-amber-300 transition-colors truncate max-w-[220px]">
-                          {employee.name}
+                      <div className="min-w-0 flex-1">
+                        <div 
+                          className="font-bold text-white text-xs uppercase tracking-wide group-hover:text-amber-300 transition-colors truncate block"
+                          title={getDisplayName(employee)}
+                        >
+                          {getDisplayName(employee)}
                         </div>
                         {employee.cpf ? (
-                          <div className="text-[11px] text-gray-500 font-mono mt-0.5">
+                          <div className="text-[10px] text-gray-500 font-mono leading-tight truncate">
                             CPF: {employee.cpf}
                           </div>
                         ) : employee.registrationNumber ? (
-                          <div className="text-[11px] text-gray-500 font-mono mt-0.5">
+                          <div className="text-[10px] text-gray-500 font-mono leading-tight truncate">
                             Mat: {employee.registrationNumber}
                           </div>
                         ) : null}
@@ -332,68 +555,69 @@ export const FuncionariosTable: React.FC<FuncionariosTableProps> = ({
                   </TableCell>
 
                   {/* Cargo/Função */}
-                  <TableCell>
-                    <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-300 font-medium">
-                      <Building className="h-3.5 w-3.5 text-gray-500 shrink-0" />
-                      <span className="truncate max-w-[180px]">{employee.position?.name || 'Não definido'}</span>
+                  <TableCell className="px-2 py-2 min-w-[110px] max-w-[150px]">
+                    <div className="flex items-center gap-1.5 text-xs text-gray-300 font-medium">
+                      <Building className="h-3 w-3 text-gray-500 shrink-0" />
+                      <span className="truncate block" title={employee.position?.name || 'Não definido'}>
+                        {employee.position?.name || 'Não definido'}
+                      </span>
                     </div>
                   </TableCell>
 
                   {/* Empresa */}
-                  <TableCell>
-                    <div className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-white">
-                      <Building className="h-3.5 w-3.5 text-gray-500 shrink-0" />
-                      <span>{companySigla}</span>
-                    </div>
+                  <TableCell className="px-1 py-2 text-center w-[55px]">
+                    <span className="inline-block px-1.5 py-0.5 rounded bg-gray-800/80 border border-gray-700/60 text-[11px] font-bold text-white tracking-wider">
+                      {companySigla}
+                    </span>
                   </TableCell>
 
                   {/* Setor de Trabalho */}
-                  <TableCell>
-                    <div className="flex items-center gap-1.5 text-xs sm:text-sm text-gray-300">
-                      <MapPin className="h-3.5 w-3.5 text-amber-400 shrink-0" />
-                      <span className="truncate max-w-[200px] uppercase font-medium">
+                  <TableCell className="px-1.5 py-2 min-w-[90px] max-w-[125px]">
+                    <div className="flex items-center gap-1 text-xs text-gray-300">
+                      <MapPin className="h-3 w-3 text-amber-400 shrink-0" />
+                      <span className="truncate block uppercase font-medium" title={workSector || 'não definido'}>
                         {workSector || <span className="italic text-gray-500 lowercase">não definido</span>}
                       </span>
                     </div>
                   </TableCell>
 
                   {/* Escala */}
-                  <TableCell>
-                    <span className="text-xs sm:text-sm font-medium text-gray-300 uppercase">
-                      {escala || <span className="text-gray-500 italic text-xs lowercase">não definida</span>}
+                  <TableCell className="px-1 py-2 text-center w-[70px]">
+                    <span className="text-xs font-medium text-gray-300 uppercase truncate block" title={escala || 'não definida'}>
+                      {escala || <span className="text-gray-500 italic text-[11px] lowercase">não def.</span>}
                     </span>
                   </TableCell>
 
                   {/* Horário */}
-                  <TableCell>
-                    <span className="text-xs sm:text-sm font-medium text-gray-300">
+                  <TableCell className="px-1 py-2 text-center w-[65px]">
+                    <span className="text-xs font-medium text-gray-300 truncate block" title={horario || '-'}>
                       {horario || <span className="text-gray-500 italic text-xs">-</span>}
                     </span>
                   </TableCell>
 
                   {/* Admissão */}
-                  <TableCell>
-                    <div className="flex items-center gap-1.5 text-xs sm:text-sm text-gray-300">
-                      <Calendar className="h-3.5 w-3.5 text-gray-500 shrink-0" />
+                  <TableCell className="px-1 py-2 text-center w-[82px]">
+                    <div className="flex items-center justify-center gap-1 text-xs text-gray-300 whitespace-nowrap">
+                      <Calendar className="h-3 w-3 text-gray-500 shrink-0" />
                       <span>{formatDate(employee.hireDate)}</span>
                     </div>
                   </TableCell>
 
                   {/* Demissão */}
-                  <TableCell>
-                    <div className="flex items-center gap-1.5 text-xs sm:text-sm text-gray-300">
-                      <Calendar className="h-3.5 w-3.5 text-gray-500 shrink-0" />
+                  <TableCell className="px-1 py-2 text-center w-[82px]">
+                    <div className="flex items-center justify-center gap-1 text-xs text-gray-300 whitespace-nowrap">
+                      <Calendar className="h-3 w-3 text-gray-500 shrink-0" />
                       <span>{formatDate(getEmployeeTerminationDate(employee))}</span>
                     </div>
                   </TableCell>
 
                   {/* Status */}
-                  <TableCell>
+                  <TableCell className="px-1 py-2 text-center w-[80px]">
                     {getStatusBadge(employee.status || 'INACTIVE')}
                   </TableCell>
 
-                  {/* Ações: Olho + Menu Dropdown (Exatamente como nas Imagens 1 e 2) */}
-                  <TableCell className="text-right pr-4" onClick={(e) => e.stopPropagation()}>
+                  {/* Ações: Olho + Menu Dropdown */}
+                  <TableCell className="text-right pr-2 pl-1 py-2 w-[68px]" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
                       {/* Botão de Olho (Visualizar) Direto na Linha */}
                       <Button
@@ -403,10 +627,10 @@ export const FuncionariosTable: React.FC<FuncionariosTableProps> = ({
                           e.stopPropagation();
                           onView?.(employee);
                         }}
-                        className="h-8 w-8 p-0 text-sky-400 hover:text-sky-300 hover:bg-sky-500/15 rounded-lg transition-colors"
+                        className="h-7 w-7 p-0 text-sky-400 hover:text-sky-300 hover:bg-sky-500/15 rounded-lg transition-colors"
                         title="Visualizar Detalhes"
                       >
-                        <Eye className="h-4 w-4" />
+                        <Eye className="h-3.5 w-3.5" />
                       </Button>
 
                       {/* Menu 3 Pontinhos */}
@@ -415,10 +639,10 @@ export const FuncionariosTable: React.FC<FuncionariosTableProps> = ({
                           <Button 
                             variant="ghost" 
                             size="sm"
-                            className="h-8 w-8 p-0 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+                            className="h-7 w-7 p-0 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
                           >
                             <span className="sr-only">Abrir menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
+                            <MoreHorizontal className="h-3.5 w-3.5" />
                           </Button>
                         </DropdownMenuTrigger>
 
@@ -471,24 +695,44 @@ export const FuncionariosTable: React.FC<FuncionariosTableProps> = ({
                             Ver Dependentes
                           </DropdownMenuItem>
 
-                          {/* 6. Demitir / Excluir */}
-                          {employee.status !== 'TERMINATED' ? (
+                          {/* 6. Desativar da Lista (se ativo) */}
+                          {employee.status === 'ACTIVE' ? (
+                            <DropdownMenuItem 
+                              onClick={() => (onDeactivate ? onDeactivate(employee) : onDelete(employee))}
+                              className="flex items-center gap-2.5 px-3 py-2 text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 cursor-pointer rounded-xl text-xs font-medium border-t border-gray-800/80 mt-1 pt-2"
+                            >
+                              <UserMinus className="h-4 w-4" />
+                              Desativar da Lista
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem 
+                              onClick={() => onReactivate?.(employee)}
+                              className="flex items-center gap-2.5 px-3 py-2 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300 cursor-pointer rounded-xl text-xs font-medium border-t border-gray-800/80 mt-1 pt-2"
+                            >
+                              <UserCheck className="h-4 w-4" />
+                              Reativar Colaborador
+                            </DropdownMenuItem>
+                          )}
+
+                          {/* 7. Demitir Funcionário (se não demitido) */}
+                          {employee.status !== 'TERMINATED' && (
                             <DropdownMenuItem 
                               onClick={() => onTerminate(employee)}
-                              className="flex items-center gap-2.5 px-3 py-2 text-orange-400 hover:bg-orange-500/10 hover:text-orange-300 cursor-pointer rounded-xl text-xs font-medium border-t border-gray-800/80 mt-1 pt-2"
+                              className="flex items-center gap-2.5 px-3 py-2 text-orange-400 hover:bg-orange-500/10 hover:text-orange-300 cursor-pointer rounded-xl text-xs font-medium"
                             >
                               <UserMinus className="h-4 w-4" />
                               Demitir Funcionário
                             </DropdownMenuItem>
-                          ) : (
-                            <DropdownMenuItem 
-                              onClick={() => onDelete(employee)}
-                              className="flex items-center gap-2.5 px-3 py-2 text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 cursor-pointer rounded-xl text-xs font-medium border-t border-gray-800/80 mt-1 pt-2"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              Excluir Funcionário
-                            </DropdownMenuItem>
                           )}
+
+                          {/* 8. Excluir da Lista (Inativar com Histórico Preservado) */}
+                          <DropdownMenuItem 
+                            onClick={() => onDelete(employee)}
+                            className="flex items-center gap-2.5 px-3 py-2 text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 cursor-pointer rounded-xl text-xs font-medium border-t border-gray-800/80 mt-1 pt-2"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Excluir da Lista (Inativar)
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -519,12 +763,29 @@ export const FuncionariosTable: React.FC<FuncionariosTableProps> = ({
                 {/* Header */}
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3 flex-1 min-w-0">
+                    {/* Checkbox Circular Mobile */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleSelect(employee.id);
+                      }}
+                      className={`w-5 h-5 mt-1 rounded-full border transition-colors inline-flex items-center justify-center shrink-0 cursor-pointer ${
+                        selectedIds.has(employee.id)
+                          ? 'border-seguranca-red bg-seguranca-red text-white' 
+                          : 'border-gray-600 hover:border-gray-400'
+                      }`}
+                      title={selectedIds.has(employee.id) ? "Desmarcar" : "Selecionar"}
+                    >
+                      {selectedIds.has(employee.id) && <Check className="h-3 w-3 stroke-[3]" />}
+                    </button>
+
                     <div className="p-2 rounded-xl bg-red-600/15 border border-red-500/30 text-red-500 shrink-0">
                       <User className="h-5 w-5" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-bold text-white uppercase text-sm tracking-wide truncate group-hover:text-amber-300 transition-colors">
-                        {employee.name}
+                        {getDisplayName(employee)}
                       </h3>
                       {employee.cpf ? (
                         <p className="text-xs text-gray-500 font-mono mt-0.5">
@@ -600,6 +861,15 @@ export const FuncionariosTable: React.FC<FuncionariosTableProps> = ({
                   >
                     <FileText className="h-3.5 w-3.5 mr-1" />
                     Docs
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onDelete(employee)}
+                    className="border-rose-500/40 text-rose-400 hover:bg-rose-500/10 text-xs px-2.5"
+                    title="Desativar / Excluir da Lista (Preserva Histórico no Banco)"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
               </div>

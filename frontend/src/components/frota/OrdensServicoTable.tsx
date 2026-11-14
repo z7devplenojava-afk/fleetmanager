@@ -193,7 +193,11 @@ const OrdensServicoTable: React.FC<OrdensServicoTableProps> = ({ onRefresh }) =>
                   <TableCell>
                     <Badge
                       variant="outline"
-                      className={`text-[10px] font-bold ${order.maintenanceType === MaintenanceType.PREVENTIVA ? 'border-green-500 text-green-400' : 'border-orange-500 text-orange-400'}`}
+                      className={`text-[10px] font-bold ${
+                        order.maintenanceType === MaintenanceType.PREVENTIVA
+                          ? 'bg-emerald-50 text-emerald-800 border-emerald-400 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-500/50'
+                          : 'bg-amber-50 text-amber-800 border-amber-400 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-500/50'
+                      }`}
                     >
                       {order.maintenanceType || 'CORRETIVA'}
                     </Badge>

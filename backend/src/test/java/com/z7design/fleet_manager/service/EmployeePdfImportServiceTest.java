@@ -37,12 +37,15 @@ class EmployeePdfImportServiceTest {
     @Mock
     private DriverRepository driverRepository;
 
+    @Mock
+    private com.z7design.fleet_manager.repository.DepartmentRepository departmentRepository;
+
     private EmployeePdfImportService service;
 
     @BeforeEach
     void setUp() {
         service = new EmployeePdfImportService(employeeRepository, companyRepository, positionRepository,
-                driverRepository);
+                driverRepository, departmentRepository);
 
         lenient().when(employeeRepository.save(any(Employee.class))).thenAnswer(invocation -> invocation.getArgument(0));
     }

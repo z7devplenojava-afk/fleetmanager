@@ -6,9 +6,9 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import lombok.RequiredArgsConstructor;
 
 import com.z7design.fleet_manager.exception.ResourceNotFoundException;
 import com.z7design.fleet_manager.model.Overtime;
@@ -18,13 +18,11 @@ import com.z7design.fleet_manager.model.enums.OvertimeType;
 import com.z7design.fleet_manager.repository.OvertimeRepository;
 
 @Service
+@RequiredArgsConstructor
 public class OvertimeService {
     
-    @Autowired
-    private OvertimeRepository overtimeRepository;
-    
-    @Autowired
-    private UserService userService;
+    private final OvertimeRepository overtimeRepository;
+    private final UserService userService;
     
     @Transactional
     public Overtime create(Overtime overtime) {

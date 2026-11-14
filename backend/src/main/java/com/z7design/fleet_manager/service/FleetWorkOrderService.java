@@ -315,12 +315,16 @@ public class FleetWorkOrderService {
                 })
                 .toList();
 
-        if ("MODELO_2".equals(targetModel)) {
-            List<com.z7design.fleet_manager.model.ChecklistItem> companyM2 = (currentCompanyId != null)
+        boolean isResumido = "MODELO_RESUMIDO".equals(targetModel) || "MODELO_2".equals(targetModel) || "RESUMIDO".equals(targetModel);
+        if (isResumido) {
+            List<com.z7design.fleet_manager.model.ChecklistItem> companyResumido = (currentCompanyId != null)
                     ? modelFiltered.stream().filter(i -> currentCompanyId.equals(i.getCompanyId())).toList()
                     : List.of();
-            List<com.z7design.fleet_manager.model.ChecklistItem> resolvedM2 = !companyM2.isEmpty() ? companyM2 : modelFiltered;
-            return resolvedM2.stream()
+            List<com.z7design.fleet_manager.model.ChecklistItem> resolvedResumido = !companyResumido.isEmpty() ? companyResumido : modelFiltered;
+            if (resolvedResumido.isEmpty()) {
+                return PreventiveResumidoChecklist.getAsDTOs();
+            }
+            return resolvedResumido.stream()
                     .map(com.z7design.fleet_manager.dto.ChecklistItemDTO::fromEntity)
                     .collect(Collectors.toList());
         }

@@ -2341,7 +2341,7 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
                 src={
                   hasSelectedCompany
                     ? (empresa?.nome?.toLowerCase().includes('silvestre') || empresa?.logoUrl?.includes('78376e24-fce4-4b76-8140-3d6ddc2cf1f5')
-                        ? (theme === 'white' ? '/images/sao-silvestre-logo-light.png' : '/images/sao-silvestre-logo.png')
+                        ? '/images/sao-silvestre-icon.png?v=clean3'
                         : resolveCompanyIconUrl(empresa?.iconUrl, empresa?.logoUrl) || '/fluxbus-icon.png')
                     : '/fluxbus-icon.png'
                 }

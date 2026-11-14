@@ -1082,16 +1082,30 @@
     }
 
     .bg-emerald-950,
+    .bg-emerald-950\/80,
+    .bg-emerald-950\/70,
     .bg-emerald-950\/60,
+    .bg-emerald-950\/50,
     .bg-emerald-950\/40,
     .bg-emerald-950\/30,
     .bg-emerald-950\/20,
+    .bg-green-950,
+    .bg-green-950\/80,
+    .bg-green-950\/70,
     .bg-green-950\/60,
+    .bg-green-950\/50,
     .bg-green-950\/40,
-    .bg-green-950\/30 {
-      background-color: #ecfdf5 !important;
-      border-color: #6ee7b7 !important;
-      color: #065f46 !important;
+    .bg-green-950\/30,
+    .preventiva-badge-resumido {
+      background-color: #d1fae5 !important;
+      border-color: #34d399 !important;
+      color: #064e3b !important;
+    }
+
+    .text-emerald-300,
+    .text-emerald-400,
+    .text-green-400 {
+      color: #047857 !important;
     }
 
     .bg-blue-950,

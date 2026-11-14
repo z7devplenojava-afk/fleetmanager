@@ -777,6 +777,60 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         setNewPhotoUrl('');
     };
 
+    // Checklist Oficial do Modelo Resumido (Check-List Verificação de Frota - 41 itens exatos da ficha física)
+    const DEFAULT_RESUMIDO_CHECKLIST: { descricao: string; categoria: string }[] = [
+        // A. VISUAL (INTERNO / EXTERNO)
+        { descricao: '1. Pintura', categoria: 'A. VISUAL (INTERNO / EXTERNO)' },
+        { descricao: '2. Rodas', categoria: 'A. VISUAL (INTERNO / EXTERNO)' },
+        { descricao: '3. Limpeza Externa', categoria: 'A. VISUAL (INTERNO / EXTERNO)' },
+        { descricao: '4. Limpeza Interna', categoria: 'A. VISUAL (INTERNO / EXTERNO)' },
+        { descricao: '5. Pneus', categoria: 'A. VISUAL (INTERNO / EXTERNO)' },
+        // B. SISTEMA ELÉTRICO
+        { descricao: '1. Iluminação interna', categoria: 'B. SISTEMA ELÉTRICO' },
+        { descricao: '2. Iluminação externa', categoria: 'B. SISTEMA ELÉTRICO' },
+        { descricao: '3. Sirene de ré', categoria: 'B. SISTEMA ELÉTRICO' },
+        { descricao: '4. Buzina', categoria: 'B. SISTEMA ELÉTRICO' },
+        { descricao: '5. Limpadores de para-brisa', categoria: 'B. SISTEMA ELÉTRICO' },
+        { descricao: '6. Painel de instrumentos', categoria: 'B. SISTEMA ELÉTRICO' },
+        { descricao: '7. Bateria', categoria: 'B. SISTEMA ELÉTRICO' },
+        // C. SISTEMA DE LUBRIFICAÇÃO
+        { descricao: '1. Oléo de Motor', categoria: 'C. SISTEMA DE LUBRIFICAÇÃO' },
+        { descricao: '2. Oléo de caixa', categoria: 'C. SISTEMA DE LUBRIFICAÇÃO' },
+        { descricao: '3. Oléo de diferencial', categoria: 'C. SISTEMA DE LUBRIFICAÇÃO' },
+        { descricao: '4. Fluido de freio', categoria: 'C. SISTEMA DE LUBRIFICAÇÃO' },
+        { descricao: '5. Oléo Hidráulico', categoria: 'C. SISTEMA DE LUBRIFICAÇÃO' },
+        { descricao: '6. VAzamentos', categoria: 'C. SISTEMA DE LUBRIFICAÇÃO' },
+        // D. SISTEMA PNEUMÁTICO
+        { descricao: '1. Vazamento de AR', categoria: 'D. SISTEMA PNEUMÁTICO' },
+        { descricao: '2. Teste cuícas e servos', categoria: 'D. SISTEMA PNEUMÁTICO' },
+        { descricao: '3. Estado das válvulas', categoria: 'D. SISTEMA PNEUMÁTICO' },
+        { descricao: '4. Comprensor de ar', categoria: 'D. SISTEMA PNEUMÁTICO' },
+        // E. MECÂNICA GERAL
+        { descricao: '1.1 Embuchamento de Molas DIANT.', categoria: 'E. MECÂNICA GERAL' },
+        { descricao: '1.2 Embuchamento de Molas TRAS.', categoria: 'E. MECÂNICA GERAL' },
+        { descricao: '2.1 Buchas estabilizadoras DIANT.', categoria: 'E. MECÂNICA GERAL' },
+        { descricao: '2.2 Buchas estabilizadoras TRAS.', categoria: 'E. MECÂNICA GERAL' },
+        { descricao: '3 Manga de eixo', categoria: 'E. MECÂNICA GERAL' },
+        { descricao: '4 Ponteiras', categoria: 'E. MECÂNICA GERAL' },
+        { descricao: '5.1 Lonas de freios DIANT', categoria: 'E. MECÂNICA GERAL' },
+        { descricao: '5.2 Lonas de freios TRAS.', categoria: 'E. MECÂNICA GERAL' },
+        { descricao: '6 Catracas', categoria: 'E. MECÂNICA GERAL' },
+        { descricao: '7 Cardans', categoria: 'E. MECÂNICA GERAL' },
+        { descricao: '8 Setor de direção', categoria: 'E. MECÂNICA GERAL' },
+        { descricao: '9 Suporte do tanque', categoria: 'E. MECÂNICA GERAL' },
+        { descricao: '10 Conferir aperto parafuso de RODA', categoria: 'E. MECÂNICA GERAL' },
+        { descricao: '11 Correia do motor', categoria: 'E. MECÂNICA GERAL' },
+        { descricao: '12 Rolamento da Polia de motor', categoria: 'E. MECÂNICA GERAL' },
+        { descricao: '13 Calibragem dos Pneus', categoria: 'E. MECÂNICA GERAL' },
+        { descricao: '14 Lubrificação', categoria: 'E. MECÂNICA GERAL' },
+        // F. DIVERSOS
+        { descricao: '1 Aferição de Cronotacográfo', categoria: 'F. DIVERSOS' },
+        { descricao: '2 Extintores de Incêndio', categoria: 'F. DIVERSOS' },
+        { descricao: '3 Ar condicionado', categoria: 'F. DIVERSOS' },
+        { descricao: '4 Puxadores dos bancos', categoria: 'F. DIVERSOS' },
+        { descricao: '5 Cintos de segurança', categoria: 'F. DIVERSOS' }
+    ];
+
     // Itens padrão de contingência / fallback de inspeção preventiva
     const DEFAULT_CHECKLIST_FALLBACK: { descricao: string; categoria: string }[] = [
         // Mecânica
@@ -846,10 +900,13 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                 filterType = 'MINIBUS';
             }
 
+            const isResumido = targetTemplate === 'MODELO_2' || targetTemplate === 'MODELO_RESUMIDO' || targetTemplate === 'RESUMIDO';
             const masterItems = await fleetWorkOrderService.getChecklistMasterItems(filterType, currentVeh?.model, targetTemplate);
             let itemsToUse: { id?: string; descricao: string; categoria: string }[] = [];
             if (masterItems && masterItems.length > 0) {
                 itemsToUse = masterItems;
+            } else if (isResumido) {
+                itemsToUse = DEFAULT_RESUMIDO_CHECKLIST;
             } else {
                 itemsToUse = DEFAULT_CHECKLIST_FALLBACK;
             }
@@ -863,7 +920,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                 reparoRealizado: ''
             }));
             setFormData(p => ({ ...p, preventiveModel: targetTemplate, checklistItems: initialChecklist }));
-            const labelModelo = targetTemplate === 'MODELO_2' ? 'Modelo 2 • Verificação Frota' : (filterType === 'VAN' ? 'Van' : (isMicro ? 'Micro-ônibus' : 'Ônibus'));
+            const labelModelo = isResumido ? 'Modelo Resumido • Verificação Frota (41 itens)' : (filterType === 'VAN' ? 'Modelo Completo • Van' : (isMicro ? 'Modelo Completo • Micro-ônibus' : 'Modelo Completo • Ônibus'));
             toast({
                 title: initialStatus === ChecklistStatus.OK ? `Todos os itens marcados como OK (${labelModelo})` : `Checklist Preventivo (${labelModelo})`,
                 description: initialStatus === ChecklistStatus.OK
@@ -871,7 +928,9 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                     : `${initialChecklist.length} itens de inspeção adicionados à OS.`,
             });
         } catch {
-            const fallbackChecklist: FleetWorkOrderChecklist[] = DEFAULT_CHECKLIST_FALLBACK.map(m => ({
+            const isResumidoFallback = targetTemplate === 'MODELO_2' || targetTemplate === 'MODELO_RESUMIDO' || targetTemplate === 'RESUMIDO';
+            const fallbackItems = isResumidoFallback ? DEFAULT_RESUMIDO_CHECKLIST : DEFAULT_CHECKLIST_FALLBACK;
+            const fallbackChecklist: FleetWorkOrderChecklist[] = fallbackItems.map(m => ({
                 checklistItemDescricao: m.descricao,
                 checklistItemCategoria: m.categoria,
                 situacao: initialStatus,
@@ -880,8 +939,8 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
             }));
             setFormData(p => ({ ...p, checklistItems: fallbackChecklist }));
             toast({
-                title: 'Checklist preventivo padrão carregado',
-                description: `${fallbackChecklist.length} itens padrão adicionados.`,
+                title: isResumidoFallback ? 'Checklist Modelo Resumido carregado' : 'Checklist preventivo padrão carregado',
+                description: `${fallbackChecklist.length} itens adicionados.`,
             });
         } finally {
             setIsLoadingChecklist(false);
@@ -2283,8 +2342,8 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                             >
                                                 <SelectTrigger className="bg-seguranca-black border-emerald-600/70 font-semibold text-emerald-200"><SelectValue /></SelectTrigger>
                                                 <SelectContent className="bg-seguranca-black border-gray-600 z-[10060]">
-                                                    <SelectItem value="MODELO_2">Modelo 2 — Check-List Frota (Automático + Alternador 150k)</SelectItem>
-                                                    <SelectItem value="MODELO_1">Modelo 1 — Checklist Completo Padrão</SelectItem>
+                                                    <SelectItem value="MODELO_2">📋 Modelo Resumido (Check-List Verificação de Frota — 41 itens)</SelectItem>
+                                                    <SelectItem value="MODELO_1">⚙️ Modelo Completo / Padrão (Modelo Atual Oficina)</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                         </Field>

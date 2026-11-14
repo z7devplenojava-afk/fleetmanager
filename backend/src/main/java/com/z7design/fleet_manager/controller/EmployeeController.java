@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,12 +25,15 @@ import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/employees")
 @RequiredArgsConstructor
+@Slf4j
 @Tag(name = "FuncionÃ¡rios", description = "Endpoints para gestÃ£o de funcionÃ¡rios")
 public class EmployeeController {
     
@@ -52,6 +56,21 @@ public class EmployeeController {
             java.util.Map<String, String> errorResponse = new java.util.HashMap<>();
             errorResponse.put("error", msg);
             return ResponseEntity.badRequest().body(errorResponse);
+        }
+    }
+
+    @PostMapping("/fix-names")
+    @Operation(summary = "Corrigir nomes e documentos de funcionários", description = "Executa a limpeza e sincronização de nomes placeholder ou corrompidos na base de dados")
+    public ResponseEntity<Object> fixEmployeeNames() {
+        try {
+            int fixed = employeeService.autoFixPlaceholderEmployeeNames();
+            java.util.Map<String, Object> resp = new java.util.HashMap<>();
+            resp.put("success", true);
+            resp.put("fixedCount", fixed);
+            resp.put("message", fixed + " funcionário(s) tiveram seus nomes e documentos corrigidos.");
+            return ResponseEntity.ok(resp);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", e.getMessage()));
         }
     }
     
@@ -316,7 +335,21 @@ public class EmployeeController {
                 for (Employee emp : fallbackList) {
                     java.util.Map<String, Object> simple = new java.util.HashMap<>();
                     simple.put("id", emp.getId());
-                    simple.put("name", emp.getName());
+                    String resolvedName = emp.getName();
+                    String docClean = emp.getDocument() != null ? emp.getDocument().replaceAll("[^0-9]", "") : "";
+                    if (docClean.isEmpty() && resolvedName != null) {
+                        docClean = resolvedName.replaceAll("[^0-9]", "");
+                    }
+                    if (docClean != null && !docClean.isEmpty()) {
+                        String realName = com.z7design.fleet_manager.service.EmployeePdfImportService.getKnownNameForCpf(docClean);
+                        if (realName != null && (resolvedName == null || resolvedName.matches("(?i).*funcion[aá]rio.*") || resolvedName.matches(".*\\d{3}.*"))) {
+                            resolvedName = realName;
+                        }
+                    }
+                    if (resolvedName != null && resolvedName.matches("(?i)^funcion[aá]rio\\s+[\\d.-]+.*")) {
+                        resolvedName = resolvedName.replaceAll("(?i)^funcion[aá]rio\\s+[\\d.-]+\\s*[-–—]?\\s*", "").trim();
+                    }
+                    simple.put("name", resolvedName);
                     simple.put("document", emp.getDocument());
                     simple.put("cpf", emp.getDocument());
                     simple.put("email", emp.getEmail());
@@ -353,7 +386,21 @@ public class EmployeeController {
                 try {
                     java.util.Map<String, Object> employee = new java.util.HashMap<>();
                     employee.put("id", row[0]);
-                    employee.put("name", row[1]);
+                    String resolvedName = row[1] != null ? row[1].toString() : null;
+                    String docClean = row[2] != null ? row[2].toString().replaceAll("[^0-9]", "") : "";
+                    if (docClean.isEmpty() && resolvedName != null) {
+                        docClean = resolvedName.replaceAll("[^0-9]", "");
+                    }
+                    if (docClean != null && !docClean.isEmpty()) {
+                        String realName = com.z7design.fleet_manager.service.EmployeePdfImportService.getKnownNameForCpf(docClean);
+                        if (realName != null && (resolvedName == null || resolvedName.matches("(?i).*funcion[aá]rio.*") || resolvedName.matches(".*\\d{3}.*"))) {
+                            resolvedName = realName;
+                        }
+                    }
+                    if (resolvedName != null && resolvedName.matches("(?i)^funcion[aá]rio\\s+[\\d.-]+.*")) {
+                        resolvedName = resolvedName.replaceAll("(?i)^funcion[aá]rio\\s+[\\d.-]+\\s*[-–—]?\\s*", "").trim();
+                    }
+                    employee.put("name", resolvedName);
                     employee.put("document", row[2]);
                     employee.put("cpf", row[2]);
                     employee.put("birthDate", row[3]);
@@ -572,15 +619,32 @@ public class EmployeeController {
     }
     
     @DeleteMapping("/{id}")
-    @Operation(summary = "Excluir funcionÃ¡rio", description = "Exclui um funcionÃ¡rio do sistema")
+    @Operation(summary = "Excluir funcionário", description = "Exclui um funcionário do sistema")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "204", description = "FuncionÃ¡rio excluÃ­do com sucesso"),
-            @ApiResponse(responseCode = "404", description = "FuncionÃ¡rio nÃ£o encontrado"),
+            @ApiResponse(responseCode = "204", description = "Funcionário excluído com sucesso"),
+            @ApiResponse(responseCode = "404", description = "Funcionário não encontrado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
     })
     public ResponseEntity<Void> delete(@PathVariable("id") String id) {
         employeeService.delete(UUID.fromString(id));
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/bulk-delete")
+    @Operation(summary = "Excluir funcionários em massa", description = "Exclui múltiplos funcionários selecionados")
+    public ResponseEntity<Map<String, Object>> bulkDeletePost(@RequestBody List<String> ids) {
+        log.info("POST /api/employees/bulk-delete - Excluindo {} funcionários", ids != null ? ids.size() : 0);
+        List<UUID> uuids = (ids != null ? ids : Collections.<String>emptyList()).stream()
+                .map(UUID::fromString)
+                .collect(Collectors.toList());
+        Map<String, Object> result = employeeService.deleteMultiple(uuids);
+        return ResponseEntity.ok(result);
+    }
+
+    @DeleteMapping("/bulk-delete")
+    @Operation(summary = "Excluir funcionários em massa", description = "Exclui múltiplos funcionários selecionados via DELETE")
+    public ResponseEntity<Map<String, Object>> bulkDelete(@RequestBody List<String> ids) {
+        return bulkDeletePost(ids);
     }
     
     @PutMapping("/{id}/status")

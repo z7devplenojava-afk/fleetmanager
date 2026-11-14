@@ -273,4 +273,9 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID>, JpaSp
                         + "AND e.status <> com.z7design.fleet_manager.model.enums.EmploymentStatus.TERMINATED "
                         + "AND (e.cnhExpirationDate IS NOT NULL OR e.nextExameMedico IS NOT NULL)")
         List<Employee> findWithDocumentExpirationsByCompany(@Param("companyId") UUID companyId);
+
+        @org.springframework.data.jpa.repository.Modifying
+        @org.springframework.transaction.annotation.Transactional
+        @Query(value = "UPDATE employees SET name = :name, document = COALESCE(:document, document), updated_at = NOW() WHERE id = :id", nativeQuery = true)
+        int updateEmployeeNameAndDocumentNative(@Param("id") UUID id, @Param("name") String name, @Param("document") String document);
 }

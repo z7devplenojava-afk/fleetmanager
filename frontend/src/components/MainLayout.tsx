@@ -284,18 +284,16 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           {/* Fundo Personalizado VSS (Viação São Silvestre) */}
           {isVss && (
             <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden select-none vss-bg-overlay">
-              {/* Imagem de Fundo Fotográfica */}
+              {/* Imagem de Fundo Fotográfica Otimizada (sem blur animado para máximo desempenho e 0 travamento) */}
               <div
-                className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-all duration-700 vss-bg-photo"
+                className="absolute inset-0 bg-cover bg-center bg-no-repeat vss-bg-photo"
                 style={{
                   backgroundImage: `url('/vss-bg.jpg')`,
-                  filter: 'blur(1.5px) brightness(0.60) saturate(0.85)',
-                  opacity: 0.16,
+                  opacity: 0.12,
                 }}
               />
               {/* Camadas de Gradiente Suave para Máxima Legibilidade dos Textos e Métricas */}
-              <div className="absolute inset-0 bg-gradient-to-b from-background/95 via-background/88 to-background/98" />
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/5 via-background/40 to-background/95" />
+              <div className="absolute inset-0 bg-gradient-to-b from-background/95 via-background/90 to-background/98" />
             </div>
           )}
 

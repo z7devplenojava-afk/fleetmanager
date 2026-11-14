@@ -25,9 +25,10 @@ import org.springframework.web.multipart.MultipartFile;
 @RestController
 @RequestMapping("/api/vehicles")
 @RequiredArgsConstructor
-@Slf4j
 @Tag(name = "Veículos", description = "API para gerenciamento de veículos da frota")
 public class VehicleController {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(VehicleController.class);
 
     private final VehicleService vehicleService;
     private final VehicleExcelImportService vehicleExcelImportService;

@@ -86,31 +86,54 @@ export interface CreateWorkPostRequest {
 
 export type UpdateWorkPostRequest = Partial<CreateWorkPostRequest>;
 
+let workPostsCache: WorkPost[] | null = null;
+let workPostsPromise: Promise<WorkPost[]> | null = null;
+let lastFetchTime = 0;
+const CACHE_TTL = 30000; // 30 segundos de cache para evitar múltiplas requisições simultâneas
+
 export const workPostService = {
-  // Buscar todos os postos de trabalho
-  async getAllWorkPosts(): Promise<WorkPost[]> {
-    try {
-      console.log('🔗 workPostService.getAllWorkPosts - Fazendo requisição para /api/work-posts/all');
-      const response = await api.get('/api/work-posts/all');
-      console.log('✅ workPostService.getAllWorkPosts - Resposta recebida:', response.data);
-      console.log('✅ workPostService.getAllWorkPosts - Tipo de dados:', Array.isArray(response.data) ? 'Array' : typeof response.data);
-      console.log('✅ workPostService.getAllWorkPosts - Quantidade:', Array.isArray(response.data) ? response.data.length : 'N/A');
-      
-      if (Array.isArray(response.data)) {
-        return response.data;
-      } else if (response.data && Array.isArray(response.data.content)) {
-        return response.data.content;
-      } else {
-        console.warn('⚠️ workPostService.getAllWorkPosts - Formato de resposta inesperado:', response.data);
-        return [];
-      }
-    } catch (error: any) {
-      console.error('❌ workPostService.getAllWorkPosts - Erro:', error);
-      console.error('❌ workPostService.getAllWorkPosts - Status:', error.response?.status);
-      console.error('❌ workPostService.getAllWorkPosts - Data:', error.response?.data);
-      console.error('❌ workPostService.getAllWorkPosts - Message:', error.message);
-      throw error;
+  // Limpar cache manualmente se necessário
+  invalidateCache() {
+    workPostsCache = null;
+    workPostsPromise = null;
+    lastFetchTime = 0;
+  },
+
+  // Buscar todos os postos de trabalho (com deduplicação de requisições e cache)
+  async getAllWorkPosts(forceRefresh = false): Promise<WorkPost[]> {
+    const now = Date.now();
+    if (!forceRefresh && workPostsCache && (now - lastFetchTime) < CACHE_TTL) {
+      return workPostsCache;
     }
+
+    if (workPostsPromise) {
+      return workPostsPromise;
+    }
+
+    workPostsPromise = (async () => {
+      try {
+        const response = await api.get('/api/work-posts/all');
+        let posts: WorkPost[] = [];
+        if (Array.isArray(response.data)) {
+          posts = response.data;
+        } else if (response.data && Array.isArray(response.data.content)) {
+          posts = response.data.content;
+        } else {
+          console.warn('⚠️ workPostService.getAllWorkPosts - Formato de resposta inesperado:', response.data);
+          posts = [];
+        }
+        workPostsCache = posts;
+        lastFetchTime = Date.now();
+        return posts;
+      } catch (error: any) {
+        console.error('❌ workPostService.getAllWorkPosts - Erro:', error?.response?.status || error.message);
+        throw error;
+      } finally {
+        workPostsPromise = null;
+      }
+    })();
+
+    return workPostsPromise;
   },
 
   // Alias para getAllWorkPosts para compatibilidade
@@ -144,6 +167,7 @@ export const workPostService = {
   async createWorkPost(data: CreateWorkPostRequest): Promise<WorkPost> {
     try {
       const response = await api.post('/api/work-posts', data);
+      this.invalidateCache();
       return response.data;
     } catch (error) {
       console.error('Erro ao criar posto de trabalho:', error);
@@ -155,6 +179,7 @@ export const workPostService = {
   async updateWorkPost(id: string, data: UpdateWorkPostRequest): Promise<WorkPost> {
     try {
       const response = await api.put(`/api/work-posts/${id}`, data);
+      this.invalidateCache();
       return response.data;
     } catch (error) {
       console.error('Erro ao atualizar posto de trabalho:', error);
@@ -166,6 +191,7 @@ export const workPostService = {
   async updateWorkPostStatus(id: string, status: string): Promise<WorkPost> {
     try {
       const response = await api.put(`/api/work-posts/${id}/status`, null, { params: { status } });
+      this.invalidateCache();
       return response.data;
     } catch (error) {
       console.error('Erro ao atualizar status do posto:', error);
@@ -177,6 +203,7 @@ export const workPostService = {
   async deleteWorkPost(id: string): Promise<void> {
     try {
       await api.delete(`/api/work-posts/${id}`);
+      this.invalidateCache();
     } catch (error) {
       console.error('Erro ao excluir posto de trabalho:', error);
       throw error;

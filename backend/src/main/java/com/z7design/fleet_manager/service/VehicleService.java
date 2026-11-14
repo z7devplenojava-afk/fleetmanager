@@ -437,7 +437,7 @@ public class VehicleService {
                 com.z7design.fleet_manager.model.Employee emp = empOpt.get();
                 responsibleEmployeeName = emp.getName();
                 driverCnh = emp.getCnhNumber();
-                driverCpf = emp.getCpf();
+                driverCpf = emp.getDocument() != null ? emp.getDocument() : (emp.getUser() != null ? emp.getUser().getCpf() : null);
             }
         }
         if ((assignedDriver == null || assignedDriver.isBlank()) && responsibleEmployeeName != null) {

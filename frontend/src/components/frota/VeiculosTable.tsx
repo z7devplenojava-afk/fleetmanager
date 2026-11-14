@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -104,8 +104,11 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
     vehicleMaintenanceStatusService.getAllAlerts()
       .then(alerts => {
         if (cancelled) return;
+        const list = Array.isArray(alerts) ? alerts : [];
         const map: Record<string, VehicleMaintenanceAlert> = {};
-        for (const a of alerts) map[a.vehicleId] = a;
+        for (const a of list) {
+          if (a?.vehicleId) map[a.vehicleId] = a;
+        }
         setMaintenanceAlerts(map);
       })
       .catch(() => {});
@@ -154,31 +157,17 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
     return { byId, byPlate };
   }, [rawWorkOrders]);
 
-  // Função para obter a OS ativa do veículo (lookup O(1))
-  const getVehicleWorkOrder = (vehicleId: string, vehiclePlate?: string): FleetWorkOrder | null => {
-    if (vehicleId && activeWorkOrdersMap.byId.has(String(vehicleId))) {
-      return activeWorkOrdersMap.byId.get(String(vehicleId)) || null;
-    }
-    if (vehiclePlate) {
-      const cleanPlate = vehiclePlate.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-      if (cleanPlate && activeWorkOrdersMap.byPlate.has(cleanPlate)) {
-        return activeWorkOrdersMap.byPlate.get(cleanPlate) || null;
-      }
-    }
-    return null;
-  };
-
-  // Mapeamento O(1) de manutenções legadas ativas
+  // Mapeamento O(1) de manutenções legadas ativas por ID de veículo e por placa
   const activeMaintenancesMap = React.useMemo(() => {
-    const list: VehicleMaintenance[] = Array.isArray(maintenances)
-      ? maintenances
-      : (Array.isArray((maintenances as any)?.content) ? (maintenances as any).content : []);
-
+    const list: VehicleMaintenance[] = Array.isArray(maintenances) ? maintenances : [];
     const byId = new Map<string, VehicleMaintenance>();
     const byPlate = new Map<string, VehicleMaintenance>();
 
     for (const m of list) {
-      if (m.status !== 'IN_PROGRESS') continue;
+      const statusLower = (m.status || '').toLowerCase();
+      const isActive = statusLower !== 'completed' && statusLower !== 'concluida' && statusLower !== 'cancelled' && statusLower !== 'cancelada';
+      if (!isActive) continue;
+
       if (m.vehicleId) {
         byId.set(String(m.vehicleId), m);
       }
@@ -190,8 +179,22 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
     return { byId, byPlate };
   }, [maintenances]);
 
+  // Função para obter a OS ativa do veículo (lookup O(1))
+  const getVehicleWorkOrder = useCallback((vehicleId: string, vehiclePlate?: string): FleetWorkOrder | null => {
+    if (vehicleId && activeWorkOrdersMap.byId.has(String(vehicleId))) {
+      return activeWorkOrdersMap.byId.get(String(vehicleId)) || null;
+    }
+    if (vehiclePlate) {
+      const cleanPlate = vehiclePlate.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+      if (cleanPlate && activeWorkOrdersMap.byPlate.has(cleanPlate)) {
+        return activeWorkOrdersMap.byPlate.get(cleanPlate) || null;
+      }
+    }
+    return null;
+  }, [activeWorkOrdersMap]);
+
   // Função para obter manutenção legada (lookup O(1))
-  const getVehicleLegacyMaintenance = (vehicleId: string, vehiclePlate?: string): VehicleMaintenance | null => {
+  const getVehicleLegacyMaintenance = useCallback((vehicleId: string, vehiclePlate?: string): VehicleMaintenance | null => {
     if (vehicleId && activeMaintenancesMap.byId.has(String(vehicleId))) {
       return activeMaintenancesMap.byId.get(String(vehicleId)) || null;
     }
@@ -202,10 +205,10 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
       }
     }
     return null;
-  };
+  }, [activeMaintenancesMap]);
 
   // Função para verificar se um veículo está em manutenção (OS ativa, manutenção legada ou status manutencao)
-  const isVehicleInMaintenance = (vehicleId: string, vehiclePlate?: string, vehicleStatus?: string): boolean => {
+  const isVehicleInMaintenance = useCallback((vehicleId: string, vehiclePlate?: string, vehicleStatus?: string): boolean => {
     if (vehicleStatus) {
       const statusLower = vehicleStatus.toLowerCase();
       if (statusLower === 'manutencao' || statusLower === 'maintenance') return true;
@@ -213,7 +216,7 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
     if (getVehicleWorkOrder(vehicleId, vehiclePlate)) return true;
     if (getVehicleLegacyMaintenance(vehicleId, vehiclePlate)) return true;
     return false;
-  };
+  }, [getVehicleWorkOrder, getVehicleLegacyMaintenance]);
   const [selectAll, setSelectAll] = useState(false);
 
   // Estados para visualização
@@ -223,15 +226,56 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
 
   const { toast } = useToast();
 
-  const filteredVeiculos = veiculos.filter(veiculo => {
-    const matchesSearch = veiculo.placa.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      veiculo.marca.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      veiculo.modelo.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = !vehicleTypeFilter || vehicleTypeFilter === 'ALL' || veiculo.vehicleType === vehicleTypeFilter;
-    const matchesAlert = !maintenanceAlertFilter || maintenanceAlertFilter === 'ALL'
-      || getMaintenanceAlert(veiculo.id)?.alertLevel === maintenanceAlertFilter;
-    return matchesSearch && matchesType && matchesAlert;
-  });
+  const filteredVeiculos = React.useMemo(() => {
+    const term = (searchTerm || '').trim().toLowerCase();
+    return (veiculos || []).filter(veiculo => {
+      if (!veiculo) return false;
+      const placa = (veiculo.placa || '').toLowerCase();
+      const marca = (veiculo.marca || '').toLowerCase();
+      const modelo = (veiculo.modelo || '').toLowerCase();
+      const matchesSearch = !term || placa.includes(term) || marca.includes(term) || modelo.includes(term);
+      const matchesType = !vehicleTypeFilter || vehicleTypeFilter === 'ALL' || veiculo.vehicleType === vehicleTypeFilter;
+      const matchesAlert = !maintenanceAlertFilter || maintenanceAlertFilter === 'ALL'
+        || getMaintenanceAlert(veiculo.id)?.alertLevel === maintenanceAlertFilter;
+      return matchesSearch && matchesType && matchesAlert;
+    });
+  }, [veiculos, searchTerm, vehicleTypeFilter, maintenanceAlertFilter, maintenanceAlerts]);
+
+  // Paginação otimizada para resposta instantânea (20 veículos por página)
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 20;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, vehicleTypeFilter, maintenanceAlertFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredVeiculos.length / pageSize));
+  const effectivePage = Math.min(currentPage, totalPages);
+
+  const paginatedVeiculos = React.useMemo(() => {
+    const start = (effectivePage - 1) * pageSize;
+    return filteredVeiculos.slice(start, start + pageSize);
+  }, [filteredVeiculos, effectivePage, pageSize]);
+
+  // Contagem de status O(N) computada uma única vez
+  const vehicleCounts = useMemo(() => {
+    let ativos = 0;
+    let emManutencao = 0;
+    let inativos = 0;
+
+    for (const v of filteredVeiculos) {
+      const inMaint = isVehicleInMaintenance(v.id, v.placa, v.status);
+      const s = (v.status || '').toLowerCase();
+      if (inMaint) {
+        emManutencao++;
+      } else if (s === 'ativo' || s === 'active') {
+        ativos++;
+      } else if (s === 'inativo' || s === 'inactive') {
+        inativos++;
+      }
+    }
+    return { ativos, emManutencao, inativos };
+  }, [filteredVeiculos, isVehicleInMaintenance]);
 
   // Funções de seleção
   const handleSelectAll = (checked: boolean) => {
@@ -698,19 +742,19 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
               <div className="bg-green-950/20 border border-green-800/40 rounded-lg p-2 flex flex-col">
                 <span className="text-[11px] text-green-400/80">Ativos</span>
                 <span className="text-green-400 font-extrabold text-base sm:text-lg">
-                  {filteredVeiculos.filter(v => !isVehicleInMaintenance(v.id, v.placa, v.status) && (v.status.toLowerCase() === 'ativo' || v.status.toLowerCase() === 'active')).length}
+                  {vehicleCounts.ativos}
                 </span>
               </div>
               <div className="bg-amber-950/20 border border-amber-800/40 rounded-lg p-2 flex flex-col">
                 <span className="text-[11px] text-amber-400/80">Em Manutenção</span>
                 <span className="text-amber-400 font-extrabold text-base sm:text-lg">
-                  {filteredVeiculos.filter(v => isVehicleInMaintenance(v.id, v.placa, v.status)).length}
+                  {vehicleCounts.emManutencao}
                 </span>
               </div>
               <div className="bg-red-950/20 border border-red-800/40 rounded-lg p-2 flex flex-col">
                 <span className="text-[11px] text-red-400/80">Inativos</span>
                 <span className="text-red-400 font-extrabold text-base sm:text-lg">
-                  {filteredVeiculos.filter(v => v.status.toLowerCase() === 'inativo' || v.status.toLowerCase() === 'inactive').length}
+                  {vehicleCounts.inativos}
                 </span>
               </div>
             </div>
@@ -805,7 +849,7 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
           </div>
         )}
 
-        {filteredVeiculos.map((veiculo) => {
+        {paginatedVeiculos.map((veiculo) => {
           const alert = getMaintenanceAlert(veiculo.id);
           const alertCfg = alert ? ALERT_BADGE[alert.alertLevel] : null;
           const AlertIcon = alertCfg ? alertCfg.icon : null;
@@ -1059,7 +1103,7 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredVeiculos.map((veiculo) => (
+            {paginatedVeiculos.map((veiculo) => (
               <TableRow
                 key={veiculo.id}
                 className="hover:bg-seguranca-graphite/50 transition-colors border-b border-gray-700"
@@ -1200,6 +1244,41 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
           </TableBody>
         </Table>
       </div>
+
+      {/* Controles de Paginação (Visível para Mobile e Desktop) */}
+      {filteredVeiculos.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-seguranca-black border border-gray-700/80 rounded-xl px-4 py-3 mt-4 text-xs">
+          <div className="text-gray-400">
+            Mostrando <span className="text-white font-bold">{Math.min((effectivePage - 1) * pageSize + 1, filteredVeiculos.length)}</span> a{' '}
+            <span className="text-white font-bold">{Math.min(effectivePage * pageSize, filteredVeiculos.length)}</span> de{' '}
+            <span className="text-seguranca-yellow font-bold">{filteredVeiculos.length}</span> veículos
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={effectivePage <= 1}
+              className="border-gray-700 bg-seguranca-graphite text-gray-300 hover:text-white hover:bg-gray-700 h-8 px-3"
+            >
+              Anterior
+            </Button>
+            <span className="text-gray-300 font-mono px-2">
+              Página <strong className="text-seguranca-yellow">{effectivePage}</strong> de <strong>{totalPages}</strong>
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={effectivePage >= totalPages}
+              className="border-gray-700 bg-seguranca-graphite text-gray-300 hover:text-white hover:bg-gray-700 h-8 px-3"
+            >
+              Próxima
+            </Button>
+          </div>
+        </div>
+      )}
 
 
 

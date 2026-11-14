@@ -160,8 +160,10 @@ public class SecurityConfig {
                                                                 "ROLE_COMPANY_ADMIN", "COMPANY_ADMIN", "ROLE_FLEX_ADMIN", "FLEX_ADMIN",
                                                                 "ROLE_MANUTENCAO", "MANUTENCAO", "ROLE_GESTOR", "ROLE_SUPERVISOR",
                                                                 "ROLE_SST", "SST", "ROLE_SEGURANCA_DO_TRABALHO")
-                                                // Endpoints de usuários - permitir leitura para usuários autenticados
-                                                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/users", "/api/users/profile", "/api/users/search", "/api/users/cpf/**", "/api/users/{id}")
+                                                // Endpoints de usuários - permitir leitura para usuários autenticados e operações do próprio usuário (perfil, match, vínculo)
+                                                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/users", "/api/users/profile", "/api/users/search", "/api/users/cpf/**", "/api/users/{id}", "/api/users/current/**")
+                                                .authenticated()
+                                                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/users/link-employee", "/api/users/update-cpf-and-match")
                                                 .authenticated()
                                                 .requestMatchers(org.springframework.http.HttpMethod.POST,
                                                                 "/api/users/**")

@@ -1,55 +1,57 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Car, Fuel, Search, AlertTriangle, Loader2, Wrench, Calendar, CalendarClock, DollarSign, Settings, FileText, Filter, RefreshCw, TrendingUp, Users, UserCheck, FileSpreadsheet, FileCheck } from 'lucide-react';
-import { VehicleImportModal } from '@/components/frota/VehicleImportModal';
-import { VehicleCrlvImportModal } from '@/components/frota/VehicleCrlvImportModal';
-import { CrlvUploadTab } from '@/components/frota/CrlvUploadTab';
 import VeiculosTable from '@/components/frota/VeiculosTable';
-import AgregadosTable from '@/components/frota/AgregadosTable';
-import AgregadosDashboard from '@/components/frota/AgregadosDashboard';
-import AgregadosFormModal from '@/components/frota/AgregadosFormModal';
-import AbastecimentosTable from '@/components/frota/AbastecimentosTable';
-import MultasTable from '@/components/frota/MultasTable';
-import { VehicleFineQueryModal } from '@/components/frota/VehicleFineQueryModal';
-import BateriasTable from '@/components/frota/BateriasTable';
-import VehicleDocumentsTable from '@/components/frota/VehicleDocumentsTable';
-import MobilizationPanel from '@/components/frota/MobilizationPanel';
-import VeiculoFormModal from '@/components/frota/VeiculoFormModal';
-import VeiculoEditModal from '@/components/frota/VeiculoEditModal';
-import AbastecimentoInternoFormModal from '@/components/frota/AbastecimentoInternoFormModal';
-import AbastecimentoExternoFormModal from '@/components/frota/AbastecimentoExternoFormModal';
-import AbastecimentoExternoReport from '@/components/frota/AbastecimentoExternoReport';
-import MultaFormModal from '@/components/frota/MultaFormModal';
-import MultaViewModal from '@/components/frota/MultaViewModal';
-import MultaDeleteDialog from '@/components/frota/MultaDeleteDialog';
-import { FuelConsumptionStats } from '@/components/frota/FuelConsumptionStats';
-import { FuelConsumptionOverview } from '@/components/frota/FuelConsumptionOverview';
-import { DriverFuelConsumptionStats } from '@/components/frota/DriverFuelConsumptionStats';
-import { DriverRankingStats } from '@/components/frota/DriverRankingStats';
-import { ManutencoesTable } from '@/components/frota/ManutencoesTable';
-import GestaoPlanoManutencaoFrota from '@/components/frota/GestaoPlanoManutencaoFrota';
-import ManutencaoFormModal from '@/components/frota/ManutencaoFormModal';
-import OrdensServicoTable from '@/components/frota/OrdensServicoTable';
-import { ManutencaoViewModal } from '@/components/frota/ManutencaoViewModal';
-import { ManutencaoDeleteDialog } from '@/components/frota/ManutencaoDeleteDialog';
-import MotoristasTable from '@/components/frota/MotoristasTable';
-import DriverFormModal from '@/components/frota/DriverFormModal';
-import { DriverDeleteDialog } from '@/components/frota/DriverDeleteDialog';
-import KmControlTable from '@/components/frota/KmControlTable';
-import KmControlFormModal from '@/components/frota/KmControlFormModal';
-import KmControlViewModal from '@/components/frota/KmControlViewModal';
-import KmControlDeleteDialog from '@/components/frota/KmControlDeleteDialog';
-import VehicleReportModal from '@/components/frota/VehicleReportModal';
+
+// Lazy loading de abas e modais secundários para carregamento instantâneo da página
+const VehicleImportModal = lazy(() => import('@/components/frota/VehicleImportModal').then(m => ({ default: m.VehicleImportModal })));
+const VehicleCrlvImportModal = lazy(() => import('@/components/frota/VehicleCrlvImportModal').then(m => ({ default: m.VehicleCrlvImportModal })));
+const CrlvUploadTab = lazy(() => import('@/components/frota/CrlvUploadTab').then(m => ({ default: m.CrlvUploadTab })));
+const AgregadosTable = lazy(() => import('@/components/frota/AgregadosTable'));
+const AgregadosDashboard = lazy(() => import('@/components/frota/AgregadosDashboard'));
+const AgregadosFormModal = lazy(() => import('@/components/frota/AgregadosFormModal'));
+const AbastecimentosTable = lazy(() => import('@/components/frota/AbastecimentosTable'));
+const MultasTable = lazy(() => import('@/components/frota/MultasTable'));
+const VehicleFineQueryModal = lazy(() => import('@/components/frota/VehicleFineQueryModal').then(m => ({ default: m.VehicleFineQueryModal })));
+const BateriasTable = lazy(() => import('@/components/frota/BateriasTable'));
+const VehicleDocumentsTable = lazy(() => import('@/components/frota/VehicleDocumentsTable'));
+const MobilizationPanel = lazy(() => import('@/components/frota/MobilizationPanel'));
+const VeiculoFormModal = lazy(() => import('@/components/frota/VeiculoFormModal'));
+const VeiculoEditModal = lazy(() => import('@/components/frota/VeiculoEditModal'));
+const AbastecimentoInternoFormModal = lazy(() => import('@/components/frota/AbastecimentoInternoFormModal'));
+const AbastecimentoExternoFormModal = lazy(() => import('@/components/frota/AbastecimentoExternoFormModal'));
+const AbastecimentoExternoReport = lazy(() => import('@/components/frota/AbastecimentoExternoReport'));
+const MultaFormModal = lazy(() => import('@/components/frota/MultaFormModal'));
+const MultaViewModal = lazy(() => import('@/components/frota/MultaViewModal'));
+const MultaDeleteDialog = lazy(() => import('@/components/frota/MultaDeleteDialog'));
+const FuelConsumptionStats = lazy(() => import('@/components/frota/FuelConsumptionStats').then(m => ({ default: m.FuelConsumptionStats })));
+const FuelConsumptionOverview = lazy(() => import('@/components/frota/FuelConsumptionOverview').then(m => ({ default: m.FuelConsumptionOverview })));
+const DriverFuelConsumptionStats = lazy(() => import('@/components/frota/DriverFuelConsumptionStats').then(m => ({ default: m.DriverFuelConsumptionStats })));
+const DriverRankingStats = lazy(() => import('@/components/frota/DriverRankingStats').then(m => ({ default: m.DriverRankingStats })));
+const ManutencoesTable = lazy(() => import('@/components/frota/ManutencoesTable').then(m => ({ default: m.ManutencoesTable })));
+const GestaoPlanoManutencaoFrota = lazy(() => import('@/components/frota/GestaoPlanoManutencaoFrota'));
+const ManutencaoFormModal = lazy(() => import('@/components/frota/ManutencaoFormModal'));
+const OrdensServicoTable = lazy(() => import('@/components/frota/OrdensServicoTable'));
+const ManutencaoViewModal = lazy(() => import('@/components/frota/ManutencaoViewModal').then(m => ({ default: m.ManutencaoViewModal })));
+const ManutencaoDeleteDialog = lazy(() => import('@/components/frota/ManutencaoDeleteDialog').then(m => ({ default: m.ManutencaoDeleteDialog })));
+const MotoristasTable = lazy(() => import('@/components/frota/MotoristasTable'));
+const DriverFormModal = lazy(() => import('@/components/frota/DriverFormModal'));
+const DriverDeleteDialog = lazy(() => import('@/components/frota/DriverDeleteDialog').then(m => ({ default: m.DriverDeleteDialog })));
+const KmControlTable = lazy(() => import('@/components/frota/KmControlTable'));
+const KmControlFormModal = lazy(() => import('@/components/frota/KmControlFormModal'));
+const KmControlViewModal = lazy(() => import('@/components/frota/KmControlViewModal'));
+const KmControlDeleteDialog = lazy(() => import('@/components/frota/KmControlDeleteDialog'));
+const VehicleReportModal = lazy(() => import('@/components/frota/VehicleReportModal'));
+
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import fleetService from '@/services/fleetService';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 import driverService from '@/services/driverService';
 import { employeeService } from '@/services/employeeService';
 import maintenanceService from '@/services/maintenanceService';
@@ -60,7 +62,6 @@ import { VehicleMaintenance } from '@/types/maintenance';
 import { reportLayoutService } from '@/services/reportLayoutService';
 import { StandardReportTemplate } from '@/components/reporting/StandardReportTemplate';
 import { Company } from '@/types/company';
-import { companyService } from '@/services/companyService';
 
 // Tipos para os componentes existentes (mantendo compatibilidade)
 interface VeiculoComponent {
@@ -268,33 +269,21 @@ const Frota: React.FC = () => {
   // Estados para relatórios
   const [showMultaSelection, setShowMultaSelection] = useState(false);
   const [fineToDownload, setFineToDownload] = useState<any>(null);
-  const [empresa, setEmpresa] = useState<Company | undefined>(undefined);
+  const { empresa } = useAuth();
 
-  useEffect(() => {
-    // Carregar dados da empresa para o layout premium
-    const fetchCompany = async () => {
-      try {
-        const companies = await companyService.getAllCompanies();
-        if (companies && companies.length > 0) {
-          setEmpresa(companies[0]);
-        }
-      } catch (error) {
-        console.error('Erro ao carregar dados da empresa:', error);
-      }
-    };
-    fetchCompany();
-  }, []);
-
-  // Buscar veículos
+  // Buscar veículos com cache em memória e resposta instantânea (0ms de carregamento inicial)
   const {
-    data: vehicles,
+    data: vehicles = [],
     isLoading: vehiclesLoading,
     error: vehiclesError,
     refetch: refetchVehicles
   } = useQuery({
     queryKey: ['vehicles'],
     queryFn: () => fleetService.getVehicles(),
+    initialData: () => fleetService.getInitialCachedVehicles(),
+    initialDataUpdatedAt: () => fleetService.getInitialCachedVehiclesTimestamp(),
     staleTime: 60 * 1000,
+    gcTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,
     retry: 1
   });
@@ -308,7 +297,7 @@ const Frota: React.FC = () => {
   } = useQuery({
     queryKey: ['fuelRecords'],
     queryFn: () => fleetService.getFuelRecords(),
-    staleTime: 60 * 1000,
+    staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
     retry: 1
   });
@@ -322,7 +311,7 @@ const Frota: React.FC = () => {
   } = useQuery({
     queryKey: ['fines'],
     queryFn: () => fleetService.getFines(),
-    staleTime: 60 * 1000,
+    staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
     retry: 1
   });
@@ -451,14 +440,15 @@ const Frota: React.FC = () => {
 
   // Mapear dados para componentes (memoizado para evitar re-renderizações desnecessárias)
   const veiculosFiltrados = React.useMemo(() => {
-    return vehicles?.filter(v => {
+    if (!Array.isArray(vehicles)) return [];
+    return vehicles.filter(v => {
       const temId = v && v.id;
       const temPlate = v && v.plate;
       const temModel = v && v.model;
       const temBrand = v && v.brand;
 
       return temId && temPlate && temModel && temBrand;
-    }) || [];
+    });
   }, [vehicles]);
 
   const veiculosComponent = React.useMemo(() => {
@@ -466,11 +456,11 @@ const Frota: React.FC = () => {
   }, [veiculosFiltrados]);
 
   const abastecimentosComponent = React.useMemo(() => {
-    return fuelRecords?.map(mapFuelRecordToComponent) || [];
+    return Array.isArray(fuelRecords) ? fuelRecords.map(mapFuelRecordToComponent) : [];
   }, [fuelRecords]);
 
   const multasComponent = React.useMemo(() => {
-    if (!fines) return [];
+    if (!Array.isArray(fines)) return [];
     return fines.map((fine): MultaComponent => {
       const vehicle = fine.vehicleId != null ? vehicleMap.get(fine.vehicleId) : undefined;
       return {
@@ -484,10 +474,10 @@ const Frota: React.FC = () => {
         motorista_cnh: fine.driverLicenseNumber || undefined,
         data_infracao: fine.date,
         data_vencimento: fine.dueDate || fine.date,
-        valor: fine.amount,
+        valor: fine.amount || 0,
         pontos: fine.points || 0,
-        tipo_infracao: fine.description,
-        local_infracao: fine.location,
+        tipo_infracao: fine.description || '',
+        local_infracao: fine.location || '',
         status: fine.status === 'PAID' ? 'paga' : fine.status === 'PENDING' ? 'pendente' : 'vencida',
         observacoes: undefined,
         driverPhone: fine.driverPhone || undefined,
@@ -498,13 +488,13 @@ const Frota: React.FC = () => {
   }, [fines, vehicleMap]);
 
   // Calcular estatísticas
-  const vehiclesActive = vehicles?.filter(v => v.status === 'ACTIVE').length || 0;
-  const totalFuelRecords = fuelRecords?.length || 0;
-  const totalFuelCost = fuelRecords?.reduce((acc, curr) => acc + curr.cost, 0) || 0;
-  const totalFines = fines?.length || 0;
-  const totalFinesAmount = fines?.reduce((acc, curr) => acc + curr.amount, 0) || 0;
-  const pendingFines = fines?.filter(f => f.status === 'PENDING').length || 0;
-  const aggregatedVehicles = vehicles?.filter(v => (v as any).isAggregated === true).length || 0;
+  const vehiclesActive = Array.isArray(vehicles) ? vehicles.filter(v => v.status === 'ACTIVE').length : 0;
+  const totalFuelRecords = Array.isArray(fuelRecords) ? fuelRecords.length : 0;
+  const totalFuelCost = Array.isArray(fuelRecords) ? fuelRecords.reduce((acc, curr) => acc + (curr.cost || 0), 0) : 0;
+  const totalFines = Array.isArray(fines) ? fines.length : 0;
+  const totalFinesAmount = Array.isArray(fines) ? fines.reduce((acc, curr) => acc + (curr.amount || 0), 0) : 0;
+  const pendingFines = Array.isArray(fines) ? fines.filter(f => f.status === 'PENDING').length : 0;
+  const aggregatedVehicles = Array.isArray(vehicles) ? vehicles.filter(v => (v as any).isAggregated === true).length : 0;
 
   // Calcular multas próximas do vencimento (7 dias)
   const finesNearDue = React.useMemo(() => {
@@ -1185,7 +1175,10 @@ const Frota: React.FC = () => {
 
       document.body.appendChild(reportElement);
 
-      // Capturar como imagem
+      // Capturar como imagem e gerar PDF sob demanda (sem pesar o carregamento inicial da página)
+      const { default: html2canvas } = await import('html2canvas');
+      const { default: jsPDF } = await import('jspdf');
+
       const canvas = await html2canvas(reportElement, {
         scale: 2,
         useCORS: true,
@@ -1307,7 +1300,7 @@ const Frota: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-seguranca-lightgray">
-                {vehiclesLoading ? '...' : vehiclesActive}
+                {vehiclesLoading && veiculosComponent.length === 0 ? '...' : vehiclesActive}
               </div>
             </CardContent>
           </Card>
@@ -1358,7 +1351,7 @@ const Frota: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-orange-400">
-                {vehiclesLoading ? '...' : aggregatedVehicles}
+                {vehiclesLoading && veiculosComponent.length === 0 ? '...' : aggregatedVehicles}
               </div>
               <p className="text-xs text-gray-400">Veículos de terceiros</p>
             </CardContent>
@@ -1409,6 +1402,12 @@ const Frota: React.FC = () => {
             </TabsTrigger>
           </TabsList>
 
+          <Suspense fallback={
+            <div className="flex items-center justify-center h-48 bg-seguranca-graphite border border-gray-600 rounded-lg">
+              <Loader2 className="h-6 w-6 animate-spin text-seguranca-yellow mr-2" />
+              <span className="text-sm text-seguranca-lightgray">Carregando painel...</span>
+            </div>
+          }>
           <TabsContent value="veiculos" className="mt-6 space-y-4">
             {activeTab === 'veiculos' && (
               <>
@@ -1493,12 +1492,12 @@ const Frota: React.FC = () => {
               </div>
             </div>
 
-            {vehiclesLoading ? (
+            {vehiclesLoading && veiculosComponent.length === 0 ? (
               <div className="flex items-center justify-center h-48 bg-seguranca-graphite border border-gray-600 rounded-lg">
                 <Loader2 className="h-6 w-6 animate-spin text-seguranca-yellow mr-2" />
                 <span className="text-sm text-seguranca-lightgray">Carregando lista de veículos...</span>
               </div>
-            ) : vehiclesError ? (
+            ) : vehiclesError && veiculosComponent.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-48 bg-seguranca-graphite border border-gray-600 rounded-lg p-4 space-y-3">
                 <AlertTriangle className="h-8 w-8 text-red-500" />
                 <p className="text-sm text-red-400">Erro ao carregar veículos.</p>
@@ -2065,227 +2064,255 @@ const Frota: React.FC = () => {
           <TabsContent value="crlv" className="mt-6">
             {activeTab === 'crlv' && <CrlvUploadTab onSuccess={refetchVehicles} />}
           </TabsContent>
+          </Suspense>
         </Tabs>
 
-        {/* Modais */}
-        <VeiculoFormModal
-          isOpen={isVeiculoModalOpen}
-          onClose={() => {
-            console.log('🔍 Fechando modal de novo veículo');
-            setIsVeiculoModalOpen(false);
-          }}
-          onSuccess={handleVeiculoSuccess}
-        />
+        {/* Modais carregados sob demanda (0 impacto de memória/DOM quando fechados) */}
+        <Suspense fallback={null}>
+        {isVeiculoModalOpen && (
+          <VeiculoFormModal
+            isOpen={isVeiculoModalOpen}
+            onClose={() => {
+              console.log('🔍 Fechando modal de novo veículo');
+              setIsVeiculoModalOpen(false);
+            }}
+            onSuccess={handleVeiculoSuccess}
+          />
+        )}
 
-        <VeiculoEditModal
-          isOpen={isVeiculoEditModalOpen}
-          onClose={() => setIsVeiculoEditModalOpen(false)}
-          onSuccess={handleVeiculoEditSuccess}
-          veiculo={selectedVeiculo}
-        />
+        {isVeiculoEditModalOpen && (
+          <VeiculoEditModal
+            isOpen={isVeiculoEditModalOpen}
+            onClose={() => setIsVeiculoEditModalOpen(false)}
+            onSuccess={handleVeiculoEditSuccess}
+            veiculo={selectedVeiculo}
+          />
+        )}
 
-        <AbastecimentoInternoFormModal
-          isOpen={isAbastecimentoModalOpen}
-          onClose={() => setIsAbastecimentoModalOpen(false)}
-          onSuccess={handleAbastecimentoSuccess}
-          veiculos={vehicles || []}
-        />
+        {isAbastecimentoModalOpen && (
+          <AbastecimentoInternoFormModal
+            isOpen={isAbastecimentoModalOpen}
+            onClose={() => setIsAbastecimentoModalOpen(false)}
+            onSuccess={handleAbastecimentoSuccess}
+            veiculos={vehicles || []}
+          />
+        )}
 
-        <ManutencaoFormModal
-          isOpen={isManutencaoModalOpen}
-          onClose={() => setIsManutencaoModalOpen(false)}
-          onSuccess={handleManutencaoSuccess}
-          veiculos={vehicles || []}
-          manutencao={selectedManutencao}
-        />
+        {isManutencaoModalOpen && (
+          <ManutencaoFormModal
+            isOpen={isManutencaoModalOpen}
+            onClose={() => setIsManutencaoModalOpen(false)}
+            onSuccess={handleManutencaoSuccess}
+            veiculos={vehicles || []}
+            manutencao={selectedManutencao}
+          />
+        )}
 
-        <ManutencaoViewModal
-          isOpen={isManutencaoViewModalOpen}
-          onClose={() => {
-            setIsManutencaoViewModalOpen(false);
-            setSelectedManutencao(null);
-          }}
-          maintenance={selectedManutencao}
-          onEdit={handleEditManutencao}
-          onDelete={(maintenance) => {
-            setSelectedManutencao(maintenance);
-            setIsManutencaoViewModalOpen(false);
-            setIsManutencaoDeleteDialogOpen(true);
-          }}
-        />
+        {isManutencaoViewModalOpen && selectedManutencao && (
+          <ManutencaoViewModal
+            isOpen={isManutencaoViewModalOpen}
+            onClose={() => {
+              setIsManutencaoViewModalOpen(false);
+              setSelectedManutencao(null);
+            }}
+            maintenance={selectedManutencao}
+            onEdit={handleEditManutencao}
+            onDelete={(maintenance) => {
+              setSelectedManutencao(maintenance);
+              setIsManutencaoViewModalOpen(false);
+              setIsManutencaoDeleteDialogOpen(true);
+            }}
+          />
+        )}
 
-        <ManutencaoDeleteDialog
-          isOpen={isManutencaoDeleteDialogOpen}
-          onClose={() => {
-            setIsManutencaoDeleteDialogOpen(false);
-            setSelectedManutencao(null);
-          }}
-          maintenance={selectedManutencao}
-          onConfirm={handleDeleteManutencao}
-          isDeleting={isManutencaoDeleting}
-        />
+        {isManutencaoDeleteDialogOpen && (
+          <ManutencaoDeleteDialog
+            isOpen={isManutencaoDeleteDialogOpen}
+            onClose={() => {
+              setIsManutencaoDeleteDialogOpen(false);
+              setSelectedManutencao(null);
+            }}
+            maintenance={selectedManutencao}
+            onConfirm={handleDeleteManutencao}
+            isDeleting={isManutencaoDeleting}
+          />
+        )}
 
-        <MultaFormModal
-          isOpen={isMultaModalOpen}
-          onClose={() => setIsMultaModalOpen(false)}
-          onSuccess={handleMultaSuccess}
-          multa={selectedMulta}
-          veiculos={vehicles ? vehicles.map(v => ({
-            id: v.id,
-            placa: v.plate,
-            marca: v.brand,
-            modelo: v.model,
-            ano: v.year,
-            cor: v.color || '',
-            combustivel: v.fuelType.toLowerCase(),
-            quilometragem: v.currentMileage || 0,
-            status: v.status.toLowerCase(),
-            data_aquisicao: v.acquisitionDate,
-            valor_aquisicao: v.acquisitionValue ? Number(v.acquisitionValue) : undefined,
-            photos: Array.isArray(v.photos)
-              ? (v.photos as any[]).map((f: any) => typeof f === 'string' ? f : f?.name || '').filter(Boolean).join(',')
-              : (typeof v.photos === 'string' ? v.photos : undefined),
-            capacidade: v.capacity,
-            observacoes: v.notes
-          })) : []}
-        />
+        {isMultaModalOpen && (
+          <MultaFormModal
+            isOpen={isMultaModalOpen}
+            onClose={() => setIsMultaModalOpen(false)}
+            onSuccess={handleMultaSuccess}
+            multa={selectedMulta}
+            veiculos={vehicles ? vehicles.map(v => ({
+              id: v.id,
+              placa: v.plate || '',
+              marca: v.brand || '',
+              modelo: v.model || '',
+              ano: v.year || 0,
+              cor: v.color || '',
+              combustivel: (v.fuelType || '').toLowerCase(),
+              quilometragem: v.currentMileage || 0,
+              status: (v.status || '').toLowerCase(),
+              data_aquisicao: v.acquisitionDate,
+              valor_aquisicao: v.acquisitionValue ? Number(v.acquisitionValue) : undefined,
+              photos: Array.isArray(v.photos)
+                ? (v.photos as any[]).map((f: any) => typeof f === 'string' ? f : f?.name || '').filter(Boolean).join(',')
+                : (typeof v.photos === 'string' ? v.photos : undefined),
+              capacidade: v.capacity,
+              observacoes: v.notes
+            })) : []}
+          />
+        )}
 
-        <MultaViewModal
-          multa={selectedMulta}
-          isOpen={isMultaViewModalOpen}
-          onClose={() => {
-            setIsMultaViewModalOpen(false);
-            setSelectedMulta(null);
-          }}
-          onGenerateReport={handleGenerateSingleFineReport}
-        />
+        {isMultaViewModalOpen && selectedMulta && (
+          <MultaViewModal
+            multa={selectedMulta}
+            isOpen={isMultaViewModalOpen}
+            onClose={() => {
+              setIsMultaViewModalOpen(false);
+              setSelectedMulta(null);
+            }}
+            onGenerateReport={handleGenerateSingleFineReport}
+          />
+        )}
 
-        <MultaDeleteDialog
-          multa={selectedMulta}
-          isOpen={isMultaDeleteDialogOpen}
-          onClose={() => {
-            setIsMultaDeleteDialogOpen(false);
-            setSelectedMulta(null);
-          }}
-          onDelete={() => {
-            console.log('🗑️ Multa excluída! Atualizando lista...');
+        {isMultaDeleteDialogOpen && selectedMulta && (
+          <MultaDeleteDialog
+            multa={selectedMulta}
+            isOpen={isMultaDeleteDialogOpen}
+            onClose={() => {
+              setIsMultaDeleteDialogOpen(false);
+              setSelectedMulta(null);
+            }}
+            onDelete={() => {
+              queryClient.invalidateQueries({ queryKey: ['fines'] });
+              refetchFines();
+              setIsMultaDeleteDialogOpen(false);
+              setSelectedMulta(null);
+            }}
+          />
+        )}
 
-            // Invalidar queries para forçar atualização
-            queryClient.invalidateQueries({ queryKey: ['fines'] });
+        {isDriverModalOpen && (
+          <DriverFormModal
+            isOpen={isDriverModalOpen}
+            onOpenChange={setIsDriverModalOpen}
+            onSuccess={handleDriverSuccess}
+            driver={selectedDriver}
+          />
+        )}
 
-            // Refetch explícito
-            refetchFines();
+        {isDriverDeleteDialogOpen && (
+          <DriverDeleteDialog
+            isOpen={isDriverDeleteDialogOpen}
+            onClose={() => {
+              setIsDriverDeleteDialogOpen(false);
+              setDriverToDelete(null);
+            }}
+            driver={driverToDelete}
+            onConfirm={(driver) => {
+              deleteDriverMutation.mutate(driver.id);
+              setIsDriverDeleteDialogOpen(false);
+              setDriverToDelete(null);
+            }}
+            isDeleting={deleteDriverMutation.isPending}
+          />
+        )}
 
-            // Fechar dialog
-            setIsMultaDeleteDialogOpen(false);
-            setSelectedMulta(null);
+        {isKmControlModalOpen && (
+          <KmControlFormModal
+            isOpen={isKmControlModalOpen}
+            onClose={() => {
+              setIsKmControlModalOpen(false);
+              setSelectedKmControl(null);
+            }}
+            onSuccess={handleKmControlSuccess}
+            kmControl={selectedKmControl}
+            vehicles={vehicles || []}
+          />
+        )}
 
-            console.log('✅ Lista de multas atualizada após exclusão!');
-          }}
-        />
+        {isKmControlViewModalOpen && selectedKmControl && (
+          <KmControlViewModal
+            kmControl={selectedKmControl}
+            isOpen={isKmControlViewModalOpen}
+            onClose={() => {
+              setIsKmControlViewModalOpen(false);
+              setSelectedKmControl(null);
+            }}
+            onEdit={handleEditKmControl}
+            onDelete={handleDeleteKmControl}
+          />
+        )}
 
-        <DriverFormModal
-          isOpen={isDriverModalOpen}
-          onOpenChange={setIsDriverModalOpen}
-          onSuccess={handleDriverSuccess}
-          driver={selectedDriver}
-        />
+        {isKmControlDeleteDialogOpen && (
+          <KmControlDeleteDialog
+            kmControl={selectedKmControl}
+            isOpen={isKmControlDeleteDialogOpen}
+            onClose={() => {
+              setIsKmControlDeleteDialogOpen(false);
+              setSelectedKmControl(null);
+            }}
+            onConfirm={handleConfirmDeleteKmControl}
+            isDeleting={isKmControlDeleting}
+          />
+        )}
 
-        {/* Dialog de Exclusão de Motorista */}
-        <DriverDeleteDialog
-          isOpen={isDriverDeleteDialogOpen}
-          onClose={() => {
-            setIsDriverDeleteDialogOpen(false);
-            setDriverToDelete(null);
-          }}
-          driver={driverToDelete}
-          onConfirm={(driver) => {
-            deleteDriverMutation.mutate(driver.id);
-            setIsDriverDeleteDialogOpen(false);
-            setDriverToDelete(null);
-          }}
-          isDeleting={deleteDriverMutation.isPending}
-        />
+        {isVehicleReportModalOpen && (
+          <VehicleReportModal
+            isOpen={isVehicleReportModalOpen}
+            onClose={() => {
+              setIsVehicleReportModalOpen(false);
+            }}
+          />
+        )}
 
-        {/* Modais de Controle de KM */}
-        <KmControlFormModal
-          isOpen={isKmControlModalOpen}
-          onClose={() => {
-            setIsKmControlModalOpen(false);
-            setSelectedKmControl(null);
-          }}
-          onSuccess={handleKmControlSuccess}
-          kmControl={selectedKmControl}
-          vehicles={vehicles || []}
-        />
+        {isVehicleImportModalOpen && (
+          <VehicleImportModal
+            open={isVehicleImportModalOpen}
+            onOpenChange={setIsVehicleImportModalOpen}
+            onSuccess={() => {
+              refetchVehicles();
+            }}
+          />
+        )}
 
-        <KmControlViewModal
-          kmControl={selectedKmControl}
-          isOpen={isKmControlViewModalOpen}
-          onClose={() => {
-            setIsKmControlViewModalOpen(false);
-            setSelectedKmControl(null);
-          }}
-          onEdit={handleEditKmControl}
-          onDelete={handleDeleteKmControl}
-        />
+        {isCrlvModalOpen && (
+          <VehicleCrlvImportModal
+            open={isCrlvModalOpen}
+            onOpenChange={setIsCrlvModalOpen}
+            onSuccess={() => {
+              refetchVehicles();
+            }}
+          />
+        )}
 
-        <KmControlDeleteDialog
-          kmControl={selectedKmControl}
-          isOpen={isKmControlDeleteDialogOpen}
-          onClose={() => {
-            setIsKmControlDeleteDialogOpen(false);
-            setSelectedKmControl(null);
-          }}
-          onConfirm={handleConfirmDeleteKmControl}
-          isDeleting={isKmControlDeleting}
-        />
+        {isFineQueryModalOpen && (
+          <VehicleFineQueryModal
+            isOpen={isFineQueryModalOpen}
+            onClose={() => setIsFineQueryModalOpen(false)}
+            initialPlate={fineQueryPlate}
+            initialRenavam={fineQueryRenavam}
+            initialUf={fineQueryUf}
+            onFinesUpdated={() => {
+              refetchFines();
+            }}
+          />
+        )}
 
-        <VehicleReportModal
-          isOpen={isVehicleReportModalOpen}
-          onClose={() => {
-            console.log('🔍 Fechando modal de relatório');
-            setIsVehicleReportModalOpen(false);
-          }}
-        />
-
-        <VehicleImportModal
-          open={isVehicleImportModalOpen}
-          onOpenChange={setIsVehicleImportModalOpen}
-          onSuccess={() => {
-            refetchVehicles();
-          }}
-        />
-
-        <VehicleCrlvImportModal
-          open={isCrlvModalOpen}
-          onOpenChange={setIsCrlvModalOpen}
-          onSuccess={() => {
-            refetchVehicles();
-          }}
-        />
-
-        <VehicleFineQueryModal
-          isOpen={isFineQueryModalOpen}
-          onClose={() => setIsFineQueryModalOpen(false)}
-          initialPlate={fineQueryPlate}
-          initialRenavam={fineQueryRenavam}
-          initialUf={fineQueryUf}
-          onFinesUpdated={() => {
-            refetchFines();
-          }}
-        />
-
-        <AgregadosFormModal
-          isOpen={isAgregadoModalOpen}
-          onOpenChange={setIsAgregadoModalOpen}
-          onSuccess={() => {
-            refetchVehicles();
-            setSelectedAgregado(null);
-          }}
-          vehicle={selectedAgregado}
-          vehicles={vehicles || []}
-        />
+        {isAgregadoModalOpen && (
+          <AgregadosFormModal
+            isOpen={isAgregadoModalOpen}
+            onOpenChange={setIsAgregadoModalOpen}
+            onSuccess={() => {
+              refetchVehicles();
+              setSelectedAgregado(null);
+            }}
+            vehicle={selectedAgregado}
+            vehicles={vehicles || []}
+          />
+        )}
 
         {isAbastecimentoExternoModalOpen && (
           <AbastecimentoExternoFormModal
@@ -2298,6 +2325,7 @@ const Frota: React.FC = () => {
             veiculos={vehicles || []}
           />
         )}
+        </Suspense>
 
       </div>
       {/* Printable Area (Hidden) */}
