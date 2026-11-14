@@ -38,6 +38,10 @@ import {
   AlertTriangle,
   Bell,
   Check,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   Clock,
   Edit3,
   Plus,
@@ -84,6 +88,13 @@ export const FleetComponentControlsPanel: React.FC<FleetComponentControlsPanelPr
   const [selectedYear, setSelectedYear] = useState<string>(String(new Date().getFullYear()));
   const [alertModalOpen, setAlertModalOpen] = useState(false);
   const [hasTriggeredAutoModal, setHasTriggeredAutoModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(25);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [subTab, searchTerm, statusFilter, selectedMonth, selectedYear]);
 
   // Manual entry modal state
   const [manualModalOpen, setManualModalOpen] = useState(false);
@@ -205,6 +216,12 @@ export const FleetComponentControlsPanel: React.FC<FleetComponentControlsPanelPr
       );
     });
   }, [dashboard, subTab, searchTerm, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const paginatedRows = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredRows.slice(start, start + pageSize);
+  }, [filteredRows, currentPage, pageSize]);
 
   const showOilFilterColumns = subTab === 'ENGINE_OIL';
 
@@ -605,8 +622,8 @@ export const FleetComponentControlsPanel: React.FC<FleetComponentControlsPanelPr
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredRows.length > 0 ? (
-                    filteredRows.map((row) => {
+                  {paginatedRows.length > 0 ? (
+                    paginatedRows.map((row) => {
                       const isOverdue = row.alertStatus === 'OVERDUE';
                       const isSoon = row.alertStatus === 'DUE_SOON';
                       return (
@@ -721,6 +738,81 @@ export const FleetComponentControlsPanel: React.FC<FleetComponentControlsPanelPr
                 </TableBody>
               </Table>
             </div>
+
+            {/* Controles de Paginação */}
+            {filteredRows.length > 0 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-gray-800 bg-seguranca-black/40 text-xs text-gray-300">
+                <div className="flex items-center gap-2">
+                  <span>Linhas por página:</span>
+                  <Select
+                    value={String(pageSize)}
+                    onValueChange={(val) => {
+                      setPageSize(Number(val));
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="h-7 w-20 bg-seguranca-black border-gray-700 text-xs text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-seguranca-graphite border-gray-700 text-white">
+                      <SelectItem value="25">25</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-gray-400">
+                    Mostrando {Math.min((currentPage - 1) * pageSize + 1, filteredRows.length)} a{' '}
+                    {Math.min(currentPage * pageSize, filteredRows.length)} de {filteredRows.length.toLocaleString('pt-BR')} registros
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(1)}
+                    disabled={currentPage <= 1}
+                    className="h-7 w-7 p-0 border-gray-700 text-gray-300 disabled:opacity-30"
+                    title="Primeira página"
+                  >
+                    <ChevronsLeft className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage <= 1}
+                    className="h-7 w-7 p-0 border-gray-700 text-gray-300 disabled:opacity-30"
+                    title="Página anterior"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </Button>
+                  <span className="px-2 text-xs font-semibold text-white">
+                    Página {currentPage} de {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage >= totalPages}
+                    className="h-7 w-7 p-0 border-gray-700 text-gray-300 disabled:opacity-30"
+                    title="Próxima página"
+                  >
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(totalPages)}
+                    disabled={currentPage >= totalPages}
+                    className="h-7 w-7 p-0 border-gray-700 text-gray-300 disabled:opacity-30"
+                    title="Última página"
+                  >
+                    <ChevronsRight className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            )}
           )}
         </CardContent>
       </Card>
