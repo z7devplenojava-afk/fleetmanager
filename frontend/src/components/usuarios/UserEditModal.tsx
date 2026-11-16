@@ -48,6 +48,7 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
   const { user: currentUser, hasRole, refreshUser, logout } = useAuth();
   const { toast } = useToast();
   const isSuperAdmin = hasRole('SUPER_ADMIN');
+  const isCompanyAdmin = isSuperAdmin || hasRole('FLEX_ADMIN') || hasRole('COMPANY_ADMIN') || hasRole('ADMIN_EMPRESA') || hasRole('ADMIN');
   const canManageCompanies = isSuperAdmin || hasRole('FLEX_ADMIN');
   const [isLoading, setIsLoading] = useState(false);
   const [showReloginAlert, setShowReloginAlert] = useState(false);
@@ -978,6 +979,7 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
                     selectedRoles={formData.roles}
                     onChange={(roles) => handleInputChange('roles', roles)}
                     isSuperAdmin={isSuperAdmin}
+                    isCompanyAdmin={isCompanyAdmin}
                   />
                 </div>
 

@@ -12,6 +12,7 @@ interface RoleMultiSelectProps {
   selectedRoles: UserRole[];
   onChange: (roles: UserRole[]) => void;
   isSuperAdmin: boolean;
+  isCompanyAdmin?: boolean;
   disabled?: boolean;
 }
 
@@ -19,6 +20,7 @@ export const RoleMultiSelect: React.FC<RoleMultiSelectProps> = ({
   selectedRoles,
   onChange,
   isSuperAdmin,
+  isCompanyAdmin = false,
   disabled = false,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -61,9 +63,13 @@ export const RoleMultiSelect: React.FC<RoleMultiSelectProps> = ({
 
     return ROLE_CATEGORIES.map(category => {
       const allowedRoles = category.roles.filter(role => {
-        // Regra de segurança: apenas SUPER_ADMIN pode conceder perfis administrativos
+        // Regra de segurança: apenas SUPER_ADMIN pode conceder perfis de gestão global da plataforma
         if (!isSuperAdmin) {
-          if (role === 'SUPER_ADMIN' || role === 'FLEX_ADMIN' || role === 'COMPANY_ADMIN' || role === 'ADMIN' || role === 'TI_SUPORTE') {
+          if (role === 'SUPER_ADMIN' || role === 'FLEX_ADMIN') {
+            return false;
+          }
+          // Se não for nem Super Admin nem Administrador da Empresa, bloqueia criação de gestores de empresa
+          if (!isCompanyAdmin && (role === 'COMPANY_ADMIN' || role === 'ADMIN' || role === 'TI_SUPORTE')) {
             return false;
           }
         }
@@ -78,7 +84,7 @@ export const RoleMultiSelect: React.FC<RoleMultiSelectProps> = ({
         roles: allowedRoles,
       };
     }).filter(cat => cat.roles.length > 0);
-  }, [searchTerm, isSuperAdmin]);
+  }, [searchTerm, isSuperAdmin, isCompanyAdmin]);
 
   return (
     <div className="space-y-3">

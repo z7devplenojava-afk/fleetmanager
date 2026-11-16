@@ -182,9 +182,16 @@ const Usuarios: React.FC = () => {
       filtered = filtered.filter(user => extractRoleNames(user.roles).includes(roleFilter));
     }
 
-    // Filtro de segurança: somente SUPER_ADMIN gerencia outras contas administrativas
+    // Filtro de segurança:
+    // SuperAdmin global visualiza todas as contas.
+    // Administrador da Empresa (COMPANY_ADMIN) visualiza e gerencia os usuários da sua empresa (ocultando apenas SuperAdmins globais).
+    // Demais perfis visualizam apenas não-administradores e a própria conta.
     if (!isSuperAdmin) {
-      filtered = filtered.filter(user => !isAdminUser(user) || String(user.id) === String(currentUser?.id));
+      if (isCompanyAdmin) {
+        filtered = filtered.filter(user => !isTargetGlobalAdmin(user) || String(user.id) === String(currentUser?.id));
+      } else {
+        filtered = filtered.filter(user => !isAdminUser(user) || String(user.id) === String(currentUser?.id));
+      }
     }
 
     setFilteredUsers(filtered);

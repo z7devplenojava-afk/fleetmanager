@@ -92,6 +92,7 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
   const employeeComboboxRef = React.useRef<HTMLDivElement>(null);
 
   const isSuperAdmin = hasRole('SUPER_ADMIN');
+  const isCompanyAdmin = isSuperAdmin || hasRole('FLEX_ADMIN') || hasRole('COMPANY_ADMIN') || hasRole('ADMIN_EMPRESA') || hasRole('ADMIN');
   const canManageCompanies = isSuperAdmin || hasRole('FLEX_ADMIN');
 
   useEffect(() => {
@@ -357,6 +358,10 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
       const cleanCpfDigits = formData.cpf.replace(/\D/g, '');
       const empIdToLink = selectedEmployeeId !== 'none' ? selectedEmployeeId : (linkedEmployee?.id || undefined);
 
+      const targetCompanyId = (selectedCompanyId && selectedCompanyId !== 'none')
+        ? selectedCompanyId
+        : (!canManageCompanies && currentEmpresa?.id ? currentEmpresa.id : undefined);
+
       const userData: CreateUserRequest = {
         username: formData.username.trim(),
         email: formData.email.trim(),
@@ -368,7 +373,7 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
         whatsapp: formData.whatsapp ? formData.whatsapp.replace(/\D/g, '') : undefined,
         status: "ACTIVE",
         active: true,
-        companyId: (selectedCompanyId && selectedCompanyId !== 'none') ? selectedCompanyId : undefined
+        companyId: targetCompanyId
       };
 
       await userService.createUser(userData);
@@ -585,6 +590,7 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
                     selectedRoles={formData.roles}
                     onChange={(roles) => handleInputChange('roles', roles)}
                     isSuperAdmin={isSuperAdmin}
+                    isCompanyAdmin={isCompanyAdmin}
                   />
                 </div>
 
