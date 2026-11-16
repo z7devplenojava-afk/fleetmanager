@@ -24,6 +24,7 @@ if (typeof window !== 'undefined' && window.innerWidth >= 768 && !window.matchMe
 }
 
 import CookieConsent from '@/components/CookieConsent';
+import { SubscriptionBlockedModal } from '@/components/billing/SubscriptionBlockedModal';
 
 // Helper function para lazy loading com retry (Vite HMR / ERR_EMPTY_RESPONSE)
 const lazyWithRetry = (componentImport: () => Promise<any>, componentName: string, maxRetries = 3) => {
@@ -225,6 +226,7 @@ const AdmissaoDemissao = lazy(() => import('@/pages/AdmissaoDemissao'));
 const CentrosDeCusto = lazy(() => import('@/pages/CentrosDeCusto'));
 const ImportarDadosBancarios = lazy(() => import('@/pages/ImportarDadosBancarios'));
 const ImportarWhatsappPDF = lazy(() => import('@/pages/ImportarWhatsappPDF'));
+const ImportarVeiculosExcel = lazy(() => import('@/pages/ImportarVeiculosExcel'));
 const GestaoAtestados = lazy(() => import('@/pages/RH/GestaoAtestados'));
 const ModuloDespesasPage = lazy(() => import('@/pages/financeiro/ModuloDespesasPage'));
 
@@ -367,6 +369,7 @@ function App() {
                 >
                   <AuthProvider>
                     <EmpresaThemeSync />
+                    <SubscriptionBlockedModal />
                     <Routes>
                       {/* Portal Público */}
                       <Route path="/" element={<Suspense fallback={<LoadingSpinner />}><PortalHome /></Suspense>} />
@@ -459,6 +462,13 @@ function App() {
                         <ProtectedRoute>
                           <Suspense fallback={<LoadingSpinner />}>
                             <ImportarWhatsappPDF />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/sistema/importar-veiculos" element={
+                        <ProtectedRoute requiredRoles={['SUPER_ADMIN', 'FLEX_ADMIN', 'COMPANY_ADMIN', 'ADMIN']}>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <ImportarVeiculosExcel />
                           </Suspense>
                         </ProtectedRoute>
                       } />

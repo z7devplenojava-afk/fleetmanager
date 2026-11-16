@@ -245,6 +245,16 @@ api.interceptors.response.use(
     }
     const originalRequest = error.config;
 
+    // Tratar HTTP 402 Payment Required (Skill: saas-billing-enforcement)
+    if (error.response?.status === 402) {
+      const data = error.response?.data;
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('fluxbus:subscription-blocked', { detail: data }));
+      }
+      console.warn('🚨 [axios] 402 Payment Required: Assinatura da empresa suspensa por inadimplência.');
+      return Promise.reject(error);
+    }
+
     // Se o erro for 401 (não autorizado - token inválido/expirado)
     // 403 (Forbidden) é diferente - significa que o usuário está autenticado mas não tem permissão
     // Não devemos redirecionar para login em caso de 403, apenas em 401

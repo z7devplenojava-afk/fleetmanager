@@ -460,6 +460,33 @@ public class EmployeeController {
                         department.put("name", row[24]); // department_name
                         employee.put("department", department);
                     }
+
+                    // RG / CIN (index 25)
+                    if (row.length > 25 && row[25] != null) {
+                        employee.put("rg", row[25]);
+                        employee.put("cinNumero", row[25]);
+                    }
+
+                    // Telefone Contato (index 26)
+                    if (row.length > 26 && row[26] != null) {
+                        employee.put("telefoneContato", row[26]);
+                    }
+
+                    // Horário / Escala (index 27)
+                    if (row.length > 27 && row[27] != null) {
+                        employee.put("horarioTrabalho", row[27]);
+                    }
+
+                    // Estado Civil (index 28)
+                    if (row.length > 28 && row[28] != null) {
+                        employee.put("maritalStatus", row[28]);
+                    }
+
+                    // Sexo (index 29)
+                    if (row.length > 29 && row[29] != null) {
+                        employee.put("sexo", row[29]);
+                        employee.put("gender", row[29]);
+                    }
                     
                     employees.add(employee);
                     } catch (Exception dtoError) {

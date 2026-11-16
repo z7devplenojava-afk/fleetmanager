@@ -105,6 +105,11 @@ const breadcrumbMap: Record<string, BreadcrumbItem[]> = {
     { label: 'Administrativo', path: '/usuarios' },
     { label: 'Usuários', path: '/usuarios' }
   ],
+  '/sistema/importar-veiculos': [
+    { label: 'Dashboard', path: '/dashboard', icon: Home },
+    { label: 'Sistema', path: '/sistema' },
+    { label: 'Importação de Veículos', path: '/sistema/importar-veiculos' }
+  ],
   '/grupos': [
     { label: 'Dashboard', path: '/dashboard', icon: Home },
     { label: 'Administrativo', path: '/grupos' },

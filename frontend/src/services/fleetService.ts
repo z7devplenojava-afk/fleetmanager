@@ -226,32 +226,34 @@ class FleetService {
     this.getInitialCachedVehicles = this.getInitialCachedVehicles.bind(this);
     this.getInitialCachedVehiclesTimestamp = this.getInitialCachedVehiclesTimestamp.bind(this);
 
-    // Inicializar cache em memória / localStorage para resposta instantânea (0ms)
-    let initialList: Vehicle[] = DEFAULT_FLEET_VEHICLES;
+    // Inicializar cache do localStorage apenas se houver dados reais salvos (nunca mock legado)
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
         const stored = localStorage.getItem('fleet_vehicles_cache');
         if (stored) {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            initialList = parsed;
+          if (stored.includes('v-qre1a23')) {
+            // Limpa mock legado imediatamente
+            localStorage.removeItem('fleet_vehicles_cache');
+          } else {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              this.vehiclesCache = { data: parsed, timestamp: Date.now() - (this.CACHE_TTL_MS - 5000) };
+            }
           }
         }
       }
     } catch (_) {}
-
-    this.vehiclesCache = { data: initialList, timestamp: Date.now() };
   }
 
   public getInitialCachedVehicles(): Vehicle[] {
     if (this?.vehiclesCache?.data?.length) {
       return this.vehiclesCache.data;
     }
-    return DEFAULT_FLEET_VEHICLES;
+    return [];
   }
 
   public getInitialCachedVehiclesTimestamp(): number {
-    return this.vehiclesCache?.timestamp || Date.now();
+    return this.vehiclesCache?.timestamp || 0;
   }
 
   public invalidateVehiclesCache(): void {
@@ -266,76 +268,76 @@ class FleetService {
 
   // Veículos
   getVehicles = async (forceRefresh = false): Promise<Vehicle[]> => {
-    // 1. Resposta instantânea da memória se cache for recente
+    if (forceRefresh) {
+      this.invalidateVehiclesCache();
+    }
+
+    // 1. Reutilizar requisição em voo se existir
+    if (this.vehiclesInFlight) {
+      return this.vehiclesInFlight;
+    }
+
+    // 2. Se temos cache recente e não for refresh forçado, retorna do cache
     if (!forceRefresh && this?.vehiclesCache && Date.now() - this.vehiclesCache.timestamp < this.CACHE_TTL_MS) {
       return this.vehiclesCache.data;
-    }
-    // 2. Reutilizar requisição em voo para evitar chamadas duplicadas simultâneas
-    if (!forceRefresh && this?.vehiclesInFlight) {
-      return this.vehiclesInFlight;
     }
 
     this.vehiclesInFlight = (async () => {
       try {
-        // Timeout ágil de 3.5s para evitar que a UI do usuário congele caso o backend esteja ocupado
-        const response = await api.get('/api/vehicles', { timeout: 3500 });
+        console.log('🔍 FleetService - Buscando veículos da API (/api/vehicles)...');
+        const response = await api.get('/api/vehicles', { timeout: 15000 });
         
-        const list = Array.isArray(response?.data) 
+        const list: Vehicle[] = Array.isArray(response?.data) 
           ? response.data 
           : (Array.isArray(response?.data?.content) ? response.data.content : []);
         
-        const validList = list.length > 0 ? list : (this?.vehiclesCache?.data?.length ? this.vehiclesCache.data : DEFAULT_FLEET_VEHICLES);
-        this.vehiclesCache = { data: validList, timestamp: Date.now() };
+        console.log(`✅ FleetService - Veículos retornados pelo servidor: ${list.length}`);
+        this.vehiclesCache = { data: list, timestamp: Date.now() };
         try {
-          if (typeof window !== 'undefined' && window.localStorage && validList.length > 0) {
-            localStorage.setItem('fleet_vehicles_cache', JSON.stringify(validList));
+          if (typeof window !== 'undefined' && window.localStorage) {
+            localStorage.setItem('fleet_vehicles_cache', JSON.stringify(list));
           }
         } catch (_) {}
-        return validList;
+        return list;
       } catch (error: any) {
-        console.warn('⚠️ FleetService - Falha ao buscar veículos do servidor, aplicando dados em cache:', error?.message);
-        if (this?.vehiclesCache?.data?.length) {
+        console.warn('⚠️ FleetService - Falha ao buscar veículos do servidor:', error?.message);
+        if (this?.vehiclesCache?.data) {
           return this.vehiclesCache.data;
         }
-        return DEFAULT_FLEET_VEHICLES;
+        return [];
       } finally {
         this.vehiclesInFlight = null;
       }
     })();
 
-    // Se temos dados em cache (mesmo que com timestamp anterior), retorna imediatamente para zero latência
-    if (this?.vehiclesCache?.data?.length && !forceRefresh) {
-      return this.vehiclesCache.data;
-    }
-
     return this.vehiclesInFlight;
   };
 
   async getVehicle(id: string): Promise<Vehicle | null> {
-    const response = await api.get(`/api/frota/vehicles/${id}`);
+    const response = await api.get(`/api/vehicles/${id}`);
     return response.data;
   }
 
   async createVehicle(vehicle: Omit<Vehicle, 'id' | 'createdAt' | 'updatedAt'>): Promise<Vehicle> {
-    const response = await api.post('/api/frota/vehicles', vehicle);
+    const response = await api.post('/api/vehicles', vehicle);
     this.invalidateVehiclesCache();
     return response.data;
   }
 
   async updateVehicle(id: string, vehicle: Partial<Vehicle>): Promise<Vehicle> {
-    const response = await api.put(`/api/frota/vehicles/${id}`, vehicle);
+    const response = await api.put(`/api/vehicles/${id}`, vehicle);
     this.invalidateVehiclesCache();
     return response.data;
   }
 
   async deleteVehicle(id: string): Promise<void> {
-    await api.delete(`/api/frota/vehicles/${id}`);
+    await api.delete(`/api/vehicles/${id}`);
     this.invalidateVehiclesCache();
   }
 
   /** Exclusão em massa (soft delete). Retorna { requested, deleted }. */
   async bulkDeleteVehicles(ids: string[]): Promise<{ requested: number; deleted: number }> {
-    const response = await api.post('/api/frota/vehicles/bulk-delete', ids);
+    const response = await api.post('/api/vehicles/bulk-delete', ids);
     this.invalidateVehiclesCache();
     return response.data;
   }
@@ -713,7 +715,7 @@ class FleetService {
     return response.data;
   }
 
-  async importVehiclesExcel(file: File): Promise<{
+  async importVehiclesExcel(file: File, companyId?: string): Promise<{
     totalRows: number;
     inserted: number;
     updated: number;
@@ -722,6 +724,9 @@ class FleetService {
   }> {
     const formData = new FormData();
     formData.append('file', file);
+    if (companyId) {
+      formData.append('companyId', companyId);
+    }
 
     const response = await api.post('/api/vehicles/import/excel', formData, {
       headers: {
@@ -729,6 +734,7 @@ class FleetService {
       },
     });
 
+    this.invalidateVehiclesCache();
     return response.data;
   }
 

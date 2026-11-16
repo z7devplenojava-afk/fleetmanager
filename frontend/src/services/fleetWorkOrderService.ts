@@ -379,6 +379,21 @@ class FleetWorkOrderService {
         return data;
     }
 
+    async approveExternalService(id: string, notes?: string): Promise<FleetWorkOrder> {
+        const { data } = await api.post(`/fleet-work-orders/${id}/approve-external-service`, { notes });
+        return data;
+    }
+
+    async rejectExternalService(id: string, reason: string): Promise<FleetWorkOrder> {
+        const { data } = await api.post(`/fleet-work-orders/${id}/reject-external-service`, { reason });
+        return data;
+    }
+
+    async assignMechanic(id: string): Promise<FleetWorkOrder> {
+        const { data } = await api.post(`/fleet-work-orders/${id}/assign-mechanic`);
+        return data;
+    }
+
     async delete(id: string): Promise<void> {
         await api.delete(`/fleet-work-orders/${id}`);
     }
@@ -426,6 +441,27 @@ class FleetWorkOrderService {
     async getVehicleRanking(): Promise<VehicleMaintenanceRanking[]> {
         const { data } = await api.get('/fleet-work-orders/ranking/vehicles');
         return data;
+    }
+
+    // ── Relatório de OS em PDF ───────────────────────────────────────────────
+
+    async downloadReportPdf(filters: {
+        startDate?: string;
+        endDate?: string;
+        status?: string;
+        vehicleId?: string;
+    }): Promise<Blob> {
+        const params: any = {};
+        if (filters.startDate) params.startDate = filters.startDate;
+        if (filters.endDate) params.endDate = filters.endDate;
+        if (filters.status && filters.status !== 'TODOS' && filters.status !== 'ALL') params.status = filters.status;
+        if (filters.vehicleId && filters.vehicleId !== 'ALL') params.vehicleId = filters.vehicleId;
+
+        const response = await api.get('/fleet-work-orders/report/pdf', {
+            params,
+            responseType: 'blob'
+        });
+        return response.data;
     }
 
     // ── Duplicar OS (PRD §25) ─────────────────────────────────────────────────

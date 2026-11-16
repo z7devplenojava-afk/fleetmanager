@@ -49,7 +49,24 @@ import { Sparkles, PieChart as PieChartIcon } from 'lucide-react';
 export const Empresas: React.FC = () => {
   const { toast } = useToast();
   const { user } = useAuth();
-  const isSuperAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'FLEX_ADMIN';
+  const userRoles = useMemo(() => {
+    const roles = new Set<string>();
+    if (user?.role) roles.add(user.role.replace(/^ROLE_/, '').toUpperCase());
+    if (Array.isArray(user?.roles)) {
+      user.roles.forEach((r: any) => {
+        const name = typeof r === 'string' ? r : r?.name;
+        if (name) roles.add(name.replace(/^ROLE_/, '').toUpperCase());
+      });
+    }
+    return Array.from(roles);
+  }, [user]);
+
+  const isSuperAdmin = userRoles.some(r => r === 'SUPER_ADMIN' || r === 'FLEX_ADMIN');
+  const canManage = isSuperAdmin || userRoles.some(r => 
+    r.includes('ADMIN') || 
+    r.includes('GESTOR') || 
+    r.includes('SUPERVISOR')
+  );
   const [mainTab, setMainTab] = useState<'empresas' | 'overview360'>('empresas');
   const [open, setOpen] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
@@ -376,7 +393,7 @@ export const Empresas: React.FC = () => {
                 Atualizar
               </Button>
 
-              {isSuperAdmin && (
+              {(isSuperAdmin || canManage) && (
                 <Button
                   className="h-10 bg-gradient-to-r from-seguranca-red to-red-600 hover:from-red-600 hover:to-seguranca-darkred text-white shadow-md shadow-red-950/20"
                   onClick={() => {
@@ -558,43 +575,50 @@ export const Empresas: React.FC = () => {
                               <Eye className="w-4 h-4" />
                             </Button>
 
-                            {isSuperAdmin && (
-                              <>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 w-8 p-0 text-blue-600 dark:text-blue-400 hover:text-blue-700 hover:bg-blue-500/10 rounded-lg"
-                                  title="Editar Empresa"
-                                  onClick={() => {
-                                    setEditing(c);
-                                    setOpen(true);
-                                  }}
-                                >
-                                  <Edit3 className="w-4 h-4" />
-                                </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-blue-600 dark:text-blue-400 hover:text-blue-700 hover:bg-blue-500/10 rounded-lg"
+                              title="Editar Empresa"
+                              onClick={() => {
+                                setEditing(c);
+                                setOpen(true);
+                              }}
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </Button>
 
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 w-8 p-0 text-amber-600 dark:text-amber-400 hover:text-amber-700 hover:bg-amber-500/10 rounded-lg"
-                                  title={isActive ? 'Desativar Empresa' : 'Ativar Empresa'}
-                                  onClick={() => handleToggleStatus(c)}
-                                  disabled={togglingStatusId === c.id}
-                                >
-                                  <Power className="w-4 h-4" />
-                                </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 hover:bg-cyan-500/10 rounded-lg"
+                              title="Atualizar Dados da Empresa"
+                              onClick={() => loadCompanies()}
+                              disabled={loading}
+                            >
+                              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                            </Button>
 
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 w-8 p-0 text-red-600 dark:text-red-400 hover:text-red-700 hover:bg-red-500/10 rounded-lg"
-                                  title="Gerenciar Exclusão / Desativação"
-                                  onClick={() => openDeleteModal(c)}
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </>
-                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-amber-600 dark:text-amber-400 hover:text-amber-700 hover:bg-amber-500/10 rounded-lg"
+                              title={isActive ? 'Desativar Empresa' : 'Ativar Empresa'}
+                              onClick={() => handleToggleStatus(c)}
+                              disabled={togglingStatusId === c.id}
+                            >
+                              <Power className="w-4 h-4" />
+                            </Button>
+
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-red-600 dark:text-red-400 hover:text-red-700 hover:bg-red-500/10 rounded-lg"
+                              title="Excluir Empresa"
+                              onClick={() => openDeleteModal(c)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
                           </div>
                         </td>
                       </tr>
@@ -714,6 +738,7 @@ export const Empresas: React.FC = () => {
                       variant="outline"
                       size="sm"
                       className="flex-1 h-8 bg-background border-border hover:bg-accent text-xs text-foreground"
+                      title="Visualizar Detalhes"
                       onClick={() => {
                         setViewing(c);
                         setViewOpen(true);
@@ -722,30 +747,50 @@ export const Empresas: React.FC = () => {
                       <Eye className="w-3.5 h-3.5 mr-1" /> Detalhes
                     </Button>
 
-                    {isSuperAdmin && (
-                      <>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 border-border bg-background hover:bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs px-2.5"
-                          onClick={() => {
-                            setEditing(c);
-                            setOpen(true);
-                          }}
-                        >
-                          <Edit3 className="w-3.5 h-3.5" />
-                        </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 border-border bg-background hover:bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs px-2.5"
+                      title="Editar Empresa"
+                      onClick={() => {
+                        setEditing(c);
+                        setOpen(true);
+                      }}
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </Button>
 
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 border-border bg-background hover:bg-red-500/10 text-red-600 dark:text-red-400 text-xs px-2.5"
-                          onClick={() => openDeleteModal(c)}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      </>
-                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 border-border bg-background hover:bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 text-xs px-2.5"
+                      title="Atualizar Dados"
+                      onClick={() => loadCompanies()}
+                      disabled={loading}
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 border-border bg-background hover:bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs px-2.5"
+                      title={isActive ? 'Desativar Empresa' : 'Ativar Empresa'}
+                      onClick={() => handleToggleStatus(c)}
+                      disabled={togglingStatusId === c.id}
+                    >
+                      <Power className="w-3.5 h-3.5" />
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 border-border bg-background hover:bg-red-500/10 text-red-600 dark:text-red-400 text-xs px-2.5"
+                      title="Excluir Empresa"
+                      onClick={() => openDeleteModal(c)}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
                   </div>
                 </Card>
               );

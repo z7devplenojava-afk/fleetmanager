@@ -99,6 +99,7 @@ public class FirstAccessController {
             // Atualizar senha
             user.setPassword(passwordEncoder.encode(request.getNewPassword()));
             user.setFirstAccessCompleted(true);
+            user.setRequirePasswordChange(false);
             user.setLastPasswordChange(LocalDateTime.now());
             
             // Normalizar campo whatsapp para evitar erro de validaÃ§Ã£o

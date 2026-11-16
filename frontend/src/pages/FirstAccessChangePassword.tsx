@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Lock, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Lock, CheckCircle, AlertTriangle, Loader2, ArrowLeft } from 'lucide-react';
 import SEO from '@/components/SEO';
 import Logo from '../components/Logo';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -14,7 +14,18 @@ import { useAuth } from '@/contexts/AuthContext';
 const FirstAccessChangePassword = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { setFirstAccessCompleted, refreshUser } = useAuth();
+  const { setFirstAccessCompleted, refreshUser, logout } = useAuth();
+
+  // Se o usuário clicar em "Voltar" no navegador, a sessão temporária é imediatamente abortada
+  useEffect(() => {
+    const handlePopState = () => {
+      logout();
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [logout]);
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -250,6 +261,16 @@ const FirstAccessChangePassword = () => {
               ) : (
                 <span className="text-white">Concluir Primeiro Acesso</span>
               )}
+            </Button>
+
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => logout()}
+              className="w-full h-11 text-gray-400 hover:text-white hover:bg-white/5 font-semibold text-sm rounded-xl transition-all flex items-center justify-center gap-2"
+            >
+              <ArrowLeft size={16} />
+              <span>Voltar ao Login (Cancelar)</span>
             </Button>
           </form>
         </div>

@@ -46,7 +46,7 @@ public class UserService {
     private static final java.util.Set<String> GLOBAL_MANAGER_ROLE_NAMES = java.util.Set.of(
             "SUPER_ADMIN", "FLEX_ADMIN");
     private static final java.util.Set<String> TENANT_MANAGER_ROLE_NAMES = java.util.Set.of(
-            "COMPANY_ADMIN", "ADMIN");
+            "COMPANY_ADMIN", "ADMIN", "ADMIN_EMPRESA");
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -118,10 +118,16 @@ public class UserService {
     }
 
     public List<User> findAll() {
-        if (!isSuperAdmin()) {
-            return userRepository.findAll();
+        if (isSuperAdmin() || isCurrentUserGlobalManager()) {
+            return withoutTenantFilter(userRepository::findAll);
         }
-        return withoutTenantFilter(userRepository::findAll);
+        if (isCurrentUserTenantManager()) {
+            UUID companyId = getCurrentCompanyId();
+            if (companyId != null) {
+                return userRepository.findByCompanyId(companyId);
+            }
+        }
+        return userRepository.findAll();
     }
 
     private <T> T withoutTenantFilter(Supplier<T> action) {
@@ -203,7 +209,7 @@ public class UserService {
         return getCurrentRoleNames().stream().anyMatch(GLOBAL_MANAGER_ROLE_NAMES::contains);
     }
 
-    private boolean isCurrentUserTenantManager() {
+    public boolean isCurrentUserTenantManager() {
         return getCurrentRoleNames().stream().anyMatch(TENANT_MANAGER_ROLE_NAMES::contains);
     }
 
@@ -434,6 +440,8 @@ public class UserService {
                 .active(request.getActive() != null ? request.getActive() : true)
                 .status(status)
                 .companyId(request.getCompanyId())
+                .firstAccessCompleted(false)
+                .requirePasswordChange(true)
                 .build();
 
         // Validar limite de usuários se houver empresa vinculada
@@ -524,9 +532,15 @@ public class UserService {
                     "Senha deve conter pelo menos uma letra maiÃºscula, uma minÃºscula, um nÃºmero e um caractere especial");
         }
 
-        // Definir valores padrÃ£o
+        // Definir valores padrão
         user.setActive(true);
         user.setStatus(UserStatus.ACTIVE);
+        if (user.getFirstAccessCompleted() == null) {
+            user.setFirstAccessCompleted(false);
+        }
+        if (user.getRequirePasswordChange() == null) {
+            user.setRequirePasswordChange(true);
+        }
 
         // Criptografar senha
         user.setPassword(passwordEncoder.encode(user.getPassword()));
@@ -877,6 +891,15 @@ public class UserService {
     }
 
     public List<User> searchUsers(String query) {
+        if (isSuperAdmin() || isCurrentUserGlobalManager()) {
+            return userRepository.searchUsers(query);
+        }
+        if (isCurrentUserTenantManager()) {
+            UUID companyId = getCurrentCompanyId();
+            if (companyId != null) {
+                return userRepository.searchUsersByCompany(query, companyId);
+            }
+        }
         return userRepository.searchUsers(query);
     }
 

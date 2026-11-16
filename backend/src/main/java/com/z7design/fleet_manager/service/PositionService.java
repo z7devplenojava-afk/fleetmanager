@@ -80,15 +80,32 @@ public class PositionService {
     public PositionDTO createPosition(PositionDTO dto) {
         log.info("Criando novo cargo: {}", dto.getName());
 
-        if (positionRepository.existsByName(dto.getName())) {
-            throw new BusinessException("JÃ¡ existe um cargo com o nome: " + dto.getName());
+        if (dto.getName() == null || dto.getName().trim().isEmpty()) {
+            throw new BusinessException("Nome do cargo é obrigatório.");
+        }
+
+        java.util.Optional<Position> existing = positionRepository.findByNameIgnoreCase(dto.getName().trim());
+        if (existing.isPresent()) {
+            Position pos = existing.get();
+            if (dto.getCbo() != null && !dto.getCbo().isBlank()) {
+                pos.setCbo(dto.getCbo().trim());
+            }
+            if (dto.getDescription() != null && !dto.getDescription().isBlank() && (pos.getDescription() == null || pos.getDescription().isBlank())) {
+                pos.setDescription(dto.getDescription().trim());
+            }
+            pos = positionRepository.save(pos);
+            log.info("Cargo existente reutilizado e atualizado - ID: {}", pos.getId());
+            return PositionDTO.fromEntity(pos);
         }
 
         Position position = dto.toEntity();
+        if (position.getBaseSalary() == null) {
+            position.setBaseSalary(java.math.BigDecimal.ZERO);
+        }
 
         if (dto.getUnitId() != null) {
             Unit unit = unitRepository.findById(dto.getUnitId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Unidade nÃ£o encontrada com ID: " + dto.getUnitId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Unidade não encontrada com ID: " + dto.getUnitId()));
             position.setUnit(unit);
         }
 

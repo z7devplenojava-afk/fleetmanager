@@ -29,6 +29,14 @@ public class ContractTemplate {
     @Column(name = "name", nullable = false, length = 255)
     private String name;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id")
+    private Company company;
+
+    /** Nível 1: PLATFORM_SAAS (FluxBus ↔ Viação); Nível 2: TENANT_CLIENT (Viação ↔ Cliente Final) */
+    @Column(name = "scope_level", length = 30)
+    private String scopeLevel = "TENANT_CLIENT";
+
     @Enumerated(EnumType.STRING)
     @Column(name = "template_type", nullable = false, length = 50)
     private ContractTemplateType templateType;

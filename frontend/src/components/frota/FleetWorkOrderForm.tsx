@@ -339,11 +339,14 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         return matching.length > 0 ? matching : allWorkPosts;
     }, [isOpen, allWorkPosts, formData.clientId]);
 
-    // Lista de Mecânicos / Manutenção (filtrada por cargo/função ou fallback com ordenação)
+    // Lista de Mecânicos / Manutenção (filtrada estritamente por cargo/função de Mecânico)
     const mechanicsList = React.useMemo(() => {
         if (!isOpen || !employees || employees.length === 0) return [];
-        const isMechanicOrMaint = (e: any) => {
-            const pos = [
+        const normalize = (s: string) =>
+            s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+        const isMechanic = (e: any) => {
+            const pos = normalize([
                 e.positionDescription,
                 e.position?.name,
                 e.position?.description,
@@ -353,26 +356,12 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                 e.cbo,
                 e.department?.name,
                 e.departamento
-            ].filter(Boolean).join(' ').toLowerCase();
+            ].filter(Boolean).join(' '));
 
-            return (
-                pos.includes('mecanic') ||
-                pos.includes('mecânico') ||
-                pos.includes('manuten') ||
-                pos.includes('oficina') ||
-                pos.includes('eletric') ||
-                pos.includes('tecnic') ||
-                pos.includes('funileir') ||
-                pos.includes('pintor') ||
-                pos.includes('borracheir') ||
-                pos.includes('lavador') ||
-                pos.includes('lubrificador')
-            );
+            return pos.includes('mecanic');
         };
 
-        const filtered = employees.filter(isMechanicOrMaint);
-        // Se houver mecânicos identificados, lista-os; caso contrário, traz todos os colaboradores permitindo busca
-        return filtered.length > 0 ? filtered : employees;
+        return employees.filter(isMechanic);
     }, [isOpen, employees]);
 
     // Opções pesquisáveis com autocomplete
@@ -545,10 +534,9 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
             return pos.includes('motorista') || pos.includes('condutor');
         };
         const drivers = employees.filter(isDriverRole);
-        const list = drivers.length > 0 ? drivers : employees;
         const seen = new Set<string>();
         const opts: SearchableOption[] = [];
-        for (const e of list) {
+        for (const e of drivers) {
             const name = String(e.name || e.fullName || '').trim();
             if (!name) continue;
             const key = name.toLowerCase();

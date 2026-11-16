@@ -33,7 +33,9 @@ import com.z7design.fleet_manager.repository.FleetWorkOrderChecklistRepository;
 import com.z7design.fleet_manager.repository.InvoiceRepository;
 import com.z7design.fleet_manager.exception.ResourceNotFoundException;
 import com.z7design.fleet_manager.tenant.TenantContext;
+import com.z7design.fleet_manager.model.SystemNotification;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -54,6 +56,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class FleetWorkOrderService {
 
     private final FleetWorkOrderRepository repository;
@@ -82,6 +85,9 @@ public class FleetWorkOrderService {
     private final com.z7design.fleet_manager.repository.VehicleInspectionRepository vehicleInspectionRepository;
     private final FleetComponentControlService fleetComponentControlService;
     private final ApplicationEventPublisher eventPublisher;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private SystemNotificationService systemNotificationService;
 
     private boolean isUserDriver(com.z7design.fleet_manager.model.User user) {
         if (user == null || user.getRoles() == null) return false;
@@ -903,6 +909,149 @@ public class FleetWorkOrderService {
         }
 
         return toDTO(saved);
+    }
+
+    private boolean canApproveExternalService(User user) {
+        if (user == null || user.getRoles() == null) return false;
+        Set<String> allowedRoles = Set.of(
+                "SUPER_ADMIN", "ROLE_SUPER_ADMIN",
+                "ADMIN", "ROLE_ADMIN",
+                "COMPANY_ADMIN", "ROLE_COMPANY_ADMIN", "ADMIN_EMPRESA", "ROLE_ADMIN_EMPRESA",
+                "GESTOR", "ROLE_GESTOR",
+                "GESTOR_MANUTENCAO", "ROLE_GESTOR_MANUTENCAO",
+                "ENCARREGADO_MANUTENCAO", "ROLE_ENCARREGADO_MANUTENCAO",
+                "GESTOR_OPERACIONAL", "ROLE_GESTOR_OPERACIONAL",
+                "ENCARREGADO_OPERACIONAL", "ROLE_ENCARREGADO_OPERACIONAL"
+        );
+        return user.getRoles().stream()
+                .anyMatch(r -> r != null && r.getName() != null && allowedRoles.contains(r.getName().toUpperCase()));
+    }
+
+    @Transactional
+    public FleetWorkOrderDTO approveExternalService(UUID id, User approver, String notes) {
+        FleetWorkOrder entity = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("FleetWorkOrder not found: " + id));
+
+        if (!canApproveExternalService(approver)) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Apenas Gestores e Encarregados de Manutenção ou Operacionais podem aprovar serviços externos.");
+        }
+
+        entity.setLaborType(FleetWorkOrder.LaborType.EXTERNAL);
+        entity.setStatus(FleetWorkOrder.WorkOrderStatus.APPROVED);
+        entity.setServicesVerified(true);
+
+        FleetWorkOrder saved = repository.save(entity);
+
+        String approverName = approver != null && approver.getName() != null ? approver.getName() : "Gestor";
+        addHistory(saved.getId(), "EXTERNAL_SERVICE_APPROVED",
+                "Serviço externo aprovado por " + approverName + (notes != null && !notes.isBlank() ? " (" + notes + ")" : ""),
+                approverName, null, null);
+
+        // Notificar Compras e Mecânico
+        notifyPurchasesAndMechanic(saved, approverName, true, notes);
+
+        return toDTO(saved);
+    }
+
+    @Transactional
+    public FleetWorkOrderDTO rejectExternalService(UUID id, User approver, String reason) {
+        FleetWorkOrder entity = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("FleetWorkOrder not found: " + id));
+
+        if (!canApproveExternalService(approver)) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Apenas Gestores e Encarregados de Manutenção ou Operacionais podem aprovar/recusar serviços externos.");
+        }
+
+        entity.setStatus(FleetWorkOrder.WorkOrderStatus.IN_PROGRESS);
+
+        FleetWorkOrder saved = repository.save(entity);
+
+        String approverName = approver != null && approver.getName() != null ? approver.getName() : "Gestor";
+        addHistory(saved.getId(), "EXTERNAL_SERVICE_REJECTED",
+                "Serviço externo recusado por " + approverName + ". Motivo: " + reason,
+                approverName, null, null);
+
+        // Notificar Mecânico sobre a recusa
+        notifyPurchasesAndMechanic(saved, approverName, false, reason);
+
+        return toDTO(saved);
+    }
+
+    @Transactional
+    public FleetWorkOrderDTO assignMechanic(UUID id, User mechanicUser) {
+        FleetWorkOrder entity = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("FleetWorkOrder not found: " + id));
+
+        String mechanicName = mechanicUser != null && mechanicUser.getName() != null ? mechanicUser.getName() : "Mecânico";
+        entity.setMechanicId(mechanicUser != null ? mechanicUser.getId() : null);
+        entity.setMechanicName(mechanicName);
+
+        if (entity.getStatus() == FleetWorkOrder.WorkOrderStatus.DRAFT ||
+            entity.getStatus() == FleetWorkOrder.WorkOrderStatus.OPEN ||
+            entity.getStatus() == FleetWorkOrder.WorkOrderStatus.APPROVED) {
+            entity.setStatus(FleetWorkOrder.WorkOrderStatus.IN_PROGRESS);
+        }
+
+        if (entity.getStartDate() == null) {
+            entity.setStartDate(LocalDateTime.now());
+        }
+
+        FleetWorkOrder saved = repository.save(entity);
+
+        addHistory(saved.getId(), "MECHANIC_ASSIGNED",
+                "O.S. assumida pelo mecânico " + mechanicName,
+                mechanicName, null, null);
+
+        return toDTO(saved);
+    }
+
+    private void notifyPurchasesAndMechanic(FleetWorkOrder order, String approverName, boolean approved, String message) {
+        if (systemNotificationService == null) return;
+        try {
+            String plate = order.getVehicle() != null ? order.getVehicle().getPlate() : "Veículo";
+            String orderCode = order.getId() != null ? order.getId().toString().substring(0, 8).toUpperCase() : "";
+
+            if (approved) {
+                // Notificação para Compras
+                SystemNotification comprasNotif = new SystemNotification();
+                comprasNotif.setTitle("Cotação Necessária - O.S. #" + orderCode);
+                comprasNotif.setDescription("Serviço externo aprovado por " + approverName + " para o veículo " + plate + ". Realizar cotações necessárias.");
+                comprasNotif.setType(SystemNotification.NotificationType.COTACOES_COMPRAS);
+                comprasNotif.setPriority(SystemNotification.NotificationPriority.ALTA);
+                comprasNotif.setDepartment("Compras");
+                systemNotificationService.createNotification(comprasNotif);
+
+                // Notificação para o Mecânico (se atribuído)
+                if (order.getMechanicId() != null) {
+                    userRepository.findById(order.getMechanicId()).ifPresent(mecUser -> {
+                        SystemNotification mecNotif = new SystemNotification();
+                        mecNotif.setTitle("Serviço Externo Aprovado - O.S. #" + orderCode);
+                        mecNotif.setDescription("O serviço externo do veículo " + plate + " foi aprovado por " + approverName + ". O setor de compras foi acionado.");
+                        mecNotif.setType(SystemNotification.NotificationType.ALERTA_GERAL);
+                        mecNotif.setPriority(SystemNotification.NotificationPriority.MEDIA);
+                        mecNotif.setRecipient(mecUser);
+                        systemNotificationService.createNotification(mecNotif);
+                    });
+                }
+            } else {
+                // Notificação de Recusa para o Mecânico
+                if (order.getMechanicId() != null) {
+                    userRepository.findById(order.getMechanicId()).ifPresent(mecUser -> {
+                        SystemNotification mecNotif = new SystemNotification();
+                        mecNotif.setTitle("Serviço Externo Recusado - O.S. #" + orderCode);
+                        mecNotif.setDescription("A solicitação de serviço externo do veículo " + plate + " foi recusada por " + approverName + ". Motivo: " + message);
+                        mecNotif.setType(SystemNotification.NotificationType.ALERTA_GERAL);
+                        mecNotif.setPriority(SystemNotification.NotificationPriority.ALTA);
+                        mecNotif.setRecipient(mecUser);
+                        systemNotificationService.createNotification(mecNotif);
+                    });
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Não foi possível disparar notificações para O.S. {}: {}", order.getId(), e.getMessage());
+        }
     }
 
     // RN07 e RN06 — Validação de Conclusão da OS

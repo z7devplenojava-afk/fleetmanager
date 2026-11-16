@@ -198,7 +198,11 @@ const Index: React.FC = () => {
 
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <Card className="bg-card border-border hover:border-red-600/40 transition-all duration-300 group shadow-sm">
+        <Card 
+          className="bg-card border-border hover:border-red-600/40 transition-all duration-300 group shadow-sm cursor-pointer hover:shadow-md"
+          onClick={() => navigate('/usuarios')}
+          title="Clique para gerenciar usuários"
+        >
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -214,7 +218,11 @@ const Index: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card className="bg-card border-border hover:border-red-600/40 transition-all duration-300 group shadow-sm">
+        <Card 
+          className="bg-card border-border hover:border-red-600/40 transition-all duration-300 group shadow-sm cursor-pointer hover:shadow-md"
+          onClick={() => navigate('/contratos')}
+          title="Clique para ver contratos"
+        >
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -230,7 +238,11 @@ const Index: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card className="bg-card border-border hover:border-red-600/40 transition-all duration-300 group shadow-sm">
+        <Card 
+          className="bg-card border-border hover:border-red-600/40 transition-all duration-300 group shadow-sm cursor-pointer hover:shadow-md"
+          onClick={() => navigate('/financeiro')}
+          title="Clique para ver financeiro"
+        >
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -246,7 +258,11 @@ const Index: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card className="bg-card border-border hover:border-red-600/40 transition-all duration-300 group shadow-sm">
+        <Card 
+          className="bg-card border-border hover:border-red-600/40 transition-all duration-300 group shadow-sm cursor-pointer hover:shadow-md"
+          onClick={() => navigate('/frota')}
+          title="Clique para gerenciar frota"
+        >
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>

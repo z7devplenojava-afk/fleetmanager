@@ -682,4 +682,22 @@ public class Employee implements TenantAware {
     public String getFullName() {
         return this.name;
     }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("cpf")
+    public String getCpf() {
+        return this.document;
+    }
+
+    public void setCpf(String cpf) {
+        this.document = cpf;
+    }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("rg")
+    public String getRg() {
+        return this.cinNumero;
+    }
+
+    public void setRg(String rg) {
+        this.cinNumero = rg;
+    }
 }

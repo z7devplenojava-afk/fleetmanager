@@ -44,12 +44,18 @@ public class VehicleExcelImportService {
     private static final Pattern YEAR_PATTERN = Pattern.compile("(19\\d{2}|20\\d{2})");
 
     public ImportResultDto importVehiclesFromExcel(MultipartFile file) {
+        return importVehiclesFromExcel(file, null);
+    }
+
+    public ImportResultDto importVehiclesFromExcel(MultipartFile file, UUID targetCompanyId) {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("O arquivo de importação está vazio ou não foi enviado.");
         }
 
         ImportResultDto result = ImportResultDto.empty();
-        UUID currentCompanyId = userCompanyResolver.resolveCurrentCompanyId();
+        UUID currentCompanyId = targetCompanyId != null
+                ? targetCompanyId
+                : userCompanyResolver.resolveCurrentCompanyId();
         String originalFilename = file.getOriginalFilename() != null ? file.getOriginalFilename() : "planilha.xlsx";
         log.info("Iniciando importação otimizada de veículos a partir de: {} (CompanyId: {})",
                 originalFilename, currentCompanyId);
@@ -486,7 +492,7 @@ public class VehicleExcelImportService {
                 vehicle.setDeletedAt(null);
                 updated = true;
             }
-            if (vehicle.getStatus() == null) {
+            if (vehicle.getStatus() == null || vehicle.getStatus() == VehicleStatus.INACTIVE) {
                 vehicle.setStatus(VehicleStatus.ACTIVE);
                 updated = true;
             }
@@ -884,7 +890,7 @@ public class VehicleExcelImportService {
                 vehicle.setDeletedAt(null);
                 updated = true;
             }
-            if (vehicle.getStatus() == null) {
+            if (vehicle.getStatus() == null || vehicle.getStatus() == VehicleStatus.INACTIVE) {
                 vehicle.setStatus(VehicleStatus.ACTIVE);
                 updated = true;
             }

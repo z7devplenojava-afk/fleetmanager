@@ -271,22 +271,39 @@ const Frota: React.FC = () => {
   const [fineToDownload, setFineToDownload] = useState<any>(null);
   const { empresa } = useAuth();
 
-  // Buscar veículos com cache em memória e resposta instantânea (0ms de carregamento inicial)
+  // Buscar veículos com sincronização do backend
   const {
     data: vehicles = [],
     isLoading: vehiclesLoading,
+    isFetching: vehiclesFetching,
     error: vehiclesError,
     refetch: refetchVehicles
   } = useQuery({
     queryKey: ['vehicles'],
     queryFn: () => fleetService.getVehicles(),
-    initialData: () => fleetService.getInitialCachedVehicles(),
-    initialDataUpdatedAt: () => fleetService.getInitialCachedVehiclesTimestamp(),
-    staleTime: 60 * 1000,
+    staleTime: 5 * 1000,
     gcTime: 10 * 60 * 1000,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
     retry: 1
   });
+
+  const handleRefreshVehicles = async () => {
+    try {
+      fleetService.invalidateVehiclesCache();
+      const res = await refetchVehicles();
+      const count = res.data?.length || 0;
+      toast({
+        title: "Frota atualizada",
+        description: `${count} veículo(s) sincronizado(s) com o servidor.`,
+      });
+    } catch (err: any) {
+      toast({
+        title: "Erro ao atualizar veículos",
+        description: err?.message || "Não foi possível carregar os veículos.",
+        variant: "destructive",
+      });
+    }
+  };
 
   // Buscar registros de abastecimento
   const {
@@ -547,7 +564,7 @@ const Frota: React.FC = () => {
   }, [multasComponent]);
 
   const handleVeiculoSuccess = () => {
-    refetchVehicles();
+    handleRefreshVehicles();
     setIsVeiculoModalOpen(false);
   };
 
@@ -557,7 +574,7 @@ const Frota: React.FC = () => {
   };
 
   const handleVeiculoEditSuccess = () => {
-    refetchVehicles();
+    handleRefreshVehicles();
     setIsVeiculoEditModalOpen(false);
     setSelectedVeiculo(null);
   };
@@ -1486,6 +1503,16 @@ const Frota: React.FC = () => {
 
                 <div className="flex flex-wrap items-center gap-2">
                   <Button
+                    onClick={handleRefreshVehicles}
+                    variant="outline"
+                    disabled={vehiclesFetching}
+                    className="flex-1 sm:flex-none border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white font-bold text-[11px] sm:text-xs h-9"
+                    title="Atualizar lista de veículos do servidor"
+                  >
+                    <RefreshCw size={14} className={`mr-1.5 ${vehiclesFetching ? 'animate-spin text-seguranca-yellow' : ''}`} />
+                    Atualizar
+                  </Button>
+                  <Button
                     onClick={() => setIsCrlvModalOpen(true)}
                     variant="outline"
                     className="flex-1 sm:flex-none border-blue-500/60 text-blue-400 hover:bg-blue-600 hover:text-white font-bold text-[11px] sm:text-xs h-9"
@@ -1529,7 +1556,7 @@ const Frota: React.FC = () => {
               <div className="flex flex-col items-center justify-center h-48 bg-seguranca-graphite border border-gray-600 rounded-lg p-4 space-y-3">
                 <AlertTriangle className="h-8 w-8 text-red-500" />
                 <p className="text-sm text-red-400">Erro ao carregar veículos.</p>
-                <Button size="sm" onClick={() => refetchVehicles()} className="bg-seguranca-red hover:bg-seguranca-darkred">
+                <Button size="sm" onClick={handleRefreshVehicles} className="bg-seguranca-red hover:bg-seguranca-darkred">
                   Tentar Novamente
                 </Button>
               </div>
@@ -1540,7 +1567,7 @@ const Frota: React.FC = () => {
                 vehicleTypeFilter={vehicleTypeFilter}
                 maintenanceAlertFilter={maintenanceAlertFilter}
                 maintenances={maintenances}
-                onRefresh={refetchVehicles}
+                onRefresh={handleRefreshVehicles}
                 onEdit={handleVeiculoEdit}
                 onDelete={handleDeleteVeiculo}
                 onView={handleViewVeiculo}
@@ -2302,7 +2329,7 @@ const Frota: React.FC = () => {
             open={isVehicleImportModalOpen}
             onOpenChange={setIsVehicleImportModalOpen}
             onSuccess={() => {
-              refetchVehicles();
+              handleRefreshVehicles();
             }}
           />
         )}
@@ -2312,7 +2339,7 @@ const Frota: React.FC = () => {
             open={isCrlvModalOpen}
             onOpenChange={setIsCrlvModalOpen}
             onSuccess={() => {
-              refetchVehicles();
+              handleRefreshVehicles();
             }}
           />
         )}

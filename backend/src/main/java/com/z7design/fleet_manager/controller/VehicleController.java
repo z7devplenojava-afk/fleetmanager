@@ -23,7 +23,7 @@ import com.z7design.fleet_manager.service.VehicleExcelImportService;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
-@RequestMapping("/api/vehicles")
+@RequestMapping({"/api/vehicles", "/api/frota/vehicles"})
 @RequiredArgsConstructor
 @Tag(name = "Veículos", description = "API para gerenciamento de veículos da frota")
 public class VehicleController {
@@ -151,6 +151,18 @@ public class VehicleController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/bulk-delete")
+    @PreAuthorize("hasAnyAuthority('FLEET_WRITE', 'ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN', 'GESTOR', 'GESTOR_FROTA', 'OPERACIONAL', 'ROLE_FLEET_WRITE', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_GESTOR', 'ROLE_GESTOR_FROTA', 'ROLE_OPERACIONAL') or isAuthenticated()")
+    @Operation(summary = "Excluir veículos em lote", description = "Exclui (soft delete) múltiplos veículos")
+    public ResponseEntity<java.util.Map<String, Object>> bulkDeleteVehicles(@RequestBody List<UUID> ids) {
+        log.debug("Exclusão em massa solicitada para {} veículos", ids != null ? ids.size() : 0);
+        int deleted = vehicleService.deleteVehicles(ids);
+        return ResponseEntity.ok(java.util.Map.of(
+                "requested", ids != null ? ids.size() : 0,
+                "deleted", deleted
+        ));
+    }
+
     @GetMapping("/count")
     @Operation(summary = "Contar veículos", description = "Retorna o número total de veículos")
     public ResponseEntity<Object> getCount() {
@@ -168,10 +180,12 @@ public class VehicleController {
     @PostMapping(value = "/import/excel", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAnyAuthority('FLEET_WRITE', 'ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN', 'GESTOR', 'GESTOR_FROTA', 'OPERACIONAL', 'ROLE_FLEET_WRITE', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_GESTOR', 'ROLE_GESTOR_FROTA', 'ROLE_OPERACIONAL') or isAuthenticated()")
     @Operation(summary = "Importar veículos via Excel", description = "Importa uma planilha Excel analisando todas as abas e mapeando colunas Placa/Patrimônio, Chassi, Renavam, Modelo, Ano/Mod")
-    public ResponseEntity<ImportResultDto> importVehiclesExcel(@RequestParam("file") MultipartFile file) {
-        log.info("Recebida requisição de importação de veículos Excel: {}", file.getOriginalFilename());
+    public ResponseEntity<ImportResultDto> importVehiclesExcel(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "companyId", required = false) UUID companyId) {
+        log.info("Recebida requisição de importação de veículos Excel: {} (companyId: {})", file.getOriginalFilename(), companyId);
         try {
-            ImportResultDto result = vehicleExcelImportService.importVehiclesFromExcel(file);
+            ImportResultDto result = vehicleExcelImportService.importVehiclesFromExcel(file, companyId);
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             log.error("Erro na importação de veículos Excel: ", e);

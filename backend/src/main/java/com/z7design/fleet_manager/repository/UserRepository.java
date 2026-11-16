@@ -30,6 +30,16 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
        long countByCompanyIdAndActiveTrue(UUID companyId);
 
+       List<User> findByCompanyId(UUID companyId);
+
+       @Query("SELECT u FROM User u " +
+              "WHERE u.companyId = :companyId AND " +
+              "(LOWER(u.name) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+              "LOWER(u.email) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+              "LOWER(u.username) LIKE LOWER(CONCAT('%', :query, '%'))) " +
+              "ORDER BY u.name ASC")
+       List<User> searchUsersByCompany(@Param("query") String query, @Param("companyId") UUID companyId);
+
        /**
         * Busca usuÃ¡rios ativos
         */

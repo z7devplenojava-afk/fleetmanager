@@ -267,7 +267,7 @@
       </td>
       <td style="width: 35%;">
         <span class="field-label">KM:</span>
-        <span th:text="${odometerIn != null ? odometerIn : (vehicleCurrentMileage != null ? vehicleCurrentMileage + ' km' : '____________')}">____________</span>
+        <span th:text="${odometerIn != null ? odometerIn : (vehicleCurrentMileage != null ? (vehicleCurrentMileage + ' km') : '____________')}">____________</span>
       </td>
     </tr>
     <tr>

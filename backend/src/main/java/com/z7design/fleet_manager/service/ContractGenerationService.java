@@ -259,11 +259,55 @@ public class ContractGenerationService {
                     .setTextAlignment(TextAlignment.CENTER));
 
             document.close();
-            return baos.toByteArray();
+            byte[] pdfBytes = baos.toByteArray();
+
+            // Garantia de integridade documental e hash SHA-256 imutável (Skill: dual-tier-contract-generator)
+            try {
+                java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+                byte[] hash = md.digest(pdfBytes);
+                String sha256 = java.util.HexFormat.of().formatHex(hash);
+                if (contract.getSha256Hash() == null) {
+                    contract.setSha256Hash(sha256);
+                    String tenantStr = contract.getCompany() != null ? contract.getCompany().getId().toString() : "global";
+                    contract.setStorageKey("/tenants/" + tenantStr + "/contracts/" + contract.getId() + ".pdf");
+                    generatedContractRepository.save(contract);
+                }
+            } catch (Exception exHash) {
+                log.warn("Erro ao calcular hash do PDF da minuta {}: {}", id, exHash.getMessage());
+            }
+
+            return pdfBytes;
         } catch (Exception e) {
             log.error("Erro ao gerar PDF da minuta {}: {}", id, e.getMessage(), e);
             throw new RuntimeException("Erro ao gerar PDF da minuta contratual", e);
         }
+    }
+
+    /**
+     * Aceite eletrônico de contrato com trilha de auditoria e registro de IP/User-Agent/SHA-256
+     */
+    @Transactional
+    public GeneratedContractDTO acceptContract(UUID id, UUID userId, String ipAddress, String userAgent) {
+        GeneratedContract contract = findEntity(id);
+        byte[] pdfBytes = generatePdf(id);
+
+        String sha256 = contract.getSha256Hash();
+        try {
+            java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+            sha256 = java.util.HexFormat.of().formatHex(md.digest(pdfBytes));
+        } catch (Exception ignored) {}
+
+        contract.setStatus(GeneratedContractStatus.SIGNED);
+        contract.setSignedAt(LocalDateTime.now());
+        contract.setSignatureProvider("FLUXBUS_ELECTRONIC_ACCEPTANCE");
+        contract.setAcceptedByUserId(userId);
+        contract.setSha256Hash(sha256);
+        contract.setAcceptanceMetadata(String.format("{\"ip\":\"%s\",\"userAgent\":\"%s\",\"acceptedAtUtc\":\"%s\",\"sha256\":\"%s\"}",
+                ipAddress, userAgent != null ? userAgent.replace("\"", "'") : "Unknown", LocalDateTime.now(), sha256));
+
+        GeneratedContract saved = generatedContractRepository.save(contract);
+        log.info("📜 Contrato {} aceito eletronicamente pelo usuário {} a partir do IP {}", id, userId, ipAddress);
+        return GeneratedContractDTO.fromEntity(saved);
     }
 
     // ===== Helpers =====

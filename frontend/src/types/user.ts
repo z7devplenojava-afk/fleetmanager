@@ -220,6 +220,9 @@ export interface User {
   status?: string;
   active?: boolean;
   firstAccessCompleted?: boolean;
+  requirePasswordChange?: boolean;
+  requiresPasswordChange?: boolean;
+  pendingFirstAccess?: boolean;
   requiresLgpdConsent?: boolean;
   companyId?: string;
   companyName?: string;

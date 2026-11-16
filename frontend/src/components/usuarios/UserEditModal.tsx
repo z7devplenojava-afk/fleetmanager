@@ -45,7 +45,7 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
   onClose,
   onSave,
 }) => {
-  const { user: currentUser, hasRole, refreshUser, logout } = useAuth();
+  const { user: currentUser, empresa, hasRole, refreshUser, logout } = useAuth();
   const { toast } = useToast();
   const isSuperAdmin = hasRole('SUPER_ADMIN');
   const isCompanyAdmin = isSuperAdmin || hasRole('FLEX_ADMIN') || hasRole('COMPANY_ADMIN') || hasRole('ADMIN_EMPRESA') || hasRole('ADMIN');
@@ -209,7 +209,7 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
         position: user.position || '',
         employeeCode: user.employeeCode || '',
         avatar: user.avatar || '',
-        companyId: user.companyId || '',
+        companyId: user.companyId || (!canManageCompanies ? (currentUser?.companyId || empresa?.id || '') : ''),
       });
       setSelectedEmployeeId(user.employeeId || 'none');
       setIndividualPermissions(user.individualPermissions || []);
@@ -232,6 +232,14 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
 
       if (canManageCompanies) {
         companyService.getAllCompanies().then(setCompanies).catch(console.error);
+      } else {
+        companyService.getAllCompanies().then(setCompanies).catch(() => {
+          const compId = empresa?.id || currentUser?.companyId;
+          const compName = empresa?.nome || (empresa as any)?.name || currentUser?.companyName;
+          if (compId && compName) {
+            setCompanies([{ id: compId, name: compName }]);
+          }
+        });
       }
 
       // Carregar funcionários para seleção e vínculo
@@ -1023,9 +1031,17 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
                   ) : (
                     <Input
                       id="company-name"
-                      value={user.companyId ? (companies.find((c) => c.id === user.companyId)?.name || 'Empresa Vinculada') : 'Sem Empresa (FluxBus Matriz)'}
+                      value={
+                        user?.companyName ||
+                        (user?.companyId ? companies.find((c) => c.id === user.companyId)?.name : null) ||
+                        (user?.companyId && (empresa?.id === user.companyId || currentUser?.companyId === user.companyId) ? (empresa?.nome || (empresa as any)?.name || currentUser?.companyName) : null) ||
+                        empresa?.nome ||
+                        (empresa as any)?.name ||
+                        currentUser?.companyName ||
+                        'Sem Empresa (FluxBus Matriz)'
+                      }
                       readOnly
-                      className="bg-seguranca-black/90 border-gray-700 text-gray-400 opacity-80 cursor-not-allowed h-10 text-sm rounded-lg"
+                      className="bg-seguranca-black/90 border-gray-700 text-gray-200 h-10 text-sm rounded-lg opacity-90 cursor-not-allowed"
                     />
                   )}
                 </div>

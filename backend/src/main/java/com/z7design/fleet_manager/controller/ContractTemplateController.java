@@ -28,6 +28,7 @@ import java.util.UUID;
 public class ContractTemplateController {
 
     private final ContractGenerationService contractGenerationService;
+    private final com.z7design.fleet_manager.service.ContractPresignedUrlService presignedUrlService;
 
     // ===== Templates (RF-02.1) =====
 
@@ -75,10 +76,79 @@ public class ContractTemplateController {
     @Operation(summary = "Baixar minuta em PDF pronta para assinatura")
     public ResponseEntity<byte[]> downloadPdf(@PathVariable("id") UUID id) {
         byte[] pdf = contractGenerationService.generatePdf(id);
+        GeneratedContractDTO dto = contractGenerationService.getById(id);
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=minuta-contratual-" + id + ".pdf")
+                .header("X-Contract-SHA256", dto.getSha256Hash() != null ? dto.getSha256Hash() : "")
                 .body(pdf);
+    }
+
+    @GetMapping("/generated/{id}/presigned-url")
+    @Operation(summary = "Gerar Presigned URL temporária para acesso seguro ao PDF (300s)")
+    public ResponseEntity<java.util.Map<String, Object>> getPresignedUrl(
+            @PathVariable("id") UUID id,
+            jakarta.servlet.http.HttpServletRequest request) {
+
+        String baseUrl = request.getRequestURL().toString().replace(request.getRequestURI(), "");
+        UUID userId = null;
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof com.z7design.fleet_manager.model.User u) {
+            userId = u.getId();
+        }
+
+        String presignedUrl = presignedUrlService.generatePresignedUrl(id, userId, baseUrl);
+        GeneratedContractDTO dto = contractGenerationService.getById(id);
+
+        return ResponseEntity.ok(java.util.Map.of(
+                "contractId", id,
+                "presignedUrl", presignedUrl,
+                "expiresInSeconds", 300,
+                "sha256Hash", dto.getSha256Hash() != null ? dto.getSha256Hash() : ""
+        ));
+    }
+
+    @GetMapping("/generated/{id}/presigned-download")
+    @Operation(summary = "Download de contrato via Presigned URL temporária")
+    public ResponseEntity<?> downloadViaPresignedUrl(
+            @PathVariable("id") UUID id,
+            @RequestParam("token") String token) {
+
+        if (!presignedUrlService.validatePresignedToken(id, token)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(java.util.Map.of("error", "Presigned URL inválida ou expirada. Gere um novo link temporário."));
+        }
+
+        byte[] pdf = contractGenerationService.generatePdf(id);
+        GeneratedContractDTO dto = contractGenerationService.getById(id);
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=contrato-" + id + ".pdf")
+                .header("X-Contract-SHA256", dto.getSha256Hash() != null ? dto.getSha256Hash() : "")
+                .body(pdf);
+    }
+
+    @PostMapping("/generated/{id}/accept-electronic")
+    @Operation(summary = "Registrar aceite eletrônico com auditoria (IP, User-Agent, Data/Hora UTC e SHA-256)")
+    public ResponseEntity<GeneratedContractDTO> acceptContract(
+            @PathVariable("id") UUID id,
+            jakarta.servlet.http.HttpServletRequest request) {
+
+        UUID userId = null;
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof com.z7design.fleet_manager.model.User u) {
+            userId = u.getId();
+        }
+
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip == null || ip.isBlank()) {
+            ip = request.getRemoteAddr();
+        }
+        String userAgent = request.getHeader("User-Agent");
+
+        GeneratedContractDTO accepted = contractGenerationService.acceptContract(id, userId, ip, userAgent);
+        return ResponseEntity.ok(accepted);
     }
 
     /** RF-02.3: envio para assinatura digital. */

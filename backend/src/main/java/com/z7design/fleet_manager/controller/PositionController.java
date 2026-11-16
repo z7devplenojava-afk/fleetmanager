@@ -18,8 +18,11 @@ import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.web.bind.annotation.CrossOrigin;
+
+@CrossOrigin(origins = "*")
 @RestController
-@RequestMapping("/api/positions")
+@RequestMapping({"/api/positions", "/api/v1/positions"})
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Cargos", description = "API para gerenciamento de cargos na empresa")
@@ -27,7 +30,7 @@ public class PositionController {
 
     private final PositionService positionService;
 
-    @GetMapping
+    @GetMapping({"", "/"})
     @Operation(summary = "Listar todos os cargos", description = "Retorna uma lista de todos os cargos")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Cargos listados com sucesso"),
@@ -93,7 +96,7 @@ public class PositionController {
         return ResponseEntity.ok(position);
     }
 
-    @PostMapping
+    @PostMapping({"", "/"})
     @Operation(summary = "Criar novo cargo", description = "Cria um novo cargo na empresa")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Cargo criado com sucesso"),

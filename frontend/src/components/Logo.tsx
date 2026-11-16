@@ -51,7 +51,10 @@ const Logo: React.FC<LogoProps> = ({
       (user as any)?.company?.logoUrl ||
       (user as any)?.empresa?.logoUrl ||
       (user as any)?.companyLogo ||
-      (user as any)?.companyLogoUrl
+      (user as any)?.companyLogoUrl ||
+      empresa?.iconUrl ||
+      storedBranding.iconUrl ||
+      (user as any)?.company?.iconUrl
     : null;
 
   const resolvedLogoUrl = resolveCompanyLogoUrl(rawCompanyLogo);
@@ -72,14 +75,17 @@ const Logo: React.FC<LogoProps> = ({
     setImgError(false);
   }, [resolvedLogoUrl]);
 
-  const isSaoSilvestre =
-    resolvedLogoUrl?.includes('78376e24-fce4-4b76-8140-3d6ddc2cf1f5') ||
-    resolvedLogoUrl?.includes('sao-silvestre') ||
-    companyName?.toLowerCase().includes('silvestre');
+  // Prioridade 1: Se houver logomarca cadastrada/upada para a empresa, SEMPRE exibir a imagem real upada!
+  // Prioridade 2: Fallback para imagens estáticas locais SOMENTE se não houver nenhuma logo real cadastrada.
+  const isLegacyFallbackTarget =
+    companyName?.toLowerCase().includes('silvestre') ||
+    empresa?.nome?.toLowerCase().includes('silvestre');
 
-  const activeLogoUrl = isSaoSilvestre
-    ? (!isDark || theme === 'white' ? '/images/sao-silvestre-logo-light.png?v=clean3' : '/images/sao-silvestre-logo.png?v=clean3')
-    : (resolvedLogoUrl ? `${resolvedLogoUrl}${resolvedLogoUrl.includes('?') ? '&' : '?'}v=clean3` : null);
+  const activeLogoUrl = resolvedLogoUrl
+    ? `${resolvedLogoUrl}${resolvedLogoUrl.includes('?') ? '&' : '?'}v=clean3`
+    : isLegacyFallbackTarget
+      ? (!isDark || theme === 'white' ? '/images/sao-silvestre-logo-light.png?v=clean3' : '/images/sao-silvestre-logo.png?v=clean3')
+      : null;
 
   // Se houver logo de empresa configurada e não deu erro de carregamento:
   // Regra: O nome da empresa só aparece quando NÃO tiver a logo

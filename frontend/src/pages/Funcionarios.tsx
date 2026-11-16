@@ -88,9 +88,19 @@ const Funcionarios: React.FC = () => {
   const [crachaModalOpen, setCrachaModalOpen] = useState(false);
   const [employeeToCracha, setEmployeeToCracha] = useState<Employee | null>(null);
 
-  const handleViewEmployee = (employee: Employee) => {
+  const handleViewEmployee = async (employee: Employee) => {
     setEmployeeToView(employee);
     setViewModalOpen(true);
+    try {
+      if (employee?.id) {
+        const full = await employeeService.getEmployeeById(employee.id);
+        if (full && full.id) {
+          setEmployeeToView(prev => (prev?.id === employee.id ? { ...prev, ...full } : prev));
+        }
+      }
+    } catch {
+      // Falha silenciosa, modal já exibe employee local
+    }
   };
 
   const handleOpenCracha = (employee: Employee) => {

@@ -1,5 +1,6 @@
 package com.z7design.fleet_manager.model;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -110,6 +111,41 @@ public class Company {
 
     @Column(name = "max_users")
     private Integer maxUsers;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "plan_id")
+    private Plan plan;
+
+    @Column(name = "subscription_status", length = 30)
+    private String subscriptionStatus = "active"; // trialing, active, past_due, canceled, suspended
+
+    @Column(name = "due_date")
+    private LocalDate dueDate;
+
+    @Column(name = "grace_period_days")
+    private Integer gracePeriodDays = 5;
+
+    @Column(name = "gateway_customer_id", length = 100)
+    private String gatewayCustomerId;
+
+    @Column(name = "gateway_subscription_id", length = 100)
+    private String gatewaySubscriptionId;
+
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
+    @Column(name = "legal_representative", columnDefinition = "jsonb")
+    private String legalRepresentative;
+
+    public boolean isSubscriptionOverdue() {
+        if ("canceled".equalsIgnoreCase(subscriptionStatus) || "suspended".equalsIgnoreCase(subscriptionStatus)) {
+            return true;
+        }
+        if ("past_due".equalsIgnoreCase(subscriptionStatus)) {
+            if (dueDate == null) return true;
+            int grace = gracePeriodDays != null ? gracePeriodDays : 5;
+            return LocalDate.now().isAfter(dueDate.plusDays(grace));
+        }
+        return false;
+    }
 
     @NotNull(message = "Company status is required")
     @Enumerated(EnumType.STRING)

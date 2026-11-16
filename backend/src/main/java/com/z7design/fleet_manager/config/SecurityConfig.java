@@ -36,17 +36,20 @@ public class SecurityConfig {
         @Lazy
         private final JwtAuthenticationFilter jwtAuthenticationFilter;
         private final JwtTenantFilter jwtTenantFilter;
+        private final com.z7design.fleet_manager.security.BillingGuardFilter billingGuardFilter;
         private final com.z7design.fleet_manager.security.LoginRateLimitFilter loginRateLimitFilter;
         private final com.z7design.fleet_manager.security.DeviceAuthenticationFilter deviceAuthenticationFilter;
 
         public SecurityConfig(CustomUserDetailsService customUserDetailsService,
                         @Lazy JwtAuthenticationFilter jwtAuthenticationFilter,
                         JwtTenantFilter jwtTenantFilter,
+                        com.z7design.fleet_manager.security.BillingGuardFilter billingGuardFilter,
                         com.z7design.fleet_manager.security.LoginRateLimitFilter loginRateLimitFilter,
                         com.z7design.fleet_manager.security.DeviceAuthenticationFilter deviceAuthenticationFilter) {
                 this.customUserDetailsService = customUserDetailsService;
                 this.jwtAuthenticationFilter = jwtAuthenticationFilter;
                 this.jwtTenantFilter = jwtTenantFilter;
+                this.billingGuardFilter = billingGuardFilter;
                 this.loginRateLimitFilter = loginRateLimitFilter;
                 this.deviceAuthenticationFilter = deviceAuthenticationFilter;
         }
@@ -67,6 +70,7 @@ public class SecurityConfig {
                                 .authorizeHttpRequests(auth -> auth
                                                 // Endpoints pÃƒÂºblicos (sem autenticaÃƒÂ§ÃƒÂ£o)
                                                 .requestMatchers("/api/auth/**").permitAll()
+                                                .requestMatchers("/api/webhooks/**").permitAll()
                                                  .requestMatchers("/api/player/pair").permitAll()
                                                  .requestMatchers("/api/player/**").authenticated()
                                                 .requestMatchers("/api/files/**").permitAll()
@@ -239,7 +243,7 @@ public class SecurityConfig {
                                                 .hasAnyAuthority("ROLE_SUPER_ADMIN", "ROLE_ADMIN", "ROLE_COMPANY_ADMIN",
                                                                 "ROLE_FLEX_ADMIN", "ROLE_MECANICO")
                                                 // Endpoints de Ordem de Serviço (Frota) - Motoristas e Mecânicos podem criar e consultar OS
-                                                .requestMatchers("/api/fleet-work-orders/**", "/api/v1/fleet-work-orders/**").authenticated()
+                                                .requestMatchers("/api/fleet-work-orders", "/api/fleet-work-orders/**", "/api/v1/fleet-work-orders", "/api/v1/fleet-work-orders/**").authenticated()
                                                 .requestMatchers("/api/frota/**").authenticated()
                                                 .requestMatchers("/api/client-checklists/**").authenticated()
                                                 // Endpoints da Client Area (Mobile PWA)
@@ -430,13 +434,13 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/v1/support/chatbot/**").authenticated()
                                                 // SEGURANÃ‡A: mÃ³dulos com dados pessoais que estavam "temporariamente pÃºblicos
                                                 // para debug" agora exigem autenticaÃ§Ã£o (LGPD).
-                                                .requestMatchers("/api/employees/**").authenticated()
-                                                .requestMatchers("/api/units/**").authenticated()
+                                                .requestMatchers("/api/employees", "/api/employees/**").authenticated()
+                                                .requestMatchers("/api/units", "/api/units/**").authenticated()
                                                 .requestMatchers("/api/companies", "/api/companies/**").authenticated()
-                                                .requestMatchers("/api/positions/**").authenticated()
-                                                .requestMatchers("/api/clients/**").authenticated()
-                                                .requestMatchers("/api/documents/**").authenticated()
-                                                .requestMatchers("/api/employee-certifications/**").authenticated()
+                                                .requestMatchers("/api/positions", "/api/positions/**").authenticated()
+                                                .requestMatchers("/api/clients", "/api/clients/**").authenticated()
+                                                .requestMatchers("/api/documents", "/api/documents/**").authenticated()
+                                                .requestMatchers("/api/employee-certifications", "/api/employee-certifications/**").authenticated()
                                                 // Endpoints de multas - requerem apenas autenticaÃƒÂ§ÃƒÂ£o (temporÃƒÂ¡rio
                                                 // para
                                                 // desenvolvimento)
@@ -541,6 +545,7 @@ public class SecurityConfig {
                                 .authenticationProvider(authenticationProvider)
                                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                                 .addFilterAfter(jwtTenantFilter, UsernamePasswordAuthenticationFilter.class)
+                                .addFilterAfter(billingGuardFilter, JwtTenantFilter.class)
                                 // SEGURANÃ‡A: rate limiting de tentativas de login (10/15min por IP)
                                 .addFilterBefore(loginRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                                  .addFilterBefore(deviceAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

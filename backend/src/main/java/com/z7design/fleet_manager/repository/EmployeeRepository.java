@@ -59,7 +59,7 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID>, JpaSp
         List<UUID> findAllIds();
 
         // Buscar dados básicos COM relacionamentos de cargo, unidade, empresa, workPost e department
-        @Query(value = "SELECT e.id, e.name, e.document, e.birth_date, e.registration_number, e.hire_date, e.termination_date, e.status, e.notes, e.address, e.phone, e.email, e.cnh_number, e.ctps, e.cbo, e.pis, e.salario, e.created_at, e.updated_at, p.name as position_name, u.name as unit_name, c.sigla as company_sigla, e.user_id, wp.name as work_post_name, d.name as department_name "
+        @Query(value = "SELECT e.id, e.name, e.document, e.birth_date, e.registration_number, e.hire_date, e.termination_date, e.status, e.notes, e.address, e.phone, e.email, e.cnh_number, e.ctps, e.cbo, e.pis, e.salario, e.created_at, e.updated_at, p.name as position_name, u.name as unit_name, c.sigla as company_sigla, e.user_id, wp.name as work_post_name, d.name as department_name, e.cin_numero, e.telefone_contato, e.horario_trabalho, e.marital_status, e.sexo "
                         + "FROM employees e "
                         + "LEFT JOIN positions p ON e.position_id = p.id "
                         + "LEFT JOIN units u ON e.unit_id = u.id "
@@ -69,7 +69,7 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID>, JpaSp
                         + "WHERE (e.company_id = :companyId OR e.company_id IS NULL)", nativeQuery = true)
         List<Object[]> findBasicDataByCompanyId(@Param("companyId") UUID companyId);
 
-        @Query(value = "SELECT e.id, e.name, e.document, e.birth_date, e.registration_number, e.hire_date, e.termination_date, e.status, e.notes, e.address, e.phone, e.email, e.cnh_number, e.ctps, e.cbo, e.pis, e.salario, e.created_at, e.updated_at, p.name as position_name, u.name as unit_name, c.sigla as company_sigla, e.user_id, wp.name as work_post_name, d.name as department_name "
+        @Query(value = "SELECT e.id, e.name, e.document, e.birth_date, e.registration_number, e.hire_date, e.termination_date, e.status, e.notes, e.address, e.phone, e.email, e.cnh_number, e.ctps, e.cbo, e.pis, e.salario, e.created_at, e.updated_at, p.name as position_name, u.name as unit_name, c.sigla as company_sigla, e.user_id, wp.name as work_post_name, d.name as department_name, e.cin_numero, e.telefone_contato, e.horario_trabalho, e.marital_status, e.sexo "
                         + "FROM employees e "
                         + "LEFT JOIN positions p ON e.position_id = p.id "
                         + "LEFT JOIN units u ON e.unit_id = u.id "
@@ -90,7 +90,7 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID>, JpaSp
         }
 
         // Buscar dados básicos por termo de busca
-        @Query(value = "SELECT e.id, e.name, e.document, e.birth_date, e.registration_number, e.hire_date, e.termination_date, e.status, e.notes, e.address, e.phone, e.email, e.cnh_number, e.ctps, e.cbo, e.pis, e.salario, e.created_at, e.updated_at, p.name as position_name, u.name as unit_name, c.sigla as company_sigla, e.user_id, wp.name as work_post_name, d.name as department_name "
+        @Query(value = "SELECT e.id, e.name, e.document, e.birth_date, e.registration_number, e.hire_date, e.termination_date, e.status, e.notes, e.address, e.phone, e.email, e.cnh_number, e.ctps, e.cbo, e.pis, e.salario, e.created_at, e.updated_at, p.name as position_name, u.name as unit_name, c.sigla as company_sigla, e.user_id, wp.name as work_post_name, d.name as department_name, e.cin_numero, e.telefone_contato, e.horario_trabalho, e.marital_status, e.sexo "
                         + "FROM employees e "
                         + "LEFT JOIN positions p ON e.position_id = p.id "
                         + "LEFT JOIN units u ON e.unit_id = u.id "
@@ -109,7 +109,7 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID>, JpaSp
         List<Object[]> findBasicDataBySearchTermAndCompanyId(@Param("searchTerm") String searchTerm,
                         @Param("companyId") UUID companyId);
 
-        @Query(value = "SELECT e.id, e.name, e.document, e.birth_date, e.registration_number, e.hire_date, e.termination_date, e.status, e.notes, e.address, e.phone, e.email, e.cnh_number, e.ctps, e.cbo, e.pis, e.salario, e.created_at, e.updated_at, p.name as position_name, u.name as unit_name, c.sigla as company_sigla, e.user_id, wp.name as work_post_name, d.name as department_name "
+        @Query(value = "SELECT e.id, e.name, e.document, e.birth_date, e.registration_number, e.hire_date, e.termination_date, e.status, e.notes, e.address, e.phone, e.email, e.cnh_number, e.ctps, e.cbo, e.pis, e.salario, e.created_at, e.updated_at, p.name as position_name, u.name as unit_name, c.sigla as company_sigla, e.user_id, wp.name as work_post_name, d.name as department_name, e.cin_numero, e.telefone_contato, e.horario_trabalho, e.marital_status, e.sexo "
                         + "FROM employees e "
                         + "LEFT JOIN positions p ON e.position_id = p.id "
                         + "LEFT JOIN units u ON e.unit_id = u.id "

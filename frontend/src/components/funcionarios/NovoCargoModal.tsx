@@ -36,6 +36,7 @@ const NovoCargoModal: React.FC<NovoCargoModalProps> = ({ open, onClose, onCargoC
   const [filteredCBOs, setFilteredCBOs] = useState<CBOItem[]>([]);
   const [showCboDropdown, setShowCboDropdown] = useState(false);
   const [loadingCBO, setLoadingCBO] = useState(false);
+  const [detectedCbo, setDetectedCbo] = useState<CBOItem | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -54,27 +55,46 @@ const NovoCargoModal: React.FC<NovoCargoModalProps> = ({ open, onClose, onCargoC
     }
   };
 
-  // Buscar cargos ao digitar o nome
+  // Buscar cargos e CBO automaticamente ao digitar o nome do cargo
   useEffect(() => {
-    const searchPositions = async () => {
-      try {
-        if (positionSearchTerm.trim().length > 0) {
-          const searchResults = await positionService.searchPositions(positionSearchTerm.trim());
-          setFilteredPositions(searchResults);
-        } else {
-          setFilteredPositions([]);
-        }
-      } catch (error) {
-        console.error('Erro ao buscar cargos:', error);
+    const searchPositionsAndCBO = async () => {
+      const term = positionSearchTerm.trim();
+      if (!term) {
         setFilteredPositions([]);
+        setDetectedCbo(null);
+        return;
+      }
+
+      try {
+        const searchResults = await positionService.searchPositions(term);
+        setFilteredPositions(searchResults);
+      } catch (error) {
+        setFilteredPositions([]);
+      }
+
+      // Buscar CBO automaticamente
+      if (term.length >= 3) {
+        try {
+          const cbos = await cboService.searchCBO(term);
+          if (cbos && cbos.length > 0) {
+            const best = cbos[0];
+            setDetectedCbo(best);
+            // Preencher automaticamente os campos CBO e Descrição se estiverem vazios
+            setForm(prev => ({
+              ...prev,
+              cbo: prev.cbo ? prev.cbo : best.codigo,
+              description: prev.description ? prev.description : (best.titulo + (best.sinonimo ? ` (${best.sinonimo})` : ''))
+            }));
+          } else {
+            setDetectedCbo(null);
+          }
+        } catch (cboErr) {
+          console.warn('Erro ao buscar CBO para o cargo:', cboErr);
+        }
       }
     };
 
-    // Debounce para evitar muitas requisições
-    const timeoutId = setTimeout(() => {
-      searchPositions();
-    }, 300);
-
+    const timeoutId = setTimeout(searchPositionsAndCBO, 350);
     return () => clearTimeout(timeoutId);
   }, [positionSearchTerm]);
 
@@ -218,11 +238,13 @@ const NovoCargoModal: React.FC<NovoCargoModalProps> = ({ open, onClose, onCargoC
       setForm({ name: '', description: '', cbo: '' });
       setPositionSearchTerm('');
       setFilteredPositions([]);
-    } catch (err) {
-      setError('Erro ao criar cargo. Tente novamente.');
+      setDetectedCbo(null);
+    } catch (err: any) {
+      const errorMsg = err?.response?.data?.message || err?.message || 'Erro ao criar cargo. Tente novamente.';
+      setError(errorMsg);
       toast({
         title: "Erro",
-        description: "Não foi possível criar o cargo.",
+        description: errorMsg,
         variant: "destructive"
       });
     } finally {
@@ -358,6 +380,35 @@ const NovoCargoModal: React.FC<NovoCargoModalProps> = ({ open, onClose, onCargoC
                   <div className="flex items-center gap-2 text-xs text-gray-400">
                     <CheckCircle className="h-3 w-3 text-green-400" />
                     <span>Nome válido: {form.name.length} caracteres</span>
+                  </div>
+                )}
+
+                {/* CBO Detectado Automaticamente */}
+                {detectedCbo && (
+                  <div
+                    onClick={() => {
+                      setForm(prev => ({
+                        ...prev,
+                        cbo: detectedCbo.codigo,
+                        description: detectedCbo.titulo + (detectedCbo.sinonimo ? ` (${detectedCbo.sinonimo})` : '')
+                      }));
+                    }}
+                    className="p-2.5 rounded-lg bg-blue-950/40 border border-blue-500/40 text-blue-200 text-xs flex items-center justify-between gap-2 cursor-pointer hover:bg-blue-900/40 transition-all shadow-sm"
+                    title="Clique para confirmar e preencher CBO e Descrição"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-amber-400 shrink-0 animate-pulse" />
+                      <div>
+                        <span className="font-semibold text-white">CBO Encontrado: </span>
+                        <span className="font-mono bg-blue-900/70 px-1.5 py-0.5 rounded text-[11px] text-blue-300 font-bold mr-1">
+                          {detectedCbo.codigo}
+                        </span>
+                        <span>{detectedCbo.titulo}</span>
+                      </div>
+                    </div>
+                    <Badge className="bg-emerald-600 text-white text-[10px] shrink-0 font-medium">
+                      Preenchido
+                    </Badge>
                   </div>
                 )}
               </div>

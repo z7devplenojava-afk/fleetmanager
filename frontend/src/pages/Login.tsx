@@ -20,7 +20,7 @@ import { VLibrasWidget } from '@/components/accessibility/VLibrasWidget';
 const Login = () => {
   useGSAP();
   const navigate = useNavigate();
-  const { user, login } = useAuth();
+  const { user, login, logout } = useAuth();
   const { toast } = useToast();
   const isSubmitting = useRef(false);
 
@@ -56,12 +56,29 @@ const Login = () => {
   }, []);
 
   useEffect(() => {
-    // Se já está autenticado e não está em processo de login, redireciona para o dashboard do seu ROLE
+    // Se o usuário tentar acessar /login enquanto autenticado:
     if (user && !loading) {
+      const isSuperAdmin = (user.role ?? '').toUpperCase().includes('SUPER_ADMIN');
+      const isPendingCredentials = !isSuperAdmin && (
+        !user.firstAccessCompleted || 
+        user.requirePasswordChange || 
+        user.requiresPasswordChange || 
+        user.pendingFirstAccess
+      );
+
+      if (isPendingCredentials) {
+        // SEGURANÇA CRÍTICA: Se o usuário estava no fluxo de primeiro acesso / troca de senha
+        // e clicou em "Voltar" no navegador retornando para /login, a sessão provisória DEVE
+        // ser imediatamente abortada. O sistema NUNCA pode logar ou redirecionar para o dashboard
+        // até que o usuário confirme e conclua todas as credenciais!
+        logout();
+        return;
+      }
+
       const destination = getDashboardRouteForRole(user.role, user);
       navigate(destination, { replace: true });
     }
-  }, [user, navigate, loading]);
+  }, [user, navigate, loading, logout]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

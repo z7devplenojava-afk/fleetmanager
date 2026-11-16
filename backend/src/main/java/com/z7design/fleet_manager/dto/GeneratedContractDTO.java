@@ -62,11 +62,26 @@ public class GeneratedContractDTO {
     private String signatureProvider;
     private LocalDateTime signedAt;
 
+    private UUID companyId;
+    private String scopeLevel;
+    private String storageKey;
+    private String sha256Hash;
+    private UUID acceptedByUserId;
+    private String pdfUrl;
+
     private LocalDateTime createdAt;
 
     public static GeneratedContractDTO fromEntity(GeneratedContract e) {
         GeneratedContractDTO dto = new GeneratedContractDTO();
         dto.setId(e.getId());
+        if (e.getCompany() != null) {
+            dto.setCompanyId(e.getCompany().getId());
+        }
+        dto.setScopeLevel(e.getScopeLevel());
+        dto.setStorageKey(e.getStorageKey());
+        dto.setSha256Hash(e.getSha256Hash());
+        dto.setAcceptedByUserId(e.getAcceptedByUserId());
+        dto.setPdfUrl(e.getPdfUrl());
         if (e.getTemplate() != null) {
             dto.setTemplateId(e.getTemplate().getId());
             dto.setTemplateType(e.getTemplate().getTemplateType());

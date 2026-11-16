@@ -271,6 +271,7 @@ public class UserController {
                     .active(currentUser.isActive())
                     .roles(roleNames)
                     .firstAccessCompleted(currentUser.getFirstAccessCompleted() != null && currentUser.getFirstAccessCompleted())
+                    .requirePasswordChange(currentUser.getRequirePasswordChange() != null && currentUser.getRequirePasswordChange())
                     .requiresLgpdConsent(requiresLgpdConsent)
                     .employeeId(employeeId)
                     .position(position)
@@ -293,7 +294,8 @@ public class UserController {
                     .name(name)
                     .active(true)
                     .roles(List.of())
-                    .firstAccessCompleted(true)
+                    .firstAccessCompleted(false)
+                    .requirePasswordChange(false)
                     .requiresLgpdConsent(false)
                     .isDriver(false)
                     .build();

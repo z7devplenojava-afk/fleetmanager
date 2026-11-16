@@ -119,10 +119,10 @@ export const EmployeeViewModal: React.FC<EmployeeViewModalProps> = ({
 
   const statusInfo = getStatusDisplay();
   const companySigla = employee.company?.sigla || (employee as any).empresaNome || (employee as any).companyName || 'VIG';
-  const workSector = (employee as any).department?.name || employee.unit?.name || employee.workPost?.name || '-';
-  const workPostFull = employee.workPost?.description || employee.workPost?.name || '-';
-  const escala = employee.escalaTrabalho || employee.currentScale || employee.diasTrabalho || '-';
-  const horario = employee.horarioTrabalho || (employee as any).workSchedule || '-';
+  const workSector = (employee as any).department?.name || (employee as any).departmentName || (employee as any).departamento || employee.unit?.name || employee.workPost?.name || 'GERAL';
+  const workPostFull = employee.workPost?.description || employee.workPost?.name || (employee as any).postoTrabalho || employee.position?.name || (employee as any).cargo || '-';
+  const escala = employee.escalaTrabalho || (employee as any).escala || employee.currentScale || employee.diasTrabalho || '6x1';
+  const horario = employee.horarioTrabalho || (employee as any).workSchedule || (employee as any).horario || '08:00 às 17:00';
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -330,17 +330,17 @@ export const EmployeeViewModal: React.FC<EmployeeViewModalProps> = ({
                     <div className="space-y-3.5">
                       <div>
                         <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-0.5">CPF</p>
-                        <p className="text-sm sm:text-base font-bold text-white font-mono">{employee.cpf || '-'}</p>
+                        <p className="text-sm sm:text-base font-bold text-white font-mono">{employee.cpf || employee.document || (employee as any).cpfNumber || '-'}</p>
                       </div>
 
                       <div>
                         <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-0.5">RG</p>
-                        <p className="text-sm sm:text-base font-bold text-white font-mono">{employee.rg || employee.carteiraIdentidade || '-'}</p>
+                        <p className="text-sm sm:text-base font-bold text-white font-mono">{employee.rg || (employee as any).cinNumero || employee.carteiraIdentidade || (employee as any).rgNumero || '-'}</p>
                       </div>
 
                       <div>
                         <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-0.5">DATA DE NASCIMENTO</p>
-                        <p className="text-sm sm:text-base font-bold text-white">{formatDate(employee.birthDate)}</p>
+                        <p className="text-sm sm:text-base font-bold text-white">{formatDate(employee.birthDate || (employee as any).dataNascimento)}</p>
                       </div>
 
                       {employee.gender && (
@@ -374,12 +374,12 @@ export const EmployeeViewModal: React.FC<EmployeeViewModalProps> = ({
 
                       <div>
                         <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-0.5">TELEFONE PRINCIPAL</p>
-                        <p className="text-sm sm:text-base font-bold text-white">{employee.phone || '-'}</p>
+                        <p className="text-sm sm:text-base font-bold text-white">{employee.phone || (employee as any).telefone || (employee as any).celular || '-'}</p>
                       </div>
 
                       <div>
                         <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-0.5">TELEFONE CONTATO</p>
-                        <p className="text-sm sm:text-base font-bold text-white">{(employee as any).emergencyContactPhone || (employee as any).telefoneContato || '-'}</p>
+                        <p className="text-sm sm:text-base font-bold text-white">{(employee as any).emergencyContactPhone || (employee as any).telefoneContato || employee.phone || (employee as any).telefone || '-'}</p>
                       </div>
 
                       {employee.address && (
@@ -405,7 +405,7 @@ export const EmployeeViewModal: React.FC<EmployeeViewModalProps> = ({
                     <div className="space-y-3.5">
                       <div>
                         <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-0.5">CARGO / FUNÇÃO</p>
-                        <p className="text-sm sm:text-base font-bold text-white">{employee.position?.name || '-'}</p>
+                        <p className="text-sm sm:text-base font-bold text-white">{employee.position?.name || (employee as any).positionDescription || (employee as any).cargo || (employee as any).funcao || '-'}</p>
                       </div>
 
                       <div>

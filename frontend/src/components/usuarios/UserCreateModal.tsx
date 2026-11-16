@@ -64,7 +64,7 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
   onSave,
   companyId,
 }) => {
-  const { hasRole, empresa: currentEmpresa } = useAuth();
+  const { user: currentUser, hasRole, empresa: currentEmpresa } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -109,10 +109,13 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
   useEffect(() => {
     if (companyId) {
       setSelectedCompanyId(companyId);
-    } else if (!canManageCompanies && currentEmpresa?.id) {
-      setSelectedCompanyId(currentEmpresa.id);
+    } else if (!canManageCompanies) {
+      const myCompId = currentEmpresa?.id || currentUser?.companyId;
+      if (myCompId) {
+        setSelectedCompanyId(myCompId);
+      }
     }
-  }, [companyId, currentEmpresa, canManageCompanies]);
+  }, [companyId, currentEmpresa, currentUser, canManageCompanies]);
 
   // Fechar combobox de funcionário ao clicar fora
   useEffect(() => {
@@ -358,9 +361,10 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
       const cleanCpfDigits = formData.cpf.replace(/\D/g, '');
       const empIdToLink = selectedEmployeeId !== 'none' ? selectedEmployeeId : (linkedEmployee?.id || undefined);
 
+      const myCompId = currentEmpresa?.id || currentUser?.companyId;
       const targetCompanyId = (selectedCompanyId && selectedCompanyId !== 'none')
         ? selectedCompanyId
-        : (!canManageCompanies && currentEmpresa?.id ? currentEmpresa.id : undefined);
+        : (!canManageCompanies && myCompId ? myCompId : undefined);
 
       const userData: CreateUserRequest = {
         username: formData.username.trim(),
@@ -621,9 +625,14 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
                   ) : (
                     <Input
                       id="company-name"
-                      value={currentEmpresa?.nome || 'Empresa não identificada'}
+                      value={
+                        currentEmpresa?.nome ||
+                        (currentEmpresa as any)?.name ||
+                        currentUser?.companyName ||
+                        'Empresa não identificada'
+                      }
                       readOnly
-                      className="bg-seguranca-black border-gray-600 text-seguranca-lightgray opacity-70 cursor-not-allowed"
+                      className="bg-seguranca-black border-gray-600 text-gray-200 opacity-90 cursor-not-allowed"
                     />
                   )}
                 </div>

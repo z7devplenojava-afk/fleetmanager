@@ -105,15 +105,18 @@ public class EmployeePdfImportService {
 
             // Agrupamento inteligente por funcionário:
             // Cada empregado possui normalmente 2 páginas (frente com dados pessoais e verso com históricos),
-            // ambas compartilhando o cabeçalho "Código: 000972 Nome: ADAIR JOSE SOARES DE ABREU".
-            Pattern codigoHeaderPattern = Pattern.compile("(?i)C[oó]digo\\s*:\\s*(\\d+)\\s+Nome\\s*:");
+            // ambas compartilhando o cabeçalho "Código: 000972 Nome: ADAIR JOSE SOARES DE ABREU" ou "001146Código:".
+            Pattern codigoHeaderPattern = Pattern.compile("(?i)(?:C[oó]digo\\s*:\\s*(\\d+)|(\\d{4,8})\\s*C[oó]digo:)");
             String currentCode = null;
             StringBuilder currentEmployeeText = new StringBuilder();
 
             for (String pText : pageList) {
                 if (pText == null || pText.isBlank()) continue;
                 Matcher cm = codigoHeaderPattern.matcher(pText);
-                String pageCode = cm.find() ? cm.group(1) : null;
+                String pageCode = null;
+                if (cm.find()) {
+                    pageCode = cm.group(1) != null ? cm.group(1) : cm.group(2);
+                }
 
                 if (pageCode != null && !pageCode.equals(currentCode) && currentCode != null) {
                     pdfBlocks.add(currentEmployeeText.toString());
@@ -342,27 +345,48 @@ public class EmployeePdfImportService {
         // 3. Extração dos Dados do Empregado e Isolamento de Seções
         // Isolamento essencial: remove qualquer texto da seção DEPENDENTES para evitar capturar dados ou CPFs de dependentes!
         String employeeSectionText = text;
-        int depIndex = text.toUpperCase().indexOf("DEPENDENTES");
-        if (depIndex > 0) {
-            employeeSectionText = text.substring(0, depIndex);
+        // Cortar apenas no cabeçalho estrito de seção DEPENDENTES para não cortar antes de "Dependentes Salário Família"
+        Matcher depMatcher = Pattern.compile("(?m)^\\s*DEPENDENTES\\s*$").matcher(text);
+        if (depMatcher.find()) {
+            employeeSectionText = text.substring(0, depMatcher.start());
         }
 
         // 3.1. Identificação do Cabeçalho (Código e Nome)
-        Pattern codigoHeaderPattern = Pattern.compile("(?i)C[oó]digo\\s*:\\s*(\\d+)\\s+Nome\\s*:\\s*([^\\n\\r]+)");
+        Pattern codigoHeaderPattern = Pattern.compile("(?i)(?:C[oó]digo\\s*:\\s*(\\d+)\\s+Nome\\s*:\\s*([^\\n\\r]+)|(\\d{4,8})\\s*C[oó]digo:)");
         Matcher cm = codigoHeaderPattern.matcher(text);
         String codigo = null;
         String headerNome = null;
         if (cm.find()) {
-            codigo = cm.group(1).trim();
-            headerNome = cm.group(2).trim();
+            codigo = cm.group(1) != null ? cm.group(1).trim() : (cm.group(3) != null ? cm.group(3).trim() : null);
+            headerNome = cm.group(2) != null ? cm.group(2).trim() : null;
         }
 
         String matricula = extractValue(text, "(?:Matr[ií]cula|Mat:?)\\s*:\\s*(\\d+)");
+        if (matricula == null) {
+            Matcher matEnd = Pattern.compile("(\\d{4,12})\\s*Matr[ií]cula:").matcher(text);
+            if (matEnd.find()) matricula = matEnd.group(1).trim();
+        }
         if (matricula == null && codigo != null) {
             matricula = codigo;
         }
         String registro = extractValue(text, "Registro\\s*:\\s*(\\d+)");
         String matriculaEsocial = extractValue(text, "Matr[ií]cula\\s*eSocial\\s*:\\s*(?:\\d+\\s+)?([^\\n\\r]+)");
+        if (matriculaEsocial == null) {
+            Matcher matEsoc = Pattern.compile("(\\d{4,12})\\s*Matr[ií]cula\\s*eSocial:").matcher(text);
+            if (matEsoc.find()) matriculaEsocial = matEsoc.group(1).trim();
+        }
+
+        // Telefone / Contato (costuma vir no topo da ficha: "31984738517Contato:" ou "Contato: 31984738517")
+        String telefoneContato = null;
+        Matcher mTel = Pattern.compile("(?i)(?:^|\\n)\\s*(\\d{10,11})\\s*Contato:").matcher(text);
+        if (mTel.find()) {
+            telefoneContato = mTel.group(1).trim();
+        } else {
+            Matcher mTel2 = Pattern.compile("(?i)Contato\\s*:\\s*(\\d{10,11})").matcher(text);
+            if (mTel2.find()) {
+                telefoneContato = mTel2.group(1).trim();
+            }
+        }
 
         // 3.2. Seção DOCUMENTOS (estritamente entre DOCUMENTOS e DADOS PESSOAIS)
         String docSection = employeeSectionText;
@@ -443,6 +467,15 @@ public class EmployeePdfImportService {
             cleanRealName = sanitizeEmployeeName(headerNome);
         }
         if (cleanRealName == null) {
+            Matcher mNameAtEnd = Pattern.compile("(?m)^([A-ZÀ-ÿ\\s.'-]{4,60})Nome(?:\\s*do\\s*Empregado)?\\s*:").matcher(employeeSectionText);
+            if (mNameAtEnd.find()) {
+                String candidate = mNameAtEnd.group(1).trim();
+                if (isValidEmployeeName(candidate)) {
+                    cleanRealName = sanitizeEmployeeName(candidate);
+                }
+            }
+        }
+        if (cleanRealName == null) {
             // Suporta layout na mesma linha ou na linha imediatamente seguinte
             Pattern multilineNamePattern = Pattern.compile("(?i)(?:Nome(?:\\s*do\\s*(?:Empregado|Trabalhador|Funcionário)?)?|Empregado|Trabalhador)\\s*:\\s*(?:\\r?\\n\\s*)?([A-Za-zÀ-ÿ\\s.'-]{3,60})");
             Matcher mName = multilineNamePattern.matcher(employeeSectionText);
@@ -470,8 +503,43 @@ public class EmployeePdfImportService {
         String ctpsSerie = extractValue(docSection, "Série(?:\\s*CTPS)?\\s*:\\s*(\\w+)");
         String ctpsEstado = extractValue(docSection, "(?:Estado\\s*CTPS|UF)\\s*:\\s*([A-Za-z]{2})");
         String ctpsExpedicaoStr = extractValue(docSection, "(?:Data\\s*Expediç[aäo]+|Expedição\\s*CTPS)\\s*:\\s*(\\d{2}/\\d{2}/\\d{4})");
-        String ciRg = extractValue(docSection, "(?:C\\.I\\.|RG)\\s*:\\s*([^ \\t\\n\\r]+)");
+        
+        // C.I. (RG): extração inteligente em layout colunar Alterdata e fallbacks
+        String ciRg = null;
+        if (docSection.contains("Habilt. Profiss.:")) {
+            String afterHab = docSection.substring(docSection.indexOf("Habilt. Profiss.:") + "Habilt. Profiss.:".length());
+            String[] rawLines = afterHab.split("\\r?\\n");
+            List<String> validLines = new ArrayList<>();
+            for (String l : rawLines) {
+                String tr = l.trim();
+                if (!tr.isEmpty() && !tr.startsWith("Série") && !tr.startsWith("Data") && !tr.startsWith("Zona") && !tr.startsWith("Pis") && !tr.startsWith("Cart.") && !tr.startsWith("Registro") && !tr.startsWith("Habilitação")) {
+                    validLines.add(tr);
+                }
+            }
+            if (validLines.size() >= 1 && ctpsNumero == null) {
+                ctpsNumero = validLines.get(0);
+            }
+            if (validLines.size() >= 2) {
+                ciRg = validLines.get(1);
+            }
+        }
+        if (ciRg == null || ciRg.isBlank() || ciRg.equalsIgnoreCase("Titulo") || ciRg.equalsIgnoreCase("Órgão") || ciRg.equalsIgnoreCase("Não")) {
+            ciRg = extractValue(docSection, "(?:C\\.I\\.|RG)\\s*:\\s*([^ \\t\\n\\r]+)");
+        }
+        if (ciRg == null || ciRg.isBlank() || ciRg.equalsIgnoreCase("Titulo") || ciRg.equalsIgnoreCase("Órgão") || ciRg.equalsIgnoreCase("Não")) {
+            Matcher mRg = Pattern.compile("\\b([A-Z]{2}-?\\d{1,2}(?:\\.\\d{3}){2}|\\d{1,2}(?:\\.\\d{3}){2}-[0-9X]|MG-[0-9.]+|\\d{7,10})\\b").matcher(docSection);
+            if (mRg.find()) {
+                ciRg = mRg.group(1);
+            }
+        }
+
         String pis = extractValue(docSection, "(?:Pis/Pasep|PIS)\\s*:\\s*([\\d.-]+)");
+        if (pis == null || pis.isBlank()) {
+            Matcher mPis = Pattern.compile("(?<!\\d)(\\d{11}|\\d{3}\\.\\d{5}\\.\\d{2}-\\d)(?!\\d)").matcher(docSection);
+            if (mPis.find() && !mPis.group(1).equals(cleanCpf)) {
+                pis = mPis.group(1);
+            }
+        }
         String tituloEleitoral = extractValue(docSection, "(?:Titulo\\s*de\\s*Eleitor|Tít\\.\\s*Eleitoral)\\s*:\\s*(\\d+)");
         String zona = extractValue(docSection, "Zona\\s*:\\s*(\\d+)");
         String secao = extractValue(docSection, "Seção\\s*:\\s*(\\d+)");
@@ -499,7 +567,11 @@ public class EmployeePdfImportService {
         String ufEmpregado = extractValue(dadosPessoaisSection, "(?:Cidade\\s*:[^\\n\\r]*?)?UF\\s*:\\s*([A-Za-z]{2})");
         String sexo = extractValue(dadosPessoaisSection, "Sexo\\s*:\\s*([MFmf])");
         String estadoCivil = extractValue(dadosPessoaisSection, "Estado\\s*Civil\\s*:\\s*([^\\n\\r]+?)(?=\\s*Data\\s*nasc|$)");
-        String nascimentoStr = extractValue(dadosPessoaisSection, "Data\\s*nasc\\.?\\s*:\\s*(\\d{2}/\\d{2}/\\d{4})");
+        String nascimentoStr = extractValue(dadosPessoaisSection, "Data\\s*nasc\\.?[^\\d]*(\\d{2}/\\d{2}/\\d{4})");
+        if (nascimentoStr == null || nascimentoStr.isBlank()) {
+            Matcher mNasc = Pattern.compile("Data\\s*nasc\\.?[^\\d]*(\\d{2}/\\d{2}/\\d{4})").matcher(employeeSectionText);
+            if (mNasc.find()) nascimentoStr = mNasc.group(1);
+        }
         String grauInstrucao = extractValue(dadosPessoaisSection, "Grau\\s*de\\s*Instrução\\s*:\\s*([^\\n\\r]+)");
         String nacionalidade = extractValue(dadosPessoaisSection, "Nacionalidade\\s*:\\s*([^\\n\\r]+)");
         String naturalidade = extractValue(dadosPessoaisSection, "Naturalidade\\s*:\\s*([^\\n\\r]+)");
@@ -516,16 +588,60 @@ public class EmployeePdfImportService {
             }
         }
 
-        String admissaoStr = extractValue(dadosEmpregaticiosSection, "Data\\s*de\\s*Admiss[aäão]+:\\s*(\\d{2}/\\d{2}/\\d{4})");
+        String admissaoStr = null;
         String demissaoStr = extractValue(dadosEmpregaticiosSection, "Data\\s*de\\s*Demiss[aäão]+\\s*:\\s*(\\d{2}/\\d{2}/\\d{4})");
-        String depto = extractValue(dadosEmpregaticiosSection, "Depto\\s*:\\s*([^\\n\\r]+?)(?=\\s*Funç|\\s*CBO|\\s*Horas|$)");
-        String funcao = extractValue(dadosEmpregaticiosSection, "Funç[aäão]+:\\s*([^\\n\\r]+?)(?=\\s*CBO|\\s*Horas|\\s*Depto|$)");
+        String depto = null;
+        String funcao = null;
         String cbo = extractValue(dadosEmpregaticiosSection, "CBO\\s*:\\s*(\\d+)");
-        String salarioAtualStr = extractValue(dadosEmpregaticiosSection, "Salário\\s*Atual\\s*:\\s*([0-9.,]+)");
-        String optanteFgtsStr = extractValue(dadosEmpregaticiosSection, "Data\\s*de\\s*Opç[aäão]+\\s*FGTS\\s*:\\s*(\\d{2}/\\d{2}/\\d{4})");
-        String formaPagamento = extractValue(dadosEmpregaticiosSection, "Forma\\s*de\\s*Pagamento\\s*:\\s*([^\\n\\r]+?)(?=\\s*Data\\s*de\\s*Demiss|$)");
-        String horasMes = extractValue(dadosEmpregaticiosSection, "Horas\\s*Mês\\s*:\\s*([^\\n\\r]+?)(?=\\s*Horas|$)");
-        String horasSemana = extractValue(dadosEmpregaticiosSection, "Horas\\s*Semana\\s*:\\s*([^\\n\\r]+?)(?=\\s*Salário|$)");
+        String salarioAtualStr = null;
+        String optanteFgtsStr = null;
+        String formaPagamento = null;
+        String horasMes = null;
+        String horasSemana = null;
+
+        if (dadosEmpregaticiosSection.contains("Data de Admiss")) {
+            String[] deLines = dadosEmpregaticiosSection.split("\\r?\\n");
+            List<String> trimmed = new ArrayList<>();
+            for (String l : deLines) {
+                String tr = l.trim();
+                if (!tr.isEmpty()) trimmed.add(tr);
+            }
+            for (int i = 0; i < trimmed.size(); i++) {
+                String line = trimmed.get(i);
+                if (line.matches("^\\d{2}/\\d{2}/\\d{4}$") && admissaoStr == null) {
+                    admissaoStr = line;
+                    if (i + 1 < trimmed.size() && !trimmed.get(i + 1).contains(":")) {
+                        funcao = trimmed.get(i + 1);
+                    }
+                    if (i + 2 < trimmed.size() && trimmed.get(i + 2).matches("^\\d+:\\d+$")) {
+                        horasMes = trimmed.get(i + 2);
+                    }
+                } else if (line.matches("^\\d{2}/\\d{2}/\\d{4}$") && optanteFgtsStr == null && admissaoStr != null) {
+                    optanteFgtsStr = line;
+                    if (i + 1 < trimmed.size() && !trimmed.get(i + 1).contains(":")) {
+                        depto = trimmed.get(i + 1);
+                    }
+                    if (i + 2 < trimmed.size() && trimmed.get(i + 2).matches("^\\d+:\\d+$")) {
+                        horasSemana = trimmed.get(i + 2);
+                    }
+                } else if (line.matches("^[0-9]{1,3}(?:\\.[0-9]{3})*,[0-9]{2}$") && salarioAtualStr == null) {
+                    salarioAtualStr = line;
+                    if (i - 1 >= 0 && (trimmed.get(i - 1).equalsIgnoreCase("Mensal") || trimmed.get(i - 1).equalsIgnoreCase("Mensalista") || trimmed.get(i - 1).equalsIgnoreCase("Horista"))) {
+                        formaPagamento = trimmed.get(i - 1);
+                    }
+                }
+            }
+        }
+
+        // Fallbacks
+        if (admissaoStr == null) admissaoStr = extractValue(dadosEmpregaticiosSection, "Data\\s*de\\s*Admiss[aäão]+[^\n\\d]*(\\d{2}/\\d{2}/\\d{4})");
+        if (funcao == null) funcao = extractValue(dadosEmpregaticiosSection, "Funç[aäão]+:\\s*([^\\n\\r]+?)(?=\\s*CBO|\\s*Horas|\\s*Depto|$)");
+        if (depto == null) depto = extractValue(dadosEmpregaticiosSection, "Depto\\s*:\\s*([^\\n\\r]+?)(?=\\s*Funç|\\s*CBO|\\s*Horas|$)");
+        if (salarioAtualStr == null) salarioAtualStr = extractValue(dadosEmpregaticiosSection, "Salário\\s*Atual\\s*:\\s*([0-9.,]+)");
+        if (optanteFgtsStr == null) optanteFgtsStr = extractValue(dadosEmpregaticiosSection, "Data\\s*de\\s*Opç[aäão]+\\s*FGTS\\s*:\\s*(\\d{2}/\\d{2}/\\d{4})");
+        if (formaPagamento == null) formaPagamento = extractValue(dadosEmpregaticiosSection, "Forma\\s*de\\s*Pagamento\\s*:\\s*([^\\n\\r]+?)(?=\\s*Data\\s*de\\s*Demiss|$)");
+        if (horasMes == null) horasMes = extractValue(dadosEmpregaticiosSection, "Horas\\s*Mês\\s*:\\s*([^\\n\\r]+?)(?=\\s*Horas|$)");
+        if (horasSemana == null) horasSemana = extractValue(dadosEmpregaticiosSection, "Horas\\s*Semana\\s*:\\s*([^\\n\\r]+?)(?=\\s*Salário|$)");
 
         // 3.5. Seção ALTERAÇÃO SALARIAL (buscar salário mais recente atualizado)
         String finalSalarioStr = salarioAtualStr;
@@ -558,21 +674,45 @@ public class EmployeePdfImportService {
             int altDeptIdx = employeeSectionText.indexOf("ALTERAÇÃO DE DEPARTAMENTO");
             String altFunSec = (altDeptIdx > altFunIdx) ? employeeSectionText.substring(altFunIdx, altDeptIdx) : employeeSectionText.substring(altFunIdx);
 
-            Pattern funPattern = Pattern.compile("(\\d{2}/\\d{2}/\\d{4})\\s+([A-Za-zÀ-ÿ\\s]{4,})");
+            Pattern funPattern = Pattern.compile("(?:(\\d{2}/\\d{2}/\\d{4})\\s+([A-Za-zÀ-ÿ\\s]{4,})|([A-Za-zÀ-ÿ\\s]{4,})\\s*(\\d{2}/\\d{2}/\\d{4}))");
             Matcher funMatcher = funPattern.matcher(altFunSec);
             LocalDate latestFunDate = null;
             String latestFun = null;
             while (funMatcher.find()) {
-                LocalDate d = parseDate(funMatcher.group(1));
-                String fn = funMatcher.group(2).trim();
-                if (d != null && (latestFunDate == null || d.isAfter(latestFunDate)) && !fn.equalsIgnoreCase("NOVA FUNÇÃO") && !fn.equalsIgnoreCase("MOTIVO")) {
-                    latestFunDate = d;
-                    latestFun = fn;
+                String dStr = funMatcher.group(1) != null ? funMatcher.group(1) : funMatcher.group(4);
+                String fn = funMatcher.group(2) != null ? funMatcher.group(2).trim() : (funMatcher.group(3) != null ? funMatcher.group(3).trim() : null);
+                LocalDate d = parseDate(dStr);
+                if (fn != null && !fn.equalsIgnoreCase("NOVA FUNÇÃO") && !fn.equalsIgnoreCase("MOTIVO") && !fn.equalsIgnoreCase("Data Nova Função")) {
+                    if (d != null && (latestFunDate == null || d.isAfter(latestFunDate))) {
+                        latestFunDate = d;
+                        latestFun = fn;
+                    } else if (latestFun == null) {
+                        latestFun = fn;
+                    }
                 }
             }
             if (latestFun != null && latestFun.length() > 3) {
                 finalFuncao = latestFun;
             }
+        }
+
+        if (finalFuncao == null || finalFuncao.isBlank()) {
+            Matcher mProf = Pattern.compile("(?i)(?:Motorista\\s+de\\s+[oô]nibus\\s+rodovi[aá]rio|Motorista\\s+[oô]nibus\\s+urbano|Motorista[^\\n\\r\\d]*|Fiscal[^\\n\\r\\d]*|Cobrador[^\\n\\r\\d]*|Mec[aâ]nico[^\\n\\r\\d]*)").matcher(text);
+            if (mProf.find()) {
+                finalFuncao = mProf.group(0).trim();
+            }
+        }
+
+        if (depto == null || depto.isBlank()) {
+            if (employeeSectionText.contains("ALTERAÇÃO DE DEPARTAMENTO")) {
+                Matcher mDep = Pattern.compile("ALTERAÇÃO DE DEPARTAMENTO.*?\\d{2}/\\d{2}/\\d{4}\\s+([A-Za-zÀ-ÿ\\s]{3,30})", Pattern.DOTALL).matcher(employeeSectionText);
+                if (mDep.find()) {
+                    depto = mDep.group(1).trim();
+                }
+            }
+        }
+        if (depto == null || depto.isBlank()) {
+            depto = "GERAL";
         }
 
         // 4. Localizar funcionário existente no banco de dados por CPF, Matrícula ou Placeholder
@@ -766,7 +906,14 @@ public class EmployeePdfImportService {
         if (ctpsSerie != null && !ctpsSerie.isBlank()) employee.setCtpsSeries(truncate(ctpsSerie, 20));
         if (ctpsEstado != null && !ctpsEstado.isBlank()) employee.setCtpsUf(formatUf(ctpsEstado));
         if (ctpsExpedicaoStr != null && !ctpsExpedicaoStr.isBlank()) employee.setCtpsIssueDate(parseDate(ctpsExpedicaoStr));
-        if (ciRg != null && !ciRg.isBlank()) employee.setCinNumero(truncate(ciRg, 30));
+        if (ciRg != null && !ciRg.isBlank()) {
+            employee.setCinNumero(truncate(ciRg, 30));
+            employee.setRg(truncate(ciRg, 30));
+        }
+        if (cleanCpf != null && !cleanCpf.isBlank()) {
+            employee.setDocument(truncate(cleanCpf, 20));
+            employee.setCpf(truncate(cleanCpf, 20));
+        }
         if (pis != null && !pis.isBlank()) employee.setPis(truncate(pis, 20));
         if (cnh != null && !cnh.isBlank()) employee.setCnhNumber(truncate(cnh, 20));
         if (cnhCategoria != null && !cnhCategoria.isBlank()) employee.setCnhCategory(truncate(cnhCategoria, 10));
@@ -787,6 +934,19 @@ public class EmployeePdfImportService {
             employee.setMunicipioNascimento(truncate(naturalidade, 100));
         }
 
+        // Telefone e Contato
+        if (telefoneContato != null && !telefoneContato.isBlank()) {
+            String cleanTel = telefoneContato.replaceAll("[^0-9]", "");
+            String formattedTel = cleanTel;
+            if (cleanTel.length() == 11) {
+                formattedTel = "(" + cleanTel.substring(0, 2) + ") " + cleanTel.substring(2, 7) + "-" + cleanTel.substring(7);
+            } else if (cleanTel.length() == 10) {
+                formattedTel = "(" + cleanTel.substring(0, 2) + ") " + cleanTel.substring(2, 6) + "-" + cleanTel.substring(6);
+            }
+            employee.setPhone(truncate(formattedTel, 20));
+            employee.setTelefoneContato(truncate(formattedTel, 20));
+        }
+
         // Endereço
         if (enderecoRua != null && !enderecoRua.isBlank()) employee.setEnderecoRua(truncate(enderecoRua, 255));
         if (bairroEmpregado != null && !bairroEmpregado.isBlank()) employee.setEnderecoBairro(truncate(bairroEmpregado, 100));
@@ -796,9 +956,14 @@ public class EmployeePdfImportService {
 
         // Trabalho / Horário
         if (formaPagamento != null && !formaPagamento.isBlank()) employee.setModoPagamento(truncate(formaPagamento, 50));
-        if (horasMes != null || horasSemana != null) {
+        if (employeeSectionText.contains("08:00") && employeeSectionText.contains("17:00")) {
+            employee.setHorarioTrabalho("08:00 às 17:00");
+        } else if (horasMes != null || horasSemana != null) {
             String hrText = (horasMes != null ? "Mês: " + horasMes.trim() : "") + (horasSemana != null ? " Sem: " + horasSemana.trim() : "");
             employee.setHorarioTrabalho(truncate(hrText.trim(), 255));
+        }
+        if (employee.getEscalaTrabalho() == null || employee.getEscalaTrabalho().isBlank()) {
+            employee.setEscalaTrabalho("6x1");
         }
         if (optanteFgtsStr != null && !optanteFgtsStr.isBlank()) {
             LocalDate dFgts = parseDate(optanteFgtsStr);

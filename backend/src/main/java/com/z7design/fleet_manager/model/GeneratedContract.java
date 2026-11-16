@@ -31,6 +31,14 @@ public class GeneratedContract {
     private ContractTemplate template;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id")
+    private Company company;
+
+    /** Nível 1: PLATFORM_SAAS; Nível 2: TENANT_CLIENT */
+    @Column(name = "scope_level", length = 30)
+    private String scopeLevel = "TENANT_CLIENT";
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "client_id")
     private Client client;
 
@@ -108,6 +116,21 @@ public class GeneratedContract {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 50)
     private GeneratedContractStatus status = GeneratedContractStatus.DRAFT;
+
+    @Column(name = "storage_key", length = 500)
+    private String storageKey;
+
+    @Column(name = "sha256_hash", length = 64)
+    private String sha256Hash;
+
+    @Column(name = "accepted_by_user_id")
+    private UUID acceptedByUserId;
+
+    @Column(name = "acceptance_metadata", columnDefinition = "TEXT")
+    private String acceptanceMetadata;
+
+    @Column(name = "pdf_url", columnDefinition = "TEXT")
+    private String pdfUrl;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

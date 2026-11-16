@@ -28,13 +28,15 @@ import {
   Building,
   Lock,
   Unlock,
-  ShieldOff
+  ShieldOff,
+  FileText
 } from 'lucide-react';
 import { useGSAP } from '@/hooks/use-gsap';
 import { UserViewModal } from '@/components/usuarios/UserViewModal';
 import { UserEditModal } from '@/components/usuarios/UserEditModal';
 import { UserDeleteDialog } from '@/components/usuarios/UserDeleteDialog';
 import { UserCreateModal } from '@/components/usuarios/UserCreateModal';
+import { UserReportModal } from '@/components/usuarios/UserReportModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { getRoleDisplayName, getRoleColor, USER_ROLE_LIST } from '@/utils/permissions';
@@ -58,7 +60,7 @@ const Usuarios: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, empresa, hasRole } = useAuth();
   useGSAP();
 
   // Estados dos modais
@@ -67,6 +69,7 @@ const Usuarios: React.FC = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   // Estados de seleção em massa
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
@@ -140,7 +143,7 @@ const Usuarios: React.FC = () => {
 
   const isGlobalSuperAdmin = currentUserRoleList.some(r => ['SUPER_ADMIN', 'FLEX_ADMIN'].includes(r));
   const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN' || isGlobalSuperAdmin;
-  const isCompanyAdmin = currentUserRoleList.some(r => ['SUPER_ADMIN', 'FLEX_ADMIN', 'COMPANY_ADMIN', 'ADMIN_EMPRESA', 'ADMIN'].includes(r));
+  const isCompanyAdmin = currentUserRoleList.some(r => ['COMPANY_ADMIN', 'ADMIN_EMPRESA', 'ADMIN'].includes(r));
 
   const isAdminUser = (user: User) => extractRoleNames(user.roles)
     .some(role => ['SUPER_ADMIN', 'FLEX_ADMIN', 'COMPANY_ADMIN', 'ADMIN'].includes(normalizeRoleName(role)));
@@ -150,11 +153,47 @@ const Usuarios: React.FC = () => {
   const canManageUser = (user: User) => {
     if (isGlobalSuperAdmin) return true;
     if (String(user.id) === String(currentUser?.id)) return true;
-    // O usuário administrador da empresa pode Criar, Editar, Atualizar, Visualizar, Excluir e Desativar usuários da Empresa que ele representa
+    
+    // O usuário administrador da empresa pode gerenciar apenas usuários da Empresa que ele representa
     if (isCompanyAdmin) {
-      return !isTargetGlobalAdmin(user);
+      if (isTargetGlobalAdmin(user)) return false;
+      const currentCompanyId = currentUser?.companyId || empresa?.id;
+      if (!currentCompanyId) return false;
+      return Boolean(user.companyId && String(user.companyId) === String(currentCompanyId));
     }
     return !isAdminUser(user);
+  };
+
+  const getCanBlockUser = (targetUser: User): { allowed: boolean; reason?: string } => {
+    if (!currentUser) return { allowed: false, reason: 'Usuário não autenticado' };
+
+    // Não pode bloquear a si mesmo
+    if (String(targetUser.id) === String(currentUser.id)) {
+      return { allowed: false, reason: 'Você não pode bloquear sua própria conta' };
+    }
+
+    // Não pode bloquear Super Admin global
+    if (isTargetGlobalAdmin(targetUser)) {
+      return { allowed: false, reason: 'Você não pode bloquear administradores da plataforma' };
+    }
+
+    if (isGlobalSuperAdmin) {
+      return { allowed: true };
+    }
+
+    // Administrador da empresa só pode bloquear usuários da sua própria empresa
+    if (isCompanyAdmin) {
+      const currentCompanyId = currentUser.companyId || empresa?.id;
+      if (!currentCompanyId) {
+        return { allowed: false, reason: 'Sua conta não possui empresa vinculada' };
+      }
+      if (!targetUser.companyId || String(targetUser.companyId) !== String(currentCompanyId)) {
+        return { allowed: false, reason: 'Você só pode bloquear usuários da sua própria empresa' };
+      }
+      return { allowed: true };
+    }
+
+    return { allowed: false, reason: 'Você não tem permissão para bloquear usuários' };
   };
 
   const filterUsers = () => {
@@ -184,13 +223,22 @@ const Usuarios: React.FC = () => {
 
     // Filtro de segurança:
     // SuperAdmin global visualiza todas as contas.
-    // Administrador da Empresa (COMPANY_ADMIN) visualiza e gerencia os usuários da sua empresa (ocultando apenas SuperAdmins globais).
-    // Demais perfis visualizam apenas não-administradores e a própria conta.
-    if (!isSuperAdmin) {
+    // Administrador da Empresa (COMPANY_ADMIN) visualiza apenas os usuários da sua empresa.
+    // Demais perfis visualizam apenas não-administradores da sua empresa e a própria conta.
+    if (!isGlobalSuperAdmin) {
+      const myCompanyId = currentUser?.companyId || empresa?.id;
       if (isCompanyAdmin) {
-        filtered = filtered.filter(user => !isTargetGlobalAdmin(user) || String(user.id) === String(currentUser?.id));
+        filtered = filtered.filter(user => {
+          if (String(user.id) === String(currentUser?.id)) return true;
+          if (isTargetGlobalAdmin(user)) return false;
+          return Boolean(myCompanyId && user.companyId && String(user.companyId) === String(myCompanyId));
+        });
       } else {
-        filtered = filtered.filter(user => !isAdminUser(user) || String(user.id) === String(currentUser?.id));
+        filtered = filtered.filter(user => {
+          if (String(user.id) === String(currentUser?.id)) return true;
+          if (isAdminUser(user)) return false;
+          return Boolean(!myCompanyId || !user.companyId || String(user.companyId) === String(myCompanyId));
+        });
       }
     }
 
@@ -259,6 +307,15 @@ const Usuarios: React.FC = () => {
   };
 
   const handleOpenBlockDialog = (user: User) => {
+    const check = getCanBlockUser(user);
+    if (!check.allowed) {
+      toast({
+        title: 'Ação não permitida',
+        description: check.reason,
+        variant: 'destructive',
+      });
+      return;
+    }
     setBlockTargetUser(user);
     setBlockDurationPreset('15');
     setBlockCustomMinutes(60);
@@ -417,6 +474,15 @@ const Usuarios: React.FC = () => {
                     <option key={role} value={role}>{getRoleDisplayName(role)}</option>
                   ))}
               </select>
+
+              <Button
+                variant="outline"
+                className="border-red-600/40 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 dark:text-red-400 font-medium shadow-xs rounded-lg h-9 text-sm transition-colors cursor-pointer"
+                onClick={() => setIsReportModalOpen(true)}
+              >
+                <FileText size={16} className="mr-1.5" />
+                Relatório
+              </Button>
 
               <Button
                 className="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-medium shadow-xs rounded-lg h-9 text-sm transition-colors cursor-pointer"
@@ -677,39 +743,50 @@ const Usuarios: React.FC = () => {
                         </TableCell>
                         {/* Coluna Bloquear */}
                         <TableCell className="text-center">
-                          {isUserCurrentlyBlocked(user) ? (
-                            <div className="flex flex-col items-center gap-1">
-                              <Badge className="bg-red-50 text-red-700 border border-red-200/70 dark:bg-red-950/40 dark:text-red-300 flex items-center gap-1 font-medium text-xs">
-                                <Lock className="h-3 w-3" />
-                                {formatBlockUntil(user)}
-                              </Badge>
-                              {currentUser && String(user.id) !== String(currentUser.id) && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  disabled={isUnblockingId === user.id}
-                                  onClick={() => handleUnblockUser(user)}
-                                  title="Desbloquear Usuário"
-                                  className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 h-6 px-2 text-xs font-medium"
-                                >
-                                  <Unlock className="h-3 w-3 mr-1" />
-                                  Desbloquear
-                                </Button>
-                              )}
-                            </div>
-                          ) : (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              disabled={currentUser && String(user.id) === String(currentUser.id)}
-                              onClick={() => handleOpenBlockDialog(user)}
-                              title={currentUser && String(user.id) === String(currentUser.id) ? 'Você não pode bloquear a si mesmo' : 'Bloquear Usuário por tempo'}
-                              className="text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 h-7 px-2.5 text-xs font-medium border border-amber-200/60 dark:border-amber-800/60 rounded-md"
-                            >
-                              <Lock className="h-3 w-3 mr-1" />
-                              Bloquear
-                            </Button>
-                          )}
+                          {(() => {
+                            const blockCheck = getCanBlockUser(user);
+                            if (isUserCurrentlyBlocked(user)) {
+                              return (
+                                <div className="flex flex-col items-center gap-1">
+                                  <Badge className="bg-red-50 text-red-700 border border-red-200/70 dark:bg-red-950/40 dark:text-red-300 flex items-center gap-1 font-medium text-xs">
+                                    <Lock className="h-3 w-3" />
+                                    {formatBlockUntil(user)}
+                                  </Badge>
+                                  {blockCheck.allowed ? (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      disabled={isUnblockingId === user.id}
+                                      onClick={() => handleUnblockUser(user)}
+                                      title="Desbloquear Usuário"
+                                      className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 h-6 px-2 text-xs font-medium cursor-pointer"
+                                    >
+                                      <Unlock className="h-3 w-3 mr-1" />
+                                      Desbloquear
+                                    </Button>
+                                  ) : null}
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={!blockCheck.allowed}
+                                onClick={() => handleOpenBlockDialog(user)}
+                                title={blockCheck.reason || 'Bloquear Usuário por tempo'}
+                                className={
+                                  blockCheck.allowed
+                                    ? "text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 h-7 px-2.5 text-xs font-medium border border-amber-200/60 dark:border-amber-800/60 rounded-md cursor-pointer"
+                                    : "text-gray-500 opacity-40 cursor-not-allowed h-7 px-2.5 text-xs font-medium border border-gray-700 rounded-md"
+                                }
+                              >
+                                <Lock className="h-3 w-3 mr-1" />
+                                Bloquear
+                              </Button>
+                            );
+                          })()}
                         </TableCell>
                         <TableCell>
                           <Badge className={user.isOnline ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/80 font-medium' : 'bg-slate-100 text-slate-600 border border-slate-200/80 font-medium'}>
@@ -936,6 +1013,12 @@ const Usuarios: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Modal de Relatório de Usuários */}
+      <UserReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+      />
     </StandardLayout>
   );
 };

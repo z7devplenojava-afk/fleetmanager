@@ -13,7 +13,9 @@ import java.util.UUID;
 @Repository
 public interface PositionRepository extends JpaRepository<Position, UUID> {
     Optional<Position> findByName(String name);
+    Optional<Position> findByNameIgnoreCase(String name);
     boolean existsByName(String name);
+    boolean existsByNameIgnoreCase(String name);
     
     /**
      * Busca cargos por nome

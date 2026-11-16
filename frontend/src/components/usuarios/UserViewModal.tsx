@@ -13,6 +13,7 @@ import { User, Mail, Phone, MapPin, Calendar, Shield, Users, Building } from 'lu
 import { User as UserType, PermissionDTO } from '@/types/user';
 import { getRoleDisplayName, getRoleColor } from '@/utils/permissions';
 import { companyService } from '@/services/companyService';
+import { useAuth } from '@/contexts/AuthContext';
 import { useState, useEffect } from 'react';
 
 interface UserViewModalProps {
@@ -26,6 +27,7 @@ export const UserViewModal: React.FC<UserViewModalProps> = ({
   isOpen,
   onClose,
 }) => {
+  const { empresa, user: currentUser } = useAuth();
   const [companies, setCompanies] = useState<any[]>([]);
 
   useEffect(() => {
@@ -137,7 +139,7 @@ export const UserViewModal: React.FC<UserViewModalProps> = ({
                 <div className="flex items-center gap-2">
                   <Building className="h-4 w-4 text-gray-400" />
                   <span className="text-seguranca-lightgray">
-                    {user.companyId ? (companies.find(c => c.id === user.companyId)?.name || 'Empresa Vinculada') : 'Sem Empresa'}
+                    {user.companyName || (user.companyId ? (companies.find(c => c.id === user.companyId)?.name || empresa?.nome || (empresa as any)?.name || currentUser?.companyName || 'Empresa Vinculada') : 'Sem Empresa')}
                   </span>
                 </div>
 

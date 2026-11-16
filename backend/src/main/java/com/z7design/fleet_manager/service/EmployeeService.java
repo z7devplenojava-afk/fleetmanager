@@ -1307,8 +1307,8 @@ public class EmployeeService {
             dto.setId(e.getId());
             dto.setName(e.getName());
             dto.setCpf(e.getDocument());
-            // dto.setRg(e.getRg()); // Campo RG nÃ£o existe na entidade
-            // dto.setGender(e.getGender()); // Campo Gender nÃ£o existe na entidade
+            dto.setRg(e.getCinNumero());
+            dto.setGender(e.getSexo());
             dto.setEmail(e.getEmail());
             dto.setPhone(e.getPhone());
             dto.setStatus(e.getStatus() != null ? e.getStatus().name() : null);

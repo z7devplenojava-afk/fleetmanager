@@ -22,6 +22,7 @@ public class ProfileResponse {
     private boolean active;
     private List<String> roles;
     private Boolean firstAccessCompleted;
+    private Boolean requirePasswordChange;
     private Boolean requiresLgpdConsent;
     private UUID employeeId;
     private String position;

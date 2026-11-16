@@ -42,10 +42,15 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     const bypassPaths = ['/first-access/change-password', '/first-access/activate-2fa', '/lgpd-consent'];
     if (!bypassPaths.includes(location.pathname)) {
       const isSuperAdmin = (user.role ?? '').toUpperCase().includes('SUPER_ADMIN');
+      const isPendingCredentials = !user.firstAccessCompleted || 
+        user.requirePasswordChange || 
+        user.requiresPasswordChange || 
+        user.pendingFirstAccess;
+
       if (!isSuperAdmin && user.requiresLgpdConsent) {
         // 1º: Precisa aceitar os termos LGPD
         return <Navigate to="/lgpd-consent" replace />;
-      } else if (!isSuperAdmin && !user.firstAccessCompleted) {
+      } else if (!isSuperAdmin && isPendingCredentials) {
         // 2º: Precisa trocar a senha no primeiro acesso
         return <Navigate to="/first-access/change-password" replace />;
       }

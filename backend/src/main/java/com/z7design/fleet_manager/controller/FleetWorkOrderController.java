@@ -8,6 +8,7 @@ import com.z7design.fleet_manager.model.FleetWorkOrder;
 import com.z7design.fleet_manager.model.User;
 import com.z7design.fleet_manager.service.AuthenticationService;
 import com.z7design.fleet_manager.service.FleetWorkOrderPdfService;
+import com.z7design.fleet_manager.service.FleetWorkOrderReportService;
 import com.z7design.fleet_manager.service.FleetWorkOrderService;
 import com.z7design.fleet_manager.service.PreventiveModel2Service;
 import com.z7design.fleet_manager.tenant.TenantContext;
@@ -28,6 +29,9 @@ import com.z7design.fleet_manager.service.FileStorageService;
 import org.springframework.web.multipart.MultipartFile;
 import java.util.ArrayList;
 
+import org.springframework.web.bind.annotation.CrossOrigin;
+
+@CrossOrigin(origins = "*")
 @RestController
 @RequestMapping({"/api/fleet-work-orders", "/api/v1/fleet-work-orders"})
 @RequiredArgsConstructor
@@ -35,6 +39,7 @@ public class FleetWorkOrderController {
 
     private final FleetWorkOrderService service;
     private final FleetWorkOrderPdfService pdfService;
+    private final FleetWorkOrderReportService reportService;
     private final AuthenticationService authenticationService;
     private final FileStorageService fileStorageService;
     private final PreventiveModel2Service preventiveModel2Service;
@@ -55,7 +60,7 @@ public class FleetWorkOrderController {
     }
 
     /** Lista todas as OSs (filtro opcional por garagem executora) */
-    @GetMapping
+    @GetMapping({"", "/"})
     public ResponseEntity<List<FleetWorkOrderDTO>> getAll(
             @RequestParam(value = "garageId", required = false) UUID garageId) {
         return ResponseEntity.ok(service.getAllByGarage(garageId));
@@ -208,6 +213,67 @@ public class FleetWorkOrderController {
         }
     }
 
+    @PostMapping("/{id}/approve-external-service")
+    public ResponseEntity<?> approveExternalService(
+            @PathVariable("id") UUID id,
+            @RequestBody(required = false) Map<String, String> body) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            User approver = authenticationService.getCurrentUser(authentication);
+            String notes = body != null ? body.get("notes") : null;
+            FleetWorkOrderDTO dto = service.approveExternalService(id, approver, notes);
+            return ResponseEntity.ok(dto);
+        } catch (org.springframework.security.access.AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", e.getMessage()));
+        } catch (com.z7design.fleet_manager.exception.ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger(FleetWorkOrderController.class)
+                    .error("Erro ao aprovar servico externo da O.S. {}", id, e);
+            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/{id}/reject-external-service")
+    public ResponseEntity<?> rejectExternalService(
+            @PathVariable("id") UUID id,
+            @RequestBody Map<String, String> body) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            User approver = authenticationService.getCurrentUser(authentication);
+            String reason = body != null ? body.get("reason") : null;
+            if (reason == null || reason.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Motivo da recusa é obrigatório."));
+            }
+            FleetWorkOrderDTO dto = service.rejectExternalService(id, approver, reason);
+            return ResponseEntity.ok(dto);
+        } catch (org.springframework.security.access.AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", e.getMessage()));
+        } catch (com.z7design.fleet_manager.exception.ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger(FleetWorkOrderController.class)
+                    .error("Erro ao rejeitar servico externo da O.S. {}", id, e);
+            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/{id}/assign-mechanic")
+    public ResponseEntity<?> assignMechanic(@PathVariable("id") UUID id) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            User mechanicUser = authenticationService.getCurrentUser(authentication);
+            FleetWorkOrderDTO dto = service.assignMechanic(id, mechanicUser);
+            return ResponseEntity.ok(dto);
+        } catch (com.z7design.fleet_manager.exception.ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger(FleetWorkOrderController.class)
+                    .error("Erro ao assumir O.S. {}", id, e);
+            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     /** Gera o PDF da OS para impressão / entrega ao mecânico (suporta ?blank=true e ?templateModel=MODELO_1|MODELO_2) */
     @GetMapping(value = "/{id}/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
     public ResponseEntity<byte[]> generatePdf(
@@ -227,6 +293,33 @@ public class FleetWorkOrderController {
             org.slf4j.LoggerFactory.getLogger(FleetWorkOrderController.class)
                     .error("Erro ao gerar PDF para Ordem de Serviço ID {}: ", id, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /** Gera o relatório de Ordens de Serviço em PDF filtrando por Data Inicial/Final, Status e Veículo */
+    @GetMapping(value = "/report/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+    public ResponseEntity<byte[]> generateReportPdf(
+            @RequestParam(value = "startDate", required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate startDate,
+            @RequestParam(value = "endDate", required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate endDate,
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "vehicleId", required = false) UUID vehicleId,
+            @RequestParam(value = "companyId", required = false) UUID companyId) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            User currentUser = authenticationService.getCurrentUser(authentication);
+            UUID targetCompanyId = companyId != null ? companyId : (currentUser != null && currentUser.getCompany() != null ? currentUser.getCompany().getId() : null);
+
+            byte[] pdfBytes = reportService.generateWorkOrderReportPDF(targetCompanyId, startDate, endDate, status, vehicleId);
+            String fileName = "relatorio-ordens-servico-" + java.time.LocalDate.now() + ".pdf";
+
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_PDF_VALUE)
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName + "\"")
+                    .body(pdfBytes);
+        } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger(FleetWorkOrderController.class)
+                    .error("Erro ao gerar relatorio de OS em PDF", e);
+            return ResponseEntity.internalServerError().build();
         }
     }
 

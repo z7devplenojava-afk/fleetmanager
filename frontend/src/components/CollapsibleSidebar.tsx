@@ -124,6 +124,7 @@ const mainMenuItems = [
   { icon: MessageSquare, text: 'Mensagens', to: '/mensagens', id: 'driver-mensagens' },
   { icon: FileSpreadsheet, text: 'Holerites', to: '/holerites', id: 'holerites' },
   { icon: Building2, text: 'Filiais', to: '/filiais', id: 'filiais' },
+  { icon: Users, text: 'Usuários', to: '/usuarios', id: 'usuarios' },
 ];
 
 // Módulo de Manutenção e Frota (Novo)
@@ -360,12 +361,13 @@ const comprasMenuItems = [
   { icon: BarChart3, text: 'Relatórios', to: '/compras/relatorios', id: 'compras-relatorios' },
 ];
 
-// ===== MÓDULO SISTEMA (SUPER_ADMIN) =====
+// ===== MÓDULO SISTEMA =====
 const sistemaMenuItems = [
   { icon: UserCog, text: 'Usuários', to: '/usuarios', id: 'usuarios' },
   { icon: UserCheck, text: 'Grupos', to: '/grupos', id: 'grupos' },
   { icon: MessageCircle, text: 'Conexão WhatsApp', to: '/whatsapp-connection', id: 'whatsapp-connection' },
   { icon: Upload, text: 'Importar WhatsApp (PDF)', to: '/sistema/importar-whatsapp', id: 'sistema-importar-whatsapp' },
+  { icon: Bus, text: 'Importação de Veículos', to: '/sistema/importar-veiculos', id: 'sistema-importar-veiculos' },
   { icon: Settings, text: 'Gestão de Atividades', to: '/atividades', id: 'atividades' },
   { icon: Shield, text: 'Sistema', to: '/sistema', id: 'sistema' },
   { icon: Database, text: 'Backup', to: '/configuracoes/backup', id: 'backup' },
@@ -1467,6 +1469,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'usuarios',
     'grupos',
     'atividades',
+    'sistema-importar-veiculos',
     'configuracoes',
     'email-module',
   ]),
@@ -1597,6 +1600,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'usuarios',
     'grupos',
     'atividades',
+    'sistema-importar-veiculos',
     'configuracoes',
     'email-module',
   ]),
@@ -1792,6 +1796,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'grupos',
     'whatsapp-connection',
     'sistema-importar-whatsapp',
+    'sistema-importar-veiculos',
     'atividades',
     'sistema',
     'backup',
@@ -2340,9 +2345,10 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
               <img
                 src={
                   hasSelectedCompany
-                    ? (empresa?.nome?.toLowerCase().includes('silvestre') || empresa?.logoUrl?.includes('78376e24-fce4-4b76-8140-3d6ddc2cf1f5')
-                        ? '/images/sao-silvestre-icon.png?v=clean3'
-                        : resolveCompanyIconUrl(empresa?.iconUrl, empresa?.logoUrl) || '/fluxbus-icon.png')
+                    ? (resolveCompanyIconUrl(empresa?.iconUrl, empresa?.logoUrl) ||
+                       (empresa?.nome?.toLowerCase().includes('silvestre')
+                         ? '/images/sao-silvestre-icon.png?v=clean3'
+                         : '/fluxbus-icon.png'))
                     : '/fluxbus-icon.png'
                 }
                 alt="Ícone da Empresa"
@@ -2424,8 +2430,8 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
           {/* Módulo Fiscal */}
           {shouldShowModule('FINANCIAL_READ') && renderModuleSection('fiscal', 'Módulo Fiscal', filteredFiscalItems)}
 
-          {/* Módulo Sistema - SUPER_ADMIN */}
-          {user?.role === 'SUPER_ADMIN' && renderModuleSection('sistema', 'Sistema', filteredSistemaItems)}
+          {/* Módulo Sistema */}
+          {filteredSistemaItems.length > 0 && renderModuleSection('sistema', 'Sistema', filteredSistemaItems)}
 
 
         </div>

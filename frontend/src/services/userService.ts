@@ -115,6 +115,36 @@ export const userService = {
   async removeUserPermissions(userId: string, permissionIds: string[]): Promise<any[]> {
     const response = await api.delete(`/api/users/${userId}/permissions`, { data: { permissionIds } });
     return response.data;
+  },
+
+  async exportUsersReportPDF(filters?: UserReportFilters): Promise<Blob> {
+    const params: Record<string, string> = {};
+    if (filters?.companyId) params.companyId = filters.companyId;
+    if (filters?.startDate) params.startDate = filters.startDate;
+    if (filters?.endDate) params.endDate = filters.endDate;
+    if (filters?.role && filters.role !== 'ALL') params.role = filters.role;
+    if (filters?.status && filters.status !== 'ALL') params.status = filters.status;
+
+    const response = await api.get('/api/users/report/pdf', {
+      params,
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
+  async exportUsersReportExcel(filters?: UserReportFilters): Promise<Blob> {
+    const params: Record<string, string> = {};
+    if (filters?.companyId) params.companyId = filters.companyId;
+    if (filters?.startDate) params.startDate = filters.startDate;
+    if (filters?.endDate) params.endDate = filters.endDate;
+    if (filters?.role && filters.role !== 'ALL') params.role = filters.role;
+    if (filters?.status && filters.status !== 'ALL') params.status = filters.status;
+
+    const response = await api.get('/api/users/report/excel', {
+      params,
+      responseType: 'blob',
+    });
+    return response.data;
   }
 };
 

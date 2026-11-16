@@ -479,10 +479,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       // Verificar requisitos de acesso ANTES de setar o estado
-      const requiresPasswordChange = response.data?.requiresPasswordChange === true;
-      const firstAccessCompleted = response.data?.firstAccessCompleted === true;
+      const requiresPasswordChange = response.data?.requiresPasswordChange === true || response.data?.user?.requirePasswordChange === true;
+      const firstAccessCompleted = response.data?.firstAccessCompleted === true || response.data?.user?.firstAccessCompleted === true;
       const requires2FA = response.data?.requires2FA === true;
       const requiresLgpdConsent = response.data?.requiresLgpdConsent === true;
+      const isSuperAdmin = (userRole ?? '').toUpperCase().includes('SUPER_ADMIN');
+      const isPendingCredentials = !isSuperAdmin && (requiresPasswordChange || !firstAccessCompleted);
+
+      userData.firstAccessCompleted = firstAccessCompleted;
+      userData.requirePasswordChange = requiresPasswordChange;
+      userData.requiresPasswordChange = requiresPasswordChange;
+      userData.pendingFirstAccess = isPendingCredentials;
 
       console.log('🔍 Verificando requisitos de acesso:', {
         requiresPasswordChange,
@@ -494,7 +501,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Definir para onde navegar
       // ORDEM OBRIGATÓRIA: 1) LGPD → 2) Troca de senha → 3) 2FA → 4) Dashboard
       let destination = getDashboardRouteForRole(effectiveUserRole, userData);
-      const isSuperAdmin = (userRole ?? '').toUpperCase().includes('SUPER_ADMIN');
       if (!isSuperAdmin && requiresLgpdConsent) {
         // 1º: Aceitar LGPD/Termos
         destination = '/lgpd-consent';
@@ -676,6 +682,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           firstAccessCompleted: response.data.firstAccessCompleted !== undefined
             ? response.data.firstAccessCompleted
             : userData.firstAccessCompleted,
+          requirePasswordChange: response.data.requirePasswordChange !== undefined
+            ? response.data.requirePasswordChange
+            : userData.requirePasswordChange,
+          requiresPasswordChange: response.data.requirePasswordChange !== undefined
+            ? response.data.requirePasswordChange
+            : userData.requiresPasswordChange,
+          pendingFirstAccess: response.data.firstAccessCompleted !== undefined
+            ? (!response.data.firstAccessCompleted || !!response.data.requirePasswordChange)
+            : userData.pendingFirstAccess,
           requiresLgpdConsent: response.data.requiresLgpdConsent !== undefined
             ? response.data.requiresLgpdConsent
             : userData.requiresLgpdConsent,
@@ -725,7 +740,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const setFirstAccessCompleted = (completed: boolean) => {
     if (!user) return;
-    const updatedUser = { ...user, firstAccessCompleted: completed };
+    const updatedUser = { 
+      ...user, 
+      firstAccessCompleted: completed,
+      requirePasswordChange: !completed,
+      requiresPasswordChange: !completed,
+      pendingFirstAccess: !completed 
+    };
     setUser(updatedUser);
     localStorage.setItem('user', JSON.stringify(updatedUser));
   };

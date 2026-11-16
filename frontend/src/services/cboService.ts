@@ -20,41 +20,55 @@ class CBOService {
     return this.API_URLS[0]; // Usar a primeira URL por padrão
   }
   
-  // Base local: lista de CBOs mais comuns para segurança e vigilância
+  // Base local: lista de CBOs mais comuns para transporte, manutenção, frota, segurança e administração
   private readonly COMMON_CBOS: CBOItem[] = [
-    // Vigilantes e Seguranças
+    // Mecânica, Manutenção e Oficina
+    { codigo: '9144-05', titulo: 'Mecânico de manutenção de automóveis, motocicletas e veículos afins', sinonimo: 'Mecânico, Mecânico de autos, Mecânico geral' },
+    { codigo: '9144-25', titulo: 'Mecânico de veículos a diesel (ônibus e caminhões)', sinonimo: 'Mecânico diesel, Mecânico de ônibus, Mecânico de caminhão, Mecânico pesados' },
+    { codigo: '9144-10', titulo: 'Mecânico de manutenção de freios de veículos automotores', sinonimo: 'Mecânico de freio, Freista' },
+    { codigo: '9144-15', titulo: 'Mecânico de manutenção de suspensão e direção de veículos', sinonimo: 'Mecânico de suspensão, Alinhador' },
+    { codigo: '9144-20', titulo: 'Mecânico de manutenção de tratores e máquinas agrícolas', sinonimo: 'Mecânico de máquinas pesadas, Tratorista mecânico' },
+    { codigo: '9144-30', titulo: 'Borracheiro', sinonimo: 'Borracheiro de frota, Vulcanizador de pneus' },
+    { codigo: '9511-05', titulo: 'Eletricista de instalações de veículos automotores', sinonimo: 'Auto elétrico, Eletricista de autos, Eletricista de ônibus' },
+    { codigo: '9913-05', titulo: 'Funileiro de veículos (reparação)', sinonimo: 'Lanterneiro, Chapeador, Funileiro' },
+    { codigo: '9913-10', titulo: 'Pintor de veículos automotores', sinonimo: 'Pintor automotivo, Pintor de frota' },
+    { codigo: '9101-05', titulo: 'Encarregado de manutenção mecânica', sinonimo: 'Chefe de oficina, Encarregado de manutenção, Líder mecânico' },
+    { codigo: '1414-15', titulo: 'Gerente de manutenção', sinonimo: 'Gestor de manutenção, Coordenador de manutenção' },
+
+    // Motoristas e Operação de Transporte
+    { codigo: '7824-05', titulo: 'Motorista de ônibus urbano', sinonimo: 'Motorista urbano, Motorista coletivo' },
+    { codigo: '7824-10', titulo: 'Motorista de ônibus rodoviário', sinonimo: 'Motorista rodoviário, Motorista de viagem' },
+    { codigo: '7823-05', titulo: 'Motorista de caminhão (rotas regionais e internacionais)', sinonimo: 'Motorista de caminhão, Carreteiro' },
+    { codigo: '7823-10', titulo: 'Motorista de furgão ou veículo similar', sinonimo: 'Motorista de van, Motorista de utilitário, Motorista entregador' },
+    { codigo: '7823-20', titulo: 'Motorista operacional de guincho', sinonimo: 'Operador de guincho, Socorrista de frota' },
+    { codigo: '5112-15', titulo: 'Fiscal de transportes coletivos', sinonimo: 'Fiscal de linha, Fiscal de ônibus, Inspetor de tráfego' },
+    { codigo: '5112-20', titulo: 'Cobrador de transportes coletivos', sinonimo: 'Cobrador de ônibus, Cobrador' },
+    { codigo: '3423-10', titulo: 'Despachante de transportes', sinonimo: 'Despachante de tráfego, Escalar de tráfego' },
+    { codigo: '3423-05', titulo: 'Encarregado de tráfego', sinonimo: 'Chefe de tráfego, Supervisor de tráfego, Encarregado operacional' },
+    { codigo: '1414-10', titulo: 'Gerente de operações de transportes', sinonimo: 'Gestor de tráfego, Gestor operacional, Gerente de tráfego' },
+    { codigo: '3421-10', titulo: 'Analista de transporte / frota', sinonimo: 'Analista de frota, Analista de logística' },
+
+    // Lavagem, Limpeza e Conservação
+    { codigo: '5163-40', titulo: 'Lavador de veículos', sinonimo: 'Lavador de ônibus, Lavador de frota, Higienizador de autos' },
+    { codigo: '5143-20', titulo: 'Faxineiro / Auxiliar de serviços gerais', sinonimo: 'Auxiliar de limpeza, Faxineiro, ASG' },
+    { codigo: '5143-25', titulo: 'Trabalhador da manutenção de edificações', sinonimo: 'Zelador, Manutenção predial' },
+
+    // Estoque, Compras e Suprimentos
+    { codigo: '4141-05', titulo: 'Almoxarife', sinonimo: 'Almoxarifado, Encarregado de almoxarifado' },
+    { codigo: '4141-10', titulo: 'Armazenista / Estoquista', sinonimo: 'Estoquista, Auxiliar de estoque' },
+    { codigo: '3542-05', titulo: 'Comprador comercial', sinonimo: 'Comprador, Analista de compras' },
+
+    // Administrativo, RH e Tráfego
+    { codigo: '4110-10', titulo: 'Assistente administrativo', sinonimo: 'Auxiliar administrativo, Auxiliar de escritório' },
+    { codigo: '4110-05', titulo: 'Auxiliar de pessoal / RH', sinonimo: 'Assistente de RH, Auxiliar de departamento pessoal' },
+    { codigo: '3514-05', titulo: 'Supervisor de tráfego / segurança', sinonimo: 'Supervisor operacional, Coordenador operacional' },
+
+    // Vigilantes e Portaria
     { codigo: '5171-10', titulo: 'Vigilante', sinonimo: 'Segurança, Guarda' },
     { codigo: '5171-15', titulo: 'Porteiro de edifícios', sinonimo: 'Porteiro, Zelador' },
     { codigo: '5171-20', titulo: 'Controlador de acesso', sinonimo: 'Controlador, Recepcionista' },
-    { codigo: '5171-25', titulo: 'Segurança de eventos', sinonimo: 'Segurança, Vigilante de eventos' },
-    { codigo: '5171-30', titulo: 'Vigilante de loja', sinonimo: 'Segurança de loja, Guarda de loja' },
-    { codigo: '5172-05', titulo: 'Agente de segurança', sinonimo: 'Agente, Segurança' },
-    { codigo: '5172-10', titulo: 'Agente de portaria', sinonimo: 'Porteiro, Recepcionista' },
-    { codigo: '5172-15', titulo: 'Controlador de entrada e saída', sinonimo: 'Controlador' },
     { codigo: '5172-20', titulo: 'Vigia', sinonimo: 'Vigilante, Guarda' },
-    { codigo: '5172-25', titulo: 'Porteiro', sinonimo: 'Porteiro de edifícios' },
-    { codigo: '5172-30', titulo: 'Recepcionista de segurança', sinonimo: 'Recepcionista' },
-    { codigo: '5173-05', titulo: 'Segurança particular', sinonimo: 'Segurança, Vigilante' },
-    { codigo: '5173-10', titulo: 'Segurança de transporte de valores', sinonimo: 'Segurança, Transporte de valores' },
-    { codigo: '5173-15', titulo: 'Segurança de eventos', sinonimo: 'Segurança, Eventos' },
-    { codigo: '5173-20', titulo: 'Segurança de shopping', sinonimo: 'Segurança, Shopping' },
-    { codigo: '5173-25', titulo: 'Segurança de condomínio', sinonimo: 'Segurança, Condomínio' },
-    
-    // Supervisores
-    { codigo: '3514-05', titulo: 'Supervisor de segurança', sinonimo: 'Supervisor, Coordenador de segurança' },
-    { codigo: '3514-10', titulo: 'Supervisor de vigilância', sinonimo: 'Supervisor, Vigilância' },
-    { codigo: '3514-15', titulo: 'Supervisor de portaria', sinonimo: 'Supervisor, Portaria' },
-    
-    // Coordenação e Gerência
-    { codigo: '3515-05', titulo: 'Coordenador de segurança', sinonimo: 'Coordenador, Segurança' },
-    { codigo: '3515-10', titulo: 'Gerente de segurança', sinonimo: 'Gerente, Segurança' },
-    { codigo: '3515-15', titulo: 'Diretor de segurança', sinonimo: 'Diretor, Segurança' },
-    
-    // Outras ocupações relacionadas
-    { codigo: '5174-05', titulo: 'Segurança patrimonial', sinonimo: 'Segurança, Patrimônio' },
-    { codigo: '5174-10', titulo: 'Segurança pessoal', sinonimo: 'Segurança, Escolta' },
-    { codigo: '5174-15', titulo: 'Segurança de aeroporto', sinonimo: 'Segurança, Aeroporto' },
-    { codigo: '5174-20', titulo: 'Segurança de banco', sinonimo: 'Segurança, Banco' },
+    { codigo: '5172-25', titulo: 'Porteiro', sinonimo: 'Porteiro de garagem, Guarita' },
   ];
 
   /**
@@ -302,17 +316,24 @@ class CBOService {
     }
     
     const results: CBOWithScore[] = [];
-    const queryLower = query.toLowerCase();
+    const normalize = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const queryNorm = normalize(query);
 
     for (const cbo of this.COMMON_CBOS) {
-      const codigoMatch = cbo.codigo.toLowerCase().includes(queryLower);
-      const tituloMatch = cbo.titulo.toLowerCase().includes(queryLower);
-      const sinonimoMatch = cbo.sinonimo?.toLowerCase().includes(queryLower);
+      const codigoNorm = normalize(cbo.codigo);
+      const tituloNorm = normalize(cbo.titulo);
+      const sinonimoNorm = cbo.sinonimo ? normalize(cbo.sinonimo) : '';
+
+      const codigoMatch = codigoNorm.includes(queryNorm);
+      const tituloMatch = tituloNorm.includes(queryNorm);
+      const sinonimoMatch = sinonimoNorm.includes(queryNorm);
 
       if (codigoMatch || tituloMatch || sinonimoMatch) {
         // Priorizar correspondências exatas no título
-        const score = tituloMatch && cbo.titulo.toLowerCase() === queryLower ? 3 :
-                     tituloMatch ? 2 :
+        const score = tituloNorm === queryNorm ? 5 :
+                     tituloNorm.startsWith(queryNorm) ? 4 :
+                     tituloMatch ? 3 :
+                     sinonimoMatch ? 2 :
                      codigoMatch ? 1 : 0;
         
         results.push({ ...cbo, score });

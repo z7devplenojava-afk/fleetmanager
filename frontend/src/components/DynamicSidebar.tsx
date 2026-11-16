@@ -158,6 +158,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'usuarios',
     'grupos',
     'sistema',
+    'sistema-importar-veiculos',
     'configuracoes',
     'mensagens',
     'chat-interno',
@@ -205,6 +206,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'usuarios',
     'grupos',
     'sistema',
+    'sistema-importar-veiculos',
     'configuracoes',
     'mensagens',
     'chat-interno',
@@ -252,6 +254,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'usuarios',
     'grupos',
     'sistema',
+    'sistema-importar-veiculos',
     'configuracoes',
     'mensagens',
     'chat-interno',
@@ -302,6 +305,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'usuarios',
     'grupos',
     'sistema',
+    'sistema-importar-veiculos',
     'configuracoes',
     'mensagens',
     'chat-interno',
@@ -1754,6 +1758,12 @@ export function DynamicSidebar() {
       requiredPermission: 'SYSTEM_CONFIG'
     },
     {
+      icon: Bus,
+      text: 'Importação de Veículos',
+      to: '/sistema/importar-veiculos',
+      id: 'sistema-importar-veiculos'
+    },
+    {
       icon: Settings,
       text: 'Configurações',
       to: '/configuracoes',
@@ -2005,7 +2015,7 @@ export function DynamicSidebar() {
         ['gestao-atendimento', 'gestao-atendimento-chat', 'gestao-atendimento-historico', 'gestao-atendimento-metricas', 'gestao-atendimento-configuracoes'].includes(item.id)
       ),
       sistema: filteredItems.filter(item =>
-        ['atividades', 'usuarios', 'grupos', 'sistema', 'configuracoes', 'configuracoes-email', 'email-module'].includes(item.id)
+        ['atividades', 'usuarios', 'grupos', 'sistema', 'sistema-importar-veiculos', 'configuracoes', 'configuracoes-email', 'email-module'].includes(item.id)
       ),
       plataforma: filteredItems.filter(item =>
         ['fluxbus-empresas', 'fluxbus-usuarios', 'fluxbus-metricas'].includes(item.id)
@@ -2864,8 +2874,8 @@ export function DynamicSidebar() {
         )}
 
 
-        {/* Módulo Sistema - Versão original (comentada para debug) */}
-        {false && menuGroups.sistema.length > 0 && (
+        {/* Módulo Sistema */}
+        {menuGroups.sistema.length > 0 && (
           <SidebarGroup>
             <SidebarGroupLabel className="text-seguranca-lightgray px-2 py-2">
               <Settings size={16} className="mr-2 text-seguranca-yellow" />
@@ -2897,34 +2907,6 @@ export function DynamicSidebar() {
             </SidebarGroupContent>
           </SidebarGroup>
         )}
-
-        {/* Debug temporário para SUPER_ADMIN */}
-        {user?.role === 'SUPER_ADMIN' && (
-          <div className="p-2 text-xs text-yellow-400 bg-yellow-900/20 rounded">
-            DEBUG SUPER_ADMIN: Sistema tem {menuGroups.sistema.length} itens
-            <br />
-            Itens: {menuGroups.sistema.map(item => item.text).join(', ')}
-          </div>
-        )}
-
-        {/* Debug sempre visível */}
-        <div className="p-2 text-xs text-red-400 bg-red-900/20 rounded">
-          DEBUG GERAL:
-          <br />
-          User: {user ? user.name : 'null'}
-          <br />
-          Role: {user ? user.role : 'null'}
-          <br />
-          Is SUPER_ADMIN: {user?.role === 'SUPER_ADMIN' ? 'SIM' : 'NÃO'}
-          <br />
-          Sistema length: {menuGroups.sistema.length}
-        </div>
-
-        {/* Teste simples */}
-        <div className="p-2 text-xs text-blue-400 bg-blue-900/20 rounded">
-          TESTE SIMPLES: Se você vê isso, a sidebar está funcionando
-        </div>
-
       </SidebarContent>
 
       <SidebarFooter className="p-3 sm:p-4 border-t border-gray-700 bg-seguranca-graphite/80 backdrop-blur-sm">
