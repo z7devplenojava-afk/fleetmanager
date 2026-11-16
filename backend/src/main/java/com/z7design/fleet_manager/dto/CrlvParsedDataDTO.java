@@ -14,6 +14,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class CrlvParsedDataDTO {
     private String plate;
+    private String fleetNumber;
     private String renavam;
     private String chassisNumber;
     private String brand;

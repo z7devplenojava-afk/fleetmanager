@@ -44,8 +44,9 @@ public class VehicleCrlvImportService {
 
         log.info("Iniciando importação de CRLV em lote: {} arquivo(s) - Empresa: {}", files.size(), currentCompanyId);
 
-        // 1. Pré-carregar veículos existentes da empresa para matching O(1) por placa limpa
+        // 1. Pré-carregar veículos existentes da empresa para matching O(1) por placa limpa e por número de frota
         Map<String, Vehicle> existingMap = new HashMap<>();
+        Map<String, Vehicle> existingFleetMap = new HashMap<>();
         try {
             List<Vehicle> allVehicles = currentCompanyId != null
                     ? vehicleRepository.findByCompanyId(currentCompanyId)
@@ -53,6 +54,9 @@ public class VehicleCrlvImportService {
             for (Vehicle v : allVehicles) {
                 if (v.getPlate() != null && !v.getPlate().isBlank()) {
                     existingMap.put(cleanPlate(v.getPlate()), v);
+                }
+                if (v.getFleetNumber() != null && !v.getFleetNumber().isBlank()) {
+                    existingFleetMap.put(v.getFleetNumber().trim().toUpperCase(), v);
                 }
             }
             log.info("Pré-carregados {} veículos em memória para cruzamento.", existingMap.size());
@@ -73,12 +77,40 @@ public class VehicleCrlvImportService {
                     continue;
                 }
 
-                CrlvParsedDataDTO parsed = crlvParserService.parsePdf(file);
-                String plate = parsed.getPlate();
+                CrlvParsedDataDTO parsed = null;
+                try {
+                    parsed = crlvParserService.parsePdf(file);
+                } catch (Exception e) {
+                    log.warn("Processamento padrão do PDF {} falhou ({}). Tentando resgate via metadados do nome do arquivo...", fileName, e.getMessage());
+                    parsed = crlvParserService.extractFromFilename(fileName);
+                }
 
-                if (plate == null || plate.isBlank()) {
+                if (parsed == null || ((parsed.getPlate() == null || parsed.getPlate().isBlank()) && (parsed.getFleetNumber() == null || parsed.getFleetNumber().isBlank()))) {
+                    CrlvParsedDataDTO fallback = crlvParserService.extractFromFilename(fileName);
+                    if (fallback != null) {
+                        parsed = fallback;
+                    }
+                }
+
+                String plate = parsed != null ? parsed.getPlate() : null;
+                String cleanPlateStr = cleanPlate(plate);
+                Vehicle existing = null;
+
+                if (!cleanPlateStr.isEmpty()) {
+                    existing = existingMap.get(cleanPlateStr);
+                }
+
+                // Se não localizou por placa, mas possui número de frota no CRLV/nome do arquivo, tenta cruzar pela frota
+                if (existing == null && parsed != null && parsed.getFleetNumber() != null && !parsed.getFleetNumber().isBlank()) {
+                    existing = existingFleetMap.get(parsed.getFleetNumber().trim().toUpperCase());
+                    if (existing != null && cleanPlateStr.isEmpty()) {
+                        cleanPlateStr = cleanPlate(existing.getPlate());
+                    }
+                }
+
+                if (cleanPlateStr.isEmpty() && existing == null) {
                     result.setSkipped(result.getSkipped() + 1);
-                    result.getErrors().add("Arquivo " + fileName + ": Não foi possível extrair a placa do CRLV.");
+                    result.getErrors().add("Arquivo " + fileName + ": Não foi possível extrair a placa nem a frota do CRLV.");
                     result.getItems().add(CrlvImportItemDTO.builder()
                             .fileName(fileName)
                             .action("ERROR")
@@ -87,15 +119,16 @@ public class VehicleCrlvImportService {
                     continue;
                 }
 
-                String cleanPlateStr = cleanPlate(plate);
-                Vehicle existing = existingMap.get(cleanPlateStr);
-
                 if (existing != null) {
                     // ============================================================
                     // VEÍCULO EXISTE: Preenche SOMENTE campos vazios / em branco
                     // ============================================================
                     List<String> updatedFields = new ArrayList<>();
 
+                    if ((existing.getFleetNumber() == null || existing.getFleetNumber().isBlank()) && parsed.getFleetNumber() != null) {
+                        existing.setFleetNumber(parsed.getFleetNumber());
+                        updatedFields.add("Frota / Prefixo");
+                    }
                     if ((existing.getChassisNumber() == null || existing.getChassisNumber().isBlank()) && parsed.getChassisNumber() != null) {
                         existing.setChassisNumber(parsed.getChassisNumber());
                         updatedFields.add("Chassi");
@@ -212,6 +245,9 @@ public class VehicleCrlvImportService {
                     newVehicle.setTotalWeightKg(parsed.getTotalWeightKg());
                     newVehicle.setAxleCount(parsed.getAxleCount());
                     newVehicle.setEngineModel(parsed.getEngineNumber());
+                    if (parsed.getFleetNumber() != null && !parsed.getFleetNumber().isBlank()) {
+                        newVehicle.setFleetNumber(parsed.getFleetNumber().trim());
+                    }
 
                     if (currentCompany.isPresent()) {
                         newVehicle.setCompany(currentCompany.get());
@@ -221,6 +257,9 @@ public class VehicleCrlvImportService {
 
                     Vehicle saved = vehicleRepository.save(newVehicle);
                     existingMap.put(cleanPlateStr, saved); // Adiciona ao cache local
+                    if (saved.getFleetNumber() != null && !saved.getFleetNumber().isBlank()) {
+                        existingFleetMap.put(saved.getFleetNumber().trim().toUpperCase(), saved);
+                    }
 
                     result.setInserted(result.getInserted() + 1);
                     result.getItems().add(CrlvImportItemDTO.builder()
