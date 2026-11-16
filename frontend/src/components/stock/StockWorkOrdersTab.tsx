@@ -7,6 +7,7 @@ import {
   RefreshCw, 
   Truck, 
   AlertTriangle, 
+  CheckCircle,
   CheckCircle2, 
   Clock, 
   ArrowRight, 
