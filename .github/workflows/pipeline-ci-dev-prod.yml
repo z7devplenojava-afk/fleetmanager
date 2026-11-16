@@ -247,52 +247,7 @@ jobs:
           for attempt in 1 2 3; do
             echo "🚀 Conectando ao VPS CI para subir containers (Tentativa $attempt)..."
             if sshpass -p "${{ secrets.VPS_PASSWORD_CI }}" ssh $SSH_OPTS \
-              ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} << 'SSHEOF'
-              set -e
-              # Parar e remover qualquer container legado do secured_guard
-              docker stop secured-guard-db-ci secured-guard-redis-ci secured-guard-backend-ci secured-guard-frontend-ci secured-guard-whatsapp-ci secured-guard-nginx-ci secured-guard-evolution-ci 2>/dev/null || true
-              docker rm secured-guard-db-ci secured-guard-redis-ci secured-guard-backend-ci secured-guard-frontend-ci secured-guard-whatsapp-ci secured-guard-nginx-ci secured-guard-evolution-ci 2>/dev/null || true
-              rm -rf /var/www/secured_guard 2>/dev/null || true
-
-              # Remover containers orfaos de nomes fixos (conflito de container_name)
-              docker rm -f fluxbus-nginx-ci fluxbus-db-ci fluxbus-redis-ci fluxbus-backend-ci fluxbus-frontend-ci fluxbus-whatsapp-ci whatsapp-service-ci fluxbus-astracalls-ci fluxbus-astracalls-db-ci 2>/dev/null || true
-
-              # Derrubar stack legado antigo (compose renomeado em /var/www/fluxbus)
-              if [ -f /var/www/fluxbus/docker-compose.yml ]; then
-                (cd /var/www/fluxbus && docker compose down --remove-orphans) 2>/dev/null || true
-              fi
-
-              cd /var/www/fluxbus/ci
-              echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-              docker network create z7network 2>/dev/null || true
-              docker compose -f docker-compose.ci.yml down --remove-orphans 2>/dev/null || true
-              # Limpar imagens antigas e camadas em cache para evitar 'no space left on device'
-              docker system prune -af --filter "until=6h" 2>/dev/null || true
-              docker image prune -af 2>/dev/null || true
-              docker builder prune -af 2>/dev/null || true
-              for i in 1 2 3; do
-                docker pull z7design/fluxbus-backend:ci && \
-                docker pull z7design/fluxbus-frontend:ci && \
-                docker pull z7design/fluxbus-whatsapp:ci && \
-                docker pull z7design/fluxbus-astracalls:ci && break || sleep 15
-              done
-
-              # Iniciar banco antes do backend para remover registros de migracao
-              # com falha (PostgreSQL faz rollback, mas o Flyway mantem a linha).
-              docker compose -f docker-compose.ci.yml up -d postgres-ci
-              docker exec fluxbus-db-ci sh -c 'until pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" >/dev/null 2>&1; do sleep 1; done'
-              docker exec fluxbus-db-ci sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT pg_advisory_unlock_all(); DELETE FROM flyway_schema_history WHERE success = false;"' || true
-
-              docker compose -f docker-compose.ci.yml up -d --force-recreate --remove-orphans || {
-                echo "❌ Falha ao subir containers no CI. Logs do backend:"
-                docker logs fluxbus-backend-ci --tail 100 || true
-                echo "Logs do frontend:"
-                docker logs fluxbus-frontend-ci --tail 50 || true
-                exit 1
-              }
-              docker compose -f docker-compose.ci.yml ps
-SSHEOF
-            then
+              ${{ secrets.VPS_USER_CI }}@${{ secrets.VPS_HOST_CI }} "DOCKER_USER='${{ secrets.DOCKER_USERNAME }}' DOCKER_PASS='${{ secrets.DOCKER_PASSWORD }}' bash -s" < .github/scripts/deploy-ci.sh; then
               echo "✅ Containers CI iniciados com sucesso!"
               break
             else
@@ -440,26 +395,7 @@ SSHEOF
 
           for attempt in 1 2 3; do
             echo "🚀 Conectando ao VPS DEV para subir containers (Tentativa $attempt)..."
-            if sshpass -p "$PASS" ssh $SSH_OPTS $USER@$HOST << 'SSHEOF'
-            set -e
-            mkdir -p /var/www/fluxbus/dev
-            rm -rf /var/www/secured_guard 2>/dev/null || true
-            cd /var/www/fluxbus/dev
-            echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-            docker compose pull
-            docker compose down
-            # Iniciar PostgreSQL primeiro e limpar migracoes com falha no Flyway
-            docker compose up -d postgres-dev
-            docker exec fluxbus-db-dev sh -c 'until pg_isready -U "${POSTGRES_USER_DEV:-fluxbus_user_dev}" -d "${POSTGRES_DB_DEV:-fluxbus_db_dev}" >/dev/null 2>&1; do sleep 1; done'
-            docker exec fluxbus-db-dev sh -c 'psql -U "${POSTGRES_USER_DEV:-fluxbus_user_dev}" -d "${POSTGRES_DB_DEV:-fluxbus_db_dev}" -c "DELETE FROM flyway_schema_history WHERE success = false;"' || true
-            docker compose up -d --force-recreate --remove-orphans || {
-              echo "❌ Falha ao subir containers no DEV. Logs do backend:"
-              docker logs fluxbus-backend-dev --tail 100 || true
-              exit 1
-            }
-            docker compose ps
-SSHEOF
-            then
+            if sshpass -p "$PASS" ssh $SSH_OPTS $USER@$HOST "DOCKER_USER='${{ secrets.DOCKER_USERNAME }}' DOCKER_PASS='${{ secrets.DOCKER_PASSWORD }}' bash -s" < .github/scripts/deploy-dev.sh; then
               echo "✅ Containers DEV iniciados com sucesso!"
               break
             else
@@ -609,28 +545,7 @@ SSHEOF
 
           for attempt in 1 2 3; do
             echo "🚀 Conectando ao VPS PROD para subir containers (Tentativa $attempt)..."
-            if sshpass -p "$PASS" ssh $SSH_OPTS $USER@$HOST << 'SSHEOF'
-            set -e
-            mkdir -p /var/www/fluxbus/prod
-            rm -rf /var/www/secured_guard 2>/dev/null || true
-            cd /var/www/fluxbus/prod
-            echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-            docker tag z7design/fluxbus-backend:prod z7design/fluxbus-backend:backup-$(date +%Y%m%d-%H%M%S) 2>/dev/null || true
-            docker image prune -af 2>/dev/null || true
-            docker builder prune -af 2>/dev/null || true
-            docker compose pull
-            docker compose down --remove-orphans || true
-            docker compose up -d --force-recreate --remove-orphans || {
-              echo "❌ Falha ao subir containers no PROD. Logs do backend:"
-              docker logs fluxbus-backend-prod --tail 100 || true
-              echo "Logs da Evolution API:"
-              docker logs fluxbus-evolution-api-prod --tail 50 || true
-              exit 1
-            }
-            docker compose ps
-            docker restart traefik 2>/dev/null || true
-SSHEOF
-            then
+            if sshpass -p "$PASS" ssh $SSH_OPTS $USER@$HOST "DOCKER_USER='${{ secrets.DOCKER_USERNAME }}' DOCKER_PASS='${{ secrets.DOCKER_PASSWORD }}' bash -s" < .github/scripts/deploy-prod.sh; then
               echo "✅ Containers PROD iniciados com sucesso!"
               break
             else
