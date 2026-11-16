@@ -597,8 +597,9 @@ export const FleetComponentControlsPanel: React.FC<FleetComponentControlsPanelPr
           ) : isLoading ? (
             <div className="p-8 text-center text-gray-400 text-xs">Carregando controles preventivos...</div>
           ) : (
-            <div className="bg-seguranca-black border border-gray-700 rounded-xl overflow-x-auto">
-              <Table>
+            <div className="bg-seguranca-black border border-gray-700 rounded-xl overflow-hidden">
+              <div className="overflow-x-auto">
+                <Table>
                 <TableHeader className="bg-seguranca-graphite">
                   <TableRow className="border-gray-700">
                     <TableHead className="text-xs font-bold text-white">FROTA / PLACA</TableHead>
@@ -813,6 +814,7 @@ export const FleetComponentControlsPanel: React.FC<FleetComponentControlsPanelPr
                 </div>
               </div>
             )}
+            </div>
           )}
         </CardContent>
       </Card>
