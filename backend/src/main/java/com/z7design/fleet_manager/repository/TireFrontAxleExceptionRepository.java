@@ -17,6 +17,8 @@ public interface TireFrontAxleExceptionRepository extends JpaRepository<TireFron
 
     List<TireFrontAxleException> findByTireIdAndActiveTrue(UUID tireId);
 
+    List<TireFrontAxleException> findByTireId(UUID tireId);
+
     List<TireFrontAxleException> findByVehicleIdAndPositionCodeAndActiveTrue(UUID vehicleId, String positionCode);
 }
 

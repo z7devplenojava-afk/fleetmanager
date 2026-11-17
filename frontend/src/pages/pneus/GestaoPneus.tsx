@@ -33,6 +33,7 @@ import { TireLifecycleConfigTab } from '@/components/pneus/TireLifecycleConfigTa
 import { TireShopServicesTab } from '@/components/pneus/TireShopServicesTab';
 import { StockNfeImportModal } from '@/components/stock/StockNfeImportModal';
 import { computeTireLiveMetrics, DEFAULT_TIRE_LIFECYCLE_CONFIG } from '@/utils/tireLifecycle';
+import { useToast } from '@/hooks/use-toast';
 
 type ViewTab = 'map' | 'table' | 'exchange' | 'tireshop' | 'exceptions' | 'config';
 
@@ -44,6 +45,7 @@ const GestaoPneus: React.FC = () => {
     const [initialSlot, setInitialSlot] = useState<TireMovementInitialSlot | null>(null);
     const [initialAction, setInitialAction] = useState<'MOUNT' | 'DISMOUNT' | 'RECAP_SEND' | 'RECAP_RETURN' | 'SCRAP' | 'HISTORY' | undefined>(undefined);
     const [viewMode, setViewMode] = useState<ViewTab>('map');
+    const { toast } = useToast();
 
     const queryClient = useQueryClient();
 
@@ -205,11 +207,10 @@ const GestaoPneus: React.FC = () => {
                         </Card>
 
                         <Card
-                            className={`cursor-pointer transition-all ${
-                                stats.activeExceptions > 0
+                            className={`cursor-pointer transition-all ${stats.activeExceptions > 0
                                     ? 'bg-red-950/40 border-red-600/80'
                                     : 'bg-seguranca-graphite border-gray-700'
-                            }`}
+                                }`}
                             onClick={() => setViewMode('exceptions')}
                         >
                             <CardHeader className="pb-1 pt-3 px-3">
@@ -283,9 +284,8 @@ const GestaoPneus: React.FC = () => {
                             <Button
                                 variant={viewMode === 'map' ? 'default' : 'ghost'}
                                 size="sm"
-                                className={`h-8 px-3 text-xs ${
-                                    viewMode === 'map' ? 'bg-seguranca-red hover:bg-seguranca-darkred text-white' : 'text-gray-400 hover:text-gray-200'
-                                }`}
+                                className={`h-8 px-3 text-xs ${viewMode === 'map' ? 'bg-seguranca-red hover:bg-seguranca-darkred text-white' : 'text-gray-400 hover:text-gray-200'
+                                    }`}
                                 onClick={() => setViewMode('map')}
                             >
                                 <Activity size={14} className="mr-1.5" />
@@ -295,9 +295,8 @@ const GestaoPneus: React.FC = () => {
                             <Button
                                 variant={viewMode === 'table' ? 'default' : 'ghost'}
                                 size="sm"
-                                className={`h-8 px-3 text-xs ${
-                                    viewMode === 'table' ? 'bg-seguranca-red hover:bg-seguranca-darkred text-white' : 'text-gray-400 hover:text-gray-200'
-                                }`}
+                                className={`h-8 px-3 text-xs ${viewMode === 'table' ? 'bg-seguranca-red hover:bg-seguranca-darkred text-white' : 'text-gray-400 hover:text-gray-200'
+                                    }`}
                                 onClick={() => setViewMode('table')}
                             >
                                 <Layers size={14} className="mr-1.5" />
@@ -307,9 +306,8 @@ const GestaoPneus: React.FC = () => {
                             <Button
                                 variant={viewMode === 'exchange' ? 'default' : 'ghost'}
                                 size="sm"
-                                className={`h-8 px-3 text-xs ${
-                                    viewMode === 'exchange' ? 'bg-seguranca-red hover:bg-seguranca-darkred text-white' : 'text-gray-400 hover:text-gray-200'
-                                }`}
+                                className={`h-8 px-3 text-xs ${viewMode === 'exchange' ? 'bg-seguranca-red hover:bg-seguranca-darkred text-white' : 'text-gray-400 hover:text-gray-200'
+                                    }`}
                                 onClick={() => setViewMode('exchange')}
                             >
                                 <Repeat size={14} className="mr-1.5" />
@@ -319,9 +317,8 @@ const GestaoPneus: React.FC = () => {
                             <Button
                                 variant={viewMode === 'tireshop' ? 'default' : 'ghost'}
                                 size="sm"
-                                className={`h-8 px-3 text-xs ${
-                                    viewMode === 'tireshop' ? 'bg-seguranca-red hover:bg-seguranca-darkred text-white' : 'text-gray-400 hover:text-gray-200'
-                                }`}
+                                className={`h-8 px-3 text-xs ${viewMode === 'tireshop' ? 'bg-seguranca-red hover:bg-seguranca-darkred text-white' : 'text-gray-400 hover:text-gray-200'
+                                    }`}
                                 onClick={() => setViewMode('tireshop')}
                             >
                                 <Wrench size={14} className="mr-1.5" />
@@ -331,9 +328,8 @@ const GestaoPneus: React.FC = () => {
                             <Button
                                 variant={viewMode === 'exceptions' ? 'default' : 'ghost'}
                                 size="sm"
-                                className={`h-8 px-3 text-xs ${
-                                    viewMode === 'exceptions' ? 'bg-red-700 hover:bg-red-800 text-white' : 'text-gray-400 hover:text-gray-200'
-                                }`}
+                                className={`h-8 px-3 text-xs ${viewMode === 'exceptions' ? 'bg-red-700 hover:bg-red-800 text-white' : 'text-gray-400 hover:text-gray-200'
+                                    }`}
                                 onClick={() => setViewMode('exceptions')}
                             >
                                 <ShieldAlert size={14} className="mr-1.5" />
@@ -348,9 +344,8 @@ const GestaoPneus: React.FC = () => {
                             <Button
                                 variant={viewMode === 'config' ? 'default' : 'ghost'}
                                 size="sm"
-                                className={`h-8 px-3 text-xs ${
-                                    viewMode === 'config' ? 'bg-seguranca-red hover:bg-seguranca-darkred text-white' : 'text-gray-400 hover:text-gray-200'
-                                }`}
+                                className={`h-8 px-3 text-xs ${viewMode === 'config' ? 'bg-seguranca-red hover:bg-seguranca-darkred text-white' : 'text-gray-400 hover:text-gray-200'
+                                    }`}
                                 onClick={() => setViewMode('config')}
                             >
                                 <Sliders size={14} className="mr-1.5" />
@@ -408,10 +403,24 @@ const GestaoPneus: React.FC = () => {
                                     setIsFormOpen(true);
                                 }}
                                 onDelete={async (tire) => {
-                                    if (confirm(`Excluir pneu ${tire.fireNumber || tire.serialNumber}?`)) {
-                                        await tireService.delete(tire.id);
-                                        window.dispatchEvent(new CustomEvent('stock-data-changed'));
-                                        refreshAll();
+                                    const identifier = tire.fireNumber ? `Fogo ${tire.fireNumber} (${tire.serialNumber})` : tire.serialNumber;
+                                    if (confirm(`Tem certeza que deseja excluir o pneu ${identifier}?`)) {
+                                        try {
+                                            await tireService.delete(tire.id);
+                                            toast({
+                                                title: 'Pneu excluído',
+                                                description: `Pneu ${identifier} excluído com sucesso.`,
+                                            });
+                                            window.dispatchEvent(new CustomEvent('stock-data-changed'));
+                                            refreshAll();
+                                        } catch (err: any) {
+                                            const errorMsg = err.response?.data?.message || err.message || 'Erro ao excluir pneu.';
+                                            toast({
+                                                title: 'Erro ao excluir pneu',
+                                                description: errorMsg,
+                                                variant: 'destructive',
+                                            });
+                                        }
                                     }
                                 }}
                                 onMovement={(tire) => {

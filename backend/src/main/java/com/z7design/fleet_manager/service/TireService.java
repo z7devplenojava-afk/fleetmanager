@@ -730,7 +730,28 @@ public class TireService {
 
     @Transactional
     public void delete(UUID id) {
-        tireRepository.deleteById(id);
+        Tire tire = tireRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("Pneu não encontrado com ID: " + id));
+
+        if (tire.getStatus() == TireStatus.IN_USE) {
+            throw new BusinessException(
+                    "Não é possível excluir o pneu " + resolveTireIdentifier(tire) +
+                    " porque está instalado em um veículo. Desmonte-o primeiro.");
+        }
+
+        // Limpar exceções de eixo dianteiro
+        List<TireFrontAxleException> exceptions = frontAxleExceptionRepository.findByTireId(id);
+        if (!exceptions.isEmpty()) {
+            frontAxleExceptionRepository.deleteAll(exceptions);
+        }
+
+        // Limpar movimentações
+        List<TireMovement> movements = movementRepository.findByTireIdOrderByMovementDateDesc(id);
+        if (!movements.isEmpty()) {
+            movementRepository.deleteAll(movements);
+        }
+
+        tireRepository.delete(tire);
     }
 
     // ==================== HELPERS PRIVADOS ====================
