@@ -988,20 +988,15 @@ public class FleetWorkOrderService {
         entity.setMechanicId(mechanicUser != null ? mechanicUser.getId() : null);
         entity.setMechanicName(mechanicName);
 
-        if (entity.getStatus() == FleetWorkOrder.WorkOrderStatus.DRAFT ||
-            entity.getStatus() == FleetWorkOrder.WorkOrderStatus.OPEN ||
-            entity.getStatus() == FleetWorkOrder.WorkOrderStatus.APPROVED) {
-            entity.setStatus(FleetWorkOrder.WorkOrderStatus.IN_PROGRESS);
-        }
-
-        if (entity.getStartDate() == null) {
-            entity.setStartDate(LocalDateTime.now());
+        // Mantém a OS no status "A Fazer" (OPEN ou APPROVED) para o mecânico iniciar a execução quando desejar
+        if (entity.getStatus() == null || entity.getStatus() == FleetWorkOrder.WorkOrderStatus.DRAFT) {
+            entity.setStatus(FleetWorkOrder.WorkOrderStatus.OPEN);
         }
 
         FleetWorkOrder saved = repository.save(entity);
 
         addHistory(saved.getId(), "MECHANIC_ASSIGNED",
-                "O.S. assumida pelo mecânico " + mechanicName,
+                "O.S. assumida pelo mecânico " + mechanicName + " (aguardando início de execução)",
                 mechanicName, null, null);
 
         return toDTO(saved);

@@ -43,8 +43,7 @@ public class PositionController {
     }
     
     @GetMapping("/search")
-    @PreAuthorize("hasAnyAuthority('HR_READ', 'EMPLOYEES_READ', 'EMPLOYEES_WRITE', 'EMPLOYEES_CREATE', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', 'COMPANY_ADMIN', 'FLEX_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR')")
-    @Operation(summary = "Buscar cargos", description = "Busca cargos por nome com filtro dinÃ¢mico")
+    @Operation(summary = "Buscar cargos", description = "Busca cargos por nome com filtro dinâmico")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Cargos encontrados com sucesso"),
             @ApiResponse(responseCode = "403", description = "Acesso negado")
@@ -63,6 +62,13 @@ public class PositionController {
             log.error("Erro ao buscar cargos: ", e);
             return ResponseEntity.status(500).body(java.util.Map.of("error", e.getMessage()));
         }
+    }
+
+    @GetMapping("/cbo/search")
+    @Operation(summary = "Buscar CBO por nome ou código", description = "Retorna código CBO, título oficial e descrição de atribuições")
+    public ResponseEntity<List<java.util.Map<String, String>>> searchCbo(
+            @RequestParam(value = "query", required = false) String query) {
+        return ResponseEntity.ok(positionService.searchCbo(query));
     }
 
     @GetMapping("/test")

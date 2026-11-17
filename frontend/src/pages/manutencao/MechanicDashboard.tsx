@@ -43,6 +43,7 @@ import fleetWorkOrderService, {
   WorkOrderStatus,
   LaborType
 } from "@/services/fleetWorkOrderService";
+import { downloadFleetWorkOrderPDF } from "@/utils/fleetWorkOrderPDFGenerator";
 import fleetService, { Vehicle } from "@/services/fleetService";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -143,13 +144,13 @@ export default function MechanicDashboard() {
   // Todas as OS
   const allOrders = filteredWorkOrders;
 
-  // Minhas OS (atribuídas ao mecânico logado)
+  // Minhas OS (atribuídas ao mecânico logado, inclusive no status "A Fazer" para iniciar quando desejar)
   const myOrders = useMemo(() =>
     filteredWorkOrders.filter(wo => {
       if (wo.status === WorkOrderStatus.COMPLETED || wo.status === WorkOrderStatus.CANCELLED) return false;
       if (currentUserId && wo.mechanicId === currentUserId) return true;
       if (currentUserName && wo.mechanicName && wo.mechanicName.toLowerCase().includes(currentUserName)) return true;
-      return wo.status === WorkOrderStatus.IN_PROGRESS;
+      return false;
     }), [filteredWorkOrders, currentUserId, currentUserName]);
 
   // Aguardando Peças
@@ -260,14 +261,14 @@ export default function MechanicDashboard() {
     }
   };
 
-  // Ação de Assumir O.S. -> Atribui ao mecânico logado e redireciona para "Minhas OS"
+  // Ação de Assumir O.S. -> Atribui ao mecânico logado mantendo no status "A Fazer" e redireciona para "Minhas OS"
   const handleAssignToMe = async (orderId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
       await fleetWorkOrderService.assignMechanic(orderId);
       toast({
-        title: "✅ O.S. Assumida!",
-        description: "Você assumiu a responsabilidade técnica desta O.S. Ela foi movida para 'Minhas OS'.",
+        title: "✅ O.S. Assumida (Status: A Fazer)!",
+        description: "A O.S. foi movida para 'Minhas OS' no status 'A Fazer'. Inicie a execução ou edite os dados quando desejar.",
       });
       await refetch();
       setActiveTab('my');
@@ -280,7 +281,26 @@ export default function MechanicDashboard() {
     }
   };
 
-  // Geração e Download do Relatório em PDF
+  // Ação de Iniciar Execução pelo mecânico quando desejar
+  const handleStartExecution = async (orderId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await fleetWorkOrderService.updateStatus(orderId, WorkOrderStatus.IN_PROGRESS);
+      toast({
+        title: "🔧 Execução Iniciada!",
+        description: "O status da O.S. foi alterado para 'Em Execução'.",
+      });
+      await refetch();
+    } catch (err: any) {
+      toast({
+        title: "Erro ao iniciar execução",
+        description: err?.message || "Não foi possível iniciar a execução da O.S.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Geração e Download das Fichas Completas em PDF
   const handleGeneratePdf = async () => {
     try {
       setIsGeneratingPdf(true);
@@ -294,20 +314,20 @@ export default function MechanicDashboard() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `relatorio-ordens-servico-${new Date().toISOString().split('T')[0]}.pdf`;
+      a.download = `fichas-completas-os-${new Date().toISOString().split('T')[0]}.pdf`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
       toast({
-        title: "📄 Relatório Gerado com Sucesso!",
-        description: "O arquivo PDF foi baixado para o seu dispositivo.",
+        title: "📄 Fichas Completas Geradas!",
+        description: "O PDF com as fichas completas das O.S. filtradas foi baixado.",
       });
     } catch (err: any) {
       toast({
         title: "Erro ao gerar PDF",
-        description: err?.message || "Não foi possível gerar o relatório de Ordens de Serviço.",
+        description: err?.message || "Não foi possível gerar o PDF das fichas completas.",
         variant: "destructive"
       });
     } finally {
@@ -315,7 +335,7 @@ export default function MechanicDashboard() {
     }
   };
 
-  // Renderização da lista de ordens por cards responsivos
+  // Renderização da lista de ordens por cards responsivos (Mobile-First / Tablet)
   const renderOrdersList = (orders: FleetWorkOrder[], emptyMsg: string) => {
     if (orders.length === 0) {
       return (
@@ -330,22 +350,53 @@ export default function MechanicDashboard() {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 p-3 sm:p-4 overflow-y-auto">
         {orders.map((wo) => {
-          const isAssignedToMe = currentUserId && wo.mechanicId === currentUserId;
+          const isAssignedToMe = Boolean(
+            (currentUserId && wo.mechanicId === currentUserId) ||
+            (currentUserName && wo.mechanicName && wo.mechanicName.toLowerCase().includes(currentUserName))
+          );
           const photoCount = wo.photoAttachments ? wo.photoAttachments.length : 0;
           const isExternal = wo.laborType === LaborType.EXTERNAL;
+          const isTodoStatus =
+            wo.status === WorkOrderStatus.OPEN ||
+            wo.status === WorkOrderStatus.APPROVED ||
+            wo.status === WorkOrderStatus.DRAFT;
 
           return (
             <Card
               key={wo.id}
               onClick={() => setSelectedWorkOrder(wo)}
-              className="bg-slate-900 border-slate-800 hover:border-slate-700 hover:scale-[1.01] transition-all cursor-pointer shadow-md flex flex-col justify-between rounded-xl overflow-hidden"
+              className="bg-slate-900 border-slate-800 hover:border-slate-600 hover:scale-[1.01] transition-all cursor-pointer shadow-md flex flex-col justify-between rounded-xl overflow-hidden"
             >
               <CardHeader className="p-3 sm:p-4 pb-2">
                 <div className="flex justify-between items-start gap-1.5">
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <Badge variant="outline" className="text-[11px] font-mono border-slate-700 text-slate-300">
+                    <Badge variant="outline" className="text-[11px] font-mono border-slate-700 text-slate-200 bg-slate-950/60">
                       #{wo.osNumber || wo.id.slice(0, 8).toUpperCase()}
                     </Badge>
+                    <Badge
+                      className={`text-[10px] font-semibold ${
+                        wo.status === WorkOrderStatus.COMPLETED
+                          ? 'bg-emerald-950 text-emerald-300 border-emerald-700'
+                          : wo.status === WorkOrderStatus.IN_PROGRESS
+                          ? 'bg-amber-950 text-amber-300 border-amber-700'
+                          : wo.status === WorkOrderStatus.WAITING_PARTS
+                          ? 'bg-orange-950 text-orange-300 border-orange-700'
+                          : 'bg-sky-950 text-sky-300 border-sky-700'
+                      }`}
+                    >
+                      {wo.status === WorkOrderStatus.COMPLETED
+                        ? 'Finalizada'
+                        : wo.status === WorkOrderStatus.IN_PROGRESS
+                        ? 'Em Execução'
+                        : wo.status === WorkOrderStatus.WAITING_PARTS
+                        ? 'Aguardando Peças'
+                        : 'A Fazer'}
+                    </Badge>
+                    {wo.maintenanceType === 'PREVENTIVA' && (
+                      <Badge className="bg-teal-950/80 text-teal-300 border-teal-700 text-[10px]">
+                        Preventiva
+                      </Badge>
+                    )}
                     {isExternal && (
                       <Badge className="bg-cyan-950/70 text-cyan-300 border-cyan-800 text-[10px]">
                         <Building className="w-2.5 h-2.5 mr-1" /> Externo
@@ -377,19 +428,19 @@ export default function MechanicDashboard() {
               </CardHeader>
 
               <CardContent className="p-3 sm:p-4 pt-1 space-y-2.5">
-                <p className="text-xs text-slate-400 line-clamp-2 min-h-[32px]">
+                <p className="text-xs text-slate-300 line-clamp-2 min-h-[32px]">
                   {wo.stopReason || wo.notes || 'Sem observações cadastradas.'}
                 </p>
 
                 <div className="pt-2 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
                   <div className="flex items-center gap-1.5 min-w-0">
-                    <User className="h-3 w-3 text-slate-500 shrink-0" />
+                    <User className="h-3.5 w-3.5 text-slate-400 shrink-0" />
                     {isAssignedToMe ? (
                       <span className="text-emerald-400 font-semibold truncate text-[11px]">
                         Você (Responsável)
                       </span>
                     ) : wo.mechanicName ? (
-                      <span className="truncate max-w-[130px] text-[11px] text-slate-300">
+                      <span className="truncate max-w-[130px] text-[11px] text-slate-200">
                         {wo.mechanicName}
                       </span>
                     ) : (
@@ -397,9 +448,9 @@ export default function MechanicDashboard() {
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 flex-wrap justify-end">
                     {photoCount > 0 && (
-                      <span className="flex items-center gap-1 text-[11px] text-blue-400 font-mono" title={`${photoCount} evidências fotográficas`}>
+                      <span className="flex items-center gap-1 text-[11px] text-sky-400 font-mono mr-1" title={`${photoCount} evidências fotográficas`}>
                         <Camera className="h-3 w-3" /> {photoCount}
                       </span>
                     )}
@@ -408,12 +459,36 @@ export default function MechanicDashboard() {
                       <Button
                         size="sm"
                         onClick={(e) => handleAssignToMe(wo.id, e)}
-                        className="h-7 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-medium shadow-sm transition-all rounded-lg active:scale-95"
+                        className="h-8 px-3 text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-semibold shadow-sm transition-all rounded-lg active:scale-95"
                       >
-                        <Wrench className="w-3 h-3 mr-1" />
+                        <Wrench className="w-3.5 h-3.5 mr-1" />
                         Assumir O.S.
                       </Button>
                     )}
+
+                    {isAssignedToMe && isTodoStatus && (
+                      <Button
+                        size="sm"
+                        onClick={(e) => handleStartExecution(wo.id, e)}
+                        className="h-8 px-2.5 text-xs bg-amber-600 hover:bg-amber-500 text-white font-semibold shadow-sm transition-all rounded-lg active:scale-95"
+                      >
+                        <Play className="w-3 h-3 mr-1" />
+                        Iniciar
+                      </Button>
+                    )}
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedWorkOrder(wo);
+                      }}
+                      className="h-8 px-2.5 text-xs border-slate-700 bg-slate-950 text-slate-200 hover:text-white hover:bg-slate-800 rounded-lg"
+                    >
+                      <FileText className="w-3 h-3 mr-1 text-red-400" />
+                      Editar O.S.
+                    </Button>
                   </div>
                 </div>
               </CardContent>
@@ -582,13 +657,13 @@ export default function MechanicDashboard() {
                 <CardHeader className="p-4 pb-2 border-b border-slate-800/80">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
-                      <FileText className="h-5 w-5 text-indigo-400" />
+                      <FileText className="h-5 w-5 text-red-400" />
                       <div>
                         <CardTitle className="text-base sm:text-lg text-white font-bold">
-                          Filtros do Relatório de Ordens de Serviço
+                          Impressão de Fichas Completas de O.S. (PDF)
                         </CardTitle>
                         <p className="text-xs text-slate-400">
-                          Selecione o período, status e veículo para emitir o PDF oficial consolidado
+                          Filtre por período, status e veículo para imprimir as fichas completas das Ordens de Serviço
                         </p>
                       </div>
                     </div>
@@ -596,17 +671,17 @@ export default function MechanicDashboard() {
                     <Button
                       onClick={handleGeneratePdf}
                       disabled={isGeneratingPdf || reportFilteredOrders.length === 0}
-                      className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs h-9 font-semibold shadow-md rounded-lg"
+                      className="bg-red-600 hover:bg-red-500 text-white text-xs h-9 font-semibold shadow-md rounded-lg"
                     >
                       {isGeneratingPdf ? (
                         <>
                           <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
-                          Gerando PDF...
+                          Gerando Fichas PDF...
                         </>
                       ) : (
                         <>
                           <Download className="w-4 h-4 mr-1.5" />
-                          Gerar Relatório em PDF
+                          Imprimir Fichas Completas ({reportFilteredOrders.length})
                         </>
                       )}
                     </Button>
@@ -809,15 +884,27 @@ export default function MechanicDashboard() {
                             </td>
 
                             <td className="py-2.5 px-4 text-right">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => setSelectedWorkOrder(wo)}
-                                className="h-7 text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-950/40"
-                              >
-                                <Eye className="w-3.5 h-3.5 mr-1" />
-                                Abrir
-                              </Button>
+                              <div className="flex items-center justify-end gap-1.5">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => downloadFleetWorkOrderPDF(wo)}
+                                  className="h-7 text-xs border-slate-700 bg-slate-950 text-slate-200 hover:text-white hover:bg-slate-800"
+                                  title="Imprimir ficha completa desta O.S."
+                                >
+                                  <Download className="w-3.5 h-3.5 mr-1 text-red-400" />
+                                  Ficha PDF
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => setSelectedWorkOrder(wo)}
+                                  className="h-7 text-xs text-sky-400 hover:text-sky-300 hover:bg-sky-950/40"
+                                >
+                                  <Eye className="w-3.5 h-3.5 mr-1" />
+                                  Editar
+                                </Button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -830,8 +917,8 @@ export default function MechanicDashboard() {
           )}
         </div>
 
-        {/* Se for Preventiva, abre o formulário completo com checklist oficial (41 itens), peças, serviços e evidências. Se não, abre o modal de execução rápida da oficina */}
-        {selectedWorkOrder && selectedWorkOrder.maintenanceType === 'PREVENTIVA' ? (
+        {/* Abre sempre o formulário completo da O.S. (Corretiva ou Preventiva) para o mecânico editar todos os dados de execução, checklist, peças e laudos */}
+        {selectedWorkOrder && (
           <FleetWorkOrderForm
             isOpen={!!selectedWorkOrder}
             onClose={() => setSelectedWorkOrder(null)}
@@ -841,14 +928,7 @@ export default function MechanicDashboard() {
               refetch();
             }}
           />
-        ) : selectedWorkOrder ? (
-          <MechanicWorkOrderModal
-            isOpen={!!selectedWorkOrder}
-            onClose={() => setSelectedWorkOrder(null)}
-            workOrder={selectedWorkOrder}
-            onSuccess={() => refetch()}
-          />
-        ) : null}
+        )}
       </div>
     </StandardLayout>
   );

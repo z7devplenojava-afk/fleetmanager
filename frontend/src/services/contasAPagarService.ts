@@ -447,8 +447,7 @@ export const contasAPagarService = {
 
   // Criar nova conta
   async createContaAPagar(conta: Omit<ContaAPagar, 'id'>): Promise<ContaAPagar> {
-    // Buscar uma unidade padrão ou usar UUID padrão
-    let unitId = '11111111-1111-1111-1111-111111111111'; // UUID padrão
+    let unitId: string | undefined = undefined;
     
     try {
       const unitsResponse = await api.get('/api/units');
@@ -456,22 +455,22 @@ export const contasAPagarService = {
         unitId = unitsResponse.data[0].id;
       }
     } catch (error) {
-      console.warn('Não foi possível buscar unidades, usando UUID padrão:', error);
+      console.warn('Não foi possível buscar unidades, backend usará/criará unidade padrão:', error);
     }
 
     const requestData: CreateContaAPagarRequest = {
-      description: conta.descricao,
-      supplierId: conta.fornecedorId || null, // Enviar null ao invés de string vazia
+      description: conta.descricao || 'Despesa',
+      supplierId: conta.fornecedorId || null,
       clientId: conta.clienteId || null,
       contractId: conta.contratoId || null,
       workPostId: conta.obraId || null,
       garageId: conta.garagemId || null,
       unitId: unitId,
-      amount: Number(conta.valor) || 0, // Garantir que seja um número
-      type: conta.tipo,
+      amount: Number(conta.valor) > 0 ? Number(conta.valor) : 0.01,
+      type: conta.tipo || 'VARIAVEL',
       status: mapFrontendStatusToBackend(conta.status) as any,
-      dueDate: formatDateForBackend(conta.vencimento) || '',
-      issueDate: formatDateForBackend(conta.dataEmissao) || '',
+      dueDate: formatDateForBackend(conta.vencimento) || new Date().toISOString().split('T')[0],
+      issueDate: formatDateForBackend(conta.dataEmissao) || new Date().toISOString().split('T')[0],
       paymentDate: formatDateForBackend(conta.dataPagamento),
       barcode: conta.codigoBarras,
       category: conta.categoria === 'NENHUMA' ? undefined : conta.categoria,
@@ -491,12 +490,19 @@ export const contasAPagarService = {
       nfeKey: (conta as any).nfeKey
     };
 
-
     console.log('Dados da requisição:', requestData);
 
     try {
       const response = await api.post('/api/invoices', requestData);
-      return this.getContaAPagarById(response.data.id);
+      const created = response.data;
+      try {
+        return await this.getContaAPagarById(created.id);
+      } catch {
+        return {
+          ...conta,
+          id: created.id,
+        } as ContaAPagar;
+      }
     } catch (error: any) {
       console.error('Erro detalhado ao criar conta a pagar:', error);
       console.error('Response data:', error.response?.data);
@@ -537,18 +543,14 @@ export const contasAPagarService = {
     if (conta.totalInstallments !== undefined) requestData.totalInstallments = conta.totalInstallments;
     if (conta.installmentSeq !== undefined) requestData.installmentSeq = conta.installmentSeq;
     
-    // Se não há unitId, buscar uma unidade padrão
     if (!requestData.unitId) {
       try {
         const unitsResponse = await api.get('/api/units');
         if (unitsResponse.data && unitsResponse.data.length > 0) {
           requestData.unitId = unitsResponse.data[0].id;
-        } else {
-          requestData.unitId = '11111111-1111-1111-1111-111111111111'; // UUID padrão
         }
       } catch (error) {
-        console.warn('Não foi possível buscar unidades, usando UUID padrão:', error);
-        requestData.unitId = '11111111-1111-1111-1111-111111111111'; // UUID padrão
+        console.warn('Não foi possível buscar unidades para atualização:', error);
       }
     }
 
@@ -557,7 +559,15 @@ export const contasAPagarService = {
 
     try {
       const response = await api.put(`/api/invoices/${id}`, requestData);
-      return this.getContaAPagarById(response.data.id);
+      const updated = response.data;
+      try {
+        return await this.getContaAPagarById(updated.id || id);
+      } catch {
+        return {
+          ...(conta as any),
+          id: updated.id || id,
+        } as ContaAPagar;
+      }
     } catch (error: any) {
       console.error('Erro detalhado ao atualizar conta a pagar:', error);
       console.error('Response data:', error.response?.data);

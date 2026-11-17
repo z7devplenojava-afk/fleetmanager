@@ -1978,13 +1978,75 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                             </Badge>
                             {formData.status && (
                                 <Badge className="bg-gray-800 text-gray-300 border border-gray-700 text-xs">
-                                    Status: {formData.status}
+                                    Status: {formData.status === WorkOrderStatus.OPEN || formData.status === WorkOrderStatus.APPROVED || formData.status === WorkOrderStatus.DRAFT ? 'A Fazer' : formData.status}
                                 </Badge>
                             )}
                             {selectedVehicle && (
                                 <span className="text-xs text-emerald-400 font-mono hidden sm:inline">
                                     {selectedVehicle.plate}
                                 </span>
+                            )}
+                            {isEdit && order?.id && !isDriverUser && (
+                                <>
+                                    {(!formData.mechanicName || (user?.name && !formData.mechanicName.toLowerCase().includes(user.name.toLowerCase()))) && (
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            onClick={async () => {
+                                                try {
+                                                    const updated = await fleetWorkOrderService.assignMechanic(order.id);
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        mechanicId: updated.mechanicId || user?.id,
+                                                        mechanicName: updated.mechanicName || user?.name || prev.mechanicName,
+                                                        status: updated.status || prev.status
+                                                    }));
+                                                    queryClient.invalidateQueries({ queryKey: ['fleet-work-orders'] });
+                                                    queryClient.invalidateQueries({ queryKey: ['mechanic-work-orders'] });
+                                                    toast({
+                                                        title: '✅ O.S. Assumida!',
+                                                        description: "A O.S. foi movida para 'Minhas OS' ainda no status 'A Fazer'."
+                                                    });
+                                                } catch (e: any) {
+                                                    toast({ title: 'Erro ao assumir O.S.', description: e?.message, variant: 'destructive' });
+                                                }
+                                            }}
+                                            className="h-7 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-semibold"
+                                        >
+                                            <UserCheck className="h-3.5 w-3.5 mr-1" />
+                                            Assumir O.S.
+                                        </Button>
+                                    )}
+                                    {(formData.status === WorkOrderStatus.OPEN || formData.status === WorkOrderStatus.APPROVED || formData.status === WorkOrderStatus.DRAFT) && (
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            onClick={async () => {
+                                                try {
+                                                    const nowIso = new Date().toISOString().slice(0, 16);
+                                                    await fleetWorkOrderService.updateStatus(order.id, WorkOrderStatus.IN_PROGRESS);
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        status: WorkOrderStatus.IN_PROGRESS,
+                                                        executionStartDate: prev.executionStartDate || nowIso
+                                                    }));
+                                                    queryClient.invalidateQueries({ queryKey: ['fleet-work-orders'] });
+                                                    queryClient.invalidateQueries({ queryKey: ['mechanic-work-orders'] });
+                                                    toast({
+                                                        title: '🔧 Execução Iniciada!',
+                                                        description: 'Status alterado para Em Execução. Preencha os dados de execução abaixo.'
+                                                    });
+                                                } catch (e: any) {
+                                                    toast({ title: 'Erro ao iniciar execução', description: e?.message, variant: 'destructive' });
+                                                }
+                                            }}
+                                            className="h-7 px-2.5 text-xs bg-amber-600 hover:bg-amber-500 text-white font-semibold"
+                                        >
+                                            <PlayCircle className="h-3.5 w-3.5 mr-1" />
+                                            Iniciar Execução
+                                        </Button>
+                                    )}
+                                </>
                             )}
                         </div>
 

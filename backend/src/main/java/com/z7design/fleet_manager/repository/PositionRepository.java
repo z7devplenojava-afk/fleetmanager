@@ -14,6 +14,7 @@ import java.util.UUID;
 public interface PositionRepository extends JpaRepository<Position, UUID> {
     Optional<Position> findByName(String name);
     Optional<Position> findByNameIgnoreCase(String name);
+    List<Position> findAllByNameIgnoreCase(String name);
     boolean existsByName(String name);
     boolean existsByNameIgnoreCase(String name);
     

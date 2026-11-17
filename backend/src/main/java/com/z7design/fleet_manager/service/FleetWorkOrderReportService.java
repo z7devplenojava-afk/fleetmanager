@@ -38,18 +38,56 @@ public class FleetWorkOrderReportService {
     private final CompanyRepository companyRepository;
     private final VehicleRepository vehicleRepository;
     private final StandardReportLayoutService standardReportLayoutService;
+    private final FleetWorkOrderPdfService fleetWorkOrderPdfService;
 
     private static final DateTimeFormatter SHORT_DATE = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     /**
-     * Gera relatório PDF de Ordens de Serviço com layout executivo (logo, gradiente, resumo e lista analítica).
+     * Gera relatório PDF de Ordens de Serviço contendo as fichas completas concatenadas das OSs filtradas.
      */
     @Transactional(readOnly = true)
     public byte[] generateWorkOrderReportPDF(UUID companyIdOverride, LocalDate startDate, LocalDate endDate, String statusFilter, UUID vehicleId) throws IOException {
-        log.info("Gerando relatório PDF de Ordens de Serviço - Empresa: {}, Período: {} a {}, Status: {}, Veículo: {}",
+        log.info("Gerando fichas completas em PDF de Ordens de Serviço - Empresa: {}, Período: {} a {}, Status: {}, Veículo: {}",
                 companyIdOverride, startDate, endDate, statusFilter, vehicleId);
 
         List<FleetWorkOrder> orders = getFilteredOrders(companyIdOverride, startDate, endDate, statusFilter, vehicleId);
+
+        // Se houver Ordens de Serviço filtradas, imprime as fichas completas (concatenadas quando > 1)
+        if (!orders.isEmpty()) {
+            try {
+                if (orders.size() == 1) {
+                    byte[] singlePdf = fleetWorkOrderPdfService.generatePdf(orders.get(0).getId());
+                    if (singlePdf != null && singlePdf.length > 0) {
+                        return singlePdf;
+                    }
+                } else {
+                    org.apache.pdfbox.multipdf.PDFMergerUtility merger = new org.apache.pdfbox.multipdf.PDFMergerUtility();
+                    ByteArrayOutputStream mergedOutput = new ByteArrayOutputStream();
+                    merger.setDestinationStream(mergedOutput);
+                    int mergedCount = 0;
+
+                    for (FleetWorkOrder order : orders) {
+                        try {
+                            byte[] orderPdf = fleetWorkOrderPdfService.generatePdf(order.getId());
+                            if (orderPdf != null && orderPdf.length > 0) {
+                                merger.addSource(new java.io.ByteArrayInputStream(orderPdf));
+                                mergedCount++;
+                            }
+                        } catch (Exception itemEx) {
+                            log.warn("Falha ao gerar ficha individual da OS {}: {}", order.getId(), itemEx.getMessage());
+                        }
+                    }
+
+                    if (mergedCount > 0) {
+                        merger.mergeDocuments(org.apache.pdfbox.io.MemoryUsageSetting.setupMainMemoryOnly());
+                        return mergedOutput.toByteArray();
+                    }
+                }
+            } catch (Exception mergeEx) {
+                log.warn("Aviso ao concatenar fichas completas de OS, gerando relatório sintético de fallback: {}", mergeEx.getMessage());
+            }
+        }
+
         UUID companyIdForLayout = resolveCompanyIdForLayout(companyIdOverride, orders);
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -205,12 +243,17 @@ public class FleetWorkOrderReportService {
         return all.stream()
                 .filter(o -> {
                     // 1. Filtro de Empresa (Tenant)
-                    if (companyIdOverride != null && o.getCompany() != null && !companyIdOverride.equals(o.getCompany().getId())) {
-                        return false;
+                    if (companyIdOverride != null) {
+                        UUID orderCompanyId = o.getCompany() != null ? o.getCompany().getId()
+                                : (o.getVehicle() != null ? o.getVehicle().getCompanyId() : null);
+                        if (orderCompanyId != null && !companyIdOverride.equals(orderCompanyId)) {
+                            return false;
+                        }
                     }
 
                     // 2. Filtro de Data Inicial
-                    LocalDate orderDate = o.getCreatedAt() != null ? o.getCreatedAt().toLocalDate() : o.getRequestDate();
+                    LocalDate orderDate = o.getCreatedAt() != null ? o.getCreatedAt().toLocalDate()
+                            : (o.getStopDate() != null ? o.getStopDate() : o.getRequestDate());
                     if (startDate != null && orderDate != null && orderDate.isBefore(startDate)) {
                         return false;
                     }

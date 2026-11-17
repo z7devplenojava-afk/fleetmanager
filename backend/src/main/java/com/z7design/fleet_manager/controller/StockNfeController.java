@@ -23,6 +23,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class StockNfeController {
 
     private final StockNfeService stockNfeService;
+    private final java.util.concurrent.ConcurrentHashMap<String, java.util.Map<Integer, byte[]>> pdfChunkStore = new java.util.concurrent.ConcurrentHashMap<>();
 
     @PostMapping(value = "/parse-xml", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Realiza parse do arquivo XML de NF-e para conferência prévia de itens e financeiro")
@@ -42,6 +43,52 @@ public class StockNfeController {
         log.info("POST /api/stock/nfe/parse-pdf - Arquivo: {}, Tamanho: {} bytes",
                 file.getOriginalFilename(), file.getSize());
         return ResponseEntity.ok(stockNfeService.parsePdf(file, user != null ? user.getCompanyId() : null));
+    }
+
+    @PostMapping("/parse-pdf-chunk")
+    @Operation(summary = "Recebe blocos (chunks) em Base64 de um PDF (DANFE) para evitar erro 413 em proxies reversos")
+    public ResponseEntity<Object> parsePdfChunk(
+            @RequestBody java.util.Map<String, Object> payload,
+            @AuthenticationPrincipal User user) {
+        String uploadId = String.valueOf(payload.getOrDefault("uploadId", "default"));
+        int chunkIndex = ((Number) payload.getOrDefault("chunkIndex", 0)).intValue();
+        int totalChunks = ((Number) payload.getOrDefault("totalChunks", 1)).intValue();
+        String dataBase64 = String.valueOf(payload.getOrDefault("dataBase64", ""));
+        String fileName = String.valueOf(payload.getOrDefault("fileName", "danfe.pdf"));
+
+        byte[] chunkBytes = java.util.Base64.getDecoder().decode(dataBase64);
+        java.util.Map<Integer, byte[]> chunks = pdfChunkStore.computeIfAbsent(
+                uploadId, k -> new java.util.concurrent.ConcurrentHashMap<>());
+        chunks.put(chunkIndex, chunkBytes);
+
+        if (chunks.size() < totalChunks) {
+            return ResponseEntity.ok(java.util.Map.of("received", chunkIndex, "total", totalChunks));
+        }
+
+        pdfChunkStore.remove(uploadId);
+        java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+        for (int i = 0; i < totalChunks; i++) {
+            byte[] part = chunks.get(i);
+            if (part != null) {
+                baos.write(part, 0, part.length);
+            }
+        }
+        final byte[] fullBytes = baos.toByteArray();
+        MultipartFile inMemoryFile = new MultipartFile() {
+            @Override public String getName() { return "file"; }
+            @Override public String getOriginalFilename() { return fileName; }
+            @Override public String getContentType() { return "application/pdf"; }
+            @Override public boolean isEmpty() { return fullBytes.length == 0; }
+            @Override public long getSize() { return fullBytes.length; }
+            @Override public byte[] getBytes() { return fullBytes; }
+            @Override public java.io.InputStream getInputStream() { return new java.io.ByteArrayInputStream(fullBytes); }
+            @Override public void transferTo(java.io.File dest) throws java.io.IOException { java.nio.file.Files.write(dest.toPath(), fullBytes); }
+        };
+
+        log.info("POST /api/stock/nfe/parse-pdf-chunk concluído - Arquivo: {}, Tamanho total: {} bytes ({} chunks)",
+                fileName, fullBytes.length, totalChunks);
+        StockNfeParsedDTO parsed = stockNfeService.parsePdf(inMemoryFile, user != null ? user.getCompanyId() : null);
+        return ResponseEntity.ok(parsed);
     }
 
     @PostMapping("/process")

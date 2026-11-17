@@ -27,12 +27,12 @@ public class InvoiceDTO {
     @Size(max = 50, message = "NÃºmero da fatura deve ter no mÃ¡ximo 50 caracteres")
     private String invoiceNumber;
     
-    @NotBlank(message = "DescriÃ§Ã£o Ã© obrigatÃ³ria")
-    @Schema(description = "DescriÃ§Ã£o da fatura/despesa", example = "Pagamento de serviÃ§os de seguranÃ§a")
-    @Size(max = 500, message = "DescriÃ§Ã£o deve ter no mÃ¡ximo 500 caracteres")
+    @NotBlank(message = "Descrição é obrigatória")
+    @Schema(description = "Descrição da fatura/despesa", example = "Pagamento de serviços de segurança")
+    @Size(max = 1000, message = "Descrição deve ter no máximo 1000 caracteres")
     private String description;
     
-    @NotNull(message = "Valor Ã© obrigatÃ³rio")
+    @NotNull(message = "Valor é obrigatório")
     @DecimalMin(value = "0.01", message = "Valor deve ser maior que zero")
     @Schema(description = "Valor da fatura", example = "1500.00")
     private BigDecimal amount;
@@ -41,11 +41,9 @@ public class InvoiceDTO {
     private ExpenseType type;
     
     @Schema(description = "Status da fatura", example = "PENDENTE")
-    @NotNull(message = "Status Ã© obrigatÃ³rio")
     private ExpenseStatus status;
     
-    @Schema(description = "Data de emissÃ£o da fatura", example = "2024-01-15")
-    @NotNull(message = "Data de emissÃ£o Ã© obrigatÃ³ria")
+    @Schema(description = "Data de emissão da fatura", example = "2024-01-15")
     private LocalDate issueDate;
     
     @Schema(description = "Data de vencimento da fatura", example = "2024-02-15")

@@ -175,15 +175,17 @@ export const MechanicWorkOrderModal: React.FC<MechanicWorkOrderModalProps> = ({
     }
   };
 
-  // Assumir O.S. pelo mecânico logado
+  // Assumir O.S. pelo mecânico logado (mantém status A Fazer até iniciar execução)
   const handleAssignToMe = async () => {
     try {
       setIsAssigning(true);
-      await fleetWorkOrderService.assignMechanic(workOrder.id);
-      setStatus(WorkOrderStatus.IN_PROGRESS);
+      const updated = await fleetWorkOrderService.assignMechanic(workOrder.id);
+      if (updated?.status) {
+        setStatus(updated.status);
+      }
       toast({
         title: "O.S. assumida!",
-        description: "Você assumiu esta Ordem de Serviço com sucesso.",
+        description: "A O.S. foi movida para 'Minhas OS' no status 'A Fazer'.",
       });
       if (onSuccess) onSuccess();
     } catch (err: any) {

@@ -58,6 +58,8 @@ import { FileSpreadsheet } from 'lucide-react';
 import { workPostService, WorkPost } from '@/services/workPostService';
 import { clientService, Client } from '@/services/clientService';
 import { garageService, Garage } from '@/services/garageService';
+import { positionService, Position } from '@/services/positionService';
+import { MultiFilterSelect, MultiFilterOption } from '@/components/funcionarios/MultiFilterSelect';
 import { exportToPDF, exportToXLSX } from '@/utils/exportUtils';
 
 const Funcionarios: React.FC = () => {
@@ -65,11 +67,12 @@ const Funcionarios: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'ACTIVE' | 'INACTIVE' | 'VACATION' | 'MATERNITY_LEAVE' | 'MEDICAL_CERTIFICATE' | 'TERMINATED' | 'SUSPENDED' | 'HISTORY'>('all');
-  const [departmentFilter, setDepartmentFilter] = useState<string>('all');
-  const [workPostFilter, setWorkPostFilter] = useState<string>('all');
-  const [clientFilter, setClientFilter] = useState<string>('all');
-  const [garageFilter, setGarageFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [positionFilter, setPositionFilter] = useState<string[]>([]);
+  const [departmentFilter, setDepartmentFilter] = useState<string[]>([]);
+  const [workPostFilter, setWorkPostFilter] = useState<string[]>([]);
+  const [clientFilter, setClientFilter] = useState<string[]>([]);
+  const [garageFilter, setGarageFilter] = useState<string[]>([]);
   const [hireStart, setHireStart] = useState('');
   const [hireEnd, setHireEnd] = useState('');
   const [termStart, setTermStart] = useState('');
@@ -77,6 +80,7 @@ const Funcionarios: React.FC = () => {
   const [workPosts, setWorkPosts] = useState<WorkPost[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [garages, setGarages] = useState<Garage[]>([]);
+  const [positions, setPositions] = useState<Position[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [documentsModalOpen, setDocumentsModalOpen] = useState(false);
@@ -163,11 +167,13 @@ const Funcionarios: React.FC = () => {
     Promise.allSettled([
       workPostService.getAllWorkPosts(),
       clientService.getClientsForSelect(),
-      garageService.list()
-    ]).then(([wpRes, clRes, garRes]) => {
+      garageService.list(),
+      positionService.getPositions()
+    ]).then(([wpRes, clRes, garRes, posRes]) => {
       if (wpRes.status === 'fulfilled') setWorkPosts(wpRes.value);
       if (clRes.status === 'fulfilled') setClients(clRes.value);
       if (garRes.status === 'fulfilled') setGarages(garRes.value);
+      if (posRes.status === 'fulfilled') setPositions(posRes.value);
     });
   }, []);
 
@@ -315,31 +321,68 @@ const Funcionarios: React.FC = () => {
   const activeCount = useMemo(() => employees.filter(e => e.status === 'ACTIVE').length, [employees]);
   const historyCount = useMemo(() => employees.filter(e => e.status === 'INACTIVE' || e.status === 'TERMINATED').length, [employees]);
 
+  // Helper para derivar cor semântica de cada cargo no modo dark
+  const getCargoColorClasses = (cargoName: string): { badgeClass: string; dotClass: string } => {
+    const norm = (cargoName || '').toLowerCase();
+    if (norm.includes('motorista') || norm.includes('condutor')) {
+      return { badgeClass: 'bg-sky-500/20 text-sky-200 border-sky-400/50', dotClass: 'bg-sky-400' };
+    }
+    if (norm.includes('mecanico') || norm.includes('mecânico') || norm.includes('eletricista') || norm.includes('borracheiro') || norm.includes('manutencao') || norm.includes('manutenção') || norm.includes('oficina')) {
+      return { badgeClass: 'bg-amber-500/20 text-amber-200 border-amber-400/50', dotClass: 'bg-amber-400' };
+    }
+    if (norm.includes('porteiro') || norm.includes('vigilante') || norm.includes('controlador') || norm.includes('seguranca') || norm.includes('segurança')) {
+      return { badgeClass: 'bg-emerald-500/20 text-emerald-200 border-emerald-400/50', dotClass: 'bg-emerald-400' };
+    }
+    if (norm.includes('auxiliar') || norm.includes('limpeza') || norm.includes('lavador') || norm.includes('servicos gerais') || norm.includes('serviços gerais')) {
+      return { badgeClass: 'bg-teal-500/20 text-teal-200 border-teal-400/50', dotClass: 'bg-teal-400' };
+    }
+    if (norm.includes('gerente') || norm.includes('supervisor') || norm.includes('encarregado') || norm.includes('coordenador') || norm.includes('diretor')) {
+      return { badgeClass: 'bg-rose-500/20 text-rose-200 border-rose-400/50', dotClass: 'bg-rose-400' };
+    }
+    return { badgeClass: 'bg-cyan-500/20 text-cyan-200 border-cyan-400/50', dotClass: 'bg-cyan-400' };
+  };
+
+  const getEmployeePositionKey = (emp: Employee): string => {
+    return (emp.position?.name || (emp as any).cargo || emp.position?.id || '').trim();
+  };
+
   const filteredEmployees = employees.filter(employee => {
-    const matchesDepartment = departmentFilter === 'all' || 
-      employee.department?.id === departmentFilter ||
-      employee.unit?.id === departmentFilter || 
-      employee.position?.id === departmentFilter;
+    const empPosKey = getEmployeePositionKey(employee).toLowerCase();
+    const matchesPosition = positionFilter.length === 0 || positionFilter.some(posVal => {
+      const v = posVal.toLowerCase();
+      return empPosKey === v || employee.position?.id === posVal || (employee.position?.name || '').toLowerCase() === v;
+    });
+
+    const matchesDepartment = departmentFilter.length === 0 || departmentFilter.some(deptVal =>
+      employee.department?.id === deptVal ||
+      employee.unit?.id === deptVal ||
+      (employee.department?.name || '').toLowerCase() === deptVal.toLowerCase() ||
+      (employee.unit?.name || '').toLowerCase() === deptVal.toLowerCase()
+    );
     
-    const matchesStatus = statusFilter === 'all'
-      ? true
-      : statusFilter === 'HISTORY'
-        ? (employee.status === 'INACTIVE' || employee.status === 'TERMINATED')
-        : employee.status === statusFilter;
+    const matchesStatus = statusFilter.length === 0 || statusFilter.some(st => {
+      if (st === 'HISTORY') {
+        return employee.status === 'INACTIVE' || employee.status === 'TERMINATED';
+      }
+      return employee.status === st;
+    });
 
-    const matchesWorkPost = workPostFilter === 'all' ||
-      employee.workPost?.id === workPostFilter ||
-      employee.department?.id === workPostFilter;
+    const matchesWorkPost = workPostFilter.length === 0 || workPostFilter.some(wpId =>
+      employee.workPost?.id === wpId ||
+      employee.department?.id === wpId
+    );
 
-    const matchesClient = clientFilter === 'all' || (() => {
+    const matchesClient = clientFilter.length === 0 || (() => {
       const wpClientId = employee.workPost?.id
         ? workPostClientMap.get(employee.workPost.id)
         : undefined;
-      return wpClientId === clientFilter;
+      return wpClientId ? clientFilter.includes(wpClientId) : false;
     })();
 
-    const matchesGarage = garageFilter === 'all' ||
-      employeeGarageIds.get(employee.id) === garageFilter;
+    const matchesGarage = garageFilter.length === 0 || (() => {
+      const gId = employeeGarageIds.get(employee.id);
+      return gId ? garageFilter.includes(gId) : false;
+    })();
 
     const hireDate = employee.hireDate || '';
     const terminationDate = getEmployeeTerminationDate(employee) || '';
@@ -352,16 +395,17 @@ const Funcionarios: React.FC = () => {
       const nameMatch = (employee.name || '').toLowerCase().includes(normalizedSearch);
       const emailMatch = (employee.email || '').toLowerCase().includes(normalizedSearch);
       const registrationMatch = (employee.registrationNumber || '').toLowerCase().includes(normalizedSearch);
+      const cargoMatch = (employee.position?.name || '').toLowerCase().includes(normalizedSearch);
       const documentRaw = (employee.document || employee.cpf || '').toLowerCase();
       const documentDigits = documentRaw.replace(/\D/g, '');
       const cpfMatch = searchDigits
         ? (documentDigits.includes(searchDigits) || documentRaw.includes(normalizedSearch))
         : documentRaw.includes(normalizedSearch);
 
-      return nameMatch || emailMatch || registrationMatch || cpfMatch;
+      return nameMatch || emailMatch || registrationMatch || cargoMatch || cpfMatch;
     })();
     
-    return matchesDepartment && matchesStatus && matchesSearch &&
+    return matchesPosition && matchesDepartment && matchesStatus && matchesSearch &&
       matchesWorkPost && matchesClient && matchesGarage &&
       matchesHireStart && matchesHireEnd && matchesTermStart && matchesTermEnd;
   });
@@ -369,31 +413,164 @@ const Funcionarios: React.FC = () => {
   const activeFiltersCount = useMemo(() => {
     return [
       searchTerm.trim() !== '',
-      statusFilter !== 'all',
-      departmentFilter !== 'all',
-      workPostFilter !== 'all',
-      clientFilter !== 'all',
-      garageFilter !== 'all',
+      statusFilter.length > 0,
+      positionFilter.length > 0,
+      departmentFilter.length > 0,
+      workPostFilter.length > 0,
+      clientFilter.length > 0,
+      garageFilter.length > 0,
       Boolean(hireStart || hireEnd),
       Boolean(termStart || termEnd),
     ].filter(Boolean).length;
-  }, [searchTerm, statusFilter, departmentFilter, workPostFilter, clientFilter, garageFilter, hireStart, hireEnd, termStart, termEnd]);
+  }, [searchTerm, statusFilter, positionFilter, departmentFilter, workPostFilter, clientFilter, garageFilter, hireStart, hireEnd, termStart, termEnd]);
 
-  // Departamentos/setores únicos com rótulo legível
-  const departments = useMemo(() => {
-    const byId = new Map<string, string>();
+  // Opções de Status com cores semânticas de alto contraste no modo dark
+  const statusOptions = useMemo<MultiFilterOption[]>(() => [
+    {
+      value: 'ACTIVE',
+      label: 'Ativo',
+      badgeClass: 'bg-emerald-500/25 text-emerald-200 border-emerald-400/60',
+      dotClass: 'bg-emerald-400',
+      count: employees.filter(e => e.status === 'ACTIVE').length,
+    },
+    {
+      value: 'HISTORY',
+      label: 'Inativos & Demitidos (Histórico)',
+      badgeClass: 'bg-amber-500/25 text-amber-200 border-amber-400/60',
+      dotClass: 'bg-amber-400',
+      count: employees.filter(e => e.status === 'INACTIVE' || e.status === 'TERMINATED').length,
+    },
+    {
+      value: 'INACTIVE',
+      label: 'Inativo',
+      badgeClass: 'bg-slate-500/30 text-slate-200 border-slate-400/60',
+      dotClass: 'bg-slate-400',
+      count: employees.filter(e => e.status === 'INACTIVE').length,
+    },
+    {
+      value: 'TERMINATED',
+      label: 'Demitido',
+      badgeClass: 'bg-red-500/25 text-red-200 border-red-400/60',
+      dotClass: 'bg-red-400',
+      count: employees.filter(e => e.status === 'TERMINATED').length,
+    },
+    {
+      value: 'VACATION',
+      label: 'Férias',
+      badgeClass: 'bg-yellow-500/25 text-yellow-200 border-yellow-400/60',
+      dotClass: 'bg-yellow-400',
+      count: employees.filter(e => e.status === 'VACATION').length,
+    },
+    {
+      value: 'MATERNITY_LEAVE',
+      label: 'Licença Maternidade',
+      badgeClass: 'bg-pink-500/25 text-pink-200 border-pink-400/60',
+      dotClass: 'bg-pink-400',
+      count: employees.filter(e => e.status === 'MATERNITY_LEAVE').length,
+    },
+    {
+      value: 'MEDICAL_CERTIFICATE',
+      label: 'Atestado Médico',
+      badgeClass: 'bg-cyan-500/25 text-cyan-200 border-cyan-400/60',
+      dotClass: 'bg-cyan-400',
+      count: employees.filter(e => e.status === 'MEDICAL_CERTIFICATE').length,
+    },
+    {
+      value: 'SUSPENDED',
+      label: 'Suspenso',
+      badgeClass: 'bg-orange-500/25 text-orange-200 border-orange-400/60',
+      dotClass: 'bg-orange-400',
+      count: employees.filter(e => e.status === 'SUSPENDED').length,
+    },
+  ], [employees]);
+
+  // Opções de Cargo/Função com contagem e cores derivadas
+  const positionOptions = useMemo<MultiFilterOption[]>(() => {
+    const byName = new Map<string, { label: string; count: number }>();
+    positions.forEach(p => {
+      if (p.name && p.name.trim()) {
+        const key = p.name.trim().toUpperCase();
+        if (!byName.has(key)) {
+          byName.set(key, { label: p.name.trim(), count: 0 });
+        }
+      }
+    });
+    employees.forEach(emp => {
+      const rawName = (emp.position?.name || (emp as any).cargo || '').trim();
+      if (!rawName) return;
+      const key = rawName.toUpperCase();
+      const existing = byName.get(key);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        byName.set(key, { label: rawName, count: 1 });
+      }
+    });
+    return Array.from(byName.values())
+      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+      .map(item => {
+        const colors = getCargoColorClasses(item.label);
+        return {
+          value: item.label,
+          label: item.label,
+          badgeClass: colors.badgeClass,
+          dotClass: colors.dotClass,
+          count: item.count,
+        };
+      });
+  }, [positions, employees]);
+
+  // Departamentos/unidades únicos com rótulo legível
+  const departmentOptions = useMemo<MultiFilterOption[]>(() => {
+    const byId = new Map<string, { label: string; count: number }>();
     employees.forEach(emp => {
       const entries: Array<[string | undefined, string | undefined]> = [
         [emp.department?.id, emp.department?.name],
         [emp.unit?.id, emp.unit?.name],
-        [emp.position?.id, emp.position?.name],
       ];
       entries.forEach(([id, name]) => {
-        if (id && !byId.has(id)) byId.set(id, name || id);
+        if (id && name) {
+          const curr = byId.get(id);
+          if (curr) curr.count += 1;
+          else byId.set(id, { label: name, count: 1 });
+        }
       });
     });
-    return Array.from(byId.entries()).map(([id, label]) => ({ id, label }));
+    return Array.from(byId.entries()).map(([id, info]) => ({
+      value: id,
+      label: info.label,
+      badgeClass: 'bg-cyan-500/20 text-cyan-200 border-cyan-400/50',
+      dotClass: 'bg-cyan-400',
+      count: info.count,
+    }));
   }, [employees]);
+
+  const workPostOptions = useMemo<MultiFilterOption[]>(() => {
+    return workPosts.map(wp => ({
+      value: wp.id,
+      label: wp.name,
+      badgeClass: 'bg-rose-500/20 text-rose-200 border-rose-400/50',
+      dotClass: 'bg-rose-400',
+    }));
+  }, [workPosts]);
+
+  const clientOptions = useMemo<MultiFilterOption[]>(() => {
+    return clients.map(c => ({
+      value: c.id,
+      label: c.name,
+      badgeClass: 'bg-sky-500/20 text-sky-200 border-sky-400/50',
+      dotClass: 'bg-sky-400',
+    }));
+  }, [clients]);
+
+  const garageOptions = useMemo<MultiFilterOption[]>(() => {
+    return garages.map(g => ({
+      value: g.id,
+      label: g.name,
+      badgeClass: 'bg-orange-500/20 text-orange-200 border-orange-400/50',
+      dotClass: 'bg-orange-400',
+    }));
+  }, [garages]);
 
   // Última admissão e última demissão
   const lastAdmission = useMemo(() => {
@@ -413,11 +590,12 @@ const Funcionarios: React.FC = () => {
   // Limpar filtros
   const clearFilters = () => {
     setSearchTerm('');
-    setStatusFilter('all');
-    setDepartmentFilter('all');
-    setWorkPostFilter('all');
-    setClientFilter('all');
-    setGarageFilter('all');
+    setStatusFilter([]);
+    setPositionFilter([]);
+    setDepartmentFilter([]);
+    setWorkPostFilter([]);
+    setClientFilter([]);
+    setGarageFilter([]);
     setHireStart('');
     setHireEnd('');
     setTermStart('');
@@ -1064,33 +1242,33 @@ Confirmar operação em lote?`)) {
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setStatusFilter('all')}
-                    className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${
-                      statusFilter === 'all'
+                    onClick={() => setStatusFilter([])}
+                    className={`text-xs px-3 py-1.5 rounded-lg font-semibold transition-all ${
+                      statusFilter.length === 0
                         ? 'bg-seguranca-red text-white shadow-md shadow-red-950/40'
-                        : 'bg-seguranca-black/80 border border-gray-700/80 text-gray-400 hover:text-white hover:border-gray-600'
+                        : 'bg-slate-900 border border-slate-700 text-slate-300 hover:text-white hover:border-slate-500'
                     }`}
                   >
                     Todos ({employees.length})
                   </button>
                   <button
                     type="button"
-                    onClick={() => setStatusFilter('ACTIVE')}
-                    className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${
-                      statusFilter === 'ACTIVE'
+                    onClick={() => setStatusFilter(['ACTIVE'])}
+                    className={`text-xs px-3 py-1.5 rounded-lg font-semibold transition-all ${
+                      statusFilter.length === 1 && statusFilter[0] === 'ACTIVE'
                         ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950/40'
-                        : 'bg-seguranca-black/80 border border-gray-700/80 text-gray-400 hover:text-emerald-300 hover:border-emerald-600/50'
+                        : 'bg-slate-900 border border-emerald-500/30 text-emerald-300 hover:text-white hover:bg-emerald-950/40 hover:border-emerald-400/60'
                     }`}
                   >
                     Ativos ({activeCount})
                   </button>
                   <button
                     type="button"
-                    onClick={() => setStatusFilter('HISTORY')}
-                    className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${
-                      statusFilter === 'HISTORY'
+                    onClick={() => setStatusFilter(['HISTORY'])}
+                    className={`text-xs px-3 py-1.5 rounded-lg font-semibold transition-all ${
+                      statusFilter.length === 1 && statusFilter[0] === 'HISTORY'
                         ? 'bg-amber-600 text-white shadow-md shadow-amber-950/40'
-                        : 'bg-seguranca-black/80 border border-gray-700/80 text-gray-400 hover:text-amber-300 hover:border-amber-600/50'
+                        : 'bg-slate-900 border border-amber-500/30 text-amber-300 hover:text-white hover:bg-amber-950/40 hover:border-amber-400/60'
                     }`}
                     title="Funcionários inativos ou demitidos com histórico preservado no banco de dados"
                   >
@@ -1106,10 +1284,10 @@ Confirmar operação em lote?`)) {
                       setTimeout(() => setRefreshing(false), 800);
                     }}
                     disabled={refreshing}
-                    className={`text-xs h-8 px-3 rounded-lg transition-all ${
+                    className={`text-xs h-8 px-3 rounded-lg transition-all font-medium ${
                       activeFiltersCount > 0
-                        ? 'border-seguranca-red/50 text-seguranca-red hover:bg-seguranca-red/10'
-                        : 'border-gray-700 text-gray-400 hover:text-white hover:bg-seguranca-graphite'
+                        ? 'border-seguranca-red/70 bg-red-950/30 text-red-300 hover:bg-seguranca-red/20 hover:text-white'
+                        : 'border-slate-700 bg-slate-900 text-slate-300 hover:text-white hover:bg-slate-800'
                     }`}
                   >
                     {refreshing ? (
@@ -1122,148 +1300,123 @@ Confirmar operação em lote?`)) {
                 </div>
               </div>
 
-              {/* Grid de Filtros: 2 linhas perfeitas de 4 colunas em desktop */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {/* Grid de Filtros com Multisseleção e Alto Contraste no Modo Dark */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-3">
                 {/* 1. Busca por texto */}
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 h-4 w-4 pointer-events-none" />
                   <Input
-                    placeholder="Digite o nome, CPF ou email..."
+                    placeholder="Digite o nome, CPF, cargo ou email..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-9 pr-7 h-10 text-xs bg-seguranca-black/70 border-gray-700/80 hover:border-gray-600 text-seguranca-lightgray placeholder:text-gray-500 focus:border-seguranca-red/50 focus:ring-1 focus:ring-seguranca-red/20 rounded-lg transition-colors"
+                    className="pl-9 pr-7 h-10 text-xs bg-slate-900/95 border-slate-600/80 hover:border-slate-400 text-white placeholder:text-slate-400 focus:border-seguranca-red focus:ring-1 focus:ring-seguranca-red/30 rounded-lg transition-colors font-medium"
                   />
                   {searchTerm && (
                     <button
                       type="button"
                       onClick={() => setSearchTerm('')}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white p-0.5 rounded transition-colors"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-0.5 rounded transition-colors"
                       title="Limpar busca"
                     >
                       <X size={13} />
                     </button>
                   )}
                 </div>
+
+                {/* 2. Cargo / Função (Multisseleção de Cargos) */}
+                <MultiFilterSelect
+                  placeholder="Todos os cargos / funções"
+                  icon={<Briefcase className="w-4 h-4" />}
+                  options={positionOptions}
+                  selected={positionFilter}
+                  onChange={setPositionFilter}
+                  accentTheme="amber"
+                />
                 
-                {/* 2. Status */}
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value as any)}
-                  className={`h-10 text-xs rounded-lg px-3 outline-none transition-colors cursor-pointer ${
-                    statusFilter !== 'all'
-                      ? 'bg-blue-950/30 border border-blue-500/50 text-blue-200'
-                      : 'bg-seguranca-black/70 border border-gray-700/80 hover:border-gray-600 text-seguranca-lightgray focus:border-seguranca-red/50 focus:ring-1 focus:ring-seguranca-red/20'
-                  }`}
-                >
-                  <option value="all">📋 Todos os status</option>
-                  <option value="ACTIVE">✅ Ativo</option>
-                  <option value="HISTORY">🏛️ Inativos & Demitidos (Histórico)</option>
-                  <option value="INACTIVE">⭕ Inativo</option>
-                  <option value="TERMINATED">❌ Demitido</option>
-                  <option value="VACATION">🏖️ Férias</option>
-                  <option value="MATERNITY_LEAVE">👶 Licença Maternidade</option>
-                  <option value="MEDICAL_CERTIFICATE">🏥 Atestado</option>
-                  <option value="SUSPENDED">⏸️ Suspenso</option>
-                </select>
+                {/* 3. Status (Multisseleção com cores semânticas) */}
+                <MultiFilterSelect
+                  placeholder="Todos os status"
+                  icon={<CheckCircle2 className="w-4 h-4" />}
+                  options={statusOptions}
+                  selected={statusFilter}
+                  onChange={setStatusFilter}
+                  accentTheme="emerald"
+                />
                 
-                {/* 3. Departamento */}
-                <select
-                  value={departmentFilter}
-                  onChange={(e) => setDepartmentFilter(e.target.value)}
-                  className={`h-10 text-xs rounded-lg px-3 outline-none transition-colors cursor-pointer ${
-                    departmentFilter !== 'all'
-                      ? 'bg-blue-950/30 border border-blue-500/50 text-blue-200'
-                      : 'bg-seguranca-black/70 border border-gray-700/80 hover:border-gray-600 text-seguranca-lightgray focus:border-seguranca-red/50 focus:ring-1 focus:ring-seguranca-red/20'
-                  }`}
-                >
-                  <option value="all">🏢 Todos os departamentos</option>
-                  {departments.map(dept => (
-                    <option key={dept.id} value={dept.id}>{dept.label}</option>
-                  ))}
-                </select>
+                {/* 4. Departamento / Unidade (Multisseleção) */}
+                <MultiFilterSelect
+                  placeholder="Todos os departamentos"
+                  icon={<Building className="w-4 h-4" />}
+                  options={departmentOptions}
+                  selected={departmentFilter}
+                  onChange={setDepartmentFilter}
+                  accentTheme="cyan"
+                />
 
-                {/* 4. Obra / Setor */}
-                <select
-                  value={workPostFilter}
-                  onChange={(e) => setWorkPostFilter(e.target.value)}
-                  className={`h-10 text-xs rounded-lg px-3 outline-none transition-colors cursor-pointer ${
-                    workPostFilter !== 'all'
-                      ? 'bg-blue-950/30 border border-blue-500/50 text-blue-200'
-                      : 'bg-seguranca-black/70 border border-gray-700/80 hover:border-gray-600 text-seguranca-lightgray focus:border-seguranca-red/50 focus:ring-1 focus:ring-seguranca-red/20'
-                  }`}
-                >
-                  <option value="all">📍 Obra / Setor (posto)</option>
-                  {workPosts.map(wp => (
-                    <option key={wp.id} value={wp.id}>{wp.name}</option>
-                  ))}
-                </select>
+                {/* 5. Obra / Setor (Posto) (Multisseleção) */}
+                <MultiFilterSelect
+                  placeholder="Obra / Setor (posto)"
+                  icon={<MapPin className="w-4 h-4" />}
+                  options={workPostOptions}
+                  selected={workPostFilter}
+                  onChange={setWorkPostFilter}
+                  accentTheme="rose"
+                />
 
-                {/* 5. Clientes */}
-                <select
-                  value={clientFilter}
-                  onChange={(e) => setClientFilter(e.target.value)}
-                  className={`h-10 text-xs rounded-lg px-3 outline-none transition-colors cursor-pointer ${
-                    clientFilter !== 'all'
-                      ? 'bg-blue-950/30 border border-blue-500/50 text-blue-200'
-                      : 'bg-seguranca-black/70 border border-gray-700/80 hover:border-gray-600 text-seguranca-lightgray focus:border-seguranca-red/50 focus:ring-1 focus:ring-seguranca-red/20'
-                  }`}
-                >
-                  <option value="all">👥 Todos os clientes</option>
-                  {clients.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
+                {/* 6. Clientes (Multisseleção) */}
+                <MultiFilterSelect
+                  placeholder="Todos os clientes"
+                  icon={<Users className="w-4 h-4" />}
+                  options={clientOptions}
+                  selected={clientFilter}
+                  onChange={setClientFilter}
+                  accentTheme="blue"
+                />
 
-                {/* 6. Garagens */}
-                <select
-                  value={garageFilter}
-                  onChange={(e) => setGarageFilter(e.target.value)}
-                  className={`h-10 text-xs rounded-lg px-3 outline-none transition-colors cursor-pointer ${
-                    garageFilter !== 'all'
-                      ? 'bg-blue-950/30 border border-blue-500/50 text-blue-200'
-                      : 'bg-seguranca-black/70 border border-gray-700/80 hover:border-gray-600 text-seguranca-lightgray focus:border-seguranca-red/50 focus:ring-1 focus:ring-seguranca-red/20'
-                  }`}
-                >
-                  <option value="all">🚗 Todas as garagens (responsável)</option>
-                  {garages.map(g => (
-                    <option key={g.id} value={g.id}>{g.name}</option>
-                  ))}
-                </select>
+                {/* 7. Garagens (Responsável) (Multisseleção) */}
+                <MultiFilterSelect
+                  placeholder="Todas as garagens (responsável)"
+                  icon={<Filter className="w-4 h-4" />}
+                  options={garageOptions}
+                  selected={garageFilter}
+                  onChange={setGarageFilter}
+                  accentTheme="orange"
+                />
 
-                {/* 7. Período de Admissão Compacto e Elegante */}
+                {/* 8. Período de Admissão Compacto e Alto Contraste */}
                 <div
                   className={`h-10 rounded-lg px-2.5 flex items-center gap-1.5 transition-all ${
                     hireStart || hireEnd
-                      ? 'bg-emerald-950/20 border border-emerald-500/50 shadow-sm shadow-emerald-500/10'
-                      : 'bg-seguranca-black/70 border border-gray-700/80 hover:border-gray-600 focus-within:border-emerald-500/50 focus-within:ring-1 focus-within:ring-emerald-500/20'
+                      ? 'bg-emerald-950/40 border border-emerald-400/80 shadow-sm shadow-emerald-500/10'
+                      : 'bg-slate-900/95 border border-emerald-500/35 hover:border-emerald-400/70 focus-within:border-emerald-400 focus-within:ring-1 focus-within:ring-emerald-500/30'
                   }`}
                   title="Filtrar por período de admissão"
                 >
-                  <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-400 shrink-0 select-none">
-                    <Calendar className="h-3.5 w-3.5" />
+                  <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-300 shrink-0 select-none">
+                    <Calendar className="h-3.5 w-3.5 text-emerald-400" />
                     <span>Admissão</span>
                   </div>
-                  <div className="h-3.5 w-px bg-gray-700 shrink-0 mx-0.5" />
+                  <div className="h-3.5 w-px bg-slate-700 shrink-0 mx-0.5" />
                   <Input
                     type="date"
                     value={hireStart}
                     onChange={(e) => setHireStart(e.target.value)}
                     title="Data de admissão inicial"
-                    className="flex-1 min-w-0 bg-transparent text-[11px] text-gray-200 focus:outline-none [color-scheme:dark] cursor-pointer"
+                    className="flex-1 min-w-0 bg-transparent border-0 p-0 h-8 text-[11px] text-slate-100 font-medium focus:outline-none [color-scheme:dark] cursor-pointer"
                   />
-                  <span className="text-gray-500 text-[10px] shrink-0 font-medium select-none">a</span>
+                  <span className="text-slate-400 text-[10px] shrink-0 font-semibold select-none">a</span>
                   <Input
                     type="date"
                     value={hireEnd}
                     onChange={(e) => setHireEnd(e.target.value)}
                     title="Data de admissão final"
-                    className="flex-1 min-w-0 bg-transparent text-[11px] text-gray-200 focus:outline-none [color-scheme:dark] cursor-pointer"
+                    className="flex-1 min-w-0 bg-transparent border-0 p-0 h-8 text-[11px] text-slate-100 font-medium focus:outline-none [color-scheme:dark] cursor-pointer"
                   />
                   {(hireStart || hireEnd) && (
                     <button
                       type="button"
                       onClick={() => { setHireStart(''); setHireEnd(''); }}
-                      className="p-0.5 text-gray-400 hover:text-emerald-300 rounded transition-colors shrink-0"
+                      className="p-0.5 text-slate-300 hover:text-emerald-300 rounded transition-colors shrink-0"
                       title="Limpar período de admissão"
                     >
                       <X className="h-3 w-3" />
@@ -1271,40 +1424,40 @@ Confirmar operação em lote?`)) {
                   )}
                 </div>
 
-                {/* 8. Período de Demissão Compacto e Elegante */}
+                {/* 9. Período de Demissão Compacto e Alto Contraste */}
                 <div
                   className={`h-10 rounded-lg px-2.5 flex items-center gap-1.5 transition-all ${
                     termStart || termEnd
-                      ? 'bg-rose-950/20 border border-rose-500/50 shadow-sm shadow-rose-500/10'
-                      : 'bg-seguranca-black/70 border border-gray-700/80 hover:border-gray-600 focus-within:border-rose-500/50 focus-within:ring-1 focus-within:ring-rose-500/20'
+                      ? 'bg-rose-950/40 border border-rose-400/80 shadow-sm shadow-rose-500/10'
+                      : 'bg-slate-900/95 border border-rose-500/35 hover:border-rose-400/70 focus-within:border-rose-400 focus-within:ring-1 focus-within:ring-rose-500/30'
                   }`}
                   title="Filtrar por período de demissão"
                 >
-                  <div className="flex items-center gap-1 text-[11px] font-semibold text-rose-400 shrink-0 select-none">
-                    <Calendar className="h-3.5 w-3.5" />
+                  <div className="flex items-center gap-1 text-[11px] font-semibold text-rose-300 shrink-0 select-none">
+                    <Calendar className="h-3.5 w-3.5 text-rose-400" />
                     <span>Demissão</span>
                   </div>
-                  <div className="h-3.5 w-px bg-gray-700 shrink-0 mx-0.5" />
+                  <div className="h-3.5 w-px bg-slate-700 shrink-0 mx-0.5" />
                   <Input
                     type="date"
                     value={termStart}
                     onChange={(e) => setTermStart(e.target.value)}
                     title="Data de demissão inicial"
-                    className="flex-1 min-w-0 bg-transparent text-[11px] text-gray-200 focus:outline-none [color-scheme:dark] cursor-pointer"
+                    className="flex-1 min-w-0 bg-transparent border-0 p-0 h-8 text-[11px] text-slate-100 font-medium focus:outline-none [color-scheme:dark] cursor-pointer"
                   />
-                  <span className="text-gray-500 text-[10px] shrink-0 font-medium select-none">a</span>
+                  <span className="text-slate-400 text-[10px] shrink-0 font-semibold select-none">a</span>
                   <Input
                     type="date"
                     value={termEnd}
                     onChange={(e) => setTermEnd(e.target.value)}
                     title="Data de demissão final"
-                    className="flex-1 min-w-0 bg-transparent text-[11px] text-gray-200 focus:outline-none [color-scheme:dark] cursor-pointer"
+                    className="flex-1 min-w-0 bg-transparent border-0 p-0 h-8 text-[11px] text-slate-100 font-medium focus:outline-none [color-scheme:dark] cursor-pointer"
                   />
                   {(termStart || termEnd) && (
                     <button
                       type="button"
                       onClick={() => { setTermStart(''); setTermEnd(''); }}
-                      className="p-0.5 text-gray-400 hover:text-rose-300 rounded transition-colors shrink-0"
+                      className="p-0.5 text-slate-300 hover:text-rose-300 rounded transition-colors shrink-0"
                       title="Limpar período de demissão"
                     >
                       <X className="h-3 w-3" />

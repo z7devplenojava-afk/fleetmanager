@@ -24,7 +24,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "invoices")
-@Filter(name = "tenantFilter", condition = "company_id = :companyId")
+@Filter(name = "tenantFilter", condition = "(company_id = :companyId OR company_id IS NULL)")
 public class Invoice implements TenantAware {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -225,4 +225,15 @@ public class Invoice implements TenantAware {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    @PrePersist
+    @PreUpdate
+    protected void ensureTenantCompanyId() {
+        if (this.companyId == null) {
+            UUID currentTenant = com.z7design.fleet_manager.tenant.TenantContext.get();
+            if (currentTenant != null) {
+                this.companyId = currentTenant;
+            }
+        }
+    }
 }

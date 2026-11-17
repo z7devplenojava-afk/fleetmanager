@@ -74,11 +74,9 @@ public class WebConfig implements WebMvcConfigurer {
                 log.info("✅ Diretório de logos criado: {}", logoDir);
             }
             
-            registry.addResourceHandler(
-                    "/api/uploads/companies/logos/**",
-                    "/uploads/companies/logos/**",
-                    "/companies/logos/**"
-                )
+            // Logos e banners em /api/uploads/companies/** e /uploads/companies/** são servidos pelo
+            // FileUploadController com fallback persistente no PostgreSQL e retorno 200 transparente quando ausente.
+            registry.addResourceHandler("/companies/logos/**")
                 .addResourceLocations(
                     "file:" + logoPath,
                     "file:" + parentLogoPath,
@@ -89,11 +87,7 @@ public class WebConfig implements WebMvcConfigurer {
                 )
                 .setCachePeriod(3600);
             
-            registry.addResourceHandler(
-                    "/api/uploads/companies/banners/**",
-                    "/uploads/companies/banners/**",
-                    "/companies/banners/**"
-                )
+            registry.addResourceHandler("/companies/banners/**")
                 .addResourceLocations(
                     "file:" + uploadDir + "/companies/banners/",
                     "file:../uploads/companies/banners/",
@@ -102,23 +96,9 @@ public class WebConfig implements WebMvcConfigurer {
                 )
                 .setCachePeriod(3600);
             
-            log.info("✅ ResourceHandler configurado para banners");
+            log.info("✅ ResourceHandler configurado para logos e banners (com fallback em FileUploadController)");
         } catch (Exception e) {
-            log.error("❌ Erro ao configurar ResourceHandler para logos/banners, usando fallback: {}", e.getMessage(), e);
-            registry.addResourceHandler("/api/uploads/companies/logos/**", "/uploads/companies/logos/**")
-                    .addResourceLocations(
-                        "file:" + uploadDir + "/companies/logos/",
-                        "file:../uploads/companies/logos/",
-                        "file:uploads/companies/logos/"
-                    )
-                    .setCachePeriod(3600);
-            registry.addResourceHandler("/api/uploads/companies/banners/**", "/uploads/companies/banners/**")
-                    .addResourceLocations(
-                        "file:" + uploadDir + "/companies/banners/",
-                        "file:../uploads/companies/banners/",
-                        "file:uploads/companies/banners/"
-                    )
-                    .setCachePeriod(3600);
+            log.error("❌ Erro ao configurar ResourceHandler para logos/banners: {}", e.getMessage(), e);
         }
     }
     

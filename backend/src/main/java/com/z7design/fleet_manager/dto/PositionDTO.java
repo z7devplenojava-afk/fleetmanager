@@ -28,18 +28,18 @@ public class PositionDTO {
     @Size(min = 3, max = 100, message = "Nome do cargo deve ter entre 3 e 100 caracteres")
     private String name;
 
-    @Schema(description = "DescriÃ§Ã£o detalhada do cargo")
-    @Size(max = 500, message = "DescriÃ§Ã£o nÃ£o pode exceder 500 caracteres")
+    @Schema(description = "Descrição detalhada do cargo")
+    @Size(max = 500, message = "Descrição não pode exceder 500 caracteres")
     private String description;
 
-    @Schema(description = "CÃ³digo Brasileiro de OcupaÃ§Ã£o (CBO)", example = "5171-10")
-    @Size(max = 10, message = "CBO nÃ£o pode exceder 10 caracteres")
+    @Schema(description = "Código Brasileiro de Ocupação (CBO)", example = "5171-10")
+    @Size(max = 20, message = "CBO não pode exceder 20 caracteres")
     private String cbo;
 
-    @Schema(description = "SalÃ¡rio base do cargo", example = "3500.00")
-    @NotNull(message = "SalÃ¡rio base Ã© obrigatÃ³rio")
-    @PositiveOrZero(message = "SalÃ¡rio base deve ser um valor positivo ou zero")
-    private BigDecimal baseSalary;
+    @Schema(description = "Salário base do cargo", example = "3500.00")
+    @PositiveOrZero(message = "Salário base deve ser um valor positivo ou zero")
+    @Builder.Default
+    private BigDecimal baseSalary = BigDecimal.ZERO;
 
     @Schema(description = "ID da unidade a qual o cargo pertence", example = "a1b2c3d4-e5f6-7890-1234-567890abcdef")
     private UUID unitId;

@@ -37,10 +37,13 @@ const NovoCargoModal: React.FC<NovoCargoModalProps> = ({ open, onClose, onCargoC
   const [showCboDropdown, setShowCboDropdown] = useState(false);
   const [loadingCBO, setLoadingCBO] = useState(false);
   const [detectedCbo, setDetectedCbo] = useState<CBOItem | null>(null);
+  const [userEditedCbo, setUserEditedCbo] = useState(false);
+  const [userEditedDesc, setUserEditedDesc] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+    setError(null);
     
     // Se for o campo name, atualizar o termo de busca
     if (name === 'name') {
@@ -50,8 +53,13 @@ const NovoCargoModal: React.FC<NovoCargoModalProps> = ({ open, onClose, onCargoC
     
     // Se for o campo cbo, atualizar o termo de busca
     if (name === 'cbo') {
+      setUserEditedCbo(value.trim().length > 0);
       setCboSearchTerm(value);
       setShowCboDropdown(value.length > 0);
+    }
+
+    if (name === 'description') {
+      setUserEditedDesc(value.trim().length > 0);
     }
   };
 
@@ -62,28 +70,30 @@ const NovoCargoModal: React.FC<NovoCargoModalProps> = ({ open, onClose, onCargoC
       if (!term) {
         setFilteredPositions([]);
         setDetectedCbo(null);
+        if (!userEditedCbo) setForm(prev => ({ ...prev, cbo: '' }));
+        if (!userEditedDesc) setForm(prev => ({ ...prev, description: '' }));
         return;
       }
 
       try {
         const searchResults = await positionService.searchPositions(term);
         setFilteredPositions(searchResults);
-      } catch (error) {
+      } catch {
         setFilteredPositions([]);
       }
 
-      // Buscar CBO automaticamente
-      if (term.length >= 3) {
+      // Buscar CBO automaticamente a partir de 2 caracteres
+      if (term.length >= 2) {
         try {
           const cbos = await cboService.searchCBO(term);
           if (cbos && cbos.length > 0) {
             const best = cbos[0];
             setDetectedCbo(best);
-            // Preencher automaticamente os campos CBO e Descrição se estiverem vazios
+            const autoDesc = best.descricao || `${best.titulo}${best.sinonimo ? ` (${best.sinonimo})` : ''}`;
             setForm(prev => ({
               ...prev,
-              cbo: prev.cbo ? prev.cbo : best.codigo,
-              description: prev.description ? prev.description : (best.titulo + (best.sinonimo ? ` (${best.sinonimo})` : ''))
+              cbo: userEditedCbo && prev.cbo ? prev.cbo : best.codigo,
+              description: userEditedDesc && prev.description ? prev.description : autoDesc
             }));
           } else {
             setDetectedCbo(null);
@@ -94,9 +104,9 @@ const NovoCargoModal: React.FC<NovoCargoModalProps> = ({ open, onClose, onCargoC
       }
     };
 
-    const timeoutId = setTimeout(searchPositionsAndCBO, 350);
+    const timeoutId = setTimeout(searchPositionsAndCBO, 250);
     return () => clearTimeout(timeoutId);
-  }, [positionSearchTerm]);
+  }, [positionSearchTerm, userEditedCbo, userEditedDesc]);
 
   // Buscar CBOs ao digitar o código ou título
   useEffect(() => {
@@ -163,15 +173,33 @@ const NovoCargoModal: React.FC<NovoCargoModalProps> = ({ open, onClose, onCargoC
     return () => clearTimeout(timeoutId);
   }, [cboSearchTerm]);
 
-  const handlePositionSelect = (position: Position) => {
+  const handlePositionSelect = async (position: Position) => {
     setForm(prev => ({
       ...prev,
       name: position.name,
-      cbo: position.cbo || '',
-      description: position.description || ''
+      cbo: position.cbo || prev.cbo || '',
+      description: position.description || prev.description || ''
     }));
     setPositionSearchTerm(position.name);
     setShowPositionDropdown(false);
+
+    if (!position.cbo || !position.description) {
+      try {
+        const cbos = await cboService.searchCBO(position.name);
+        if (cbos && cbos.length > 0) {
+          const best = cbos[0];
+          setDetectedCbo(best);
+          const autoDesc = best.descricao || `${best.titulo}${best.sinonimo ? ` (${best.sinonimo})` : ''}`;
+          setForm(prev => ({
+            ...prev,
+            cbo: position.cbo || best.codigo,
+            description: position.description || autoDesc
+          }));
+        }
+      } catch {
+        // silencioso
+      }
+    }
   };
 
   const handlePositionInputFocus = () => {
@@ -188,10 +216,13 @@ const NovoCargoModal: React.FC<NovoCargoModalProps> = ({ open, onClose, onCargoC
   };
 
   const handleCboSelect = (cbo: CBOItem) => {
+    const autoDesc = cbo.descricao || `${cbo.titulo}${cbo.sinonimo ? ` (${cbo.sinonimo})` : ''}`;
     setForm(prev => ({
       ...prev,
-      cbo: cbo.codigo
+      cbo: cbo.codigo,
+      description: userEditedDesc && prev.description ? prev.description : autoDesc
     }));
+    setUserEditedCbo(true);
     setCboSearchTerm(cbo.codigo);
     setShowCboDropdown(false);
   };
@@ -221,10 +252,22 @@ const NovoCargoModal: React.FC<NovoCargoModalProps> = ({ open, onClose, onCargoC
     setError(null);
     
     try {
+      let finalCbo = form.cbo.trim();
+      let finalDesc = form.description.trim();
+
+      if (!finalCbo || !finalDesc) {
+        const cbos = await cboService.searchCBO(form.name.trim());
+        if (cbos && cbos.length > 0) {
+          const best = cbos[0];
+          if (!finalCbo) finalCbo = best.codigo;
+          if (!finalDesc) finalDesc = best.descricao || `${best.titulo}${best.sinonimo ? ` (${best.sinonimo})` : ''}`;
+        }
+      }
+
       const newCargo = await positionService.createPosition({
         name: form.name.trim(),
-        description: form.description.trim(),
-        cbo: form.cbo.trim() || undefined,
+        description: finalDesc,
+        cbo: finalCbo || undefined,
         baseSalary: 0
       });
       
@@ -233,14 +276,20 @@ const NovoCargoModal: React.FC<NovoCargoModalProps> = ({ open, onClose, onCargoC
         description: "Cargo criado com sucesso!",
       });
       
-      onCargoCreated(newCargo);
+      onCargoCreated({
+        id: newCargo.id,
+        name: newCargo.name,
+        description: newCargo.description || finalDesc
+      });
       onClose();
       setForm({ name: '', description: '', cbo: '' });
       setPositionSearchTerm('');
       setFilteredPositions([]);
       setDetectedCbo(null);
+      setUserEditedCbo(false);
+      setUserEditedDesc(false);
     } catch (err: any) {
-      const errorMsg = err?.response?.data?.message || err?.message || 'Erro ao criar cargo. Tente novamente.';
+      const errorMsg = err?.response?.data?.message || err?.response?.data?.error || err?.message || 'Erro ao criar cargo. Tente novamente.';
       setError(errorMsg);
       toast({
         title: "Erro",
@@ -260,6 +309,9 @@ const NovoCargoModal: React.FC<NovoCargoModalProps> = ({ open, onClose, onCargoC
       setCboSearchTerm('');
       setFilteredCBOs([]);
       setShowCboDropdown(false);
+      setDetectedCbo(null);
+      setUserEditedCbo(false);
+      setUserEditedDesc(false);
       setError(null);
       onClose();
   };
@@ -390,7 +442,7 @@ const NovoCargoModal: React.FC<NovoCargoModalProps> = ({ open, onClose, onCargoC
                       setForm(prev => ({
                         ...prev,
                         cbo: detectedCbo.codigo,
-                        description: detectedCbo.titulo + (detectedCbo.sinonimo ? ` (${detectedCbo.sinonimo})` : '')
+                        description: detectedCbo.descricao || (detectedCbo.titulo + (detectedCbo.sinonimo ? ` (${detectedCbo.sinonimo})` : ''))
                       }));
                     }}
                     className="p-2.5 rounded-lg bg-blue-950/40 border border-blue-500/40 text-blue-200 text-xs flex items-center justify-between gap-2 cursor-pointer hover:bg-blue-900/40 transition-all shadow-sm"

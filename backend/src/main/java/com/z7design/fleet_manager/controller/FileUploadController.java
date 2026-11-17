@@ -505,6 +505,17 @@ public class FileUploadController {
         };
     }
 
+    private static final byte[] TRANSPARENT_1X1_PNG = java.util.Base64.getDecoder().decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=");
+
+    private ResponseEntity<Resource> buildMissingPlaceholderResponse() {
+        return ResponseEntity.ok()
+                .contentType(MediaType.IMAGE_PNG)
+                .header(HttpHeaders.CACHE_CONTROL, "public, max-age=300")
+                .header("X-Upload-Missing", "true")
+                .body(new ByteArrayResource(TRANSPARENT_1X1_PNG));
+    }
+
     private ResponseEntity<Resource> serveUploadedFile(
             Path[] candidates,
             String dbCategory,
@@ -546,9 +557,9 @@ public class FileUploadController {
                     .header(HttpHeaders.CACHE_CONTROL, "public, max-age=86400")
                     .body(new ByteArrayResource(stored.getData()));
             }
-            return returnNoContentWhenMissing ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
+            return returnNoContentWhenMissing ? buildMissingPlaceholderResponse() : ResponseEntity.notFound().build();
         } catch (Exception e) {
-            return returnNoContentWhenMissing ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
+            return returnNoContentWhenMissing ? buildMissingPlaceholderResponse() : ResponseEntity.notFound().build();
         }
     }
 

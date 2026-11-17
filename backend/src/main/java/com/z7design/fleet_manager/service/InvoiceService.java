@@ -55,8 +55,11 @@ public class InvoiceService {
     }
     
     public Optional<Invoice> findById(UUID id) {
-        // Usar mÃ©todo com EntityGraph para carregar relacionamentos e evitar LazyInitializationException
-        return invoiceRepository.findByIdWithRelations(id);
+        Optional<Invoice> withRel = invoiceRepository.findByIdWithRelations(id);
+        if (withRel.isPresent()) {
+            return withRel;
+        }
+        return invoiceRepository.findById(id);
     }
     
     public List<Invoice> findByStatus(ExpenseStatus status) {
@@ -156,6 +159,13 @@ public class InvoiceService {
     }
     
     public Invoice save(Invoice invoice) {
+        if (invoice.getCompanyId() == null) {
+            UUID currentTenant = com.z7design.fleet_manager.tenant.TenantContext.get();
+            if (currentTenant != null) {
+                invoice.setCompanyId(currentTenant);
+            }
+        }
+
         // Garantir unidade válida: se não vier no DTO, usar a primeira unidade existente ou criar unidade padrão
         if (invoice.getUnit() == null || invoice.getUnit().getId() == null) {
             try {
@@ -191,7 +201,7 @@ public class InvoiceService {
     public Invoice create(InvoiceDTO invoiceDTO) {
         Invoice invoice = new Invoice();
         updateInvoiceFromDTO(invoice, invoiceDTO);
-        return invoiceRepository.save(invoice);
+        return save(invoice);
     }
     
     public Invoice update(UUID id, InvoiceDTO invoiceDTO) {
@@ -205,7 +215,7 @@ public class InvoiceService {
                         try {
                             updateInvoiceFromDTO(invoice, invoiceDTO);
                             log.info("Dados atualizados, salvando fatura...");
-                            Invoice saved = invoiceRepository.save(invoice);
+                            Invoice saved = save(invoice);
                             
                             // Inicializar relacionamentos lazy dentro da transaÃ§Ã£o
                             initializeInvoiceRelationships(saved);
@@ -493,25 +503,41 @@ public class InvoiceService {
     }
 
     public void updateInvoiceFromDTO(Invoice invoice, InvoiceDTO dto) {
-        log.info("Iniciando atualizaÃ§Ã£o de invoice com DTO: {}", dto);
+        log.info("Iniciando atualização de invoice com DTO: {}", dto);
         
         try {
-            // GeraÃ§Ã£o automÃ¡tica do nÃºmero da fatura se nÃ£o enviado
+            // Geração automática do número da fatura se não enviado
             String invoiceNumber = dto.getInvoiceNumber();
             if (invoiceNumber == null || invoiceNumber.trim().isEmpty()) {
-                // Exemplo: FAT-2025-<UUID curto>
                 String year = String.valueOf(java.time.LocalDate.now().getYear());
                 invoiceNumber = "FAT-" + year + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+            } else {
+                invoiceNumber = invoiceNumber.trim();
+                if (invoiceNumber.length() > 44) {
+                    invoiceNumber = invoiceNumber.substring(0, 44);
+                }
+                // Evita falha 400 por constraint unique de invoice_number em novas faturas/parcelas
+                if (invoice.getId() == null) {
+                    try {
+                        if (invoiceRepository.existsByInvoiceNumberNativeScoped(invoiceNumber, null)) {
+                            invoiceNumber = invoiceNumber + "-" + UUID.randomUUID().toString().substring(0, 4).toUpperCase();
+                        }
+                    } catch (Exception ignored) {}
+                }
             }
             invoice.setInvoiceNumber(invoiceNumber);
-            log.debug("NÃºmero da fatura definido: {}", invoiceNumber);
+            log.debug("Número da fatura definido: {}", invoiceNumber);
             
-            invoice.setDescription(dto.getDescription());
-            invoice.setAmount(dto.getAmount());
+            String desc = dto.getDescription() != null ? dto.getDescription().trim() : "Despesa";
+            if (desc.length() > 500) {
+                desc = desc.substring(0, 500);
+            }
+            invoice.setDescription(desc);
+            invoice.setAmount(dto.getAmount() != null ? dto.getAmount() : BigDecimal.ZERO);
             invoice.setStatus(dto.getStatus() != null ? dto.getStatus() : ExpenseStatus.PENDENTE);
             invoice.setType(dto.getType() != null ? dto.getType() : ExpenseType.VARIAVEL);
             invoice.setIssueDate(dto.getIssueDate() != null ? dto.getIssueDate() : LocalDate.now());
-            invoice.setDueDate(dto.getDueDate());
+            invoice.setDueDate(dto.getDueDate() != null ? dto.getDueDate() : LocalDate.now());
             invoice.setPaymentDate(dto.getPaymentDate());
             invoice.setCategory(dto.getCategory());
             invoice.setCentroCusto(dto.getCentroCusto());
@@ -550,56 +576,45 @@ public class InvoiceService {
             }
             if (dto.getTotalInstallments() != null) invoice.setTotalInstallments(dto.getTotalInstallments());
             
-            log.debug("Campos bÃ¡sicos definidos");
+            log.debug("Campos básicos definidos");
             
-            // Relacionamentos
+            // Relacionamentos resilientes (não lançam exceção se ID de fallback não existir)
             if (dto.getSupplierId() != null) {
-                log.debug("Processando fornecedor: {}", dto.getSupplierId());
-                Supplier supplier = supplierRepository.findById(dto.getSupplierId())
-                        .orElseThrow(() -> new RuntimeException("Fornecedor nÃ£o encontrado: " + dto.getSupplierId()));
-                invoice.setSupplier(supplier);
-                log.debug("Fornecedor definido: {}", supplier.getName());
+                supplierRepository.findById(dto.getSupplierId()).ifPresentOrElse(
+                        invoice::setSupplier,
+                        () -> invoice.setSupplier(null)
+                );
             }
 
             if (dto.getClientId() != null) {
-                log.debug("Processando cliente: {}", dto.getClientId());
-                Client client = clientRepository.findById(dto.getClientId())
-                        .orElseThrow(() -> new RuntimeException("Cliente nÃ£o encontrado: " + dto.getClientId()));
-                invoice.setClient(client);
-                log.debug("Cliente definido: {}", client.getName());
+                clientRepository.findById(dto.getClientId()).ifPresentOrElse(
+                        invoice::setClient,
+                        () -> invoice.setClient(null)
+                );
             }
 
             if (dto.getContractId() != null) {
-                log.debug("Processando contrato: {}", dto.getContractId());
-                Contract contract = contractRepository.findById(dto.getContractId())
-                        .orElseThrow(() -> new RuntimeException("Contrato não encontrado: " + dto.getContractId()));
-                invoice.setContract(contract);
-                log.debug("Contrato definido: {}", contract.getContractNumber());
+                contractRepository.findById(dto.getContractId()).ifPresentOrElse(
+                        invoice::setContract,
+                        () -> invoice.setContract(null)
+                );
             }
 
             if (dto.getWorkPostId() != null) {
-                log.debug("Processando obra/posto: {}", dto.getWorkPostId());
-                WorkPost workPost = workPostRepository.findById(dto.getWorkPostId())
-                        .orElseThrow(() -> new RuntimeException("Obra/Posto não encontrado: " + dto.getWorkPostId()));
-                invoice.setWorkPost(workPost);
-                log.debug("Obra/Posto definido: {}", workPost.getName());
+                workPostRepository.findById(dto.getWorkPostId()).ifPresentOrElse(
+                        invoice::setWorkPost,
+                        () -> invoice.setWorkPost(null)
+                );
             }
 
             if (dto.getUnitId() != null) {
-                log.debug("Processando unidade: {}", dto.getUnitId());
-                try {
-                    Unit unit = unitRepository.findById(dto.getUnitId())
-                            .orElseThrow(() -> new RuntimeException("Unidade nÃ£o encontrada: " + dto.getUnitId()));
-                    invoice.setUnit(unit);
-                    log.debug("Unidade definida: {}", unit.getName());
-                } catch (Exception e) {
-                    log.error("Erro ao buscar unidade {}: {}", dto.getUnitId(), e.getMessage());
-                    throw new RuntimeException("Erro ao processar unidade: " + e.getMessage(), e);
-                }
+                unitRepository.findById(dto.getUnitId()).ifPresentOrElse(
+                        invoice::setUnit,
+                        () -> log.warn("Unidade {} não encontrada no banco; save() utilizará/criará a unidade padrão da empresa.", dto.getUnitId())
+                );
             }
 
             if (dto.getGarageId() != null) {
-                log.debug("Processando garagem: {}", dto.getGarageId());
                 garageRepository.findById(dto.getGarageId()).ifPresentOrElse(
                         invoice::setGarage,
                         () -> invoice.setGarage(null)
