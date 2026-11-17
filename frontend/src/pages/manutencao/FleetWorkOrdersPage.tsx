@@ -985,48 +985,49 @@ const FleetWorkOrdersPage: React.FC = () => {
                             </div>
                         </CardContent>
                     </Card>
+                </div>
 
-                    {/* Barra Flutuante de Ações em Massa */}
-                    {selectedOrderIds.length > 0 && (
-                        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[10050] bg-gray-900/95 border border-seguranca-yellow/60 backdrop-blur-md rounded-2xl shadow-2xl px-5 py-3 flex items-center gap-4 text-xs animate-in fade-in slide-in-from-bottom-4">
-                            <div className="flex items-center gap-2 text-white font-medium">
-                                <span className="bg-seguranca-yellow text-black font-bold px-2 py-0.5 rounded-full text-xs">
-                                    {selectedOrderIds.length}
-                                </span>
-                                <span>OS selecionada{selectedOrderIds.length > 1 ? 's' : ''}</span>
-                            </div>
-                            <div className="h-4 w-px bg-gray-700" />
-                            <div className="flex items-center gap-2">
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleOpenCancelModal(selectedOrderIds)}
-                                    className="h-8 border-amber-500/60 text-amber-300 hover:bg-amber-500/20 text-xs font-semibold gap-1.5"
-                                >
-                                    <AlertTriangle className="h-3.5 w-3.5" />
-                                    Cancelar Selecionadas
-                                </Button>
-                                <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    onClick={() => handleOpenDeleteModal(selectedOrderIds)}
-                                    className="h-8 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold gap-1.5"
-                                >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                    Excluir Selecionadas
-                                </Button>
-                                <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => setSelectedOrderIds([])}
-                                    className="h-8 text-gray-400 hover:text-white hover:bg-gray-800 text-xs gap-1"
-                                >
-                                    <X className="h-3.5 w-3.5" />
-                                    Desmarcar
-                                </Button>
-                            </div>
+                {/* Barra Flutuante de Ações em Massa */}
+                {selectedOrderIds.length > 0 && (
+                    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[10050] bg-gray-900/95 border border-seguranca-yellow/60 backdrop-blur-md rounded-2xl shadow-2xl px-5 py-3 flex items-center gap-4 text-xs animate-in fade-in slide-in-from-bottom-4">
+                        <div className="flex items-center gap-2 text-white font-medium">
+                            <span className="bg-seguranca-yellow text-black font-bold px-2 py-0.5 rounded-full text-xs">
+                                {selectedOrderIds.length}
+                            </span>
+                            <span>OS selecionada{selectedOrderIds.length > 1 ? 's' : ''}</span>
                         </div>
-                    )}
+                        <div className="h-4 w-px bg-gray-700" />
+                        <div className="flex items-center gap-2">
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleOpenCancelModal(selectedOrderIds)}
+                                className="h-8 border-amber-500/60 text-amber-300 hover:bg-amber-500/20 text-xs font-semibold gap-1.5"
+                            >
+                                <AlertTriangle className="h-3.5 w-3.5" />
+                                Cancelar Selecionadas
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleOpenDeleteModal(selectedOrderIds)}
+                                className="h-8 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold gap-1.5"
+                            >
+                                <Trash2 className="h-3.5 w-3.5" />
+                                Excluir Selecionadas
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setSelectedOrderIds([])}
+                                className="h-8 text-gray-400 hover:text-white hover:bg-gray-800 text-xs gap-1"
+                            >
+                                <X className="h-3.5 w-3.5" />
+                                Desmarcar
+                            </Button>
+                        </div>
+                    </div>
+                )}
                 </>
                 )}
             </div>
