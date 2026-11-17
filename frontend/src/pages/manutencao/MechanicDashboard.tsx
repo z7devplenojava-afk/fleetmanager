@@ -43,7 +43,7 @@ import fleetWorkOrderService, {
   WorkOrderStatus,
   LaborType
 } from "@/services/fleetWorkOrderService";
-import { downloadFleetWorkOrderPDF } from "@/utils/fleetWorkOrderPDFGenerator";
+import { generateFleetWorkOrderPDFDownload } from "@/utils/fleetWorkOrderPDFGenerator";
 import fleetService, { Vehicle } from "@/services/fleetService";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -888,7 +888,7 @@ export default function MechanicDashboard() {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() => downloadFleetWorkOrderPDF(wo)}
+                                  onClick={() => generateFleetWorkOrderPDFDownload(wo)}
                                   className="h-7 text-xs border-slate-700 bg-slate-950 text-slate-200 hover:text-white hover:bg-slate-800"
                                   title="Imprimir ficha completa desta O.S."
                                 >
