@@ -45,6 +45,7 @@ import { EmployeeCombobox } from '@/components/ui/employee-combobox';
 import { VehicleCombobox } from '@/components/ui/vehicle-combobox';
 import { workPostService, WorkPost } from '@/services/workPostService';
 import { clientService, Client } from '@/services/clientService';
+import arlaService from '@/services/arlaService';
 
 interface InternalFuelFormData {
   // Localização
@@ -60,6 +61,7 @@ interface InternalFuelFormData {
   date: string;
   responsibleId: string;
   responsibleName: string;
+  responsibleMode: 'EMPLOYEE' | 'MANUAL';
 
   // Veículo + Auto-fill
   vehicleId: string;
@@ -72,6 +74,12 @@ interface InternalFuelFormData {
   initialMileage: number;
   mileage: number;
   liters: number;
+
+  // ARLA 32 Conjugado
+  hasArla: boolean;
+  arlaLiters: number;
+  arlaCost: number;
+
   notes: string;
 }
 
@@ -107,6 +115,7 @@ const DEFAULT_FORM: InternalFuelFormData = {
   date: new Date().toISOString().split('T')[0],
   responsibleId: '',
   responsibleName: '',
+  responsibleMode: 'EMPLOYEE',
   vehicleId: '',
   vehiclePlate: '',
   clientName: '',
@@ -115,6 +124,9 @@ const DEFAULT_FORM: InternalFuelFormData = {
   initialMileage: 0,
   mileage: 0,
   liters: 0,
+  hasArla: false,
+  arlaLiters: 0,
+  arlaCost: 0,
   notes: '',
 };
 
@@ -372,11 +384,35 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
   };
 
   const createMutation = useMutation({
-    mutationFn: (data: FormData) => fleetService.createFuelRecord(data),
+    mutationFn: async (data: FormData) => {
+      const record = await fleetService.createFuelRecord(data);
+      if (formData.hasArla && formData.arlaLiters > 0 && formData.vehicleId) {
+        try {
+          await arlaService.create({
+            vehicleId: formData.vehicleId,
+            date: formData.date,
+            quantity: formData.arlaLiters,
+            cost: formData.arlaCost || 0,
+            mileage: formData.mileage,
+            station: formData.garageName || 'Abastecimento Interno',
+            notes: `Conjugado Diesel (${formData.liters}L) | Resp: ${formData.responsibleName || 'N/I'}`,
+          });
+        } catch (arlaErr) {
+          console.warn('Aviso ao registrar ARLA 32 conjugado:', arlaErr);
+        }
+      }
+      return record;
+    },
     onSuccess: () => {
-      toast({ title: 'Sucesso!', description: 'Abastecimento interno registrado.' });
+      toast({
+        title: 'Sucesso!',
+        description: formData.hasArla && formData.arlaLiters > 0
+          ? `Abastecimento de Diesel (${formData.liters}L) e ARLA 32 (${formData.arlaLiters}L) registrados.`
+          : 'Abastecimento interno registrado com sucesso.',
+      });
       queryClient.invalidateQueries({ queryKey: ['fuelRecords'] });
       queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+      queryClient.invalidateQueries({ queryKey: ['arlaRecords'] });
       onSuccess();
       onClose();
     },
@@ -409,6 +445,8 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
         `Código: ${formData.fuelCode || 'N/I'}`,
         `Garagem: ${formData.garageName || 'N/I'}`,
         `Bomba/Tanque: ${formData.pumpName || formData.tankName || 'N/I'}`,
+        formData.responsibleName ? `Responsável: ${formData.responsibleName}` : null,
+        formData.hasArla && formData.arlaLiters > 0 ? `ARLA 32: ${formData.arlaLiters}L${formData.arlaCost ? ` (R$ ${formData.arlaCost})` : ''}` : null,
         formData.notes,
       ].filter(Boolean).join(' | '),
       costCenter: null,
@@ -684,19 +722,63 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
 
               {/* Responsável */}
               <div className="space-y-2">
-                <Label className="text-gray-300 font-medium flex items-center gap-2">
-                  <User className="h-4 w-4 text-green-400" />
-                  Quem Abasteceu (Responsável) *
-                </Label>
-                <EmployeeCombobox
-                  value={formData.responsibleId}
-                  onChange={(val) => {
-                    setField('responsibleId', val);
-                  }}
-                  placeholder="Selecione o responsável..."
-                  searchPlaceholder="Buscar funcionário..."
-                  emptyPlaceholder="Nenhum funcionário encontrado."
-                />
+                <div className="flex items-center justify-between">
+                  <Label className="text-gray-300 font-medium flex items-center gap-2">
+                    <User className="h-4 w-4 text-green-400" />
+                    Quem Abasteceu (Responsável / Motorista) *
+                  </Label>
+                  <div className="flex items-center bg-gray-800 p-0.5 rounded-lg border border-gray-700 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setField('responsibleMode', 'EMPLOYEE')}
+                      className={`px-2.5 py-1 rounded-md transition-colors ${
+                        formData.responsibleMode === 'EMPLOYEE'
+                          ? 'bg-seguranca-yellow text-seguranca-black font-semibold'
+                          : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      Cadastrado
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setField('responsibleMode', 'MANUAL');
+                        setField('responsibleId', '');
+                      }}
+                      className={`px-2.5 py-1 rounded-md transition-colors ${
+                        formData.responsibleMode === 'MANUAL'
+                          ? 'bg-seguranca-yellow text-seguranca-black font-semibold'
+                          : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      Outro (Manual)
+                    </button>
+                  </div>
+                </div>
+
+                {formData.responsibleMode === 'EMPLOYEE' ? (
+                  <EmployeeCombobox
+                    value={formData.responsibleId}
+                    onChange={(val) => {
+                      setField('responsibleId', val);
+                    }}
+                    placeholder="Selecione o motorista ou funcionário..."
+                    searchPlaceholder="Buscar funcionário ou motorista..."
+                    emptyPlaceholder="Nenhum funcionário encontrado."
+                  />
+                ) : (
+                  <Input
+                    placeholder="Ex: GUILHERME, JEFERSON, GARAGEM, FRENTISTA..."
+                    value={formData.responsibleName}
+                    onChange={e => setField('responsibleName', e.target.value)}
+                    className="bg-gray-900/80 border-gray-700 text-white h-11 placeholder:text-gray-600"
+                  />
+                )}
+                <p className="text-xs text-gray-500">
+                  {formData.responsibleMode === 'EMPLOYEE'
+                    ? 'Selecione qualquer motorista ou funcionário interno cadastrado.'
+                    : 'Informe o nome livremente (frentista, fiscal, operador de pátio ou garagem).'}
+                </p>
               </div>
             </div>
           )}
@@ -927,6 +1009,58 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
                 )}
               </div>
 
+              {/* ARLA 32 Conjugado */}
+              <div className="p-4 rounded-xl border border-blue-800/40 bg-blue-950/20 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Droplets className="h-4 w-4 text-blue-400" />
+                    <span className="text-sm font-semibold text-blue-200">Abasteceu ARLA 32 junto?</span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.hasArla}
+                      onChange={(e) => setField('hasArla', e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+
+                {formData.hasArla && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2.5 border-t border-blue-900/40 animate-in fade-in-50">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-gray-300 font-medium">Litros de ARLA 32 *</Label>
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          step="0.1"
+                          value={formData.arlaLiters || ''}
+                          onChange={(e) => setField('arlaLiters', Number(e.target.value))}
+                          placeholder="Ex: 10.0"
+                          className="bg-gray-900 border-blue-700/60 text-white h-10 text-sm font-semibold"
+                        />
+                        <span className="absolute right-3 top-2.5 text-xs text-blue-400 font-bold">L</span>
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-gray-300 font-medium">Valor Total ARLA 32 (R$ opcional)</Label>
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={formData.arlaCost || ''}
+                          onChange={(e) => setField('arlaCost', Number(e.target.value))}
+                          placeholder="0.00"
+                          className="bg-gray-900 border-gray-700 text-white h-10 text-sm"
+                        />
+                        <span className="absolute right-3 top-2.5 text-xs text-gray-500">R$</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Observações */}
               <div className="space-y-2">
                 <Label className="text-gray-300 font-medium flex items-center gap-2">
@@ -967,7 +1101,12 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
                   { icon: <Fuel className="h-4 w-4 text-amber-400" />, label: 'Combustível', value: FUEL_TYPE_LABELS[formData.fuelType] },
                   { icon: <Gauge className="h-4 w-4 text-yellow-400" />, label: 'KM Anterior', value: `${formData.initialMileage?.toLocaleString('pt-BR') || '0'} km` },
                   { icon: <Gauge className="h-4 w-4 text-blue-400" />, label: 'KM Abastecimento', value: `${formData.mileage?.toLocaleString('pt-BR') || '0'} km` },
-                  { icon: <Droplets className="h-4 w-4 text-cyan-400" />, label: 'Litros', value: `${formData.liters?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} L` },
+                  { icon: <Droplets className="h-4 w-4 text-cyan-400" />, label: 'Litros Diesel', value: `${formData.liters?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} L` },
+                  ...(formData.hasArla && formData.arlaLiters > 0 ? [{
+                    icon: <Droplets className="h-4 w-4 text-blue-400" />,
+                    label: 'ARLA 32',
+                    value: `${formData.arlaLiters.toLocaleString('pt-BR', { minimumFractionDigits: 1 })} L${formData.arlaCost ? ` (R$ ${formData.arlaCost.toFixed(2)})` : ''}`
+                  }] : []),
                 ].map((item, idx) => (
                   <div key={idx} className="flex items-center gap-3 p-3 rounded-lg bg-gray-900/60 border border-gray-800">
                     <div className="flex-none">{item.icon}</div>

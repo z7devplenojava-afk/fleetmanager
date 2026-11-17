@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Fuel, Plus, Droplets, RefreshCw, Layers, Gauge, ShoppingCart, Settings, BarChart3, MapPin, Sparkles, Building2, LayoutDashboard, Receipt, Upload } from 'lucide-react';
+import { Fuel, Plus, Droplets, RefreshCw, Layers, Gauge, ShoppingCart, Settings, BarChart3, MapPin, Sparkles, Building2, LayoutDashboard, Receipt, Upload, Target } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import fleetService from '@/services/fleetService';
 import { FuelConsumptionStats } from '@/components/frota/FuelConsumptionStats';
@@ -23,6 +23,7 @@ import AbastecimentoExternoFormModal from '@/components/frota/AbastecimentoExter
 import AbastecimentoExternoBatchImportModal from '@/components/frota/AbastecimentoExternoBatchImportModal';
 import AbastecimentoExternoReport, { AbastExternoSubTab } from '@/components/frota/AbastecimentoExternoReport';
 import { FuelExpensesTab } from '@/components/abastecimento/FuelExpensesTab';
+import { FuelConsumptionTargetsTab } from '@/components/abastecimento/FuelConsumptionTargetsTab';
 
 const AbastecimentoDashboard: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -86,6 +87,9 @@ const AbastecimentoDashboard: React.FC = () => {
                         </TabsTrigger>
                         <TabsTrigger value="readings" className="shrink-0 whitespace-nowrap px-3.5 py-2 text-xs sm:text-sm text-seguranca-lightgray rounded-lg data-[state='active']:bg-seguranca-red data-[state='active']:text-white">
                             <Gauge size={16} className="mr-2 shrink-0" /> Fechamentos
+                        </TabsTrigger>
+                        <TabsTrigger value="metas" className="shrink-0 whitespace-nowrap px-3.5 py-2 text-xs sm:text-sm text-seguranca-lightgray rounded-lg data-[state='active']:bg-amber-600 data-[state='active']:text-white font-medium">
+                            <Target size={16} className="mr-2 shrink-0 text-amber-300" /> Metas & Desempenho
                         </TabsTrigger>
                         <TabsTrigger value="reports" className="shrink-0 whitespace-nowrap px-3.5 py-2 text-xs sm:text-sm text-seguranca-lightgray rounded-lg data-[state='active']:bg-seguranca-red data-[state='active']:text-white">
                             <BarChart3 size={16} className="mr-2 shrink-0" /> Relatórios
@@ -268,6 +272,10 @@ const AbastecimentoDashboard: React.FC = () => {
 
                     <TabsContent value="reports" className="mt-0">
                         <FuelReportsDashboard fuelRecords={fuelRecords} vehicles={vehicles} />
+                    </TabsContent>
+
+                    <TabsContent value="metas" className="mt-0">
+                        <FuelConsumptionTargetsTab fuelRecords={fuelRecords} vehicles={vehicles} />
                     </TabsContent>
                 </Tabs>
             </div>
