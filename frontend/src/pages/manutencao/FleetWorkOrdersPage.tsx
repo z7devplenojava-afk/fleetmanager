@@ -1027,21 +1027,6 @@ const FleetWorkOrdersPage: React.FC = () => {
                             </div>
                         </div>
                     )}
-                                        ))}
-                                    </tbody>
-                                </table>
-                                {filteredOrders.length === 0 && (
-                                    <div className="p-12 text-center">
-                                        <CircleDashed className="h-12 w-12 text-gray-600 mx-auto mb-4" />
-                                        <p className="text-gray-400">Nenhuma Ordem de Serviço encontrada para os filtros selecionados.</p>
-                                    </div>
-                                )}
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
-                </>
-                )}
             </div>
 
             <FleetWorkOrderForm
