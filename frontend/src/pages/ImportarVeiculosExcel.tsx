@@ -34,7 +34,7 @@ interface ImportResult {
 
 export const ImportarVeiculosExcel: React.FC = () => {
   const { toast } = useToast();
-  const { user, hasRole } = useAuth();
+  const { user, empresa, hasRole } = useAuth();
   const navigate = useNavigate();
 
   const [file, setFile] = useState<File | null>(null);
@@ -46,24 +46,35 @@ export const ImportarVeiculosExcel: React.FC = () => {
   const isSuperAdmin = hasRole('SUPER_ADMIN') || hasRole('FLEX_ADMIN');
   const [companies, setCompanies] = useState<Array<{ id: string; name: string }>>([]);
   const [loadingCompanies, setLoadingCompanies] = useState(false);
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string>(user?.companyId || '');
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>(user?.companyId || empresa?.id || '');
 
   useEffect(() => {
+    const compId = user?.companyId || empresa?.id || '';
     if (isSuperAdmin) {
       loadCompanies();
-    } else if (user?.companyId) {
-      setSelectedCompanyId(user.companyId);
+    } else if (compId) {
+      setSelectedCompanyId(compId);
+      if (!empresa?.nome && !user?.companyName) {
+        companyService.getCompanyById(compId).then((comp) => {
+          if (comp?.name || comp?.nome) {
+            setCompanies([{ id: compId, name: comp.name || comp.nome }]);
+          }
+        }).catch(() => {});
+      }
     }
-  }, [isSuperAdmin, user?.companyId]);
+  }, [isSuperAdmin, user?.companyId, empresa?.id, empresa?.nome, user?.companyName]);
 
   const loadCompanies = async () => {
     try {
       setLoadingCompanies(true);
       const data = await companyService.getAllCompanies();
       setCompanies(data || []);
-      if (!selectedCompanyId && data && data.length > 0) {
-        const defaultComp = data.find((c: any) => c.id === user?.companyId) || data[0];
-        setSelectedCompanyId(defaultComp.id);
+      const targetCompId = selectedCompanyId || user?.companyId || empresa?.id;
+      if (data && data.length > 0) {
+        const defaultComp = (targetCompId && data.find((c: any) => c.id === targetCompId)) || data[0];
+        if (defaultComp) {
+          setSelectedCompanyId(defaultComp.id);
+        }
       }
     } catch (err) {
       console.error('Erro ao carregar lista de empresas:', err);
@@ -135,7 +146,8 @@ export const ImportarVeiculosExcel: React.FC = () => {
 
     setLoading(true);
     try {
-      const data = await fleetService.importVehiclesExcel(file, selectedCompanyId || undefined);
+      const targetCompanyId = selectedCompanyId || user?.companyId || empresa?.id || undefined;
+      const data = await fleetService.importVehiclesExcel(file, targetCompanyId);
       setResult(data);
 
       toast({
@@ -160,7 +172,12 @@ export const ImportarVeiculosExcel: React.FC = () => {
     setResult(null);
   };
 
-  const currentCompanyName = companies.find(c => c.id === selectedCompanyId)?.name || user?.companyName || 'Empresa Padrão';
+  const currentCompanyName =
+    companies.find(c => c.id === selectedCompanyId)?.name ||
+    empresa?.nome ||
+    user?.companyName ||
+    (user as any)?.company?.name ||
+    'Sua Empresa';
 
   return (
     <StandardLayout
