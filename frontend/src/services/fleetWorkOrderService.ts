@@ -398,6 +398,16 @@ class FleetWorkOrderService {
         await api.delete(`/fleet-work-orders/${id}`);
     }
 
+    async bulkDelete(ids: string[]): Promise<{ successCount: number; skippedCount: number; skippedReasons?: string[] }> {
+        const { data } = await api.post('/fleet-work-orders/bulk-delete', ids);
+        return data;
+    }
+
+    async bulkCancel(ids: string[], reason?: string): Promise<{ successCount: number; skippedCount: number }> {
+        const { data } = await api.post('/fleet-work-orders/bulk-cancel', { ids, reason });
+        return data;
+    }
+
     // ── Histórico ─────────────────────────────────────────────────────────────
 
     async getHistory(id: string): Promise<WorkOrderHistoryEntry[]> {

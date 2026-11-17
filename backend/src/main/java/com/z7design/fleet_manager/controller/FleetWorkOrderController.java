@@ -156,6 +156,29 @@ public class FleetWorkOrderController {
         }
     }
 
+    /** Exclusão em lote (soft-delete) */
+    @PostMapping("/bulk-delete")
+    public ResponseEntity<Map<String, Object>> bulkDelete(@RequestBody List<UUID> ids) {
+        return ResponseEntity.ok(service.bulkDelete(ids));
+    }
+
+    /** Cancelamento em lote */
+    @PostMapping("/bulk-cancel")
+    public ResponseEntity<Map<String, Object>> bulkCancel(@RequestBody Map<String, Object> body) {
+        List<UUID> ids = new ArrayList<>();
+        if (body.get("ids") instanceof List<?> list) {
+            for (Object item : list) {
+                if (item != null) {
+                    try {
+                        ids.add(UUID.fromString(item.toString()));
+                    } catch (Exception ignored) {}
+                }
+            }
+        }
+        String reason = body.get("reason") != null ? body.get("reason").toString() : "Cancelamento em lote";
+        return ResponseEntity.ok(service.bulkCancel(ids, reason));
+    }
+
     /** Duplica uma OS gerando novo numero e status OPEN (PRD §25) */
     @PostMapping("/{id}/duplicate")
     public ResponseEntity<?> duplicate(@PathVariable("id") UUID id) {

@@ -1445,6 +1445,57 @@ public class FleetWorkOrderService {
         addHistory(id, "DELETED", "OS inativada (soft-delete).", null, null, null);
     }
 
+    @Transactional
+    public Map<String, Object> bulkDelete(List<UUID> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Map.of("successCount", 0, "skippedCount", 0, "skippedReasons", List.of());
+        }
+        int successCount = 0;
+        int skippedCount = 0;
+        List<String> skippedReasons = new ArrayList<>();
+
+        for (UUID id : ids) {
+            try {
+                delete(id);
+                successCount++;
+            } catch (IllegalStateException e) {
+                skippedCount++;
+                skippedReasons.add("OS " + id + ": " + e.getMessage());
+            } catch (Exception e) {
+                skippedCount++;
+                skippedReasons.add("OS " + id + ": Erro ao excluir.");
+            }
+        }
+        Map<String, Object> res = new HashMap<>();
+        res.put("successCount", successCount);
+        res.put("skippedCount", skippedCount);
+        res.put("skippedReasons", skippedReasons);
+        return res;
+    }
+
+    @Transactional
+    public Map<String, Object> bulkCancel(List<UUID> ids, String reason) {
+        if (ids == null || ids.isEmpty()) {
+            return Map.of("successCount", 0, "skippedCount", 0);
+        }
+        int successCount = 0;
+        int skippedCount = 0;
+
+        for (UUID id : ids) {
+            try {
+                updateStatus(id, FleetWorkOrder.WorkOrderStatus.CANCELLED);
+                addHistory(id, "CANCELLED", "OS cancelada: " + (reason != null && !reason.isBlank() ? reason : "Cancelamento"), null, null, null);
+                successCount++;
+            } catch (Exception e) {
+                skippedCount++;
+            }
+        }
+        Map<String, Object> res = new HashMap<>();
+        res.put("successCount", successCount);
+        res.put("skippedCount", skippedCount);
+        return res;
+    }
+
     /**
      * Duplica uma OS existente gerando novo número de OS e status OPEN.
      * Copia todos os campos relevantes exceto datas de conclusão e assinaturas.
