@@ -1027,6 +1027,8 @@ const FleetWorkOrdersPage: React.FC = () => {
                             </div>
                         </div>
                     )}
+                </>
+                )}
             </div>
 
             <FleetWorkOrderForm
