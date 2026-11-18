@@ -160,7 +160,7 @@ export const MultiFilterSelect: React.FC<MultiFilterSelectProps> = ({
   const hasSelection = selected.length > 0;
 
   return (
-    <div ref={containerRef} className="relative w-full">
+    <div ref={containerRef} className={`relative w-full ${open ? 'z-50' : 'z-10'}`}>
       <div
         role="button"
         tabIndex={0}

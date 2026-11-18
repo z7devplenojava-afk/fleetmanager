@@ -50,7 +50,7 @@ import EmployeeDocumentsPanel from '@/components/funcionarios/EmployeeDocumentsP
 import DocumentosGerarTab from '@/components/funcionarios/DocumentosGerarTab';
 import { EmployeePdfImportModal } from '@/components/funcionarios/EmployeePdfImportModal';
 import DependenteModal from '@/components/dependentes/DependenteModal';
-import { FuncionariosTable, getEmployeeTerminationDate } from '@/components/funcionarios/FuncionariosTable';
+import { FuncionariosTable, getEmployeeTerminationDate, getEmployeeCargo } from '@/components/funcionarios/FuncionariosTable';
 import { EmployeeViewModal } from '@/components/funcionarios/EmployeeViewModal';
 import { EmployeeCrachaModal } from '@/components/funcionarios/EmployeeCrachaModal';
 import ExcelImportModal from '@/components/funcionarios/ExcelImportModal';
@@ -336,21 +336,29 @@ const Funcionarios: React.FC = () => {
     if (norm.includes('auxiliar') || norm.includes('limpeza') || norm.includes('lavador') || norm.includes('servicos gerais') || norm.includes('serviços gerais')) {
       return { badgeClass: 'bg-teal-500/20 text-teal-200 border-teal-400/50', dotClass: 'bg-teal-400' };
     }
-    if (norm.includes('gerente') || norm.includes('supervisor') || norm.includes('encarregado') || norm.includes('coordenador') || norm.includes('diretor')) {
+    if (norm.includes('gerente') || norm.includes('supervisor') || norm.includes('encarregado') || norm.includes('coordenador') || norm.includes('diretor') || norm.includes('trafego') || norm.includes('tráfego')) {
       return { badgeClass: 'bg-rose-500/20 text-rose-200 border-rose-400/50', dotClass: 'bg-rose-400' };
+    }
+    if (norm.includes('nao definido') || norm.includes('não definido') || norm.includes('sem cargo')) {
+      return { badgeClass: 'bg-slate-700/30 text-slate-400 border-slate-600/40', dotClass: 'bg-slate-500' };
     }
     return { badgeClass: 'bg-cyan-500/20 text-cyan-200 border-cyan-400/50', dotClass: 'bg-cyan-400' };
   };
 
   const getEmployeePositionKey = (emp: Employee): string => {
-    return (emp.position?.name || (emp as any).cargo || emp.position?.id || '').trim();
+    return getEmployeeCargo(emp).trim();
   };
 
   const filteredEmployees = employees.filter(employee => {
-    const empPosKey = getEmployeePositionKey(employee).toLowerCase();
+    const empCargo = getEmployeeCargo(employee);
+    const empPosKey = empCargo.toLowerCase();
     const matchesPosition = positionFilter.length === 0 || positionFilter.some(posVal => {
       const v = posVal.toLowerCase();
-      return empPosKey === v || employee.position?.id === posVal || (employee.position?.name || '').toLowerCase() === v;
+      return (
+        empPosKey === v ||
+        employee.position?.id === posVal ||
+        (employee.position?.name || '').toLowerCase() === v
+      );
     });
 
     const matchesDepartment = departmentFilter.length === 0 || departmentFilter.some(deptVal =>
@@ -395,7 +403,7 @@ const Funcionarios: React.FC = () => {
       const nameMatch = (employee.name || '').toLowerCase().includes(normalizedSearch);
       const emailMatch = (employee.email || '').toLowerCase().includes(normalizedSearch);
       const registrationMatch = (employee.registrationNumber || '').toLowerCase().includes(normalizedSearch);
-      const cargoMatch = (employee.position?.name || '').toLowerCase().includes(normalizedSearch);
+      const cargoMatch = empPosKey.includes(normalizedSearch) || (employee.position?.name || '').toLowerCase().includes(normalizedSearch);
       const documentRaw = (employee.document || employee.cpf || '').toLowerCase();
       const documentDigits = documentRaw.replace(/\D/g, '');
       const cpfMatch = searchDigits
@@ -496,7 +504,7 @@ const Funcionarios: React.FC = () => {
       }
     });
     employees.forEach(emp => {
-      const rawName = (emp.position?.name || (emp as any).cargo || '').trim();
+      const rawName = getEmployeeCargo(emp).trim();
       if (!rawName) return;
       const key = rawName.toUpperCase();
       const existing = byName.get(key);
@@ -507,7 +515,11 @@ const Funcionarios: React.FC = () => {
       }
     });
     return Array.from(byName.values())
-      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+      .sort((a, b) => {
+        if (a.label === 'Não definido') return 1;
+        if (b.label === 'Não definido') return -1;
+        return b.count - a.count || a.label.localeCompare(b.label);
+      })
       .map(item => {
         const colors = getCargoColorClasses(item.label);
         return {
@@ -619,7 +631,7 @@ const Funcionarios: React.FC = () => {
         Nome: emp.name || '',
         CPF: emp.cpf || emp.document || '',
         Matricula: emp.registrationNumber || '',
-        Cargo: emp.position?.name || '',
+        Cargo: getEmployeeCargo(emp),
         Setor: emp.department?.name || emp.workPost?.name || '',
         Empresa: emp.company?.name || '',
         Posto: emp.workPost?.name || '',
@@ -966,7 +978,7 @@ Confirmar operação em lote?`)) {
                       </div>
                       <div>
                         <p className="font-medium text-white">{selectedEmployee.name}</p>
-                        <p className="text-xs text-gray-400">{selectedEmployee.position?.name || 'Cargo não definido'}</p>
+                        <p className="text-xs text-gray-400">{getEmployeeCargo(selectedEmployee)}</p>
                       </div>
                     </div>
                     <Button 
@@ -1216,7 +1228,7 @@ Confirmar operação em lote?`)) {
 
 
             {/* Filtros Modernos */}
-            <Card className="bg-gradient-to-br from-seguranca-graphite/90 via-seguranca-black/95 to-seguranca-graphite/90 border border-gray-700/60 p-5 rounded-2xl shadow-xl shadow-black/20" data-animate="fadeUp">
+            <Card className="relative z-30 bg-gradient-to-br from-seguranca-graphite/90 via-seguranca-black/95 to-seguranca-graphite/90 border border-gray-700/60 p-5 rounded-2xl shadow-xl shadow-black/20" data-animate="fadeUp">
               {/* Header do Card */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                 <div className="flex items-center gap-3">
@@ -1301,7 +1313,7 @@ Confirmar operação em lote?`)) {
               </div>
 
               {/* Grid de Filtros com Multisseleção e Alto Contraste no Modo Dark */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-3 relative z-30">
                 {/* 1. Busca por texto */}
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 h-4 w-4 pointer-events-none" />
@@ -1468,7 +1480,7 @@ Confirmar operação em lote?`)) {
             </Card>
 
             {/* Lista de Funcionários Moderna */}
-            <Card className="bg-gradient-to-br from-seguranca-graphite to-seguranca-black border-gray-600/50 p-2 sm:p-4" data-animate="fadeUp">
+            <Card className="relative z-10 bg-gradient-to-br from-seguranca-graphite to-seguranca-black border-gray-600/50 p-2 sm:p-4" data-animate="fadeUp">
               <FuncionariosTable
                 employees={filteredEmployees}
                 onView={handleViewEmployee}

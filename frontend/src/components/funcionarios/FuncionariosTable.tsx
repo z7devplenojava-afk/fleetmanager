@@ -32,6 +32,78 @@ interface FuncionariosTableProps {
 export const getEmployeeTerminationDate = (employee: Employee): string | undefined =>
   employee.terminationDate || employee.dataRescisao || undefined;
 
+export const getEmployeeCargo = (employee: Employee | null | undefined): string => {
+  if (!employee) return 'Não definido';
+
+  // 1. Posição explícita com nome válido (evitando strings de cabeçalho importado como "ALTERAÇÃO DE FUNÇÃO")
+  const posName = employee.position?.name?.trim();
+  if (posName && !posName.toUpperCase().includes('ALTERAÇÃO DE FUNÇÃO') && !posName.toUpperCase().includes('DATA NOVA FUNÇÃO')) {
+    return posName;
+  }
+
+  // 2. positionDescription do DTO
+  const posDesc = (employee as any).positionDescription?.trim();
+  if (posDesc && !posDesc.toUpperCase().includes('ALTERAÇÃO DE FUNÇÃO') && !posDesc.toUpperCase().includes('DATA NOVA FUNÇÃO')) {
+    return posDesc;
+  }
+
+  // 3. cargo ou funcao direta
+  const directCargo = ((employee as any).cargo || (employee as any).funcao || (employee as any).jobTitle)?.trim();
+  if (directCargo && !directCargo.toUpperCase().includes('ALTERAÇÃO DE FUNÇÃO')) {
+    return directCargo;
+  }
+
+  // 4. Mapeamento inteligente pelo CBO cadastrado
+  const cboRaw = (employee as any).cbo || (employee as any).cboCodigo;
+  if (cboRaw) {
+    const cleanCbo = String(cboRaw).replace(/\D/g, '');
+    const CBO_MAP: Record<string, string> = {
+      '782405': 'Motorista de Ônibus Urbano',
+      '782410': 'Motorista de Ônibus Rodoviário',
+      '782310': 'Motorista de Furgão ou Van',
+      '782305': 'Motorista de Caminhão',
+      '782320': 'Motorista Operacional de Guincho',
+      '511215': 'Fiscal de Transportes Coletivos',
+      '511220': 'Cobrador de Transportes Coletivos',
+      '342310': 'Despachante de Transportes',
+      '342305': 'Encarregado de Tráfego',
+      '141410': 'Gerente de Operações de Transportes',
+      '141605': 'Gerente de Operações de Transportes',
+      '142210': 'Gerente de Compras',
+      '351605': 'Técnico em Segurança do Trabalho',
+      '411010': 'Assistente Administrativo',
+      '411005': 'Auxiliar de Pessoal / RH',
+      '413110': 'Auxiliar Financeiro / Contábil',
+      '514320': 'Auxiliar de Serviços Gerais',
+      '514325': 'Oficial de Manutenção Predial',
+      '516340': 'Lavador de Veículos',
+      '414105': 'Almoxarife',
+      '414110': 'Estoquista',
+      '354205': 'Comprador Comercial',
+      '914425': 'Mecânico de Ônibus e Veículos a Diesel',
+      '914405': 'Mecânico de Manutenção',
+      '911305': 'Mecânico de Manutenção',
+      '914410': 'Mecânico de Freios',
+      '914415': 'Mecânico de Suspensão e Direção',
+      '914430': 'Borracheiro',
+      '951105': 'Eletricista de Veículos',
+      '991305': 'Funileiro / Lanterneiro',
+      '991310': 'Pintor de Veículos',
+      '915305': 'Lubrificador de Veículos',
+      '910105': 'Encarregado de Manutenção Mecânica',
+      '141415': 'Gerente de Manutenção',
+      '517330': 'Vigilante',
+      '517410': 'Porteiro',
+      '212405': 'Analista de Sistemas / TI',
+    };
+    if (CBO_MAP[cleanCbo]) {
+      return CBO_MAP[cleanCbo];
+    }
+  }
+
+  return 'Não definido';
+};
+
 export const KNOWN_CPF_NAMES: Record<string, string> = {
     '85655350610': 'ADAIR JOSE SOARES DE ABREU',
     '13811972723': 'ADELSO MOREIRA CATRINQUE',
@@ -259,7 +331,7 @@ export const FuncionariosTable: React.FC<FuncionariosTableProps> = ({
         return sortDirection === 'asc' ? cmp : -cmp;
       }
       if (sortField === 'position') {
-        const cmp = (a.position?.name || '').localeCompare(b.position?.name || '', 'pt-BR', { sensitivity: 'base' });
+        const cmp = getEmployeeCargo(a).localeCompare(getEmployeeCargo(b), 'pt-BR', { sensitivity: 'base' });
         return sortDirection === 'asc' ? cmp : -cmp;
       }
       const valA = sortField === 'hireDate' ? (a.hireDate || '') : (getEmployeeTerminationDate(a) || '');
@@ -557,9 +629,9 @@ export const FuncionariosTable: React.FC<FuncionariosTableProps> = ({
                   {/* Cargo/Função */}
                   <TableCell className="px-2 py-2 min-w-[110px] max-w-[150px]">
                     <div className="flex items-center gap-1.5 text-xs text-gray-300 font-medium">
-                      <Building className="h-3 w-3 text-gray-500 shrink-0" />
-                      <span className="truncate block" title={employee.position?.name || 'Não definido'}>
-                        {employee.position?.name || 'Não definido'}
+                      <Briefcase className="h-3 w-3 text-amber-400 shrink-0" />
+                      <span className="truncate block" title={getEmployeeCargo(employee)}>
+                        {getEmployeeCargo(employee)}
                       </span>
                     </div>
                   </TableCell>
@@ -803,10 +875,10 @@ export const FuncionariosTable: React.FC<FuncionariosTableProps> = ({
 
                 {/* Info */}
                 <div className="space-y-2 text-xs text-gray-300 pt-1">
-                  {employee.position?.name && (
+                  {getEmployeeCargo(employee) !== 'Não definido' && (
                     <div className="flex items-center gap-2">
-                      <Building className="h-3.5 w-3.5 text-gray-500 shrink-0" />
-                      <span>{employee.position.name}</span>
+                      <Briefcase className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                      <span>{getEmployeeCargo(employee)}</span>
                     </div>
                   )}
                   <div className="flex items-center gap-2">
