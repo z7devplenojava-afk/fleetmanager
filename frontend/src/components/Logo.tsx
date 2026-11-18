@@ -75,17 +75,20 @@ const Logo: React.FC<LogoProps> = ({
     setImgError(false);
   }, [resolvedLogoUrl]);
 
-  // Prioridade 1: Se houver logomarca cadastrada/upada para a empresa, SEMPRE exibir a imagem real upada!
-  // Prioridade 2: Fallback para imagens estáticas locais SOMENTE se não houver nenhuma logo real cadastrada.
+  // Prioridade 1: Se for no modo Claro / Branco e for a São Silvestre, SEMPRE usar a versão light sem fundo preto!
   const isLegacyFallbackTarget =
     companyName?.toLowerCase().includes('silvestre') ||
     empresa?.nome?.toLowerCase().includes('silvestre');
 
-  const activeLogoUrl = resolvedLogoUrl
-    ? `${resolvedLogoUrl}${resolvedLogoUrl.includes('?') ? '&' : '?'}v=clean3`
-    : isLegacyFallbackTarget
-      ? (!isDark || theme === 'white' ? '/images/sao-silvestre-logo-light.png?v=clean3' : '/images/sao-silvestre-logo.png?v=clean3')
-      : null;
+  const isLightMode = !isDark || theme === 'white';
+
+  const activeLogoUrl = (isLightMode && isLegacyFallbackTarget)
+    ? '/images/sao-silvestre-logo-light.png?v=clean3'
+    : (resolvedLogoUrl
+        ? `${resolvedLogoUrl}${resolvedLogoUrl.includes('?') ? '&' : '?'}v=clean3`
+        : isLegacyFallbackTarget
+          ? '/images/sao-silvestre-logo.png?v=clean3'
+          : null);
 
   // Se houver logo de empresa configurada e não deu erro de carregamento:
   // Regra: O nome da empresa só aparece quando NÃO tiver a logo
@@ -96,7 +99,7 @@ const Logo: React.FC<LogoProps> = ({
           src={activeLogoUrl}
           alt={companyName || 'Empresa'}
           onError={() => setImgError(true)}
-          className={`${heightClasses[size]} w-auto ${maxWidthClasses[size]} object-contain drop-shadow-sm hover:scale-[1.02] transition-all duration-300 shrink-0 bg-transparent`}
+          className={`${heightClasses[size]} w-auto ${maxWidthClasses[size]} object-contain drop-shadow-sm hover:scale-[1.02] transition-all duration-300 shrink-0 bg-transparent ${isLightMode ? 'mix-blend-multiply dark:mix-blend-normal' : ''}`}
         />
       </div>
     );

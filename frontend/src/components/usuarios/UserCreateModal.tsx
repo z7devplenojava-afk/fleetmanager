@@ -232,14 +232,22 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
 
           // Auto-preencher campos ainda em branco
           const posName = found.positionDescription || (found as any).position?.name || '';
-          const isMotorista = posName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes('motorista');
+          const normPos = posName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+          const isMotorista = normPos.includes('motorista') || normPos.includes('driver') || normPos.includes('condutor');
+          const isAuxMecanico = normPos.includes('auxiliar') && (normPos.includes('mecanic') || normPos.includes('manuten'));
+          const isMecanico = !isAuxMecanico && (normPos.includes('mecanic') || normPos.includes('manuten'));
+
+          let suggestedRole: UserRole | null = null;
+          if (isMotorista) suggestedRole = 'MOTORISTA';
+          else if (isAuxMecanico) suggestedRole = 'AUXILIAR_MECANICO';
+          else if (isMecanico) suggestedRole = 'MECANICO';
 
           setFormData(prev => {
             const newName = prev.name.trim() === '' ? found.name : prev.name;
             const newUsername = prev.username.trim() === '' ? suggestUsername(found.name, isMotorista, cleanDigits) : prev.username;
             const newEmail = prev.email.trim() === '' && found.email ? found.email : prev.email;
             const newWhatsapp = prev.whatsapp.trim() === '' && found.phone ? found.phone.replace(/\D/g, '') : prev.whatsapp;
-            const newRoles = prev.roles.length === 0 && isMotorista ? ['MOTORISTA' as UserRole] : prev.roles;
+            const newRoles = prev.roles.length === 0 && suggestedRole ? [suggestedRole] : prev.roles;
 
             return {
               ...prev,
@@ -298,7 +306,15 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
     const empDoc = emp.document || emp.cpf || '';
     const cleanDigits = empDoc.replace(/\D/g, '');
     const posName = emp.positionDescription || (emp as any).position?.name || '';
-    const isMotorista = posName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes('motorista');
+    const normPos = posName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const isMotorista = normPos.includes('motorista') || normPos.includes('driver') || normPos.includes('condutor');
+    const isAuxMecanico = normPos.includes('auxiliar') && (normPos.includes('mecanic') || normPos.includes('manuten'));
+    const isMecanico = !isAuxMecanico && (normPos.includes('mecanic') || normPos.includes('manuten'));
+
+    let suggestedRole: UserRole | null = null;
+    if (isMotorista) suggestedRole = 'MOTORISTA';
+    else if (isAuxMecanico) suggestedRole = 'AUXILIAR_MECANICO';
+    else if (isMecanico) suggestedRole = 'MECANICO';
 
     setFormData(prev => ({
       ...prev,
@@ -307,7 +323,7 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
       username: prev.username.trim() === '' ? suggestUsername(emp.name, isMotorista, cleanDigits) : prev.username,
       email: prev.email.trim() === '' && emp.email ? emp.email : prev.email,
       whatsapp: prev.whatsapp.trim() === '' && emp.phone ? emp.phone.replace(/\D/g, '') : prev.whatsapp,
-      roles: prev.roles.length === 0 && isMotorista ? ['MOTORISTA' as UserRole] : prev.roles,
+      roles: prev.roles.length === 0 && suggestedRole ? [suggestedRole] : prev.roles,
     }));
 
     if (empCompanyId && (!selectedCompanyId || selectedCompanyId === 'none')) {

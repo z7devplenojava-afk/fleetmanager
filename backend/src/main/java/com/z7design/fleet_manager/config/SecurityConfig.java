@@ -238,10 +238,10 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/frota/checklist-configs/**")
                                                 .hasAnyAuthority("ROLE_SUPER_ADMIN", "ROLE_ADMIN", "ROLE_COMPANY_ADMIN",
                                                                 "ROLE_FLEX_ADMIN", "ROLE_PORTARIA",
-                                                                "ROLE_MECANICO")
+                                                                "ROLE_MECANICO", "ROLE_AUXILIAR_MECANICO")
                                                 .requestMatchers("/api/mechanic/dashboard/**")
                                                 .hasAnyAuthority("ROLE_SUPER_ADMIN", "ROLE_ADMIN", "ROLE_COMPANY_ADMIN",
-                                                                "ROLE_FLEX_ADMIN", "ROLE_MECANICO")
+                                                                "ROLE_FLEX_ADMIN", "ROLE_MECANICO", "ROLE_AUXILIAR_MECANICO")
                                                 // Endpoints de Ordem de Serviço (Frota) - Motoristas e Mecânicos podem criar e consultar OS
                                                 .requestMatchers("/api/fleet-work-orders", "/api/fleet-work-orders/**", "/api/v1/fleet-work-orders", "/api/v1/fleet-work-orders/**").authenticated()
                                                 .requestMatchers("/api/frota/**").authenticated()
@@ -391,7 +391,7 @@ public class SecurityConfig {
                                                                 "ROLE_RH", "ROLE_FINANCEIRO",
                                                                 "ROLE_COMPANY_ADMIN", "ROLE_FLEX_ADMIN",
                                                                 "ROLE_COLABORADOR", "ROLE_MOTORISTA", "ROLE_MECANICO",
-                                                                "ROLE_PORTARIA")
+                                                                "ROLE_AUXILIAR_MECANICO", "ROLE_PORTARIA")
                                                 // Endpoints de recibos - requerem permissÃƒÂµes especÃƒÂ­ficas
                                                 .requestMatchers("/api/receipts/**")
                                                 .hasAnyAuthority("PAYSLIPS_READ", "PAYSLIPS_WRITE", "PAYSLIPS_CREATE",
@@ -409,7 +409,7 @@ public class SecurityConfig {
                                                                 "PAYSLIPS_DELETE",
                                                                 "ROLE_SUPER_ADMIN", "ROLE_ADMIN", "ROLE_RH",
                                                                 "ROLE_FINANCEIRO", "ROLE_COLABORADOR", "ROLE_MOTORISTA",
-                                                                "ROLE_MECANICO", "ROLE_PORTARIA")
+                                                                "ROLE_MECANICO", "ROLE_AUXILIAR_MECANICO", "ROLE_PORTARIA")
                                                 // SEGURANÃ‡A: organizaÃ§Ã£o por setor agora requer autenticaÃ§Ã£o (antes pÃºblico para debug)
                                                 .requestMatchers("/api/sector-organization/**").authenticated()
                                                 // Endpoints de relatÃƒÂ³rios - requerem permissÃƒÂµes especÃƒÂ­ficas
@@ -503,7 +503,7 @@ public class SecurityConfig {
                                                                 "ROLE_GESTOR", "ROLE_SUPERVISOR",
                                                                 "ROLE_RH", "ROLE_AUXILIAR_DE_RH", "ROLE_DEPARTAMENTO_PESSOAL",
                                                                 "ROLE_ALMOXARIFADO", "ROLE_ESTOQUE", "ROLE_GESTOR_DE_MANUTENCAO",
-                                                                "ROLE_MANUTENCAO", "ROLE_MECANICO", "ROLE_OPERACIONAL",
+                                                                "ROLE_MANUTENCAO", "ROLE_MECANICO", "ROLE_AUXILIAR_MECANICO", "ROLE_OPERACIONAL",
                                                                 "ROLE_ANALISTA_DE_FROTA", "ROLE_ANALISTA_FROTA",
                                                                 "ROLE_SST", "ROLE_SEGURANCA_DO_TRABALHO",
                                                                 "ROLE_AUXILIAR_ADMINISTRATIVO", "ROLE_AUXI_ADMINISTRATIVO")

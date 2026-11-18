@@ -489,12 +489,22 @@ const CriarUsuarioPadraoModal: React.FC<CriarUsuarioPadraoModalProps> = ({
           r.name.toLowerCase().includes('motorista')
         );
       } else if (normPos.includes('mecanic') || normPos.includes('manuten')) {
-        matchedRole = roles.find(r => 
-          r.name.toUpperCase() === 'MECANICO' || 
-          r.name.toUpperCase() === 'ROLE_MECANICO' ||
-          r.name.toUpperCase() === 'MANUTENCAO' ||
-          r.name.toLowerCase().includes('mecanic')
-        );
+        const isAux = normPos.includes('auxiliar') || normPos.includes('ajudante');
+        if (isAux) {
+          matchedRole = roles.find(r => 
+            r.name.toUpperCase() === 'AUXILIAR_MECANICO' || 
+            r.name.toUpperCase() === 'ROLE_AUXILIAR_MECANICO' ||
+            r.name.toLowerCase().includes('auxiliar_mecanico')
+          );
+        }
+        if (!matchedRole) {
+          matchedRole = roles.find(r => 
+            r.name.toUpperCase() === 'MECANICO' || 
+            r.name.toUpperCase() === 'ROLE_MECANICO' ||
+            r.name.toUpperCase() === 'MANUTENCAO' ||
+            r.name.toLowerCase().includes('mecanic')
+          );
+        }
       } else if (normPos.includes('transporte') || normPos.includes('trafego')) {
         matchedRole = roles.find(r => 
           r.name.toUpperCase() === 'ENCARREGADO_DE_TRANSPORTES' || 

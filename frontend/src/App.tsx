@@ -603,7 +603,7 @@ function App() {
                         </ProtectedRoute>
                       } />
                       <Route path="/employee-portal" element={
-                        <ProtectedRoute requiredRoles={['EMPLOYEE', 'SUPER_ADMIN', 'ADMIN']}>
+                        <ProtectedRoute requiredRoles={['EMPLOYEE', 'SUPER_ADMIN', 'ADMIN', 'MECANICO', 'AUXILIAR_MECANICO', 'MOTORISTA', 'COLABORADOR']}>
                           <Suspense fallback={<LoadingSpinner />}>
                             <EmployeePortal />
                           </Suspense>

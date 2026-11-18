@@ -19,6 +19,7 @@ ARG VITE_ENVIRONMENT
 ENV VITE_API_URL=${VITE_API_URL}
 ENV VITE_WS_URL=${VITE_WS_URL}
 ENV VITE_ENVIRONMENT=${VITE_ENVIRONMENT}
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 # Copiar package.json apenas (sem lock do Windows)
 COPY package.json ./

@@ -17,8 +17,10 @@ const Header: React.FC = () => {
   const username = profile?.full_name || profile?.username || 'Usuário';
   const [logoError, setLogoError] = React.useState(false);
 
-  // Se o usuário não tiver empresa associada (ou for SUPER_ADMIN sem empresa selecionada), usa o padrão FluxBus
   const rawCompanyName = empresa?.nome || (user as any)?.company?.name || (user as any)?.companyName || '';
+  const isSilvestre = rawCompanyName?.toLowerCase().includes('silvestre');
+  const isLight = !isDark || theme === 'white';
+
   const hasSelectedCompany = Boolean(
     (empresa?.id || (user as any)?.companyId || (user as any)?.company?.id) &&
     rawCompanyName &&
@@ -27,9 +29,14 @@ const Header: React.FC = () => {
   );
 
   // Monta URL completa da logo da empresa (se relativa)
-  const resolvedLogo = (hasSelectedCompany && empresa?.logoUrl)
-    ? resolveCompanyLogoUrl(empresa.logoUrl)
-    : null;
+  // No tema Claro/Branco, usa a logo light sem fundo preto se for a São Silvestre
+  const resolvedLogo = (hasSelectedCompany && isSilvestre && isLight)
+    ? '/images/sao-silvestre-logo-light.png?v=clean3'
+    : ((hasSelectedCompany && empresa?.logoUrl)
+      ? resolveCompanyLogoUrl(empresa.logoUrl)
+      : (hasSelectedCompany && isSilvestre
+        ? '/images/sao-silvestre-logo.png?v=clean3'
+        : null));
   const logoSrc = (!logoError && resolvedLogo) ? resolvedLogo : null;
 
   return (
@@ -43,12 +50,12 @@ const Header: React.FC = () => {
         {/* Logo e Nome - empresa ou padrão */}
         {logoSrc ? (
           <div className="flex items-center gap-2 sm:gap-3 group cursor-pointer active:scale-95 transition-all min-w-0" data-animate="fadeRight">
-            <div className="p-1 sm:p-1.5 rounded-xl bg-white/5 border border-white/10 group-hover:scale-105 transition-transform shadow-lg shadow-white/5 flex items-center gap-2 sm:gap-3 min-w-0">
+            <div className="p-1 sm:p-1.5 rounded-xl bg-card/60 dark:bg-white/5 border border-border/50 dark:border-white/10 group-hover:scale-105 transition-transform shadow-sm flex items-center gap-2 sm:gap-3 min-w-0">
               <img
                 src={logoSrc}
                 alt={empresa?.nome || 'Empresa'}
                 onError={() => setLogoError(true)}
-                className="h-8 sm:h-10 md:h-12 w-auto object-contain min-w-[28px] max-h-12 flex-shrink-0"
+                className={`h-8 sm:h-10 md:h-12 w-auto object-contain min-w-[28px] max-h-12 flex-shrink-0 ${isLight ? 'mix-blend-multiply dark:mix-blend-normal' : ''}`}
               />
               {empresa?.nome && (
                 <div className="hidden sm:flex flex-col -space-y-1 min-w-0">

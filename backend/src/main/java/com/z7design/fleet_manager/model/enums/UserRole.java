@@ -22,6 +22,7 @@ public enum UserRole {
     COLABORADOR, // 🟨 Consulta básica
     MOTORISTA, // 🚌 Operação de transporte
     MECANICO, // 🛠️ Manutenção de frota
+    AUXILIAR_MECANICO, // 🛠️ Auxiliar de Mecânico
     PORTARIA, // 🔘 Controle de acesso
     GESTOR_TRAFEGO, // 🚦 Gestão de escalas e tráfego
     GESTOR_DE_TRAFEGO, // 🚦 Gestão de escalas e tráfego

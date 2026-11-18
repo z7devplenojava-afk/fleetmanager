@@ -1228,7 +1228,7 @@ Confirmar operação em lote?`)) {
 
 
             {/* Filtros Modernos */}
-            <Card className="relative z-30 bg-gradient-to-br from-seguranca-graphite/90 via-seguranca-black/95 to-seguranca-graphite/90 border border-gray-700/60 p-5 rounded-2xl shadow-xl shadow-black/20" data-animate="fadeUp">
+            <Card className="relative z-30 bg-white dark:bg-gradient-to-br dark:from-seguranca-graphite/90 dark:via-seguranca-black/95 dark:to-seguranca-graphite/90 border border-slate-200 dark:border-gray-700/60 p-5 rounded-2xl shadow-lg shadow-slate-200/50 dark:shadow-black/20" data-animate="fadeUp">
               {/* Header do Card */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                 <div className="flex items-center gap-3">
@@ -1237,15 +1237,15 @@ Confirmar operação em lote?`)) {
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-white text-sm tracking-tight">Pesquisar Funcionários</h3>
+                      <h3 className="font-semibold text-slate-900 dark:text-white text-sm tracking-tight">Pesquisar Funcionários</h3>
                       {activeFiltersCount > 0 && (
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-seguranca-red/20 border border-seguranca-red/40 text-seguranca-red">
                           {activeFiltersCount} {activeFiltersCount === 1 ? 'filtro ativo' : 'filtros ativos'}
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-gray-400">
-                      Mostrando <span className="text-white font-medium">{filteredEmployees.length}</span> de <span className="text-white font-medium">{employees.length}</span> funcionários
+                    <p className="text-xs text-slate-500 dark:text-gray-400">
+                      Mostrando <span className="text-slate-900 dark:text-white font-medium">{filteredEmployees.length}</span> de <span className="text-slate-900 dark:text-white font-medium">{employees.length}</span> funcionários
                     </p>
                   </div>
                 </div>
@@ -1258,7 +1258,7 @@ Confirmar operação em lote?`)) {
                     className={`text-xs px-3 py-1.5 rounded-lg font-semibold transition-all ${
                       statusFilter.length === 0
                         ? 'bg-seguranca-red text-white shadow-md shadow-red-950/40'
-                        : 'bg-slate-900 border border-slate-700 text-slate-300 hover:text-white hover:border-slate-500'
+                        : 'bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:border-slate-400 dark:hover:border-slate-500'
                     }`}
                   >
                     Todos ({employees.length})
@@ -1269,7 +1269,7 @@ Confirmar operação em lote?`)) {
                     className={`text-xs px-3 py-1.5 rounded-lg font-semibold transition-all ${
                       statusFilter.length === 1 && statusFilter[0] === 'ACTIVE'
                         ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950/40'
-                        : 'bg-slate-900 border border-emerald-500/30 text-emerald-300 hover:text-white hover:bg-emerald-950/40 hover:border-emerald-400/60'
+                        : 'bg-slate-100 dark:bg-slate-900 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:text-emerald-900 dark:hover:text-white hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:border-emerald-500'
                     }`}
                   >
                     Ativos ({activeCount})
@@ -1280,7 +1280,7 @@ Confirmar operação em lote?`)) {
                     className={`text-xs px-3 py-1.5 rounded-lg font-semibold transition-all ${
                       statusFilter.length === 1 && statusFilter[0] === 'HISTORY'
                         ? 'bg-amber-600 text-white shadow-md shadow-amber-950/40'
-                        : 'bg-slate-900 border border-amber-500/30 text-amber-300 hover:text-white hover:bg-amber-950/40 hover:border-amber-400/60'
+                        : 'bg-slate-100 dark:bg-slate-900 border border-amber-500/30 text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-white hover:bg-amber-50 dark:hover:bg-amber-950/40 hover:border-amber-500'
                     }`}
                     title="Funcionários inativos ou demitidos com histórico preservado no banco de dados"
                   >
@@ -1316,12 +1316,12 @@ Confirmar operação em lote?`)) {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-3 relative z-30">
                 {/* 1. Busca por texto */}
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 h-4 w-4 pointer-events-none" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-300 h-4 w-4 pointer-events-none" />
                   <Input
                     placeholder="Digite o nome, CPF, cargo ou email..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-9 pr-7 h-10 text-xs bg-slate-900/95 border-slate-600/80 hover:border-slate-400 text-white placeholder:text-slate-400 focus:border-seguranca-red focus:ring-1 focus:ring-seguranca-red/30 rounded-lg transition-colors font-medium"
+                    className="pl-9 pr-7 h-10 text-xs bg-slate-50 dark:bg-slate-900/95 border-slate-300 dark:border-slate-600/80 hover:border-slate-400 text-slate-900 dark:text-white placeholder:text-slate-400 focus:border-seguranca-red focus:ring-1 focus:ring-seguranca-red/30 rounded-lg transition-colors font-medium"
                   />
                   {searchTerm && (
                     <button
@@ -1480,7 +1480,7 @@ Confirmar operação em lote?`)) {
             </Card>
 
             {/* Lista de Funcionários Moderna */}
-            <Card className="relative z-10 bg-gradient-to-br from-seguranca-graphite to-seguranca-black border-gray-600/50 p-2 sm:p-4" data-animate="fadeUp">
+            <Card className="relative z-10 bg-white dark:bg-gradient-to-br dark:from-seguranca-graphite dark:to-seguranca-black border border-slate-200 dark:border-gray-600/50 p-2 sm:p-4 rounded-2xl shadow-sm" data-animate="fadeUp">
               <FuncionariosTable
                 employees={filteredEmployees}
                 onView={handleViewEmployee}

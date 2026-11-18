@@ -33,7 +33,7 @@ public class TimeRecordController {
     private final TimeRecordReportService timeRecordReportService;
 
     @PostMapping("/register")
-    @PreAuthorize("hasAnyAuthority('TIME_RECORD_CREATE', 'SUPER_ADMIN', 'ADMIN', 'ROLE_MOTORISTA', 'MOTORISTA', 'ROLE_EMPLOYEE', 'ROLE_COLABORADOR', 'ROLE_MECANICO') or isAuthenticated()")
+    @PreAuthorize("hasAnyAuthority('TIME_RECORD_CREATE', 'SUPER_ADMIN', 'ADMIN', 'ROLE_MOTORISTA', 'MOTORISTA', 'ROLE_EMPLOYEE', 'ROLE_COLABORADOR', 'ROLE_MECANICO', 'ROLE_AUXILIAR_MECANICO') or isAuthenticated()")
     public ResponseEntity<?> registerTimeRecord(@RequestBody Map<String, Object> request) {
         try {
             String rawEmpId = request.get("employeeId") != null ? request.get("employeeId").toString() : null;
@@ -230,7 +230,7 @@ public class TimeRecordController {
     }
 
     @GetMapping("/report/{employeeId}")
-    @PreAuthorize("hasAnyAuthority('TIME_RECORD_READ', 'ROLE_MOTORISTA', 'ROLE_MANUTENCAO', 'MANUTENCAO', 'ROLE_MECANICO', 'ROLE_PORTARIA', 'SUPER_ADMIN', 'ADMIN') or isAuthenticated()")
+    @PreAuthorize("hasAnyAuthority('TIME_RECORD_READ', 'ROLE_MOTORISTA', 'ROLE_MANUTENCAO', 'MANUTENCAO', 'ROLE_MECANICO', 'ROLE_AUXILIAR_MECANICO', 'ROLE_PORTARIA', 'SUPER_ADMIN', 'ADMIN') or isAuthenticated()")
     public ResponseEntity<?> getWorkedHoursReport(
             @PathVariable("employeeId") UUID employeeId,
             @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,

@@ -162,6 +162,7 @@ public class RoleMigrationService {
                 "USER",
                 "MANUTENCAO",
                 "MECANICO",
+                "AUXILIAR_MECANICO",
                 "ANALISTA_DE_FROTA",
                 "ANALISTA_FROTA",
                 "GESTOR_TRAFEGO",

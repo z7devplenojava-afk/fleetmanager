@@ -40,6 +40,7 @@ export const isDriverUser = (user?: {
     'ANALISTA_DE_FROTA',
     'ANALISTA_FROTA',
     'MECANICO',
+    'AUXILIAR_MECANICO',
     'ENCARREGADO',
     'FISCAL',
     'ASSISTENTE',
@@ -143,6 +144,7 @@ export const getDashboardRouteForRole = (
       return '/driver-dashboard';
 
     case 'MECANICO':
+    case 'AUXILIAR_MECANICO':
     case 'GESTOR_DE_MANUTENCAO':
     case 'ENCARREGADO_DE_MANUTENCAO':
     case 'MANUTENCAO':

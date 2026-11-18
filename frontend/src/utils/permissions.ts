@@ -40,7 +40,7 @@ export const ROLE_CATEGORIES: RoleCategory[] = [
   {
     id: 'manutencao',
     name: 'Manutenção & Oficina',
-    roles: ['GESTOR_DE_MANUTENCAO', 'ENCARREGADO_DE_MANUTENCAO', 'ANALISTA_DE_FROTA', 'ANALISTA_FROTA', 'MANUTENCAO', 'MECANICO', 'GESTOR_TRAFEGO', 'GESTOR_DE_TRAFEGO', 'ENCARREGADO_DE_TRANSPORTES', 'ENCARREGADO_TRANSPORTES', 'ENCARREGADO_DE_TRAFEGO', 'ENCARREGADO_TRAFEGO'],
+    roles: ['GESTOR_DE_MANUTENCAO', 'ENCARREGADO_DE_MANUTENCAO', 'ANALISTA_DE_FROTA', 'ANALISTA_FROTA', 'MANUTENCAO', 'MECANICO', 'AUXILIAR_MECANICO', 'GESTOR_TRAFEGO', 'GESTOR_DE_TRAFEGO', 'ENCARREGADO_DE_TRANSPORTES', 'ENCARREGADO_TRANSPORTES', 'ENCARREGADO_DE_TRAFEGO', 'ENCARREGADO_TRAFEGO'],
   },
   {
     id: 'operacional',
@@ -111,6 +111,7 @@ export const USER_ROLE_LIST: UserRole[] = [
   'ANALISTA_FROTA',
   'MANUTENCAO',
   'MECANICO',
+  'AUXILIAR_MECANICO',
 
   // Operação, Tráfego & Fretamento
   'GESTOR_OPERACIONAL',
@@ -950,6 +951,7 @@ export const generatePermissions = (role: UserRole): UserPermissions => {
     case 'ANALISTA_DE_FROTA':
     case 'ANALISTA_FROTA':
     case 'MECANICO':
+    case 'AUXILIAR_MECANICO':
       return {
         ...basePermissions,
         DASHBOARD_READ: true,
@@ -965,6 +967,9 @@ export const generatePermissions = (role: UserRole): UserPermissions => {
         STOCK_READ: true,
         STOCK_WRITE: true,
         REPORTS_READ: true,
+        PAYSLIPS_READ: true,
+        TIME_RECORD_READ: true,
+        TIME_RECORD_CREATE: true,
       };
 
     case 'GESTOR_OPERACIONAL':
@@ -1521,6 +1526,7 @@ export const getRoleDisplayName = (role: UserRole): string => {
     ENCARREGADO_TRAFEGO: 'Encarregado de Tráfego',
     MOTORISTA: 'Motorista',
     MECANICO: 'Mecânico',
+    AUXILIAR_MECANICO: 'Auxiliar de Mecânico',
     PORTARIA: 'Portaria / Controle de Acesso',
     MANUTENCAO: 'Manutenção',
     GESTOR_DE_MANUTENCAO: 'Gestor de Manutenção',
@@ -1579,6 +1585,7 @@ export const getRoleColor = (role: UserRole): string => {
     ENCARREGADO_TRAFEGO: 'bg-orange-50 text-orange-700 border border-orange-200/80 font-medium dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-900/60',
     MOTORISTA: 'bg-sky-50 text-sky-700 border border-sky-200/80 font-medium dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-900/60',
     MECANICO: 'bg-slate-100 text-slate-700 border border-slate-200/80 font-medium dark:bg-slate-800/60 dark:text-slate-300 dark:border-slate-700/60',
+    AUXILIAR_MECANICO: 'bg-slate-100 text-slate-700 border border-slate-200/80 font-medium dark:bg-slate-800/60 dark:text-slate-300 dark:border-slate-700/60',
     PORTARIA: 'bg-slate-100 text-slate-700 border border-slate-200/80 font-medium dark:bg-slate-800/60 dark:text-slate-300 dark:border-slate-700/60',
     MANUTENCAO: 'bg-blue-50 text-blue-700 border border-blue-200/80 font-medium dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900/60',
     GESTOR_DE_MANUTENCAO: 'bg-blue-50 text-blue-800 border border-blue-300/80 font-medium dark:bg-blue-950/50 dark:text-blue-200 dark:border-blue-800/60',
