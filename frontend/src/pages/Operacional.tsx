@@ -783,18 +783,18 @@ const Operacional: React.FC = () => {
 
   return (
     <StandardLayout>
-      {/* Background melhorado com gradiente e textura */}
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative">
+      {/* Background adaptável com suporte a tema claro e escuro */}
+      <div className="min-h-screen bg-slate-50/60 dark:bg-gradient-to-br dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 relative">
         {/* Grid pattern overlay */}
-        <div className="absolute inset-0 bg-grid-white/[0.02] pointer-events-none"></div>
+        <div className="absolute inset-0 dark:bg-grid-white/[0.02] pointer-events-none"></div>
 
         {/* Accent gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-red-950/10 via-transparent to-transparent pointer-events-none"></div>
+        <div className="absolute inset-0 dark:bg-gradient-to-t dark:from-red-950/10 dark:via-transparent dark:to-transparent pointer-events-none"></div>
 
         <div className="container mx-auto py-6 relative z-10">
-          <div className="mb-6 bg-slate-900/50 backdrop-blur-sm rounded-lg p-6 border border-slate-800/50 shadow-lg">
-            <h1 className="text-3xl font-bold text-white">Módulo Operacional</h1>
-            <p className="text-slate-400 mt-2">
+          <div className="mb-6 bg-white dark:bg-slate-900/50 backdrop-blur-sm rounded-xl p-6 border border-slate-200 dark:border-slate-800/50 shadow-sm dark:shadow-lg">
+            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">Módulo Operacional</h1>
+            <p className="text-slate-600 dark:text-slate-400 mt-2">
               Gestão integrada de frotas, fretamento, medições e faturamento
             </p>
           </div>
@@ -802,14 +802,14 @@ const Operacional: React.FC = () => {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             {/* Tabs Modernas com Ícones e Tooltips - Padrão SST Mobile */}
             <TooltipProvider>
-              <div className="relative overflow-hidden rounded-lg glass-card border-slate-700/50 shadow-xl">
+              <div className="relative overflow-hidden rounded-xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700/50 shadow-sm dark:shadow-xl">
                 {/* Mobile: Scroll Horizontal | Desktop: Grid */}
                 <TabsList className="
                 w-full
                 flex md:grid
                 overflow-x-auto md:overflow-x-visible
                 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-12
-                glass-card border-0
+                bg-transparent border-0
                 p-2 md:p-2
                 gap-2 md:gap-2
                 min-h-[100px] md:min-h-[80px]
@@ -820,7 +820,7 @@ const Operacional: React.FC = () => {
                     <TooltipTrigger asChild>
                       <TabsTrigger
                         value="dashboard"
-                        className="modern-tab flex flex-col items-center justify-center gap-2 px-4 md:px-3 py-4 md:py-4 text-slate-300 data-[state='active']:bg-gradient-to-br data-[state='active']:from-red-600 data-[state='active']:to-red-700 data-[state='active']:text-white data-[state='active']:shadow-lg data-[state='active']:shadow-red-500/50 hover:bg-slate-800/50 hover:text-white transition-all duration-300 rounded-md min-w-[85px] md:min-w-0 min-h-[85px] md:min-h-[72px] flex-shrink-0"
+                        className="modern-tab flex flex-col items-center justify-center gap-2 px-4 md:px-3 py-4 md:py-4 text-slate-700 dark:text-slate-300 data-[state='active']:bg-gradient-to-br data-[state='active']:from-red-600 data-[state='active']:to-red-700 data-[state='active']:text-white data-[state='active']:shadow-lg data-[state='active']:shadow-red-500/50 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all duration-300 rounded-md min-w-[85px] md:min-w-0 min-h-[85px] md:min-h-[72px] flex-shrink-0"
                       >
                         <LayoutDashboard className="h-6 w-6 md:h-5 md:w-5 flex-shrink-0" />
                         <span className="text-[11px] md:text-xs leading-tight text-center whitespace-nowrap">Dashboard</span>
@@ -836,7 +836,7 @@ const Operacional: React.FC = () => {
                     <TooltipTrigger asChild>
                       <TabsTrigger
                         value="equipamentos"
-                        className="modern-tab flex flex-col items-center justify-center gap-2 px-4 md:px-3 py-4 md:py-4 text-slate-300 data-[state='active']:bg-gradient-to-br data-[state='active']:from-red-600 data-[state='active']:to-red-700 data-[state='active']:text-white data-[state='active']:shadow-lg data-[state='active']:shadow-red-500/50 hover:bg-slate-800/50 hover:text-white transition-all duration-300 rounded-md min-w-[85px] md:min-w-0 min-h-[85px] md:min-h-[72px] flex-shrink-0"
+                        className="modern-tab flex flex-col items-center justify-center gap-2 px-4 md:px-3 py-4 md:py-4 text-slate-700 dark:text-slate-300 data-[state='active']:bg-gradient-to-br data-[state='active']:from-red-600 data-[state='active']:to-red-700 data-[state='active']:text-white data-[state='active']:shadow-lg data-[state='active']:shadow-red-500/50 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all duration-300 rounded-md min-w-[85px] md:min-w-0 min-h-[85px] md:min-h-[72px] flex-shrink-0"
                       >
                         <PackageCheck className="h-6 w-6 md:h-5 md:w-5 flex-shrink-0" />
                         <span className="text-[11px] md:text-xs leading-tight text-center whitespace-nowrap">Equipamentos</span>
@@ -852,7 +852,7 @@ const Operacional: React.FC = () => {
                     <TooltipTrigger asChild>
                       <TabsTrigger
                         value="escalas"
-                        className="modern-tab flex flex-col items-center justify-center gap-2 px-4 md:px-3 py-4 md:py-4 text-slate-300 data-[state='active']:bg-gradient-to-br data-[state='active']:from-red-600 data-[state='active']:to-red-700 data-[state='active']:text-white data-[state='active']:shadow-lg data-[state='active']:shadow-red-500/50 hover:bg-slate-800/50 hover:text-white transition-all duration-300 rounded-md min-w-[85px] md:min-w-0 min-h-[85px] md:min-h-[72px] flex-shrink-0"
+                        className="modern-tab flex flex-col items-center justify-center gap-2 px-4 md:px-3 py-4 md:py-4 text-slate-700 dark:text-slate-300 data-[state='active']:bg-gradient-to-br data-[state='active']:from-red-600 data-[state='active']:to-red-700 data-[state='active']:text-white data-[state='active']:shadow-lg data-[state='active']:shadow-red-500/50 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all duration-300 rounded-md min-w-[85px] md:min-w-0 min-h-[85px] md:min-h-[72px] flex-shrink-0"
                       >
                         <Calendar className="h-6 w-6 md:h-5 md:w-5 flex-shrink-0" />
                         <span className="text-[11px] md:text-xs leading-tight text-center whitespace-nowrap">Escalas</span>
@@ -868,7 +868,7 @@ const Operacional: React.FC = () => {
                     <TooltipTrigger asChild>
                       <TabsTrigger
                         value="notificacoes"
-                        className="modern-tab flex flex-col items-center justify-center gap-2 px-4 md:px-3 py-4 md:py-4 text-slate-300 data-[state='active']:bg-gradient-to-br data-[state='active']:from-red-600 data-[state='active']:to-red-700 data-[state='active']:text-white data-[state='active']:shadow-lg data-[state='active']:shadow-red-500/50 hover:bg-slate-800/50 hover:text-white transition-all duration-300 rounded-md min-w-[85px] md:min-w-0 min-h-[85px] md:min-h-[72px] flex-shrink-0"
+                        className="modern-tab flex flex-col items-center justify-center gap-2 px-4 md:px-3 py-4 md:py-4 text-slate-700 dark:text-slate-300 data-[state='active']:bg-gradient-to-br data-[state='active']:from-red-600 data-[state='active']:to-red-700 data-[state='active']:text-white data-[state='active']:shadow-lg data-[state='active']:shadow-red-500/50 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all duration-300 rounded-md min-w-[85px] md:min-w-0 min-h-[85px] md:min-h-[72px] flex-shrink-0"
                       >
                         <Bell className="h-6 w-6 md:h-5 md:w-5 flex-shrink-0" />
                         <span className="text-[11px] md:text-xs leading-tight text-center whitespace-nowrap">Notificações</span>
@@ -884,7 +884,7 @@ const Operacional: React.FC = () => {
                     <TooltipTrigger asChild>
                       <TabsTrigger
                         value="ocorrencias"
-                        className="modern-tab flex flex-col items-center justify-center gap-2 px-4 md:px-3 py-4 md:py-4 text-slate-300 data-[state='active']:bg-gradient-to-br data-[state='active']:from-red-600 data-[state='active']:to-red-700 data-[state='active']:text-white data-[state='active']:shadow-lg data-[state='active']:shadow-red-500/50 hover:bg-slate-800/50 hover:text-white transition-all duration-300 rounded-md min-w-[85px] md:min-w-0 min-h-[85px] md:min-h-[72px] flex-shrink-0"
+                        className="modern-tab flex flex-col items-center justify-center gap-2 px-4 md:px-3 py-4 md:py-4 text-slate-700 dark:text-slate-300 data-[state='active']:bg-gradient-to-br data-[state='active']:from-red-600 data-[state='active']:to-red-700 data-[state='active']:text-white data-[state='active']:shadow-lg data-[state='active']:shadow-red-500/50 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all duration-300 rounded-md min-w-[85px] md:min-w-0 min-h-[85px] md:min-h-[72px] flex-shrink-0"
                       >
                         <AlertTriangle className="h-6 w-6 md:h-5 md:w-5 flex-shrink-0" />
                         <span className="text-[11px] md:text-xs leading-tight text-center whitespace-nowrap">Ocorrências</span>
@@ -900,7 +900,7 @@ const Operacional: React.FC = () => {
                     <TooltipTrigger asChild>
                       <TabsTrigger
                         value="atividades"
-                        className="modern-tab flex flex-col items-center justify-center gap-2 px-4 md:px-3 py-4 md:py-4 text-slate-300 data-[state='active']:bg-gradient-to-br data-[state='active']:from-red-600 data-[state='active']:to-red-700 data-[state='active']:text-white data-[state='active']:shadow-lg data-[state='active']:shadow-red-500/50 hover:bg-slate-800/50 hover:text-white transition-all duration-300 rounded-md min-w-[85px] md:min-w-0 min-h-[85px] md:min-h-[72px] flex-shrink-0"
+                        className="modern-tab flex flex-col items-center justify-center gap-2 px-4 md:px-3 py-4 md:py-4 text-slate-700 dark:text-slate-300 data-[state='active']:bg-gradient-to-br data-[state='active']:from-red-600 data-[state='active']:to-red-700 data-[state='active']:text-white data-[state='active']:shadow-lg data-[state='active']:shadow-red-500/50 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all duration-300 rounded-md min-w-[85px] md:min-w-0 min-h-[85px] md:min-h-[72px] flex-shrink-0"
                       >
                         <ClipboardList className="h-6 w-6 md:h-5 md:w-5 flex-shrink-0" />
                         <span className="text-[11px] md:text-xs leading-tight text-center whitespace-nowrap">Atividades</span>
@@ -916,7 +916,7 @@ const Operacional: React.FC = () => {
                     <TooltipTrigger asChild>
                       <TabsTrigger
                         value="servicos"
-                        className="modern-tab flex flex-col items-center justify-center gap-2 px-4 md:px-3 py-4 md:py-4 text-slate-300 data-[state='active']:bg-gradient-to-br data-[state='active']:from-red-600 data-[state='active']:to-red-700 data-[state='active']:text-white data-[state='active']:shadow-lg data-[state='active']:shadow-red-500/50 hover:bg-slate-800/50 hover:text-white transition-all duration-300 rounded-md min-w-[85px] md:min-w-0 min-h-[85px] md:min-h-[72px] flex-shrink-0"
+                        className="modern-tab flex flex-col items-center justify-center gap-2 px-4 md:px-3 py-4 md:py-4 text-slate-700 dark:text-slate-300 data-[state='active']:bg-gradient-to-br data-[state='active']:from-red-600 data-[state='active']:to-red-700 data-[state='active']:text-white data-[state='active']:shadow-lg data-[state='active']:shadow-red-500/50 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all duration-300 rounded-md min-w-[85px] md:min-w-0 min-h-[85px] md:min-h-[72px] flex-shrink-0"
                       >
                         <Briefcase className="h-6 w-6 md:h-5 md:w-5 flex-shrink-0" />
                         <span className="text-[11px] md:text-xs leading-tight text-center whitespace-nowrap">Serviços</span>
@@ -932,7 +932,7 @@ const Operacional: React.FC = () => {
                     <TooltipTrigger asChild>
                       <TabsTrigger
                         value="controle-visitas"
-                        className="modern-tab flex flex-col items-center justify-center gap-2 px-4 md:px-3 py-4 md:py-4 text-slate-300 data-[state='active']:bg-gradient-to-br data-[state='active']:from-red-600 data-[state='active']:to-red-700 data-[state='active']:text-white data-[state='active']:shadow-lg data-[state='active']:shadow-red-500/50 hover:bg-slate-800/50 hover:text-white transition-all duration-300 rounded-md min-w-[85px] md:min-w-0 min-h-[85px] md:min-h-[72px] flex-shrink-0"
+                        className="modern-tab flex flex-col items-center justify-center gap-2 px-4 md:px-3 py-4 md:py-4 text-slate-700 dark:text-slate-300 data-[state='active']:bg-gradient-to-br data-[state='active']:from-red-600 data-[state='active']:to-red-700 data-[state='active']:text-white data-[state='active']:shadow-lg data-[state='active']:shadow-red-500/50 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all duration-300 rounded-md min-w-[85px] md:min-w-0 min-h-[85px] md:min-h-[72px] flex-shrink-0"
                       >
                         <Calendar className="h-6 w-6 md:h-5 md:w-5 flex-shrink-0" />
                         <span className="text-[11px] md:text-xs leading-tight text-center whitespace-nowrap">Controle de Escalas</span>
@@ -948,7 +948,7 @@ const Operacional: React.FC = () => {
                     <TooltipTrigger asChild>
                       <TabsTrigger
                         value="gestao-operacional"
-                        className="modern-tab flex flex-col items-center justify-center gap-2 px-4 md:px-3 py-4 md:py-4 text-slate-300 data-[state='active']:bg-gradient-to-br data-[state='active']:from-red-600 data-[state='active']:to-red-700 data-[state='active']:text-white data-[state='active']:shadow-lg data-[state='active']:shadow-red-500/50 hover:bg-slate-800/50 hover:text-white transition-all duration-300 rounded-md min-w-[85px] md:min-w-0 min-h-[85px] md:min-h-[72px] flex-shrink-0"
+                        className="modern-tab flex flex-col items-center justify-center gap-2 px-4 md:px-3 py-4 md:py-4 text-slate-700 dark:text-slate-300 data-[state='active']:bg-gradient-to-br data-[state='active']:from-red-600 data-[state='active']:to-red-700 data-[state='active']:text-white data-[state='active']:shadow-lg data-[state='active']:shadow-red-500/50 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all duration-300 rounded-md min-w-[85px] md:min-w-0 min-h-[85px] md:min-h-[72px] flex-shrink-0"
                       >
                         <BarChart3 className="h-6 w-6 md:h-5 md:w-5 flex-shrink-0" />
                         <span className="text-[11px] md:text-xs leading-tight text-center whitespace-nowrap">Gestão</span>
@@ -964,7 +964,7 @@ const Operacional: React.FC = () => {
                     <TooltipTrigger asChild>
                       <TabsTrigger
                         value="troca-plantao"
-                        className="modern-tab flex flex-col items-center justify-center gap-2 px-4 md:px-3 py-4 md:py-4 text-slate-300 data-[state='active']:bg-gradient-to-br data-[state='active']:from-red-600 data-[state='active']:to-red-700 data-[state='active']:text-white data-[state='active']:shadow-lg data-[state='active']:shadow-red-500/50 hover:bg-slate-800/50 hover:text-white transition-all duration-300 rounded-md min-w-[85px] md:min-w-0 min-h-[85px] md:min-h-[72px] flex-shrink-0"
+                        className="modern-tab flex flex-col items-center justify-center gap-2 px-4 md:px-3 py-4 md:py-4 text-slate-700 dark:text-slate-300 data-[state='active']:bg-gradient-to-br data-[state='active']:from-red-600 data-[state='active']:to-red-700 data-[state='active']:text-white data-[state='active']:shadow-lg data-[state='active']:shadow-red-500/50 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all duration-300 rounded-md min-w-[85px] md:min-w-0 min-h-[85px] md:min-h-[72px] flex-shrink-0"
                       >
                         <UserCheck className="h-6 w-6 md:h-5 md:w-5 flex-shrink-0" />
                         <span className="text-[11px] md:text-xs leading-tight text-center whitespace-nowrap">Plantão</span>
@@ -980,7 +980,7 @@ const Operacional: React.FC = () => {
                     <TooltipTrigger asChild>
                       <TabsTrigger
                         value="parte-diaria"
-                        className="modern-tab flex flex-col items-center justify-center gap-2 px-4 md:px-3 py-4 md:py-4 text-slate-300 data-[state='active']:bg-gradient-to-br data-[state='active']:from-red-600 data-[state='active']:to-red-700 data-[state='active']:text-white data-[state='active']:shadow-lg data-[state='active']:shadow-red-500/50 hover:bg-slate-800/50 hover:text-white transition-all duration-300 rounded-md min-w-[85px] md:min-w-0 min-h-[85px] md:min-h-[72px] flex-shrink-0"
+                        className="modern-tab flex flex-col items-center justify-center gap-2 px-4 md:px-3 py-4 md:py-4 text-slate-700 dark:text-slate-300 data-[state='active']:bg-gradient-to-br data-[state='active']:from-red-600 data-[state='active']:to-red-700 data-[state='active']:text-white data-[state='active']:shadow-lg data-[state='active']:shadow-red-500/50 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all duration-300 rounded-md min-w-[85px] md:min-w-0 min-h-[85px] md:min-h-[72px] flex-shrink-0"
                       >
                         <Activity className="h-6 w-6 md:h-5 md:w-5 flex-shrink-0 text-red-500" />
                         <span className="text-[11px] md:text-xs leading-tight text-center whitespace-nowrap">Parte Diária</span>
@@ -997,7 +997,7 @@ const Operacional: React.FC = () => {
                     <TooltipTrigger asChild>
                       <TabsTrigger
                         value="sst-conformidade"
-                        className="modern-tab flex flex-col items-center justify-center gap-2 px-4 md:px-3 py-4 md:py-4 text-slate-300 data-[state='active']:bg-gradient-to-br data-[state='active']:from-red-600 data-[state='active']:to-red-700 data-[state='active']:text-white data-[state='active']:shadow-lg data-[state='active']:shadow-red-500/50 hover:bg-slate-800/50 hover:text-white transition-all duration-300 rounded-md min-w-[85px] md:min-w-0 min-h-[85px] md:min-h-[72px] flex-shrink-0"
+                        className="modern-tab flex flex-col items-center justify-center gap-2 px-4 md:px-3 py-4 md:py-4 text-slate-700 dark:text-slate-300 data-[state='active']:bg-gradient-to-br data-[state='active']:from-red-600 data-[state='active']:to-red-700 data-[state='active']:text-white data-[state='active']:shadow-lg data-[state='active']:shadow-red-500/50 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all duration-300 rounded-md min-w-[85px] md:min-w-0 min-h-[85px] md:min-h-[72px] flex-shrink-0"
                       >
                         <ShieldCheck className="h-6 w-6 md:h-5 md:w-5 flex-shrink-0" />
                         <span className="text-[11px] md:text-xs leading-tight text-center whitespace-nowrap">SST</span>
@@ -1013,7 +1013,7 @@ const Operacional: React.FC = () => {
                     <TooltipTrigger asChild>
                       <TabsTrigger
                         value="guia-transporte"
-                        className="modern-tab flex flex-col items-center justify-center gap-2 px-4 md:px-3 py-4 md:py-4 text-slate-300 data-[state='active']:bg-gradient-to-br data-[state='active']:from-red-600 data-[state='active']:to-red-700 data-[state='active']:text-white data-[state='active']:shadow-lg data-[state='active']:shadow-red-500/50 hover:bg-slate-800/50 hover:text-white transition-all duration-300 rounded-md min-w-[85px] md:min-w-0 min-h-[85px] md:min-h-[72px] flex-shrink-0"
+                        className="modern-tab flex flex-col items-center justify-center gap-2 px-4 md:px-3 py-4 md:py-4 text-slate-700 dark:text-slate-300 data-[state='active']:bg-gradient-to-br data-[state='active']:from-red-600 data-[state='active']:to-red-700 data-[state='active']:text-white data-[state='active']:shadow-lg data-[state='active']:shadow-red-500/50 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all duration-300 rounded-md min-w-[85px] md:min-w-0 min-h-[85px] md:min-h-[72px] flex-shrink-0"
                       >
                         <Truck className="h-6 w-6 md:h-5 md:w-5 flex-shrink-0" />
                         <span className="text-[11px] md:text-xs leading-tight text-center whitespace-nowrap">Transporte</span>
@@ -1029,7 +1029,7 @@ const Operacional: React.FC = () => {
                     <TooltipTrigger asChild>
                       <TabsTrigger
                         value="rateio-servicos"
-                        className="modern-tab flex flex-col items-center justify-center gap-2 px-4 md:px-3 py-4 md:py-4 text-slate-300 data-[state='active']:bg-gradient-to-br data-[state='active']:from-red-600 data-[state='active']:to-red-700 data-[state='active']:text-white data-[state='active']:shadow-lg data-[state='active']:shadow-red-500/50 hover:bg-slate-800/50 hover:text-white transition-all duration-300 rounded-md min-w-[85px] md:min-w-0 min-h-[85px] md:min-h-[72px] flex-shrink-0"
+                        className="modern-tab flex flex-col items-center justify-center gap-2 px-4 md:px-3 py-4 md:py-4 text-slate-700 dark:text-slate-300 data-[state='active']:bg-gradient-to-br data-[state='active']:from-red-600 data-[state='active']:to-red-700 data-[state='active']:text-white data-[state='active']:shadow-lg data-[state='active']:shadow-red-500/50 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all duration-300 rounded-md min-w-[85px] md:min-w-0 min-h-[85px] md:min-h-[72px] flex-shrink-0"
                       >
                         <Calculator className="h-6 w-6 md:h-5 md:w-5 flex-shrink-0" />
                         <span className="text-[11px] md:text-xs leading-tight text-center whitespace-nowrap">Rateio</span>

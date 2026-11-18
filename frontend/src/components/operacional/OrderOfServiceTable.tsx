@@ -99,19 +99,19 @@ const OrderOfServiceTable: React.FC<OrderOfServiceTableProps> = ({
 
   if (safeOrders.length === 0) {
     return (
-      <Card className="bg-seguranca-graphite border-gray-600">
+      <Card className="bg-white dark:bg-seguranca-graphite border-slate-200 dark:border-gray-600 shadow-sm">
         <CardContent className="p-6">
           <div className="text-center py-12">
-            <FileText className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-200 mb-2">
+            <FileText className="mx-auto h-12 w-12 text-slate-400 dark:text-gray-400 mb-4" />
+            <h3 className="text-lg font-medium text-slate-900 dark:text-gray-200 mb-2">
               Nenhuma ordem de serviço encontrada
             </h3>
-            <p className="text-gray-400 mb-4">
+            <p className="text-slate-500 dark:text-gray-400 mb-4">
               {searchTerm || statusFilter !== 'all' 
                 ? 'Tente ajustar os filtros de busca.'
                 : 'Comece criando uma nova ordem de serviço.'}
             </p>
-            <Button onClick={onCreate} className="bg-blue-600 hover:bg-blue-700">
+            <Button onClick={onCreate} className="bg-blue-600 hover:bg-blue-700 text-white">
               <Plus className="h-4 w-4 mr-2" />
               Nova Ordem de Serviço
             </Button>
@@ -122,15 +122,15 @@ const OrderOfServiceTable: React.FC<OrderOfServiceTableProps> = ({
   }
 
   return (
-    <Card className="bg-seguranca-graphite border-gray-600">
-      <CardHeader className="border-b border-gray-700">
+    <Card className="bg-white dark:bg-seguranca-graphite border-slate-200 dark:border-gray-600 shadow-sm">
+      <CardHeader className="border-b border-slate-200 dark:border-gray-700">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <CardTitle className="text-white flex items-center gap-2">
+          <CardTitle className="text-slate-900 dark:text-white flex items-center gap-2">
             <FileText className="h-5 w-5" />
             Ordens de Serviço ({filteredOrders.length})
           </CardTitle>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <Button onClick={onCreate} size="sm" className="bg-blue-600 hover:bg-blue-700">
+            <Button onClick={onCreate} size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
               <Plus className="h-4 w-4 mr-2" />
               Nova Ordem
             </Button>
@@ -139,7 +139,7 @@ const OrderOfServiceTable: React.FC<OrderOfServiceTableProps> = ({
               variant="outline" 
               size="sm"
               disabled={isLoading}
-              className="border-gray-500 text-gray-200 hover:bg-gray-700"
+              className="border-slate-300 dark:border-gray-500 text-slate-700 dark:text-gray-200 hover:bg-slate-100 dark:hover:bg-gray-700"
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
               Atualizar
@@ -150,18 +150,18 @@ const OrderOfServiceTable: React.FC<OrderOfServiceTableProps> = ({
         {/* Filtros */}
         <div className="flex flex-col sm:flex-row gap-4 mt-4">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 dark:text-gray-400 h-4 w-4" />
             <Input
               placeholder="Buscar por funcionário, cliente, local..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 bg-gray-800 border-gray-600 text-white placeholder-gray-400"
+              className="pl-10 bg-slate-50 dark:bg-gray-800 border-slate-300 dark:border-gray-600 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder-gray-400"
             />
           </div>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 bg-gray-800 border border-gray-600 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-3 py-2 bg-slate-50 dark:bg-gray-800 border border-slate-300 dark:border-gray-600 text-slate-900 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">Todos os Status</option>
             <option value="signed">Assinadas</option>
@@ -174,56 +174,56 @@ const OrderOfServiceTable: React.FC<OrderOfServiceTableProps> = ({
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="border-gray-700 hover:bg-gray-800/50">
-                <TableHead className="text-gray-300">Funcionário</TableHead>
-                <TableHead className="text-gray-300">Cliente</TableHead>
-                <TableHead className="text-gray-300">Local</TableHead>
-                <TableHead className="text-gray-300">Cargo</TableHead>
-                <TableHead className="text-gray-300">Salário</TableHead>
-                <TableHead className="text-gray-300">Período</TableHead>
-                <TableHead className="text-gray-300">Status</TableHead>
-                <TableHead className="text-gray-300 text-center">Ações</TableHead>
+              <TableRow className="border-b border-slate-200 dark:border-gray-700 hover:bg-slate-50 dark:hover:bg-gray-800/50">
+                <TableHead className="text-slate-700 dark:text-gray-300 font-semibold">Funcionário</TableHead>
+                <TableHead className="text-slate-700 dark:text-gray-300 font-semibold">Cliente</TableHead>
+                <TableHead className="text-slate-700 dark:text-gray-300 font-semibold">Local</TableHead>
+                <TableHead className="text-slate-700 dark:text-gray-300 font-semibold">Cargo</TableHead>
+                <TableHead className="text-slate-700 dark:text-gray-300 font-semibold">Salário</TableHead>
+                <TableHead className="text-slate-700 dark:text-gray-300 font-semibold">Período</TableHead>
+                <TableHead className="text-slate-700 dark:text-gray-300 font-semibold">Status</TableHead>
+                <TableHead className="text-slate-700 dark:text-gray-300 font-semibold text-center">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredOrders.map((order) => (
-                <TableRow key={order.id} className="border-gray-700 hover:bg-gray-800/30">
-                  <TableCell className="text-gray-200">
+                <TableRow key={order.id} className="border-b border-slate-200/80 dark:border-gray-700 hover:bg-slate-50/80 dark:hover:bg-gray-800/30">
+                  <TableCell className="text-slate-800 dark:text-gray-200">
                     <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-gray-400" />
+                      <User className="h-4 w-4 text-slate-400 dark:text-gray-400" />
                       <div>
-                        <div className="font-medium">{order.employeeName}</div>
-                        <div className="text-xs text-gray-400">{order.employeeCpf}</div>
+                        <div className="font-medium text-slate-900 dark:text-gray-100">{order.employeeName}</div>
+                        <div className="text-xs text-slate-500 dark:text-gray-400">{order.employeeCpf}</div>
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className="text-gray-200">
+                  <TableCell className="text-slate-800 dark:text-gray-200">
                     <div className="flex items-center gap-2">
-                      <Building className="h-4 w-4 text-gray-400" />
+                      <Building className="h-4 w-4 text-slate-400 dark:text-gray-400" />
                       {order.client}
                     </div>
                   </TableCell>
-                  <TableCell className="text-gray-200">
+                  <TableCell className="text-slate-800 dark:text-gray-200">
                     <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-gray-400" />
+                      <MapPin className="h-4 w-4 text-slate-400 dark:text-gray-400" />
                       {order.workplace}
                     </div>
                   </TableCell>
-                  <TableCell className="text-gray-200">{order.role}</TableCell>
-                  <TableCell className="text-gray-200">
-                    <div className="flex items-center gap-1">
-                      <DollarSign className="h-4 w-4 text-green-400" />
+                  <TableCell className="text-slate-800 dark:text-gray-200">{order.role}</TableCell>
+                  <TableCell className="text-slate-800 dark:text-gray-200">
+                    <div className="flex items-center gap-1 font-medium text-emerald-600 dark:text-green-400">
+                      <DollarSign className="h-4 w-4" />
                       {formatCurrency(order.salary)}
                     </div>
                   </TableCell>
-                  <TableCell className="text-gray-200">
+                  <TableCell className="text-slate-800 dark:text-gray-200">
                     <div className="text-sm">
                       <div className="flex items-center gap-1">
-                        <Clock className="h-3 w-3 text-gray-400" />
+                        <Clock className="h-3 w-3 text-slate-400 dark:text-gray-400" />
                         {formatDate(order.startDate)}
                       </div>
                       {order.endDate && (
-                        <div className="text-xs text-gray-400">
+                        <div className="text-xs text-slate-500 dark:text-gray-400">
                           até {formatDate(order.endDate)}
                         </div>
                       )}
@@ -238,7 +238,7 @@ const OrderOfServiceTable: React.FC<OrderOfServiceTableProps> = ({
                         variant="ghost"
                         size="sm"
                         onClick={() => onView(order)}
-                        className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/20"
+                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-900/20"
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
@@ -246,7 +246,7 @@ const OrderOfServiceTable: React.FC<OrderOfServiceTableProps> = ({
                         variant="ghost"
                         size="sm"
                         onClick={() => onEdit(order)}
-                        className="text-yellow-400 hover:text-yellow-300 hover:bg-yellow-900/20"
+                        className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-yellow-400 dark:hover:text-yellow-300 dark:hover:bg-yellow-900/20"
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -254,7 +254,7 @@ const OrderOfServiceTable: React.FC<OrderOfServiceTableProps> = ({
                         variant="ghost"
                         size="sm"
                         onClick={() => onDelete(order)}
-                        className="text-red-400 hover:text-red-300 hover:bg-red-900/20"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
