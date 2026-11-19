@@ -647,6 +647,8 @@
     .bg-\[\#141720\],
     .bg-\[\#161922\],
     .bg-\[\#1a1d27\],
+    .bg-\[\#121318\],
+    .bg-\[\#16181f\],
     .bg-\[\#1e293b\] {
       background-color: #ffffff !important;
       border-color: #cbd5e1 !important;
@@ -704,14 +706,29 @@
 
     /* Cabeçalhos de Tabela no Modo Branco -> Cinza Gelo Claro com Texto Escuro Nítido */
     thead,
-    thead tr {
+    thead tr,
+    thead th.sticky,
+    thead th[class*="sticky"] {
       background-color: #f1f5f9 !important;
       border-color: #cbd5e1 !important;
+      color: #334155 !important;
     }
 
     thead th {
       color: #334155 !important;
       font-weight: 700 !important;
+    }
+
+    tbody td.sticky,
+    tbody td[class*="sticky"] {
+      background-color: #ffffff !important;
+      color: #0f172a !important;
+      border-color: #e2e8f0 !important;
+    }
+
+    tbody tr:hover td.sticky,
+    tbody tr:hover td[class*="sticky"] {
+      background-color: #f8fafc !important;
     }
 
     /* 3. Caixas de Ícones, Badges Neutras e Sub-blocos -> Slate-100 */

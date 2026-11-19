@@ -6,7 +6,7 @@ export interface FiscalDocument {
     number: string;
     series: string;
     type: 'NF_E' | 'NFS_E' | 'CT_E' | 'NFC_E';
-    status: 'PENDING' | 'IMPORTED' | 'VALIDATED' | 'CANCELLED';
+    status: 'PENDING' | 'IMPORTED' | 'VALIDATED' | 'ISSUED' | 'CANCELLED' | 'ERROR';
     emissionDate: string;
     totalAmount: number;
     issuerTaxId: string;

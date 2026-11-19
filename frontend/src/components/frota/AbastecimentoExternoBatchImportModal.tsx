@@ -1781,18 +1781,18 @@ const AbastecimentoExternoBatchImportModal: React.FC<AbastecimentoExternoBatchIm
             </div>
 
             <div className="overflow-x-auto">
-              <Table>
+              <Table className="min-w-[1100px]">
                 <TableHeader>
-                  <TableRow className="border-gray-700">
+                  <TableRow className="border-gray-700 bg-seguranca-black/60">
                     <TableHead className="text-xs w-20">Tipo</TableHead>
                     <TableHead className="text-xs w-28">Nº Nota (NF)</TableHead>
                     <TableHead className="text-xs w-36">Data Emissão</TableHead>
-                    <TableHead className="text-xs min-w-[200px]">Veículo (Placa) *</TableHead>
-                    <TableHead className="text-xs w-32">Combustível</TableHead>
-                    <TableHead className="text-xs w-28 text-right">Litros *</TableHead>
-                    <TableHead className="text-xs w-28 text-right">R$ / Litro</TableHead>
-                    <TableHead className="text-xs w-32 text-right">Valor Total (R$) *</TableHead>
-                    <TableHead className="text-xs w-28 text-right">Hodômetro</TableHead>
+                    <TableHead className="text-xs min-w-[210px]">Veículo (Placa) *</TableHead>
+                    <TableHead className="text-xs w-28">Combustível</TableHead>
+                    <TableHead className="text-xs w-36 min-w-[130px] text-right">Litros *</TableHead>
+                    <TableHead className="text-xs w-36 min-w-[130px] text-right">R$ / Litro</TableHead>
+                    <TableHead className="text-xs w-40 min-w-[150px] text-right">Valor Total (R$) *</TableHead>
+                    <TableHead className="text-xs w-36 min-w-[130px] text-right">Hodômetro</TableHead>
                     <TableHead className="text-xs w-14 text-center">Ação</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1935,48 +1935,75 @@ const AbastecimentoExternoBatchImportModal: React.FC<AbastecimentoExternoBatchIm
 
                           <TableCell className="py-2">
                             <Input
-                              type="number"
-                              step="0.01"
-                              value={row.liters || ''}
-                              onChange={(e) => updateRow(row.id, 'liters', Number(e.target.value))}
-                              className="h-8 text-xs text-right font-mono bg-seguranca-black border-gray-600 text-white"
+                              type="text"
+                              inputMode="decimal"
+                              value={row.liters ? String(row.liters).replace('.', ',') : ''}
+                              onChange={(e) => {
+                                const raw = e.target.value.replace(/[^\d.,]/g, '').replace(',', '.');
+                                const val = parseFloat(raw);
+                                updateRow(row.id, 'liters', isNaN(val) ? 0 : val);
+                              }}
+                              placeholder="0,00"
+                              className="h-8 text-xs text-right font-mono bg-seguranca-black border-gray-600 text-white focus:border-emerald-500 w-full px-2"
                             />
+                            {row.liters > 0 && (
+                              <span className="text-[10px] text-gray-400 font-mono block text-right mt-0.5">
+                                {row.liters.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} L
+                              </span>
+                            )}
+                          </TableCell>
+
+                          <TableCell className="py-2">
+                            <Input
+                              type="text"
+                              inputMode="decimal"
+                              value={row.pricePerLiter ? String(row.pricePerLiter).replace('.', ',') : ''}
+                              onChange={(e) => {
+                                const raw = e.target.value.replace(/[^\d.,]/g, '').replace(',', '.');
+                                const val = parseFloat(raw);
+                                updateRow(row.id, 'pricePerLiter', isNaN(val) ? 0 : val);
+                              }}
+                              placeholder="0,000"
+                              className="h-8 text-xs text-right font-mono bg-seguranca-black border-gray-600 text-white focus:border-emerald-500 w-full px-2"
+                            />
+                            {row.pricePerLiter > 0 && (
+                              <span className="text-[10px] text-gray-400 font-mono block text-right mt-0.5">
+                                R$ {row.pricePerLiter.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 3 })}
+                              </span>
+                            )}
+                          </TableCell>
+
+                          <TableCell className="py-2">
+                            <Input
+                              type="text"
+                              inputMode="decimal"
+                              value={row.totalValue ? String(row.totalValue).replace('.', ',') : ''}
+                              onChange={(e) => {
+                                const raw = e.target.value.replace(/[^\d.,]/g, '').replace(',', '.');
+                                const val = parseFloat(raw);
+                                updateRow(row.id, 'totalValue', isNaN(val) ? 0 : val);
+                              }}
+                              placeholder="0,00"
+                              className="h-8 text-xs text-right font-mono font-bold bg-seguranca-black border-gray-600 text-emerald-400 focus:border-emerald-500 w-full px-2"
+                            />
+                            {row.totalValue > 0 && (
+                              <span className="text-[10px] text-emerald-400/90 font-mono block text-right mt-0.5">
+                                R$ {row.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
+                            )}
                           </TableCell>
 
                           <TableCell className="py-2">
                             <Input
                               type="number"
-                              step="0.001"
-                              value={row.pricePerLiter || ''}
-                              onChange={(e) =>
-                                updateRow(row.id, 'pricePerLiter', Number(e.target.value))
-                              }
-                              className="h-8 text-xs text-right font-mono bg-seguranca-black border-gray-600 text-white"
-                            />
-                          </TableCell>
-
-                          <TableCell className="py-2">
-                            <Input
-                              type="number"
-                              step="0.01"
-                              value={row.totalValue || ''}
-                              onChange={(e) =>
-                                updateRow(row.id, 'totalValue', Number(e.target.value))
-                              }
-                              className="h-8 text-xs text-right font-mono font-bold bg-seguranca-black border-gray-600 text-emerald-400"
-                            />
-                          </TableCell>
-
-                          <TableCell className="py-2">
-                            <Input
-                              type="number"
+                              step="1"
                               value={row.mileage || ''}
                               onChange={(e) => updateRow(row.id, 'mileage', Number(e.target.value))}
                               placeholder="KM"
-                              className="h-8 text-xs text-right font-mono bg-seguranca-black border-gray-600 text-white"
+                              className="h-8 text-xs text-right font-mono bg-seguranca-black border-gray-600 text-white focus:border-emerald-500 w-full px-2"
                             />
                             {row.mileage > 0 && (
-                              <span className="text-[10px] text-emerald-400 font-mono block text-right mt-0.5">
+                              <span className="text-[10px] text-blue-400 font-mono block text-right mt-0.5">
                                 {row.mileage.toLocaleString('pt-BR')} km
                               </span>
                             )}

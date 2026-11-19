@@ -89,6 +89,11 @@ const MobilizationListPage: React.FC = () => {
         setInspectionModalOpen(true);
     };
 
+    const openDossier = (mob?: TransportMobilization) => {
+        setSelectedMobilization(mob || null);
+        setDossierModalOpen(true);
+    };
+
     const handleGenerateChecklistPDF = async (m: TransportMobilization) => {
         try {
             let items: any[] = [];

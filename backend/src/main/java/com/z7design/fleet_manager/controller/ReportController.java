@@ -446,7 +446,43 @@ public class ReportController {
                     .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=relatorio-consolidado.pdf")
                     .body(pdf);
         } catch (Exception e) {
-            log.error("Erro ao gerar relatÃ³rio consolidado em PDF: {}", e.getMessage(), e);
+            log.error("Erro ao gerar relatório consolidado em PDF: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @PostMapping("/contas-a-pagar/custom/pdf")
+    @Operation(summary = "Relatório Personalizado de Contas a Pagar em PDF",
+               description = "Gera PDF com filtros, agrupamentos e seleção de colunas escolhidas pelo usuário")
+    public ResponseEntity<byte[]> generateCustomContasAPagarPdf(@RequestBody com.z7design.fleet_manager.dto.ContasAPagarCustomReportRequestDTO request) {
+        try {
+            log.info("Gerando relatório personalizado de contas a pagar em PDF: {}", request);
+            byte[] pdfBytes = contasAPagarReportService.generateCustomPdfReport(request);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_PDF);
+            headers.setContentDispositionFormData("attachment", "relatorio-personalizado-contas-a-pagar.pdf");
+            headers.setContentLength(pdfBytes.length);
+            return ResponseEntity.ok().headers(headers).body(pdfBytes);
+        } catch (Exception e) {
+            log.error("Erro ao gerar relatório personalizado de contas a pagar em PDF: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @PostMapping("/contas-a-pagar/custom/excel")
+    @Operation(summary = "Relatório Personalizado de Contas a Pagar em Excel",
+               description = "Gera planilha Excel (.xlsx) com filtros, agrupamentos e colunas escolhidas pelo usuário")
+    public ResponseEntity<byte[]> generateCustomContasAPagarExcel(@RequestBody com.z7design.fleet_manager.dto.ContasAPagarCustomReportRequestDTO request) {
+        try {
+            log.info("Gerando relatório personalizado de contas a pagar em Excel: {}", request);
+            byte[] excelBytes = contasAPagarReportService.generateCustomExcelReport(request);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+            headers.setContentDispositionFormData("attachment", "relatorio-personalizado-contas-a-pagar.xlsx");
+            headers.setContentLength(excelBytes.length);
+            return ResponseEntity.ok().headers(headers).body(excelBytes);
+        } catch (Exception e) {
+            log.error("Erro ao gerar relatório personalizado de contas a pagar em Excel: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }

@@ -152,7 +152,11 @@ public class ClientChecklistService {
                                                                LocalDate dateFrom, LocalDate dateTo) {
         LocalDateTime dateFromDt = dateFrom != null ? dateFrom.atStartOfDay() : null;
         LocalDateTime dateToDt = dateTo != null ? dateTo.atTime(LocalTime.MAX) : null;
-        return recordRepository.findByFilters(clientId, templateId, dateFromDt, dateToDt).stream()
+        return recordRepository.findAllWithRelations().stream()
+                .filter(r -> clientId == null || (r.getClient() != null && clientId.equals(r.getClient().getId())))
+                .filter(r -> templateId == null || (r.getTemplate() != null && templateId.equals(r.getTemplate().getId())))
+                .filter(r -> dateFromDt == null || (r.getOccurredAt() != null && !r.getOccurredAt().isBefore(dateFromDt)))
+                .filter(r -> dateToDt == null || (r.getOccurredAt() != null && !r.getOccurredAt().isAfter(dateToDt)))
                 .sorted((a, b) -> {
                     if (a.getOccurredAt() == null && b.getOccurredAt() == null) return 0;
                     if (a.getOccurredAt() == null) return 1;

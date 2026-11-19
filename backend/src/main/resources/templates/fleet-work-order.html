@@ -42,12 +42,9 @@
     }
 
     .brand-logo {
-      height: 34px;
-      max-height: 34px;
-      max-width: 160px;
-      width: auto;
+      width: 130px;
+      height: 32px;
       margin-bottom: 2px;
-      display: block;
     }
     
     .brand-name {
@@ -471,7 +468,7 @@
     <tr>
       <td class="header-left">
         <div th:if="${companyLogo != null and companyLogo != ''}">
-          <img class="brand-logo" th:src="${companyLogo}" alt="Logo da Empresa" style="height: 38px; max-height: 38px; max-width: 190px; width: auto; object-fit: contain; background: transparent;" />
+          <img class="brand-logo" th:src="${companyLogo}" alt="Logo da Empresa" width="130" height="32" style="width: 130px; height: 32px; margin-bottom: 2px;" />
         </div>
         <div class="brand-name" th:if="${companyName != null and companyName != ''}" th:text="${companyName}">NOME DA EMPRESA</div>
         <div class="brand-details">
@@ -813,7 +810,7 @@
           <td class="label">Assinatura (Liberação):</td>
           <td class="valor" colspan="3" style="padding: 6px 8px;">
             <div th:if="${releaseSignatureImg != null and releaseSignatureImg != ''}" style="text-align: left;">
-              <img class="assinatura-digital-img" style="height: 26px; width: auto; max-width: 140px; margin: 0;" th:src="${releaseSignatureImg}" alt="Assinatura Liberação do Veículo" />
+              <img class="assinatura-digital-img" width="120" height="26" style="width: 120px; height: 26px; margin: 0;" th:src="${releaseSignatureImg}" alt="Assinatura Liberação do Veículo" />
               <div style="font-size: 7px; color: #555;" th:if="${releaseSignatureDate != null and releaseSignatureDate != ''}" th:text="'Assinado em: ' + ${releaseSignatureDate}"></div>
             </div>
             <div th:unless="${releaseSignatureImg != null and releaseSignatureImg != ''}" style="padding-top: 14px;">
@@ -831,7 +828,7 @@
       <tr>
         <td style="width: 50%; border-right: 1px solid #333; padding: 6px 10px 4px 10px;">
           <div th:if="${supervisorSignatureImg != null and supervisorSignatureImg != ''}">
-            <img class="assinatura-digital-img" style="height: 32px; width: auto; max-width: 140px;" th:src="${supervisorSignatureImg}" alt="Assinatura Digital do Supervisor" />
+            <img class="assinatura-digital-img" width="120" height="30" style="width: 120px; height: 30px;" th:src="${supervisorSignatureImg}" alt="Assinatura Digital do Supervisor" />
           </div>
           <div class="assinatura-espaco-vazio" th:unless="${supervisorSignatureImg != null and supervisorSignatureImg != ''}"></div>
           <div class="linha-assinatura">
@@ -843,7 +840,7 @@
         </td>
         <td style="width: 50%; padding: 6px 10px 4px 10px;">
           <div th:if="${responsibleSignatureImg != null and responsibleSignatureImg != ''}">
-            <img class="assinatura-digital-img" style="height: 32px; width: auto; max-width: 140px;" th:src="${responsibleSignatureImg}" alt="Assinatura Digital do Responsável Técnico" />
+            <img class="assinatura-digital-img" width="120" height="30" style="width: 120px; height: 30px;" th:src="${responsibleSignatureImg}" alt="Assinatura Digital do Responsável Técnico" />
           </div>
           <div class="assinatura-espaco-vazio" th:unless="${responsibleSignatureImg != null and responsibleSignatureImg != ''}"></div>
           <div class="linha-assinatura">

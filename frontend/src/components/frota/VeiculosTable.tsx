@@ -36,6 +36,8 @@ import vehicleMaintenanceStatusService, { VehicleMaintenanceAlert, MaintenanceAl
 interface Veiculo {
   id: string; // UUID
   placa: string;
+  fleetNumber?: string;
+  prefixo?: string;
   marca: string;
   modelo: string;
   ano: number;
@@ -877,11 +879,12 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
           return (
             <div
               key={`mobile-vehicle-${veiculo.id}`}
-              className="bg-seguranca-black border border-gray-700/80 hover:border-gray-600 rounded-xl p-3.5 space-y-3 shadow-md transition-all"
+              onClick={() => handleEdit(veiculo)}
+              className="bg-seguranca-black border border-gray-700/80 hover:border-seguranca-yellow/50 rounded-xl p-3.5 space-y-3 shadow-md transition-all cursor-pointer hover:shadow-lg"
             >
               {/* Header do Card Mobile: Checkbox + Ícone Veículo + Placa + Status */}
               <div className="flex items-center justify-between gap-2 border-b border-gray-800 pb-2.5">
-                <div className="flex items-center gap-2 min-w-0">
+                <div className="flex items-center gap-2 min-w-0" onClick={(e) => e.stopPropagation()}>
                   <Checkbox
                     checked={selectedItems.has(veiculo.id)}
                     onCheckedChange={(checked) => handleSelectItem(veiculo.id, checked as boolean)}
@@ -900,8 +903,15 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
                   </div>
 
                   <div className="min-w-0">
-                    <div className="font-mono font-extrabold text-seguranca-yellow text-base tracking-wider leading-none truncate">
-                      {veiculo.placa}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-mono font-extrabold text-seguranca-yellow text-base tracking-wider leading-none truncate">
+                        {veiculo.placa}
+                      </span>
+                      {(veiculo.fleetNumber || veiculo.prefixo) && (
+                        <span className="font-mono font-bold text-[10px] px-1 py-0.5 rounded bg-yellow-500/10 border border-yellow-500/40 text-yellow-400">
+                          #{veiculo.fleetNumber || veiculo.prefixo}
+                        </span>
+                      )}
                     </div>
                     <div className="text-[11px] text-gray-400 mt-1 truncate leading-none">
                       {veiculo.marca} {veiculo.modelo}
@@ -937,7 +947,10 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
 
               {/* Seção Exclusiva de Manutenção / Ordem de Serviço (Largura total, sem quebra horizontal) */}
               {inMaintenance && (
-                <div className="bg-amber-950/30 border border-amber-600/40 rounded-lg p-2.5 space-y-2">
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className="bg-amber-950/30 border border-amber-600/40 rounded-lg p-2.5 space-y-2"
+                >
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <div className="flex items-center gap-1.5 min-w-0">
                       <Wrench className="w-3.5 h-3.5 text-amber-400 shrink-0" />
@@ -1020,7 +1033,10 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
               )}
 
               {/* Barra de Ações Mobile com toque confortável */}
-              <div className="flex items-center justify-between gap-1.5 pt-1">
+              <div
+                className="flex items-center justify-between gap-1.5 pt-1"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <Button
                   variant="outline"
                   size="sm"
@@ -1106,9 +1122,11 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
             {paginatedVeiculos.map((veiculo) => (
               <TableRow
                 key={veiculo.id}
-                className="hover:bg-seguranca-graphite/50 transition-colors border-b border-gray-700"
+                onClick={() => handleEdit(veiculo)}
+                className="hover:bg-seguranca-graphite/50 transition-colors border-b border-gray-700 cursor-pointer group"
+                title={`Clique para editar o veículo ${veiculo.placa}`}
               >
-                <TableCell className="w-10 text-center px-2">
+                <TableCell className="w-10 text-center px-2" onClick={(e) => e.stopPropagation()}>
                   <Checkbox
                     checked={selectedItems.has(veiculo.id)}
                     onCheckedChange={(checked) => handleSelectItem(veiculo.id, checked as boolean)}
@@ -1122,6 +1140,11 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
                       <div className="font-mono font-bold text-seguranca-yellow text-base sm:text-lg leading-tight">
                         {veiculo.placa}
                       </div>
+                      {(veiculo.fleetNumber || veiculo.prefixo) && (
+                        <Badge variant="outline" className="text-[10px] px-1.5 h-4 border-yellow-500/50 text-yellow-400 font-mono font-bold bg-yellow-500/10">
+                          #{veiculo.fleetNumber || veiculo.prefixo}
+                        </Badge>
+                      )}
                       <Badge variant="outline" className="md:hidden text-[9px] px-1 h-4 border-gray-600 text-gray-400">
                         {veiculo.ano}
                       </Badge>
@@ -1195,7 +1218,7 @@ const VeiculosTable: React.FC<VeiculosTableProps> = ({ veiculos, searchTerm, veh
                     {getStatusBadge(veiculo)}
                   </div>
                 </TableCell>
-                <TableCell className="text-right py-3 px-2">
+                <TableCell className="text-right py-3 px-2" onClick={(e) => e.stopPropagation()}>
                   <div className="flex justify-end gap-1">
                     <Button
                       variant="outline"

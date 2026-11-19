@@ -17,14 +17,6 @@ public interface ClientChecklistRecordRepository extends JpaRepository<ClientChe
             "LEFT JOIN FETCH r.template " +
             "LEFT JOIN FETCH r.client " +
             "LEFT JOIN FETCH r.vehicle " +
-            "LEFT JOIN FETCH r.driver " +
-            "WHERE (:clientId IS NULL OR r.client.id = :clientId) AND " +
-            "(:templateId IS NULL OR r.template.id = :templateId) AND " +
-            "(:dateFrom IS NULL OR r.occurredAt >= :dateFrom) AND " +
-            "(:dateTo IS NULL OR r.occurredAt <= :dateTo)")
-    List<ClientChecklistRecord> findByFilters(
-            @Param("clientId") UUID clientId,
-            @Param("templateId") UUID templateId,
-            @Param("dateFrom") LocalDateTime dateFrom,
-            @Param("dateTo") LocalDateTime dateTo);
+            "LEFT JOIN FETCH r.driver")
+    List<ClientChecklistRecord> findAllWithRelations();
 }

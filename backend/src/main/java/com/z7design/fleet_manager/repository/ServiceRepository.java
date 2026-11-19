@@ -25,10 +25,16 @@ public interface ServiceRepository extends JpaRepository<Service, UUID> {
     
     Page<Service> findByCategory(String category, Pageable pageable);
     
-    // Buscar por cÃ³digo
+    // Buscar por código
     Optional<Service> findByCode(String code);
     
     boolean existsByCode(String code);
+
+    @Query(value = "SELECT COUNT(*) > 0 FROM services WHERE code = :code", nativeQuery = true)
+    boolean existsByCodeNative(@Param("code") String code);
+
+    @Query(value = "SELECT COALESCE(MAX(CAST(SUBSTRING(code FROM 5) AS INTEGER)), 0) FROM services WHERE code ~ '^SRV-[0-9]+$'", nativeQuery = true)
+    Integer findMaxServiceCodeNumber();
     
     // Buscar por nome (case insensitive)
     @Query("SELECT s FROM Service s WHERE s.name ILIKE %:name%")

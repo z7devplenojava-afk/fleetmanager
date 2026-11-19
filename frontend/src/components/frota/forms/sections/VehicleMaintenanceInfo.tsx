@@ -269,21 +269,21 @@ export const VehicleMaintenanceInfo: React.FC<VehicleFormSectionProps> = ({ form
                                 }`}
                             >
                                 <div className="flex items-center justify-between mb-1.5">
-                                    <h5 className="font-semibold text-white text-xs">{plan.name}</h5>
+                                    <h5 className="font-semibold text-gray-900 text-xs">{plan.name}</h5>
                                     {isOverdue ? (
-                                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-900/80 text-red-300">
+                                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700 border border-red-300">
                                             VENCIDO ({Math.abs(kmRemaining).toLocaleString('pt-BR')} km)
                                         </span>
                                     ) : (
-                                        <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-900/60 text-emerald-300">
+                                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-xs">
                                             Faltam {kmRemaining.toLocaleString('pt-BR')} km
                                         </span>
                                     )}
                                 </div>
-                                <p className="text-[11px] text-gray-400 mb-2">{plan.description}</p>
-                                <div className="flex items-center justify-between text-[11px] text-gray-300 pt-1.5 border-t border-gray-700/50">
-                                    <span>Intervalo: <strong>{plan.intervalKm.toLocaleString('pt-BR')} KM</strong> ({plan.intervalMonths} meses)</span>
-                                    <span>Próxima: <strong>{plan.targetKm?.toLocaleString('pt-BR')} KM</strong></span>
+                                <p className="text-[11px] text-gray-600 mb-2">{plan.description}</p>
+                                <div className="flex items-center justify-between text-[11px] text-gray-700 pt-1.5 border-t border-gray-200">
+                                    <span>Intervalo: <strong className="text-gray-900">{plan.intervalKm.toLocaleString('pt-BR')} KM</strong> ({plan.intervalMonths} meses)</span>
+                                    <span>Próxima: <strong className="text-gray-900">{plan.targetKm?.toLocaleString('pt-BR')} KM</strong></span>
                                 </div>
                             </div>
                         );

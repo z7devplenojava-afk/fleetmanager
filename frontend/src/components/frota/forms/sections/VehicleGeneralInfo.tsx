@@ -1,9 +1,12 @@
 import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Sparkles } from 'lucide-react';
 import { VehicleFormSectionProps } from '../types';
 import { useVehicleValidation } from '../hooks/useVehicleValidation';
+import fleetService from '@/services/fleetService';
 
 // Componente para indicar status do campo
 const FieldLabel: React.FC<{ label: string; field: string; vehicleType: string; required?: boolean }> = ({ label, field, vehicleType, required }) => {
@@ -20,6 +23,53 @@ const FieldLabel: React.FC<{ label: string; field: string; vehicleType: string; 
 };
 
 export const VehicleGeneralInfo: React.FC<VehicleFormSectionProps> = ({ formData, handleInputChange }) => {
+    // Gerador inteligente de número de Frota baseado nas melhores práticas do transporte rodoviário:
+    // Padrão de Mercado: [2 dígitos do Ano de Fabricação] + [Sequencial de 2 a 3 dígitos] (Ex: 2023 -> 2301, 2302...)
+    const [isSuggestingFleet, setIsSuggestingFleet] = React.useState(false);
+
+    const handleAutoGenerateFleetNumber = async () => {
+        setIsSuggestingFleet(true);
+        try {
+            const rawYear = Number(formData.ano) || new Date().getFullYear();
+            const yearStr = String(rawYear);
+            const yearPrefix = yearStr.length >= 4 ? yearStr.slice(-2) : yearStr;
+
+            // Busca veículos existentes para calcular o próximo número sequencial deste ano
+            const allVehicles = await fleetService.getVehicles(false).catch(() => []);
+            
+            // Filtra prefixos que começam com os 2 dígitos do ano
+            const existingSeqList: number[] = [];
+            allVehicles.forEach((v: any) => {
+                const fn = String(v.fleetNumber || v.prefixo || '').trim();
+                if (fn.startsWith(yearPrefix)) {
+                    const remainder = fn.slice(yearPrefix.length);
+                    const parsedNum = parseInt(remainder, 10);
+                    if (!isNaN(parsedNum)) {
+                        existingSeqList.push(parsedNum);
+                    }
+                }
+            });
+
+            let nextSeq = 1;
+            if (existingSeqList.length > 0) {
+                const maxSeq = Math.max(...existingSeqList);
+                nextSeq = maxSeq + 1;
+            }
+
+            // Formata com 2 dígitos mínimos (ex: 2301, 2302 ou 23101 se for frota centenária)
+            const formattedSeq = nextSeq < 10 ? `0${nextSeq}` : `${nextSeq}`;
+            const suggestedNumber = `${yearPrefix}${formattedSeq}`;
+
+            handleInputChange('fleetNumber', suggestedNumber);
+        } catch (e) {
+            console.error('Erro ao gerar número de frota:', e);
+            const fallbackYear = String(formData.ano || new Date().getFullYear()).slice(-2);
+            handleInputChange('fleetNumber', `${fallbackYear}01`);
+        } finally {
+            setIsSuggestingFleet(false);
+        }
+    };
+
     return (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="space-y-2">
@@ -32,6 +82,32 @@ export const VehicleGeneralInfo: React.FC<VehicleFormSectionProps> = ({ formData
                     maxLength={8}
                     required
                     className="bg-gray-900/50 border-gray-600 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500/20 transition-all duration-200"
+                />
+            </div>
+
+            <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                    <FieldLabel label="Frota / Prefixo" field="fleetNumber" vehicleType={formData.vehicleType} />
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleAutoGenerateFleetNumber}
+                        disabled={isSuggestingFleet}
+                        className="h-6 px-1.5 text-[11px] text-yellow-400 hover:text-yellow-300 hover:bg-yellow-400/10 flex items-center gap-1"
+                        title="Gerar prefixo inteligente: [Ano Fabricação] + [Sequencial]"
+                    >
+                        <Sparkles className={`w-3 h-3 ${isSuggestingFleet ? 'animate-spin' : ''}`} />
+                        <span>Sugerir por Ano</span>
+                    </Button>
+                </div>
+                <Input
+                    id="fleetNumber"
+                    value={formData.fleetNumber || ''}
+                    onChange={(e) => handleInputChange('fleetNumber', e.target.value)}
+                    placeholder={formData.ano ? `Ex: ${String(formData.ano).slice(-2)}01` : 'Ex: 2301'}
+                    maxLength={20}
+                    className="bg-gray-900/50 border-yellow-500/40 text-yellow-300 font-mono font-bold placeholder-gray-500 focus:border-yellow-400 focus:ring-yellow-400/20 transition-all duration-200"
                 />
             </div>
 

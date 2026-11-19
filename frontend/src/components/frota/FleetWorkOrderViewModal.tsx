@@ -42,6 +42,9 @@ export const FleetWorkOrderViewModal: React.FC<FleetWorkOrderViewModalProps> = (
     const [isBlankMode, setIsBlankMode] = useState(initialBlankMode);
     const [selectedTemplateModel, setSelectedTemplateModel] = useState<string>(order?.preventiveModel || 'MODELO_1');
 
+    // Cache em memória de Blobs gerados para troca instantânea entre modelos e modos (0ms)
+    const blobCacheRef = React.useRef<Map<string, Blob>>(new Map());
+
     const osNumber = order?.osNumber || (order?.id ? order.id.slice(0, 8) : 'OS');
     const fileName = `ordem-servico-${osNumber.replace(/[^a-zA-Z0-9-_]/g, '')}${isBlankMode ? '-em-branco' : ''}.pdf`;
 
@@ -53,27 +56,39 @@ export const FleetWorkOrderViewModal: React.FC<FleetWorkOrderViewModalProps> = (
             const resolvedModel = order?.preventiveModel || 'MODELO_1';
             setIsBlankMode(initialBlankMode);
             setSelectedTemplateModel(resolvedModel);
+
+            const cacheKey = `v4_${order?.id || 'temp'}_${initialBlankMode}_${resolvedModel}`;
             if (initialBlob) {
+                blobCacheRef.current.set(cacheKey, initialBlob);
                 setPdfBlob(initialBlob);
             } else if (order?.id) {
-                setIsLoading(true);
-                generateFleetWorkOrderPDFBlob(order, { blank: initialBlankMode, templateModel: resolvedModel })
-                    .then(blob => {
-                        if (isMounted) setPdfBlob(blob);
-                    })
-                    .catch(err => {
-                        console.error('Falha ao gerar PDF da OS:', err);
-                        if (isMounted) {
-                            toast({
-                                title: 'Erro ao gerar PDF',
-                                description: 'Não foi possível carregar a pré-visualização da Ordem de Serviço.',
-                                variant: 'destructive'
-                            });
-                        }
-                    })
-                    .finally(() => {
-                        if (isMounted) setIsLoading(false);
-                    });
+                const cached = blobCacheRef.current.get(cacheKey);
+                if (cached) {
+                    setPdfBlob(cached);
+                    setIsLoading(false);
+                } else {
+                    setIsLoading(true);
+                    generateFleetWorkOrderPDFBlob(order, { blank: initialBlankMode, templateModel: resolvedModel })
+                        .then(blob => {
+                            if (isMounted) {
+                                blobCacheRef.current.set(cacheKey, blob);
+                                setPdfBlob(blob);
+                            }
+                        })
+                        .catch(err => {
+                            console.error('Falha ao gerar PDF da OS:', err);
+                            if (isMounted) {
+                                toast({
+                                    title: 'Erro ao gerar PDF',
+                                    description: 'Não foi possível carregar a pré-visualização da Ordem de Serviço.',
+                                    variant: 'destructive'
+                                });
+                            }
+                        })
+                        .finally(() => {
+                            if (isMounted) setIsLoading(false);
+                        });
+                }
             }
             // Reseta controles de visualização
             setZoom(1);
@@ -142,23 +157,34 @@ export const FleetWorkOrderViewModal: React.FC<FleetWorkOrderViewModalProps> = (
         }
     };
 
-    const handleReload = (overrideBlank?: boolean, overrideTemplate?: string) => {
+    const handleReload = (overrideBlank?: boolean, overrideTemplate?: string, bypassCache = false) => {
         const targetBlank = overrideBlank !== undefined ? overrideBlank : isBlankMode;
         const targetTemplate = overrideTemplate !== undefined ? overrideTemplate : selectedTemplateModel;
+        const cacheKey = `v4_${order?.id || 'temp'}_${targetBlank}_${targetTemplate}`;
+
+        if (!bypassCache) {
+            const cached = blobCacheRef.current.get(cacheKey);
+            if (cached) {
+                setPdfBlob(cached);
+                return;
+            }
+        }
+
         if (order?.id) {
             setIsLoading(true);
             generateFleetWorkOrderPDFBlob(order, { blank: targetBlank, templateModel: targetTemplate })
                 .then(blob => {
+                    blobCacheRef.current.set(cacheKey, blob);
                     setPdfBlob(blob);
                     toast({
                         title: targetBlank ? 'PDF em Branco Gerado' : 'PDF Atualizado',
                         description: targetBlank
                             ? 'Campos do checklist em branco prontos para preenchimento manual.'
-                            : `Documento regenerado (${targetTemplate === 'MODELO_2' ? 'Modelo 2 — Check-List Frota' : 'Modelo 1 — Padrão'}).`
+                            : `Documento pronto (${targetTemplate === 'MODELO_2' ? 'Modelo 2 — Check-List Frota' : 'Modelo 1 — Padrão'}).`
                     });
                 })
                 .catch(() => {
-                    toast({ title: 'Erro', description: 'Falha ao recarregar PDF.', variant: 'destructive' });
+                    toast({ title: 'Erro', description: 'Falha ao gerar PDF.', variant: 'destructive' });
                 })
                 .finally(() => setIsLoading(false));
         }
@@ -166,12 +192,12 @@ export const FleetWorkOrderViewModal: React.FC<FleetWorkOrderViewModalProps> = (
 
     const handleSwitchMode = (blank: boolean) => {
         setIsBlankMode(blank);
-        handleReload(blank, selectedTemplateModel);
+        handleReload(blank, selectedTemplateModel, false);
     };
 
     const handleSwitchTemplate = (tmpl: string) => {
         setSelectedTemplateModel(tmpl);
-        handleReload(isBlankMode, tmpl);
+        handleReload(isBlankMode, tmpl, false);
     };
 
     const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.2, 2.5));
@@ -233,7 +259,7 @@ export const FleetWorkOrderViewModal: React.FC<FleetWorkOrderViewModalProps> = (
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => handleReload()}
+                                onClick={() => handleReload(undefined, undefined, true)}
                                 disabled={isLoading}
                                 title="Recarregar PDF"
                                 className="text-gray-400 hover:text-white hover:bg-gray-800 h-8 w-8 p-0"
@@ -413,7 +439,7 @@ export const FleetWorkOrderViewModal: React.FC<FleetWorkOrderViewModalProps> = (
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => handleReload()}
+                                    onClick={() => handleReload(undefined, undefined, true)}
                                     className="border-red-500/50 text-red-400 mt-2"
                                 >
                                     Tentar Novamente

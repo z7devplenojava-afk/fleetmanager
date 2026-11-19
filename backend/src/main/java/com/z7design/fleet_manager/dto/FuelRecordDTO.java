@@ -133,10 +133,12 @@ public class FuelRecordDTO {
                     dto.setSupplierId(fuelRecord.getSupplier().getId());
                     dto.setSupplierName(fuelRecord.getSupplier().getName());
                 } catch (Exception e) {
-                    dto.setSupplierName(fuelRecord.getStation());
+                    dto.setSupplierId(null);
+                    dto.setSupplierName(null);
                 }
             } else {
-                dto.setSupplierName(fuelRecord.getStation());
+                dto.setSupplierId(null);
+                dto.setSupplierName(null);
             }
             
             // Verificar se createdAt não é nulo

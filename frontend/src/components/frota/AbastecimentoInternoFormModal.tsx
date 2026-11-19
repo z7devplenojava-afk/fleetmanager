@@ -487,7 +487,7 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
     ? selectedVehicleObj
     : veiculos.find(v => v.id === formData.vehicleId);
 
-  const clientOptions = useMemo(() => {
+  const clientOptions = useMemo<SearchableOption[]>(() => {
     const set = new Set<string>();
     clients.forEach((c: any) => {
       const n = c.name || c.corporateReason || c.tradeName;
@@ -496,10 +496,13 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
     workPosts.forEach((w: any) => {
       if (w.clientName) set.add(w.clientName);
     });
-    return Array.from(set).sort();
+    return Array.from(set).sort().map(name => ({
+      value: name,
+      label: name,
+    }));
   }, [clients, workPosts]);
 
-  const obraOptions = useMemo(() => {
+  const obraOptions = useMemo<SearchableOption[]>(() => {
     const currentClient = formData.clientName?.trim().toUpperCase();
     const set = new Set<string>();
 
@@ -518,7 +521,10 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
       });
     }
 
-    return Array.from(set).sort();
+    return Array.from(set).sort().map(name => ({
+      value: name,
+      label: name,
+    }));
   }, [workPosts, formData.clientName]);
 
   const selectedTank = tanks.find(t => t.id === formData.tankId);
@@ -537,7 +543,7 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="!max-w-5xl !h-[92vh] flex flex-col !p-0 overflow-hidden bg-gray-950 text-white border border-gray-800 shadow-2xl">
+      <DialogContent className="!max-w-3xl max-h-[85vh] flex flex-col !p-0 overflow-hidden bg-gray-950 text-white border border-gray-850 rounded-2xl shadow-2xl">
         
         {/* ── HEADER ── */}
         <DialogHeader className="px-6 pt-5 pb-0 flex-none">
@@ -865,38 +871,50 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
               {selectedVehicle && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-gray-300 font-medium text-sm flex items-center justify-between">
-                      <span>Cliente <span className="text-xs text-emerald-400 font-normal">(autocompletado / editável)</span></span>
+                    <Label className="text-gray-300 font-medium text-xs flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Briefcase className="h-3.5 w-3.5 text-emerald-400" />
+                        Cliente
+                      </span>
+                      <span className="text-[10px] text-emerald-400 font-normal">autocompletado / pesquisável</span>
                     </Label>
-                    <Input
-                      list="clients-list-modal"
+                    <SearchableSelect
                       value={formData.clientName}
-                      onChange={e => setField('clientName', e.target.value)}
-                      placeholder="Nome do cliente"
-                      className="bg-gray-900/80 border-gray-700 text-white h-10 focus:border-emerald-500/50"
+                      fallbackLabel={formData.clientName || undefined}
+                      onChange={(val, opt) => setField('clientName', opt?.label || val)}
+                      options={clientOptions}
+                      placeholder="Selecione ou digite o cliente..."
+                      searchPlaceholder="Pesquisar cliente cadastrado..."
+                      emptyText="Nenhum cliente encontrado."
+                      minSearchLength={3}
+                      minSearchHint="Digite pelo menos 3 caracteres..."
+                      allowCustomValue={true}
+                      customValuePrefix="Informar cliente"
+                      className="bg-gray-900 border-gray-700 text-white"
                     />
-                    <datalist id="clients-list-modal">
-                      {clientOptions.map((opt, i) => (
-                        <option key={i} value={opt} />
-                      ))}
-                    </datalist>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-gray-300 font-medium text-sm flex items-center justify-between">
-                      <span>Obra / Setor <span className="text-xs text-emerald-400 font-normal">(autocompletado / editável)</span></span>
+                    <Label className="text-gray-300 font-medium text-xs flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <MapPin className="h-3.5 w-3.5 text-blue-400" />
+                        Obra / Setor
+                      </span>
+                      <span className="text-[10px] text-blue-400 font-normal">autocompletado / pesquisável</span>
                     </Label>
-                    <Input
-                      list="obras-list-modal"
+                    <SearchableSelect
                       value={formData.obraName}
-                      onChange={e => setField('obraName', e.target.value)}
-                      placeholder="Nome da obra ou setor"
-                      className="bg-gray-900/80 border-gray-700 text-white h-10 focus:border-emerald-500/50"
+                      fallbackLabel={formData.obraName || undefined}
+                      onChange={(val, opt) => setField('obraName', opt?.label || val)}
+                      options={obraOptions}
+                      placeholder="Selecione ou digite a obra/setor..."
+                      searchPlaceholder="Pesquisar obra ou setor..."
+                      emptyText="Nenhuma obra encontrada."
+                      minSearchLength={3}
+                      minSearchHint="Digite pelo menos 3 caracteres..."
+                      allowCustomValue={true}
+                      customValuePrefix="Informar obra/setor"
+                      className="bg-gray-900 border-gray-700 text-white"
                     />
-                    <datalist id="obras-list-modal">
-                      {obraOptions.map((opt, i) => (
-                        <option key={i} value={opt} />
-                      ))}
-                    </datalist>
                   </div>
                 </div>
               )}

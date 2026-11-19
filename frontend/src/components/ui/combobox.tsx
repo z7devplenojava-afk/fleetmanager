@@ -33,6 +33,7 @@ interface ComboboxProps {
   placeholder?: string;
   searchPlaceholder?: string;
   emptyPlaceholder?: string;
+  className?: string;
 }
 
 export function Combobox({ 
@@ -41,7 +42,8 @@ export function Combobox({
   onChange,
   placeholder = "Selecione uma opção...",
   searchPlaceholder = "Buscar opção...",
-  emptyPlaceholder = "Nenhuma opção encontrada."
+  emptyPlaceholder = "Nenhuma opção encontrada.",
+  className
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
 
@@ -52,7 +54,10 @@ export function Combobox({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between border-2 border-gray-600 bg-seguranca-black text-seguranca-lightgray hover:border-gray-500 focus:border-seguranca-yellow transition-colors"
+          className={cn(
+            "w-full justify-between border-2 border-gray-600 bg-seguranca-black text-seguranca-lightgray hover:border-gray-500 focus:border-seguranca-yellow transition-colors",
+            className
+          )}
         >
           {value
             ? options.find((option) => option.value === value)?.label

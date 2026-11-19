@@ -66,6 +66,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Combobox } from '@/components/ui/combobox';
 import fleetService from '@/services/fleetService';
 import driverService, { Driver } from '@/services/driverService';
 import {
@@ -231,6 +232,30 @@ const GestaoLimpezaVeiculos: React.FC = () => {
 
   useEffect(() => { loadOrders(); }, [loadOrders]);
   useEffect(() => { loadVehiclesAndDrivers(); }, [loadVehiclesAndDrivers]);
+
+  const vehicleComboboxOptions = useMemo(() => {
+    return vehicles.map(v => ({
+      value: v.id,
+      label: `${v.fleetNumber ? `[${v.fleetNumber}] ` : ''}${v.plate} ${v.model ? `- ${v.model}` : ''}`,
+      search: `${v.plate || ''} ${v.fleetNumber || ''} ${v.model || ''}`.trim()
+    }));
+  }, [vehicles]);
+
+  const driverComboboxOptions = useMemo(() => {
+    return drivers.map(d => ({
+      value: d.id,
+      label: d.name,
+      search: `${d.name || ''} ${d.cpf || ''} ${d.phone || ''}`.trim()
+    }));
+  }, [drivers]);
+
+  const sectorComboboxOptions = useMemo(() => {
+    return Object.entries(SECTOR_LABELS).map(([val, label]) => ({
+      value: val,
+      label,
+      search: `${label} ${val}`
+    }));
+  }, []);
 
   const filteredOrders = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -1079,31 +1104,25 @@ const GestaoLimpezaVeiculos: React.FC = () => {
                   <div className="space-y-4 py-4">
                     <div>
                       <label className="text-sm text-gray-400 mb-1 block">Veículo (prefixo/placa) *</label>
-                      <Select value={newVehicleId} onValueChange={setNewVehicleId}>
-                        <SelectTrigger className="bg-seguranca-black border-gray-700 text-white">
-                          <SelectValue placeholder="Selecione o veículo" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-seguranca-graphite border-gray-700 text-white max-h-60">
-                          {vehicles.map(v => (
-                            <SelectItem key={v.id} value={v.id}>
-                              {v.fleetNumber ? `[${v.fleetNumber}] ` : ''}{v.plate} {v.model ? `- ${v.model}` : ''}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Combobox
+                        value={newVehicleId}
+                        onChange={(val) => setNewVehicleId(val)}
+                        options={vehicleComboboxOptions}
+                        placeholder="Selecione o veículo..."
+                        searchPlaceholder="Digite placa ou prefixo..."
+                        emptyPlaceholder="Nenhum veículo encontrado."
+                      />
                     </div>
                     <div>
                       <label className="text-sm text-gray-400 mb-1 block">Setor Solicitante</label>
-                      <Select value={newSector} onValueChange={(v) => handleSectorChange(v as RequesterSector)}>
-                        <SelectTrigger className="bg-seguranca-black border-gray-700 text-white">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-seguranca-graphite border-gray-700 text-white">
-                          {Object.entries(SECTOR_LABELS).map(([value, label]) => (
-                            <SelectItem key={value} value={value}>{label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Combobox
+                        value={newSector}
+                        onChange={(val) => handleSectorChange(val as RequesterSector)}
+                        options={sectorComboboxOptions}
+                        placeholder="Selecione o setor..."
+                        searchPlaceholder="Buscar setor..."
+                        emptyPlaceholder="Nenhum setor encontrado."
+                      />
                     </div>
                     <div>
                       <label className="text-sm text-gray-400 mb-1 block">Prioridade</label>
@@ -1121,23 +1140,18 @@ const GestaoLimpezaVeiculos: React.FC = () => {
                     </div>
                     <div>
                       <label className="text-sm text-gray-400 mb-1 block">Motorista (opcional)</label>
-                      <Select
+                      <Combobox
                         value={newDriverId}
-                        onValueChange={(v) => {
-                          setNewDriverId(v);
-                          const selected = drivers.find(d => d.id === v);
+                        onChange={(val) => {
+                          setNewDriverId(val);
+                          const selected = drivers.find(d => d.id === val);
                           setNewDriverPhone(selected?.phone || '');
                         }}
-                      >
-                        <SelectTrigger className="bg-seguranca-black border-gray-700 text-white">
-                          <SelectValue placeholder="Selecione o motorista" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-seguranca-graphite border-gray-700 text-white">
-                          {drivers.map(d => (
-                            <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        options={driverComboboxOptions}
+                        placeholder="Selecione o motorista..."
+                        searchPlaceholder="Buscar por nome ou CPF..."
+                        emptyPlaceholder="Nenhum motorista encontrado."
+                      />
                     </div>
                     <div>
                       <label className="text-sm text-gray-400 mb-1 block">WhatsApp do Motorista</label>

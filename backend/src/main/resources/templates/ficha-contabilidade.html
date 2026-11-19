@@ -238,7 +238,7 @@
   <table class="header-table">
     <tr>
       <td class="header-left">
-        <img th:if="${companyLogo != null and companyLogo != ''}" th:src="${companyLogo}" class="brand-logo" alt="Logo"/>
+        <img th:if="${companyLogo != null and companyLogo != ''}" th:src="${companyLogo}" class="brand-logo" alt="Logo" width="130" height="32" style="width: 130px; height: 32px; margin-bottom: 2px;" />
         <div class="brand-name" th:text="${companyName != null and companyName != '' ? companyName : 'VIAÇÃO SÃO SILVESTRE S.A.'}">VIAÇÃO SÃO SILVESTRE S.A.</div>
         <div class="brand-details">
           <span th:if="${companyCnpj != null and companyCnpj != ''}" th:text="${companyCnpj}">CNPJ: 33.529.278/0001-65</span>

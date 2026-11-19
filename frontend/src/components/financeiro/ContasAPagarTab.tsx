@@ -40,6 +40,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import api from '@/lib/axios';
 import { Landmark } from 'lucide-react';
+import { RelatorioPersonalizadoContasPagarModal } from './RelatorioPersonalizadoContasPagarModal';
 
 const ContasAPagarTab: React.FC = () => {
   const { toast } = useToast();
@@ -50,6 +51,8 @@ const ContasAPagarTab: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showFormModal, setShowFormModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
+  const [showCustomReportModal, setShowCustomReportModal] = useState(false);
+  const [alertCarouselPage, setAlertCarouselPage] = useState(0);
   const [editingConta, setEditingConta] = useState<ContaAPagar | null>(null);
   const [viewingConta, setViewingConta] = useState<ContaAPagar | null>(null);
   const [alertasVencimento, setAlertasVencimento] = useState<ContaAPagar[]>([]);
@@ -978,34 +981,50 @@ const ContasAPagarTab: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2 text-white">
-            <DollarSign className="text-seguranca-yellow" />
+          <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2 text-slate-900 dark:text-white">
+            <DollarSign className="text-emerald-500 dark:text-seguranca-yellow h-7 w-7" />
             Contas a Pagar
           </h1>
-          <p className="text-gray-300 mt-1">
+          <p className="text-sm text-slate-500 dark:text-gray-300 mt-1">
             Gerencie o controle de contas a pagar da empresa
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setShowCustomReportModal(true)}
+            className="flex items-center gap-1.5 border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20 text-xs sm:text-sm font-semibold h-9"
+          >
+            <FileText size={15} className="text-amber-500" />
+            Relatório Personalizado (PDF)
+          </Button>
           <Button
             variant="outline"
             onClick={() => setShowDashboard(!showDashboard)}
-            className="flex items-center gap-2 border-gray-600 text-white hover:bg-seguranca-black"
+            className="flex items-center gap-1.5 border-slate-300 dark:border-gray-600 text-slate-700 dark:text-white hover:bg-slate-100 dark:hover:bg-seguranca-black text-xs sm:text-sm h-9"
           >
-            <BarChart3 size={16} />
+            <BarChart3 size={15} />
             {showDashboard ? 'Ocultar Gráficos' : 'Mostrar Gráficos'}
           </Button>
           <Button
             onClick={handleCreateConta}
-            className="flex items-center gap-2 bg-seguranca-red hover:bg-seguranca-darkred"
+            className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs sm:text-sm h-9 px-3.5 shadow-md"
           >
-            <Plus size={16} />
+            <Plus size={15} />
             Nova Conta a Pagar
           </Button>
         </div>
       </div>
+
+      {/* Modal de Relatório Personalizado */}
+      <RelatorioPersonalizadoContasPagarModal
+        isOpen={showCustomReportModal}
+        onClose={() => setShowCustomReportModal(false)}
+        empresasDisponiveis={Array.from(new Set(contas.map(c => c.companySigla || c.empresa).filter(Boolean))) as string[]}
+        fornecedoresDisponiveis={Array.from(new Set(contas.map(c => c.fornecedor).filter(Boolean))) as string[]}
+      />
 
       {/* Dashboard de Gráficos - Renderizado fora das abas para aparecer em ambas */}
       {showDashboard && (
@@ -1037,46 +1056,103 @@ const ContasAPagarTab: React.FC = () => {
         {/* Aba de Contas */}
         <TabsContent value="contas" className="space-y-6">
 
-      {/* Alertas de Vencimento */}
+      {/* Alertas de Vencimento com Carrossel de 3 em 3 (Fiel à foto 1) */}
       {alertasVencimento.length > 0 && (
-        <Card className="border-yellow-200 bg-yellow-50/80 dark:bg-yellow-950/20 dark:border-yellow-900/40">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="flex items-center gap-2 text-yellow-800 dark:text-yellow-400 text-sm sm:text-base font-bold">
-              <Bell className="text-yellow-600 dark:text-yellow-400 h-4 w-4" />
-              Alertas de Vencimento de Contas a Pagar
-            </CardTitle>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate('/central-alertas?modulo=financeiro')}
-              className="border-yellow-400/60 text-yellow-800 dark:text-yellow-300 hover:bg-yellow-200/50 text-xs h-7 gap-1"
-            >
-              <span>Ver Todos na Central</span>
-            </Button>
+        <Card className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/80 shadow-md rounded-2xl overflow-hidden">
+          <CardHeader className="py-3 px-5 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0">
+                <Bell className="text-amber-500 h-4 w-4" />
+              </div>
+              <div>
+                <CardTitle className="flex items-center gap-2 text-slate-900 dark:text-white text-sm sm:text-base font-bold">
+                  Alertas de Vencimento
+                  <Badge className="bg-amber-500 text-black font-bold text-[10px] px-2 py-0">
+                    {alertasVencimento.length} contas
+                  </Badge>
+                </CardTitle>
+                <p className="text-[11px] text-slate-500 dark:text-gray-400 mt-0.5">
+                  Despesas em aberto com vencimento previsto para os próximos 7 dias • Total: <strong className="text-amber-600 dark:text-amber-400">{formatCurrency(alertasVencimento.reduce((s, c) => s + (c.valor || 0), 0))}</strong>
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowCustomReportModal(true)}
+                className="h-8 text-xs font-semibold border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-500/10 gap-1.5"
+              >
+                <FileText className="h-3.5 w-3.5 text-amber-500" />
+                Relatório PDF
+              </Button>
+              <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-gray-400 ml-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={alertCarouselPage === 0}
+                  onClick={() => setAlertCarouselPage(p => Math.max(0, p - 1))}
+                  className="h-7 w-7 p-0"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="font-mono text-[11px]">
+                  {alertCarouselPage + 1} / {Math.max(1, Math.ceil(alertasVencimento.length / 3))}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={(alertCarouselPage + 1) * 3 >= alertasVencimento.length}
+                  onClick={() => setAlertCarouselPage(p => p + 1)}
+                  className="h-7 w-7 p-0"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {alertasVencimento.slice(0, 3).map(conta => (
-                <div key={conta.id} className="flex justify-between items-center p-2 bg-white rounded border">
-                  <div>
-                    <span className="font-medium">{conta.fornecedor}</span>
-                    <span className="text-sm text-gray-600 ml-2">{conta.descricao}</span>
+
+          <CardContent className="p-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {alertasVencimento.slice(alertCarouselPage * 3, (alertCarouselPage * 3) + 3).map(conta => (
+                <div
+                  key={conta.id}
+                  onClick={() => handleView(conta)}
+                  className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/60 hover:border-amber-500/40 transition-all cursor-pointer shadow-sm hover:shadow"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <span className="font-bold text-slate-900 dark:text-white text-xs block truncate">
+                        {conta.fornecedor || 'Fornecedor'}
+                      </span>
+                      <span className="text-[11px] text-slate-500 dark:text-gray-400 block truncate mt-0.5">
+                        {conta.descricao || 'Sem descrição'}
+                      </span>
+                    </div>
+                    <Badge variant="outline" className="text-[10px] bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800/40 shrink-0">
+                      Vence Hoje
+                    </Badge>
                   </div>
-                  <div className="text-right">
-                    <div className="font-semibold text-yellow-700">
+
+                  <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-slate-200/60 dark:border-slate-800/80">
+                    <span className="text-[11px] text-slate-500 dark:text-gray-400 flex items-center gap-1 font-mono">
+                      <Clock className="h-3 w-3 text-amber-500" />
+                      {(() => {
+                        try {
+                          const d = conta.vencimento ? new Date(conta.vencimento) : null;
+                          return d && !isNaN(d.getTime()) ? format(d, 'dd/MM/yyyy') : 'Data não informada';
+                        } catch {
+                          return 'Data não informada';
+                        }
+                      })()}
+                    </span>
+                    <span className="font-bold text-amber-600 dark:text-amber-400 font-mono text-sm">
                       {formatCurrency(conta.valor)}
-                    </div>
-                    <div className="text-sm text-yellow-600">
-                      Vence em {format(conta.vencimento, 'dd/MM/yyyy', { locale: ptBR })}
-                    </div>
+                    </span>
                   </div>
                 </div>
               ))}
-              {alertasVencimento.length > 3 && (
-                <p className="text-sm text-yellow-600 text-center">
-                  E mais {alertasVencimento.length - 3} conta(s) vencendo em breve...
-                </p>
-              )}
             </div>
           </CardContent>
         </Card>

@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Truck, ClipboardCheck, AlertTriangle, Save, Camera, CheckCircle2, X, Download, FileText } from 'lucide-react';
 import fleetService from '@/services/fleetService';
@@ -13,6 +12,7 @@ import clientService from '@/services/clientService';
 import workPostService from '@/services/workPostService';
 import transportMobilizationService from '@/services/transportMobilizationService';
 import { generatePreUseChecklistPDF } from '@/utils/preUseChecklistPdfGenerator';
+import { SearchableSelect, SearchableOption } from '@/components/frota/SearchableSelect';
 import type { MobilizationType, CreateTransportMobilizationDTO, ChecklistItemDetail } from '@/types/mobilization';
 
 interface MobilizationInspectionModalProps {
@@ -66,6 +66,34 @@ export const MobilizationInspectionModal: React.FC<MobilizationInspectionModalPr
   const [kmReading, setKmReading] = useState('');
   const [observations, setObservations] = useState('');
   const [items, setItems] = useState<ChecklistItemDetail[]>(FULL_PRE_USO_CHECKLIST);
+
+  const vehicleOptions = useMemo<SearchableOption[]>(() => {
+    return vehicles.map(v => ({
+      value: v.id,
+      label: v.plate || 'Sem Placa',
+      subtitle: `${v.brand || ''} ${v.model || ''}`.trim() || undefined,
+      badge: v.status || undefined,
+      keywords: [v.plate, v.brand, v.model].filter(Boolean),
+    }));
+  }, [vehicles]);
+
+  const driverOptions = useMemo<SearchableOption[]>(() => {
+    return drivers.map(d => ({
+      value: d.id,
+      label: d.name || 'Sem Nome',
+      subtitle: d.cpf ? `CPF: ${d.cpf}` : undefined,
+      keywords: [d.name, d.cpf].filter(Boolean),
+    }));
+  }, [drivers]);
+
+  const clientOptions = useMemo<SearchableOption[]>(() => {
+    return clients.map(c => ({
+      value: c.id,
+      label: c.name || c.corporateReason || 'Sem Nome',
+      subtitle: c.cnpj ? `CNPJ: ${c.cnpj}` : undefined,
+      keywords: [c.name, c.corporateReason, c.cnpj].filter(Boolean),
+    }));
+  }, [clients]);
 
   useEffect(() => {
     if (!open) return;
@@ -173,46 +201,47 @@ export const MobilizationInspectionModal: React.FC<MobilizationInspectionModalPr
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-zinc-950 p-4 rounded-xl border border-zinc-800">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-zinc-300">Veículo *</Label>
-              <Select value={vehicleId} onValueChange={setVehicleId}>
-                <SelectTrigger className="bg-zinc-900 border-zinc-700 text-zinc-100 h-9 text-xs">
-                  <SelectValue placeholder="Selecione o veículo" />
-                </SelectTrigger>
-                <SelectContent className="bg-zinc-900 border-zinc-700 text-zinc-100">
-                  {vehicles.map(v => (
-                    <SelectItem key={v.id} value={v.id}>
-                      [{v.plate}] {v.brand} {v.model}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={vehicleId}
+                onChange={(val) => setVehicleId(val)}
+                options={vehicleOptions}
+                placeholder="Selecione o veículo..."
+                searchPlaceholder="Buscar por placa, modelo..."
+                emptyText="Nenhum veículo encontrado."
+                minSearchLength={3}
+                minSearchHint="Digite pelo menos 3 caracteres da placa ou modelo..."
+                className="bg-zinc-900 border-zinc-700 text-zinc-100"
+              />
             </div>
 
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-zinc-300">Motorista Responsável</Label>
-              <Select value={driverId} onValueChange={setDriverId}>
-                <SelectTrigger className="bg-zinc-900 border-zinc-700 text-zinc-100 h-9 text-xs">
-                  <SelectValue placeholder="Selecione o motorista" />
-                </SelectTrigger>
-                <SelectContent className="bg-zinc-900 border-zinc-700 text-zinc-100">
-                  {drivers.map(d => (
-                    <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={driverId}
+                onChange={(val) => setDriverId(val)}
+                options={driverOptions}
+                placeholder="Selecione o motorista..."
+                searchPlaceholder="Buscar por nome ou CPF..."
+                emptyText="Nenhum motorista encontrado."
+                minSearchLength={3}
+                minSearchHint="Digite pelo menos 3 caracteres do nome..."
+                className="bg-zinc-900 border-zinc-700 text-zinc-100"
+              />
             </div>
 
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-zinc-300">Cliente Alocado</Label>
-              <Select value={clientId} onValueChange={setClientId}>
-                <SelectTrigger className="bg-zinc-900 border-zinc-700 text-zinc-100 h-9 text-xs">
-                  <SelectValue placeholder="Selecione o cliente" />
-                </SelectTrigger>
-                <SelectContent className="bg-zinc-900 border-zinc-700 text-zinc-100">
-                  {clients.map(c => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={clientId}
+                onChange={(val) => setClientId(val)}
+                options={clientOptions}
+                placeholder="Selecione o cliente..."
+                searchPlaceholder="Buscar por cliente ou CNPJ..."
+                emptyText="Nenhum cliente encontrado."
+                minSearchLength={3}
+                minSearchHint="Digite pelo menos 3 caracteres do cliente..."
+                className="bg-zinc-900 border-zinc-700 text-zinc-100"
+              />
             </div>
 
             <div className="space-y-1.5">

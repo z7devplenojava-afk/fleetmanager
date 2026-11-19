@@ -141,6 +141,9 @@ const TransportAssignments = lazy(() => import('@/pages/fretamento/TransportAssi
 const DriverShifts = lazy(() => import('@/pages/fretamento/DriverShifts'));
 const TravelTrips = lazy(() => import('@/pages/fretamento/TravelTrips'));
 const FiscalDashboard = lazy(() => import('@/pages/fiscal/FiscalDashboard'));
+const NfseEmissionPage = lazy(() => import('@/pages/fiscal/NfseEmissionPage'));
+const NfeEmissionPage = lazy(() => import('@/pages/fiscal/NfeEmissionPage'));
+const CteEmissionPage = lazy(() => import('@/pages/fiscal/CteEmissionPage'));
 const Documentos = lazy(() => import('@/pages/Documentos'));
 const DocumentosUnificados = lazy(() => import('@/pages/DocumentosUnificados'));
 const EPIs = lazy(() => import('@/pages/EPIs'));
@@ -1156,6 +1159,27 @@ function App() {
                         <ProtectedRoute requiredPermissions={['FINANCIAL_READ']}>
                           <Suspense fallback={<LoadingSpinner />}>
                             <FiscalDashboard />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/fiscal/nfse" element={
+                        <ProtectedRoute requiredPermissions={['FINANCIAL_READ']}>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <NfseEmissionPage />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/fiscal/nfe" element={
+                        <ProtectedRoute requiredPermissions={['FINANCIAL_READ']}>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <NfeEmissionPage />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/fiscal/cte" element={
+                        <ProtectedRoute requiredPermissions={['FINANCIAL_READ']}>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <CteEmissionPage />
                           </Suspense>
                         </ProtectedRoute>
                       } />

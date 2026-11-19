@@ -504,7 +504,7 @@ export const FuelConsumptionTargetsTab: React.FC<FuelConsumptionTargetsTabProps>
                   <span>{CATEGORY_CONFIG[cat].icon}</span>
                   {CATEGORY_CONFIG[cat].label}
                 </span>
-                <Badge className={atingiu ? 'bg-emerald-950/70 text-emerald-400 border-emerald-600 text-[10px]' : 'bg-red-950/70 text-red-400 border-red-600 text-[10px]'}>
+                <Badge className={atingiu ? 'bg-emerald-600 text-white font-bold border-0 text-[11px] px-2.5 py-0.5 shadow-sm' : 'bg-red-600 text-white font-bold border-0 text-[11px] px-2.5 py-0.5 shadow-sm'}>
                   Meta: {target.toFixed(1)} km/l
                 </Badge>
               </div>
@@ -635,23 +635,23 @@ export const FuelConsumptionTargetsTab: React.FC<FuelConsumptionTargetsTabProps>
                         </TableCell>
                         <TableCell className="text-center">
                           {item.status === 'INACTIVE' && (
-                            <Badge className="bg-gray-800 text-gray-400 border-gray-600 text-[10px]">
+                            <Badge className="bg-slate-200 dark:bg-gray-800 text-slate-700 dark:text-gray-300 border border-slate-300 dark:border-gray-600 font-semibold text-[11px] px-2.5 py-0.5">
                               Locação / Parado
                             </Badge>
                           )}
                           {item.status === 'ABOVE' && (
-                            <Badge className="bg-emerald-950/80 text-emerald-300 border-emerald-600 text-[10px] flex items-center justify-center gap-1 w-fit mx-auto">
-                              <CheckCircle2 className="h-3 w-3" /> No Alvo
+                            <Badge className="bg-emerald-600 text-white font-bold border-0 text-[11px] px-2.5 py-0.5 flex items-center justify-center gap-1 w-fit mx-auto shadow-sm">
+                              <CheckCircle2 className="h-3.5 w-3.5" /> No Alvo
                             </Badge>
                           )}
                           {item.status === 'ON_TARGET' && (
-                            <Badge className="bg-yellow-950/80 text-yellow-300 border-yellow-600 text-[10px] flex items-center justify-center gap-1 w-fit mx-auto">
+                            <Badge className="bg-amber-500 text-slate-950 font-bold border-0 text-[11px] px-2.5 py-0.5 flex items-center justify-center gap-1 w-fit mx-auto shadow-sm">
                               Tolerância
                             </Badge>
                           )}
                           {item.status === 'BELOW' && (
-                            <Badge className="bg-red-950/80 text-red-300 border-red-600 text-[10px] flex items-center justify-center gap-1 w-fit mx-auto">
-                              <AlertTriangle className="h-3 w-3" /> Abaixo Meta
+                            <Badge className="bg-red-600 text-white font-bold border-0 text-[11px] px-2.5 py-0.5 flex items-center justify-center gap-1 w-fit mx-auto shadow-sm">
+                              <AlertTriangle className="h-3.5 w-3.5" /> Abaixo Meta
                             </Badge>
                           )}
                         </TableCell>

@@ -88,16 +88,16 @@ export const AbastecimentoInternoTab: React.FC<AbastecimentoInternoTabProps> = (
       // 1. Possui pumpId, tankId ou garageId
       // 2. Campo isInternal === true ou type === 'INTERNAL'
       // 3. Station/Posto indica Garagem, Base, Interno, Matriz
-      // 4. Se não for explicitamente externo com fornecedor/posto externo
+      // 4. Se não tem supplierId associado a fornecedor externo
       if (anyR.isInternal === true || anyR.type === 'INTERNAL' || anyR.pumpId || anyR.tankId || anyR.garageId) {
         return true;
       }
       const st = (r.station || '').toLowerCase();
-      if (st.includes('garagem') || st.includes('interno') || st.includes('base') || st.includes('matriz') || st.includes('bomba')) {
+      if (st.includes('garagem') || st.includes('interno') || st.includes('base') || st.includes('matriz') || st.includes('bomba') || st.includes('própria') || st.includes('propria')) {
         return true;
       }
-      // Se não tem fornecedor externo cadastrado e notas não indicam externo
-      const hasExtSupplier = Boolean(r.supplierId || r.supplierName);
+      // Se não possui supplierId externo explícito e notas não indicam posto externo
+      const hasExtSupplier = Boolean(r.supplierId);
       const isExtNotes = (r.notes || '').toLowerCase().includes('externo');
       return !hasExtSupplier && !isExtNotes;
     });

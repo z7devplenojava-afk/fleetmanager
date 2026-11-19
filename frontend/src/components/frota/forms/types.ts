@@ -8,6 +8,7 @@ export type AggregatedPaymentType = 'DAILY' | 'MONTHLY' | 'PER_TRIP' | 'PERCENTA
 
 export interface VehicleFormData {
     placa: string;
+    fleetNumber?: string;
     chassi: string;
     renavan: string;
     marca: string;

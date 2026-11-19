@@ -26,6 +26,16 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
+import com.z7design.fleet_manager.dto.ContasAPagarCustomReportRequestDTO;
+import org.apache.poi.ss.usermodel.BorderStyle;
+import org.apache.poi.ss.usermodel.FillPatternType;
+import org.apache.poi.ss.usermodel.HorizontalAlignment;
+import org.apache.poi.ss.usermodel.IndexedColors;
+import org.apache.poi.xssf.usermodel.XSSFCellStyle;
+import org.apache.poi.xssf.usermodel.XSSFFont;
+import org.apache.poi.xssf.usermodel.XSSFRow;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 @Service
 @RequiredArgsConstructor
@@ -849,14 +859,285 @@ public class ContasAPagarReportService {
     }
     
     /**
-     * ObtÃ©m nome de exibiÃ§Ã£o do tipo
+     * Obtém nome de exibição do tipo
      */
     private String getTypeDisplayName(ExpenseType type) {
-        if (type == null) return "NÃ£o definido";
+        if (type == null) return "Não definido";
         
         return switch (type) {
             case FIXA -> "Fixa";
-            case VARIAVEL -> "VariÃ¡vel";
+            case VARIAVEL -> "Variável";
+        };
+    }
+
+    /**
+     * Filtra faturas conforme os critérios customizados do usuário
+     */
+    public List<Invoice> filterCustomInvoices(ContasAPagarCustomReportRequestDTO request) {
+        List<Invoice> all = invoiceService.findAll();
+        LocalDate now = LocalDate.now();
+
+        return all.stream().filter(inv -> {
+            // 1. Data Base
+            LocalDate baseDate = inv.getDueDate();
+            if ("EMISSAO".equalsIgnoreCase(request.getDateBase()) && inv.getIssueDate() != null) {
+                baseDate = inv.getIssueDate();
+            } else if ("PAGAMENTO".equalsIgnoreCase(request.getDateBase()) && inv.getPaymentDate() != null) {
+                baseDate = inv.getPaymentDate();
+            }
+
+            if (request.getStartDate() != null && baseDate != null && baseDate.isBefore(request.getStartDate())) {
+                return false;
+            }
+            if (request.getEndDate() != null && baseDate != null && baseDate.isAfter(request.getEndDate())) {
+                return false;
+            }
+
+            // Vencendo em breve (7, 15, 30 dias)
+            if (request.getDueSoonRange() != null && !request.getDueSoonRange().equalsIgnoreCase("ALL") && !"QUALQUER".equalsIgnoreCase(request.getDueSoonRange())) {
+                try {
+                    int days = Integer.parseInt(request.getDueSoonRange());
+                    if (inv.getDueDate() == null) return false;
+                    LocalDate limit = now.plusDays(days);
+                    if (inv.getDueDate().isBefore(now) || inv.getDueDate().isAfter(limit)) {
+                        return false;
+                    }
+                } catch (NumberFormatException ignored) {}
+            }
+
+            // 2. Filtros Corporativos
+            if (request.getCompanySigla() != null && !request.getCompanySigla().equalsIgnoreCase("TODAS") && !request.getCompanySigla().isBlank()) {
+                String sigla = inv.getCompanySigla();
+                if (sigla == null || !sigla.equalsIgnoreCase(request.getCompanySigla().trim())) {
+                    return false;
+                }
+            }
+
+            if (request.getWorkSector() != null && !request.getWorkSector().equalsIgnoreCase("TODOS") && !request.getWorkSector().isBlank()) {
+                String centro = inv.getCentroCusto();
+                if (centro == null || !centro.toLowerCase().contains(request.getWorkSector().trim().toLowerCase())) {
+                    return false;
+                }
+            }
+
+            if (request.getStatus() != null && !request.getStatus().equalsIgnoreCase("TODOS") && !request.getStatus().isBlank()) {
+                String reqStatus = request.getStatus().toUpperCase();
+                if ("VENCIDA".equals(reqStatus)) {
+                    if (inv.getStatus() != ExpenseStatus.PENDENTE || inv.getDueDate() == null || !inv.getDueDate().isBefore(now)) {
+                        return false;
+                    }
+                } else if (inv.getStatus() == null || !inv.getStatus().name().equalsIgnoreCase(reqStatus)) {
+                    return false;
+                }
+            }
+
+            if (request.getExpenseType() != null && !request.getExpenseType().equalsIgnoreCase("TODOS") && !request.getExpenseType().isBlank()) {
+                if (inv.getType() == null || !inv.getType().name().equalsIgnoreCase(request.getExpenseType().trim())) {
+                    return false;
+                }
+            }
+
+            if (request.getSupplierName() != null && !request.getSupplierName().equalsIgnoreCase("TODOS") && !request.getSupplierName().isBlank()) {
+                String sName = inv.getSupplierName();
+                if (sName == null || !sName.toLowerCase().contains(request.getSupplierName().trim().toLowerCase())) {
+                    return false;
+                }
+            }
+
+            return true;
+        }).sorted(Comparator.comparing(Invoice::getDueDate, Comparator.nullsLast(Comparator.naturalOrder())))
+          .collect(Collectors.toList());
+    }
+
+    /**
+     * Gera relatório Excel customizado com as colunas e filtros escolhidos
+     */
+    public byte[] generateCustomExcelReport(ContasAPagarCustomReportRequestDTO request) throws IOException {
+        List<Invoice> invoices = filterCustomInvoices(request);
+        List<String> selectedCols = (request.getColumns() != null && !request.getColumns().isEmpty())
+                ? request.getColumns()
+                : List.of("due_date", "description", "supplier", "value", "status");
+
+        try (XSSFWorkbook workbook = new XSSFWorkbook(); ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+            XSSFSheet sheet = workbook.createSheet("Contas a Pagar");
+
+            // Estilos
+            XSSFCellStyle headerStyle = workbook.createCellStyle();
+            XSSFFont headerFont = workbook.createFont();
+            headerFont.setBold(true);
+            headerFont.setColor(IndexedColors.WHITE.getIndex());
+            headerStyle.setFont(headerFont);
+            headerStyle.setFillForegroundColor(IndexedColors.DARK_BLUE.getIndex());
+            headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            headerStyle.setAlignment(HorizontalAlignment.CENTER);
+            headerStyle.setBorderBottom(BorderStyle.THIN);
+
+            XSSFCellStyle dataStyle = workbook.createCellStyle();
+            dataStyle.setBorderBottom(BorderStyle.THIN);
+            dataStyle.setBorderTop(BorderStyle.THIN);
+            dataStyle.setBorderLeft(BorderStyle.THIN);
+            dataStyle.setBorderRight(BorderStyle.THIN);
+
+            // Cabeçalho das colunas
+            XSSFRow headerRow = sheet.createRow(0);
+            for (int i = 0; i < selectedCols.size(); i++) {
+                String col = selectedCols.get(i);
+                headerRow.createCell(i).setCellValue(getColumnHeaderLabel(col));
+                headerRow.getCell(i).setCellStyle(headerStyle);
+            }
+
+            // Linhas de dados
+            int rowIdx = 1;
+            BigDecimal totalAmount = BigDecimal.ZERO;
+            DateTimeFormatter dtf = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
+            for (Invoice inv : invoices) {
+                XSSFRow row = sheet.createRow(rowIdx++);
+                for (int colIdx = 0; colIdx < selectedCols.size(); colIdx++) {
+                    String col = selectedCols.get(colIdx);
+                    String val = getColumnValue(inv, col, dtf);
+                    row.createCell(colIdx).setCellValue(val);
+                    row.getCell(colIdx).setCellStyle(dataStyle);
+                }
+                if (inv.getAmount() != null) {
+                    totalAmount = totalAmount.add(inv.getAmount());
+                }
+            }
+
+            // Linha de total
+            XSSFRow totalRow = sheet.createRow(rowIdx);
+            XSSFCellStyle totalStyle = workbook.createCellStyle();
+            XSSFFont totalFont = workbook.createFont();
+            totalFont.setBold(true);
+            totalStyle.setFont(totalFont);
+            totalStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
+            totalStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+
+            totalRow.createCell(0).setCellValue("TOTAL: " + invoices.size() + " contas - Total: " + formatCurrency(totalAmount));
+            totalRow.getCell(0).setCellStyle(totalStyle);
+
+            for (int i = 0; i < selectedCols.size(); i++) {
+                sheet.autoSizeColumn(i);
+            }
+
+            workbook.write(baos);
+            return baos.toByteArray();
+        }
+    }
+
+    /**
+     * Gera relatório PDF customizado com as colunas, filtros e agrupamento definidos pelo usuário
+     */
+    public byte[] generateCustomPdfReport(ContasAPagarCustomReportRequestDTO request) throws IOException {
+        List<Invoice> invoices = filterCustomInvoices(request);
+        List<String> selectedCols = (request.getColumns() != null && !request.getColumns().isEmpty())
+                ? request.getColumns()
+                : List.of("due_date", "description", "supplier", "value", "status");
+
+        java.util.UUID companyId = null;
+        List<Company> activeCompanies = companyRepository.findByStatus(CompanyStatus.ACTIVE);
+        if (activeCompanies != null && !activeCompanies.isEmpty()) {
+            companyId = activeCompanies.get(0).getId();
+        }
+
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        PdfWriter writer = new PdfWriter(baos);
+
+        ReportLayoutConfig layoutConfig = ReportLayoutConfig.builder()
+                .companyId(companyId)
+                .reportTitle("RELATÓRIO PERSONALIZADO DE CONTAS A PAGAR")
+                .topMargin(110f)
+                .bottomMargin(70f)
+                .leftMargin(30f)
+                .rightMargin(30f)
+                .build();
+
+        StandardReportLayoutService.DocumentWithPdf docWithPdf = standardReportLayoutService.createDocumentWithLayout(writer, layoutConfig);
+        Document document = docWithPdf.getDocument();
+
+        // Subtítulo e resumo dos filtros
+        String periodoText = "Período: " + (request.getStartDate() != null ? request.getStartDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) : "Início") +
+                " a " + (request.getEndDate() != null ? request.getEndDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) : "Atual");
+        
+        Paragraph info = new Paragraph(periodoText + " | Total de Registros: " + invoices.size())
+                .setFontSize(9)
+                .setMarginBottom(10);
+        document.add(info);
+
+        // Tabela com colunas dinâmicas
+        float[] columnWidths = new float[selectedCols.size()];
+        Arrays.fill(columnWidths, 1f);
+        Table table = new Table(UnitValue.createPercentArray(columnWidths)).useAllAvailableWidth();
+
+        // Header da tabela
+        for (String col : selectedCols) {
+            table.addHeaderCell(new Paragraph(getColumnHeaderLabel(col)).setBold().setFontSize(8));
+        }
+
+        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        BigDecimal totalVal = BigDecimal.ZERO;
+
+        for (Invoice inv : invoices) {
+            for (String col : selectedCols) {
+                String val = getColumnValue(inv, col, dtf);
+                table.addCell(new Paragraph(val).setFontSize(7.5f));
+            }
+            if (inv.getAmount() != null) {
+                totalVal = totalVal.add(inv.getAmount());
+            }
+        }
+
+        document.add(table);
+
+        Paragraph sumP = new Paragraph("\nTotal Geral: " + formatCurrency(totalVal) + " (" + invoices.size() + " despesas listadas)")
+                .setBold()
+                .setFontSize(10)
+                .setTextAlignment(TextAlignment.RIGHT);
+        document.add(sumP);
+
+        document.close();
+        return baos.toByteArray();
+    }
+
+    private String getColumnHeaderLabel(String col) {
+        return switch (col.toLowerCase()) {
+            case "due_date", "datadevencimento", "vencimento" -> "Vencimento";
+            case "issue_date", "datadeemissao", "emissao" -> "Emissão";
+            case "payment_date", "datadepagamento", "pagamento" -> "Pagamento";
+            case "description", "descricaodadespesa", "descricao" -> "Descrição";
+            case "supplier", "fornecedor" -> "Fornecedor";
+            case "company", "empresa", "sigla" -> "Empresa";
+            case "unit", "unidade" -> "Unidade";
+            case "work_sector", "setor", "setordetrabalho" -> "Setor / Obra";
+            case "category", "conta", "contacategoria" -> "Categoria";
+            case "cost_center", "centrodecusto" -> "Centro Custo";
+            case "type", "tipofixavariavel" -> "Tipo";
+            case "amount", "valor", "valorr$" -> "Valor (R$)";
+            case "status" -> "Status";
+            case "barcode", "codigodebarras" -> "Cód. Barras";
+            case "notes", "observacoes" -> "Observações";
+            default -> col;
+        };
+    }
+
+    private String getColumnValue(Invoice inv, String col, DateTimeFormatter dtf) {
+        return switch (col.toLowerCase()) {
+            case "due_date", "datadevencimento", "vencimento" -> inv.getDueDate() != null ? inv.getDueDate().format(dtf) : "-";
+            case "issue_date", "datadeemissao", "emissao" -> inv.getIssueDate() != null ? inv.getIssueDate().format(dtf) : "-";
+            case "payment_date", "datadepagamento", "pagamento" -> inv.getPaymentDate() != null ? inv.getPaymentDate().format(dtf) : "-";
+            case "description", "descricaodadespesa", "descricao" -> inv.getDescription() != null ? inv.getDescription() : "-";
+            case "supplier", "fornecedor" -> inv.getSupplierName() != null ? inv.getSupplierName() : "-";
+            case "company", "empresa", "sigla" -> inv.getCompanySigla() != null ? inv.getCompanySigla() : "-";
+            case "unit", "unidade" -> "Central";
+            case "work_sector", "setor", "setordetrabalho" -> inv.getCentroCusto() != null ? inv.getCentroCusto() : "-";
+            case "category", "conta", "contacategoria" -> inv.getCategory() != null ? inv.getCategory() : "-";
+            case "cost_center", "centrodecusto" -> inv.getCentroCusto() != null ? inv.getCentroCusto() : "-";
+            case "type", "tipofixavariavel" -> getTypeDisplayName(inv.getType());
+            case "amount", "valor", "valorr$" -> formatCurrency(inv.getAmount());
+            case "status" -> getStatusDisplayName(inv.getStatus());
+            case "barcode", "codigodebarras" -> inv.getBarcode() != null ? inv.getBarcode() : (inv.getLinhaDigitavel() != null ? inv.getLinhaDigitavel() : "-");
+            case "notes", "observacoes" -> inv.getNotes() != null ? inv.getNotes() : "-";
+            default -> "-";
         };
     }
 }

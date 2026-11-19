@@ -7,6 +7,7 @@ import { Users, MapPin, FileText, Phone, Mail, Building2, CheckCircle2 } from 'l
 import { clientService, Client } from '@/services/clientService';
 import { contractService, Contract } from '@/services/contractService';
 import { workPostService, WorkPost } from '@/services/workPostService';
+import { SearchableSelect, SearchableOption } from '@/components/frota/SearchableSelect';
 import { useQuery } from '@tanstack/react-query';
 
 export const VehicleClientSection: React.FC<VehicleFormSectionProps> = ({ formData, handleInputChange }) => {
@@ -54,7 +55,7 @@ export const VehicleClientSection: React.FC<VehicleFormSectionProps> = ({ formDa
         return matching.length > 0 ? matching : workPosts;
     }, [workPosts, currentClientId]);
 
-    const handleClientChange = (selectedId: string) => {
+    const handleClientChange = async (selectedId: string) => {
         const client = clients?.find(c => c.id === selectedId);
         const name = client?.name || '';
         handleInputChange('clientId', selectedId);
@@ -62,23 +63,52 @@ export const VehicleClientSection: React.FC<VehicleFormSectionProps> = ({ formDa
         handleInputChange('empresaId', selectedId);
         handleInputChange('empresa', name);
 
+        // Preencher Posto de Trabalho / Obra Cadastrada e Obra / Setor de Trabalho Alocado
         if (workPosts && workPosts.length > 0) {
             const clientPosts = workPosts.filter((w: any) => w.clientId === selectedId);
             if (clientPosts.length > 0) {
                 handleInputChange('postoDeTrabalho', clientPosts[0].id);
                 handleInputChange('obraSetorNome', clientPosts[0].name || '');
+            } else {
+                handleInputChange('postoDeTrabalho', '');
+                handleInputChange('obraSetorNome', '');
             }
         }
 
-        // Se encontrar contratos, sugere o primeiro ou ativo
-        const clientContracts = contracts?.filter(c => c.clientId === selectedId);
-        if (clientContracts && clientContracts.length > 0) {
-            const activeContract = clientContracts.find(c => c.status === 'ACTIVE') || clientContracts[0];
-            if (activeContract) {
-                handleContractSelect(activeContract);
+        // Buscar contratos atualizados diretamente para o cliente selecionado
+        try {
+            const clientContracts = await contractService.getContractsByClient(selectedId).catch(async () => {
+                return await contractService.getContracts({ clientId: selectedId }).catch(() => []);
+            });
+
+            if (clientContracts && clientContracts.length > 0) {
+                const activeContract = clientContracts.find(c => c.status === 'ACTIVE') || clientContracts[0];
+                if (activeContract) {
+                    handleContractSelect(activeContract);
+                }
+            } else {
+                handleInputChange('allocationContractNumber', '');
+                handleInputChange('allocationStartDate', '');
+                handleInputChange('allocationEndDate', '');
             }
+        } catch (e) {
+            console.error('Erro ao buscar contratos do cliente:', e);
         }
     };
+
+    const clientOptions: SearchableOption[] = React.useMemo(() => {
+        if (!clients || clients.length === 0) return [];
+        return clients.map(c => {
+            const doc = c.cnpj ? `CNPJ: ${c.cnpj}` : '';
+            return {
+                value: c.id,
+                label: c.name,
+                description: [doc, c.city, c.state].filter(Boolean).join(' • '),
+                badge: c.cnpj ? 'Pessoa Jurídica' : 'Cliente',
+                keywords: [c.name, c.tradeName || '', c.cnpj || '', c.city || '', c.state || ''].filter(Boolean)
+            };
+        });
+    }, [clients]);
 
     const handleContractSelect = (contract: Contract) => {
         if (!contract) return;
@@ -114,27 +144,20 @@ export const VehicleClientSection: React.FC<VehicleFormSectionProps> = ({ formDa
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {/* Seleção do Cliente */}
+                    {/* Seleção do Cliente com pesquisa a partir de 3 caracteres */}
                     <div className="space-y-2 sm:col-span-2 lg:col-span-1">
                         <Label htmlFor="clientSelect" className="text-gray-300 font-medium">
                             Selecionar Cliente Cadastrado
                         </Label>
-                        <Select
+                        <SearchableSelect
+                            options={clientOptions}
                             value={currentClientId || ''}
-                            onValueChange={handleClientChange}
-                            disabled={clientsLoading}
-                        >
-                            <SelectTrigger className="bg-gray-900/50 border-gray-600 text-white focus:border-indigo-500 focus:ring-indigo-500/20 transition-all duration-200">
-                                <SelectValue placeholder={formData.clientName || "Selecione um cliente..."} />
-                            </SelectTrigger>
-                            <SelectContent className="bg-gray-900 border-gray-600 z-[10060]">
-                                {clients?.map((client: Client) => (
-                                    <SelectItem key={client.id} value={client.id} className="text-white hover:bg-gray-700">
-                                        {client.name} {client.cnpj ? `(${client.cnpj})` : ''}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                            onChange={handleClientChange}
+                            placeholder={clientsLoading ? "Carregando clientes..." : "Selecione ou busque um cliente..."}
+                            searchPlaceholder="Digite ao menos 3 caracteres para buscar..."
+                            emptyMessage="Nenhum cliente cadastrado com esse termo"
+                            className="bg-gray-900 border-gray-600 text-white"
+                        />
                     </div>
 
                     {/* Nome do Cliente (Edição direta se necessário) */}

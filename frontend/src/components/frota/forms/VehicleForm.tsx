@@ -33,6 +33,7 @@ interface VehicleFormProps {
 
 const DEFAULT_FORM_DATA: VehicleFormData = {
     placa: '',
+    fleetNumber: '',
     chassi: '',
     renavan: '',
     marca: '',
@@ -171,6 +172,10 @@ export const VehicleForm: React.FC<VehicleFormProps> = ({
                 if (!next.placa && parsed.plate) {
                     next.placa = parsed.plate;
                     updatedFields.push('Placa');
+                }
+                if ((!next.fleetNumber || next.fleetNumber.trim() === '') && (parsed as any).fleetNumber) {
+                    next.fleetNumber = (parsed as any).fleetNumber;
+                    updatedFields.push('Frota');
                 }
                 if ((!next.chassi || next.chassi.trim() === '') && parsed.chassisNumber) {
                     next.chassi = parsed.chassisNumber;

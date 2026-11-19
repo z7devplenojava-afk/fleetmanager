@@ -18,6 +18,10 @@ import {
   Gauge,
   QrCode,
   Pencil,
+  Wrench,
+  Car,
+  ShieldAlert,
+  Sparkles,
 } from 'lucide-react';
 import { CameraCapture } from '@/components/frota/CameraCapture';
 import { QRCodeScanner } from '@/components/frota/QRCodeScanner';
@@ -222,6 +226,46 @@ const GestaoChecklistCliente: React.FC = () => {
     setIsQRScannerOpen(false);
   };
 
+  const PRESET_PREVENTIVA_ITEMS = [
+    'Pintura e Carroceria',
+    'Rodas e Porcas',
+    'Limpeza Externa',
+    'Limpeza Interna',
+    'Pneus (Calibragem e Desgaste)',
+    'Iluminação Interna',
+    'Iluminação Externa (Faróis, Lanternas, Setas)',
+    'Sirene de Ré e Alarme Sonoro',
+    'Buzina',
+    'Limpadores e Lavadores de Para-brisa',
+    'Painel de Instrumentos e Luzes de Advertência',
+    'Bateria e Bornes',
+    'Alternador (Tensão de Carga)',
+    'Motor de Partida (Arranque)',
+    'Óleo de Motor e Filtros',
+    'Óleo de Caixa e Diferencial',
+    'Fluido de Freio',
+    'Óleo Hidráulico',
+    'Vazamentos em Geral',
+    'Filtro de Combustível / Separador de Água',
+    'Vazamento de Ar Comprimido',
+    'Teste de Cuícas e Servos',
+    'Estado das Válvulas Pneumáticas',
+    'Compressor de Ar',
+    'Filtro Secador de Ar (APU)',
+    'Embuchamento de Molas DIANT / TRAS',
+    'Buchas Estabilizadoras DIANT / TRAS',
+    'Manga de Eixo e Terminais',
+    'Ponteiras de Direção',
+    'Lonas e Pastilhas de Freio DIANT / TRAS',
+    'Catracas de Freio',
+    'Cardans e Cruzetas',
+    'Setor e Caixa de Direção',
+    'Suporte do Tanque',
+    'Correia do Motor',
+    'Alinhamento e Balanceamento',
+    'Filtro de Ar do Motor'
+  ];
+
   const handleOpenTemplateForm = (template?: ClientChecklistTemplate) => {
     if (template) {
       setEditingTemplateId(template.id);
@@ -241,7 +285,11 @@ const GestaoChecklistCliente: React.FC = () => {
         clientId: formData.clientId || '',
         name: '',
         revision: '',
-        items: [],
+        items: PRESET_PREVENTIVA_ITEMS.map((title, idx) => ({
+          title,
+          orderIndex: idx,
+          required: true,
+        })),
       });
     }
     setIsTemplateFormOpen(true);
@@ -321,6 +369,27 @@ const GestaoChecklistCliente: React.FC = () => {
       ...prev,
       items: [...prev.items, { title: '', orderIndex: prev.items.length, required: false }],
     }));
+  };
+
+  const addPresetItems = (titles: string[]) => {
+    setTemplateForm((prev) => {
+      const existing = new Set(prev.items.map((i) => i.title.trim().toLowerCase()));
+      const newItems = titles
+        .filter((t) => !existing.has(t.trim().toLowerCase()))
+        .map((t, idx) => ({
+          title: t,
+          orderIndex: prev.items.length + idx,
+          required: true,
+        }));
+      return {
+        ...prev,
+        items: [...prev.items, ...newItems],
+      };
+    });
+    toast({
+      title: 'Itens adicionados',
+      description: `${titles.length} itens do pacote incorporados ao modelo.`,
+    });
   };
 
   const removeTemplateItem = (idx: number) => {
@@ -872,9 +941,78 @@ const GestaoChecklistCliente: React.FC = () => {
                 />
               </div>
             </div>
+            {/* Adicionar pacotes prontos */}
+            <div className="p-3 bg-seguranca-black/70 rounded-lg border border-gray-700 space-y-2">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-300">
+                <Sparkles className="h-3.5 w-3.5 text-seguranca-yellow" />
+                <span>Importar Itens Padronizados do Sistema:</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => addPresetItems(PRESET_PREVENTIVA_ITEMS)}
+                  className="text-xs bg-emerald-950/40 border-emerald-800/60 text-emerald-300 hover:bg-emerald-900/60 flex items-center gap-1"
+                >
+                  <Wrench className="h-3 w-3" /> + Todos da Preventiva
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => addPresetItems([
+                    'CNH do Condutor',
+                    'CRLV e Documentação do Veículo',
+                    'Calibragem e Desgaste dos Pneus',
+                    'Estepe',
+                    'Nível de Óleo do Motor',
+                    'Nível de Água / Arrefecimento',
+                    'Nível de Combustível',
+                    'Funcionamento dos Freios',
+                    'Faróis e Lanternas',
+                    'Limpadores de Para-brisa',
+                    'Cinto de Segurança',
+                    'Espelhos Retrovisores'
+                  ])}
+                  className="text-xs bg-blue-950/40 border-blue-800/60 text-blue-300 hover:bg-blue-900/60 flex items-center gap-1"
+                >
+                  <Car className="h-3 w-3" /> + Checklist do Veículo
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => addPresetItems([
+                    '[Avaria] Pintura e Arranhões',
+                    '[Avaria] Lataria e Amassados',
+                    '[Avaria] Trincas e Quebras em Vidros / Para-brisa',
+                    '[Avaria] Retrovisores e Lanternas Quebrados',
+                    '[Avaria] Cortes e Danos em Pneus',
+                    '[Avaria] Avarias Internas (Estofados, Bancos, Painel)'
+                  ])}
+                  className="text-xs bg-amber-950/40 border-amber-800/60 text-amber-300 hover:bg-amber-900/60 flex items-center gap-1"
+                >
+                  <ShieldAlert className="h-3 w-3" /> + Checklist de Avarias
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setTemplateForm((prev) => ({ ...prev, items: [] }))}
+                  className="text-xs bg-red-950/30 border-red-800/50 text-red-400 hover:bg-red-900/50 flex items-center gap-1 ml-auto"
+                >
+                  <Trash2 className="h-3 w-3" /> Limpar Lista
+                </Button>
+              </div>
+            </div>
+
             <div>
               <div className="flex items-center justify-between mb-2">
-                <Label>Itens do checklist</Label>
+                <Label>Itens do checklist ({templateForm.items.length})</Label>
                 <Button type="button" variant="outline" size="sm" onClick={addTemplateItem} className="border-gray-600">
                   <Plus className="h-4 w-4 mr-2" /> Adicionar item
                 </Button>

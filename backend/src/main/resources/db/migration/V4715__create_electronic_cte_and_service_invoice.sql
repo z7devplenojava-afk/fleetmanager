@@ -1,0 +1,115 @@
+CREATE TABLE IF NOT EXISTS electronic_ctes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id UUID NOT NULL,
+    fiscal_document_id UUID,
+    number VARCHAR(20) NOT NULL,
+    series VARCHAR(10) NOT NULL,
+    access_key VARCHAR(44) NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    emission_date TIMESTAMP NOT NULL,
+    cfop VARCHAR(4) NOT NULL,
+    nature_operation VARCHAR(120) NOT NULL,
+    service_taker VARCHAR(20) NOT NULL,
+    issuer_name VARCHAR(200) NOT NULL,
+    issuer_tax_id VARCHAR(20) NOT NULL,
+    issuer_address VARCHAR(255),
+    issuer_city VARCHAR(120),
+    issuer_state VARCHAR(2),
+    issuer_zip VARCHAR(12),
+    issuer_phone VARCHAR(30),
+    issuer_email VARCHAR(120),
+    issuer_state_registration VARCHAR(20),
+    sender_name VARCHAR(200) NOT NULL,
+    sender_tax_id VARCHAR(20) NOT NULL,
+    sender_address VARCHAR(255),
+    sender_city VARCHAR(120),
+    sender_state VARCHAR(2),
+    sender_zip VARCHAR(12),
+    sender_state_registration VARCHAR(20),
+    recipient_name VARCHAR(200) NOT NULL,
+    recipient_tax_id VARCHAR(20) NOT NULL,
+    recipient_address VARCHAR(255),
+    recipient_city VARCHAR(120),
+    recipient_state VARCHAR(2),
+    recipient_zip VARCHAR(12),
+    recipient_state_registration VARCHAR(20),
+    origin_city VARCHAR(120) NOT NULL,
+    origin_state VARCHAR(2) NOT NULL,
+    destination_city VARCHAR(120) NOT NULL,
+    destination_state VARCHAR(2) NOT NULL,
+    vehicle_plate VARCHAR(10),
+    rntrc VARCHAR(20),
+    cargo_description VARCHAR(255) NOT NULL,
+    cargo_weight NUMERIC(15, 3) NOT NULL,
+    cargo_value NUMERIC(15, 2) NOT NULL,
+    freight_value NUMERIC(15, 2) NOT NULL,
+    icms_base NUMERIC(15, 2) NOT NULL,
+    icms_rate NUMERIC(7, 4) NOT NULL,
+    icms_value NUMERIC(15, 2) NOT NULL,
+    notes TEXT,
+    client_id UUID,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_electronic_ctes_access_key ON electronic_ctes(access_key);
+CREATE UNIQUE INDEX IF NOT EXISTS uk_electronic_ctes_number ON electronic_ctes(company_id, series, number);
+CREATE INDEX IF NOT EXISTS idx_electronic_ctes_company ON electronic_ctes(company_id);
+CREATE INDEX IF NOT EXISTS idx_electronic_ctes_fiscal_document ON electronic_ctes(fiscal_document_id);
+
+CREATE TABLE IF NOT EXISTS service_invoices (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id UUID NOT NULL,
+    fiscal_document_id UUID,
+    number VARCHAR(20) NOT NULL,
+    series VARCHAR(10) NOT NULL,
+    verification_code VARCHAR(20) NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    emission_date TIMESTAMP NOT NULL,
+    competence VARCHAR(7) NOT NULL,
+    client_id UUID,
+    issuer_name VARCHAR(200) NOT NULL,
+    issuer_tax_id VARCHAR(20) NOT NULL,
+    issuer_address VARCHAR(255),
+    issuer_city VARCHAR(120),
+    issuer_state VARCHAR(2),
+    issuer_zip VARCHAR(12),
+    issuer_phone VARCHAR(30),
+    issuer_email VARCHAR(120),
+    issuer_municipal_registration VARCHAR(30),
+    taker_name VARCHAR(200) NOT NULL,
+    taker_tax_id VARCHAR(20),
+    taker_address VARCHAR(255),
+    taker_city VARCHAR(120),
+    taker_state VARCHAR(2),
+    taker_zip VARCHAR(12),
+    taker_email VARCHAR(120),
+    service_code VARCHAR(20) NOT NULL,
+    service_description VARCHAR(255) NOT NULL,
+    discrimination TEXT,
+    gross_amount NUMERIC(15, 2) NOT NULL,
+    deduction_amount NUMERIC(15, 2) NOT NULL,
+    iss_rate NUMERIC(7, 4) NOT NULL,
+    iss_amount NUMERIC(15, 2) NOT NULL,
+    iss_withheld BOOLEAN NOT NULL DEFAULT FALSE,
+    net_amount NUMERIC(15, 2) NOT NULL,
+    due_date DATE,
+    notes TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_service_invoices_company ON service_invoices(company_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uk_service_invoices_number ON service_invoices(company_id, series, number);
+CREATE INDEX IF NOT EXISTS idx_service_invoices_fiscal_document ON service_invoices(fiscal_document_id);
+
+CREATE TABLE IF NOT EXISTS service_invoice_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    invoice_id UUID NOT NULL REFERENCES service_invoices(id) ON DELETE CASCADE,
+    description VARCHAR(500) NOT NULL,
+    quantity NUMERIC(15, 4) NOT NULL,
+    unit_value NUMERIC(15, 2) NOT NULL,
+    total_value NUMERIC(15, 2) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_service_invoice_items_invoice ON service_invoice_items(invoice_id);

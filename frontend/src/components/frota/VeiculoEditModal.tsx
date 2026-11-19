@@ -78,6 +78,7 @@ const VeiculoEditModal: React.FC<VeiculoEditModalProps> = ({
     return {
       vehicleId: v.id || '',
       placa: v.plate || v.placa || '',
+      fleetNumber: v.fleetNumber || v.prefixo || '',
       chassi: v.chassisNumber || v.chassi || '',
       renavan: v.renavan || '',
       marca: v.brand || v.marca || '',
@@ -218,6 +219,7 @@ const VeiculoEditModal: React.FC<VeiculoEditModalProps> = ({
     try {
       const vehicleData: Record<string, any> = {
         plate: formData.placa.toUpperCase(),
+        fleetNumber: formData.fleetNumber?.trim() || undefined,
         brand: formData.marca,
         model: formData.modelo,
         year: Number(formData.ano),

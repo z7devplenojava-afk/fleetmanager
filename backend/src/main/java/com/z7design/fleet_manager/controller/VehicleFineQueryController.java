@@ -32,7 +32,7 @@ public class VehicleFineQueryController {
     private final VehicleQueryCacheRepository cacheRepository;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'GESTOR_FROTA', 'OPERACIONAL', 'USER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'COMPANY_ADMIN', 'FLEX_ADMIN', 'GESTOR_FROTA', 'OPERACIONAL', 'USER') or hasAnyAuthority('ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'ROLE_GESTOR_FROTA', 'ROLE_OPERACIONAL', 'ROLE_USER', 'COMPANY_ADMIN', 'SUPER_ADMIN', 'ADMIN')")
     @Operation(summary = "Realiza consulta de multas e débitos veiculares integrando com provedores e cruzamento com Parte Diária")
     public ResponseEntity<VehicleFineQueryResponseDTO> queryVehicleFines(
             @Valid @RequestBody VehicleFineQueryRequestDTO request,
@@ -44,7 +44,7 @@ public class VehicleFineQueryController {
     }
 
     @PostMapping("/importar")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'GESTOR_FROTA')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'COMPANY_ADMIN', 'FLEX_ADMIN', 'GESTOR_FROTA') or hasAnyAuthority('ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'ROLE_GESTOR_FROTA', 'COMPANY_ADMIN', 'SUPER_ADMIN', 'ADMIN')")
     @Operation(summary = "Importa manualmente infrações selecionadas para o módulo de multas do sistema")
     public ResponseEntity<Map<String, Object>> importFines(
             @RequestParam("placa") String placa,
@@ -59,7 +59,7 @@ public class VehicleFineQueryController {
     }
 
     @PostMapping("/extrato-pdf")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'GESTOR_FROTA', 'OPERACIONAL', 'USER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'COMPANY_ADMIN', 'FLEX_ADMIN', 'GESTOR_FROTA', 'OPERACIONAL', 'USER') or hasAnyAuthority('ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'ROLE_GESTOR_FROTA', 'ROLE_OPERACIONAL', 'ROLE_USER', 'COMPANY_ADMIN', 'SUPER_ADMIN', 'ADMIN')")
     @Operation(summary = "Gera extrato oficial em PDF das multas e restrições consultadas com identificação de condutor")
     public ResponseEntity<byte[]> generateExtratoPdf(@RequestBody VehicleFineQueryResponseDTO data) {
         byte[] pdfBytes = vehicleFineQueryService.generateExtratoPdf(data);
@@ -73,7 +73,7 @@ public class VehicleFineQueryController {
     }
 
     @GetMapping("/historico/{placa}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'GESTOR_FROTA', 'OPERACIONAL', 'USER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'COMPANY_ADMIN', 'FLEX_ADMIN', 'GESTOR_FROTA', 'OPERACIONAL', 'USER') or hasAnyAuthority('ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'ROLE_GESTOR_FROTA', 'ROLE_OPERACIONAL', 'ROLE_USER', 'COMPANY_ADMIN', 'SUPER_ADMIN', 'ADMIN')")
     @Operation(summary = "Lista o histórico de consultas de um veículo por placa")
     public ResponseEntity<List<VehicleQueryCache>> getHistoryByPlate(@PathVariable("placa") String placa) {
         String cleanPlate = placa.replaceAll("[^a-zA-Z0-9]", "").toUpperCase();

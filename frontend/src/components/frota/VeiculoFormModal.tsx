@@ -65,6 +65,7 @@ const VeiculoFormModal: React.FC<VeiculoFormModalProps> = ({ isOpen, onClose, on
       // Mapear dados do formulário para o formato da API
       const vehicleData: Record<string, any> = {
         plate: formData.placa.toUpperCase(),
+        fleetNumber: formData.fleetNumber?.trim() || undefined,
         brand: formData.marca,
         model: formData.modelo,
         year: Number(formData.ano),

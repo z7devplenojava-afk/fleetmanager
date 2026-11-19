@@ -76,6 +76,18 @@ public class FleetWorkOrderPdfService {
     private static final DateTimeFormatter DATETIME_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
     private static final NumberFormat CURRENCY = NumberFormat.getCurrencyInstance(new Locale("pt", "BR"));
 
+    // Caches de alta performance em memória para geração quase instantânea de PDF
+    private static final String PDF_CACHE_VERSION = "v4_matching_model_atual";
+    private static final Map<String, byte[]> PDF_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Map<String, String> LOGO_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Map<String, String> PHOTO_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
+
+    public static void clearCaches() {
+        PDF_CACHE.clear();
+        LOGO_CACHE.clear();
+        PHOTO_CACHE.clear();
+    }
+
     /**
      * Gera o PDF da Ordem de Serviço de Frota usando o template Thymeleaf
      * fleet-work-order.html e o Flying Saucer (ITextRenderer).
@@ -127,6 +139,15 @@ public class FleetWorkOrderPdfService {
                         : "MODELO_1");
 
         boolean isResumido = "MODELO_RESUMIDO".equals(activeModel) || "MODELO_2".equals(activeModel) || "RESUMIDO".equals(activeModel);
+
+        String cacheKey = PDF_CACHE_VERSION + ":" + workOrderId + ":" + blankChecklist + ":" + activeModel + ":"
+                + (order.getUpdatedAt() != null ? order.getUpdatedAt().toString() : "0");
+        byte[] cachedPdf = PDF_CACHE.get(cacheKey);
+        if (cachedPdf != null && cachedPdf.length > 0) {
+            log.info("PDF da OS {} retornado instantaneamente do cache em memória ({} bytes)", order.getOsNumber(), cachedPdf.length);
+            return cachedPdf;
+        }
+
         Map<String, Object> data = buildDataMap(order, blankChecklist, activeModel);
         String templateName = isResumido ? "fleet-work-order-model2" : "fleet-work-order";
 
@@ -141,6 +162,12 @@ public class FleetWorkOrderPdfService {
                 renderer.layout();
                 renderer.createPDF(outputStream);
                 byte[] pdfBytes = outputStream.toByteArray();
+
+                if (PDF_CACHE.size() > 250) {
+                    PDF_CACHE.clear();
+                }
+                PDF_CACHE.put(cacheKey, pdfBytes);
+
                 log.info("PDF da OS {} gerado com sucesso: {} bytes", order.getOsNumber(), pdfBytes.length);
                 return pdfBytes;
             }
@@ -632,44 +659,50 @@ public class FleetWorkOrderPdfService {
         // Observações
         data.put("observacoes", order.getNotes());
 
-        // Evidências Fotográficas / Fotos
+        // Evidências Fotográficas / Fotos (Bypassa totalmente se for Modelo Resumido ou checklist em branco)
         List<String> processedPhotos = new ArrayList<>();
-        try {
-            Set<String> rawPhotoCandidates = new LinkedHashSet<>();
-            if (order.getPhotoAttachments() != null) {
-                for (String p : order.getPhotoAttachments()) {
-                    if (p != null && !p.isBlank()) {
-                        rawPhotoCandidates.add(p.trim());
+        if (!isResumidoActive && !blankChecklist) {
+            try {
+                Set<String> rawPhotoCandidates = new LinkedHashSet<>();
+                if (order.getPhotoAttachments() != null) {
+                    for (String p : order.getPhotoAttachments()) {
+                        if (p != null && !p.isBlank()) {
+                            rawPhotoCandidates.add(p.trim());
+                        }
                     }
                 }
-            }
 
-            // Se a OS não tiver fotos próprias (ex: criada via Checklist Diário do
-            // Motorista ou Laudo),
-            // busca automaticamente as evidências vinculadas ao veículo/checklist/inspeção
-            if (rawPhotoCandidates.isEmpty()) {
-                rawPhotoCandidates.addAll(collectFallbackEvidenceUrls(order));
-            }
-
-            for (String photo : rawPhotoCandidates) {
-                String uri = processPhotoAsDataUri(photo);
-                if (uri != null && !uri.isBlank()) {
-                    processedPhotos.add(uri);
+                // Se a OS não tiver fotos próprias (ex: criada via Checklist Diário do Motorista ou Laudo),
+                // busca automaticamente as evidências vinculadas ao veículo/checklist/inspeção
+                if (rawPhotoCandidates.isEmpty()) {
+                    rawPhotoCandidates.addAll(collectFallbackEvidenceUrls(order));
                 }
-            }
 
-            // Se as URLs primárias da OS falharem na leitura em disco, tenta também o
-            // fallback do checklist/inspeção
-            if (processedPhotos.isEmpty()) {
-                for (String fallbackPhoto : collectFallbackEvidenceUrls(order)) {
-                    String uri = processPhotoAsDataUri(fallbackPhoto);
+                for (String photo : rawPhotoCandidates) {
+                    String uri = processPhotoAsDataUri(photo);
                     if (uri != null && !uri.isBlank()) {
                         processedPhotos.add(uri);
+                        if (processedPhotos.size() >= 8) {
+                            break;
+                        }
                     }
                 }
+
+                // Se as URLs primárias da OS falharem na leitura em disco, tenta também o fallback do checklist/inspeção
+                if (processedPhotos.isEmpty()) {
+                    for (String fallbackPhoto : collectFallbackEvidenceUrls(order)) {
+                        String uri = processPhotoAsDataUri(fallbackPhoto);
+                        if (uri != null && !uri.isBlank()) {
+                            processedPhotos.add(uri);
+                            if (processedPhotos.size() >= 8) {
+                                break;
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Aviso ao processar fotos da OS {}: {}", order.getId(), e.getMessage());
             }
-        } catch (Exception e) {
-            log.warn("Aviso ao processar fotos da OS {}: {}", order.getId(), e.getMessage());
         }
         boolean hasPhotos = !processedPhotos.isEmpty();
         data.put("hasPhotos", hasPhotos);
@@ -785,6 +818,11 @@ public class FleetWorkOrderPdfService {
             return null;
         }
         String cleanUrl = logoUrl.trim();
+        String cached = LOGO_CACHE.get(cleanUrl);
+        if (cached != null) {
+            return cached;
+        }
+
         try {
             if (cleanUrl.startsWith("data:image/")) {
                 int commaIdx = cleanUrl.indexOf(',');
@@ -793,36 +831,51 @@ public class FleetWorkOrderPdfService {
                             .decode(cleanUrl.substring(commaIdx + 1).replaceAll("\\s+", ""));
                     String normalized = flattenLogoOntoWhite(rawDataBytes);
                     if (normalized != null) {
+                        LOGO_CACHE.put(cleanUrl, normalized);
                         return normalized;
                     }
                 }
-                return processPhotoAsDataUri(cleanUrl);
+                String res = processPhotoAsDataUri(cleanUrl);
+                if (res != null) {
+                    LOGO_CACHE.put(cleanUrl, res);
+                }
+                return res;
             }
 
             byte[] bytes = null;
-            if (cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")) {
+
+            // 1. Tenta PRIMEIRO o disco local (instantâneo, sem I/O de rede)
+            Path logoPath = resolveLogoPath(cleanUrl);
+            if (logoPath != null && Files.exists(logoPath) && Files.isRegularFile(logoPath)) {
                 try {
-                    bytes = new URL(cleanUrl).openStream().readAllBytes();
-                } catch (Exception netEx) {
-                    log.debug("Falha ao baixar logo por URL ({}), tentando disco/banco: {}", cleanUrl,
-                            netEx.getMessage());
-                }
-            }
-
-            if (bytes == null || bytes.length == 0) {
-                Path logoPath = resolveLogoPath(cleanUrl);
-                if (logoPath != null && Files.exists(logoPath) && Files.isRegularFile(logoPath)) {
                     bytes = Files.readAllBytes(logoPath);
-                }
+                } catch (Exception ignored) {}
             }
 
+            // 2. Tenta o banco de dados via StoredUploadService (instantâneo)
             if (bytes == null || bytes.length == 0) {
                 String filenameOnly = extractFilenameFromUrl(cleanUrl);
                 if (filenameOnly != null && storedUploadService != null) {
-                    var dbLogo = storedUploadService.find("companies/logos", filenameOnly);
-                    if (dbLogo.isPresent() && dbLogo.get().getData() != null && dbLogo.get().getData().length > 0) {
-                        bytes = dbLogo.get().getData();
+                    try {
+                        var dbLogo = storedUploadService.find("companies/logos", filenameOnly);
+                        if (dbLogo.isPresent() && dbLogo.get().getData() != null && dbLogo.get().getData().length > 0) {
+                            bytes = dbLogo.get().getData();
+                        }
+                    } catch (Exception ignored) {}
+                }
+            }
+
+            // 3. Fallback de rede com TIMEOUT RÍGIDO (1500ms conectar, 2000ms leitura)
+            if ((bytes == null || bytes.length == 0) && (cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://"))) {
+                try {
+                    java.net.URLConnection conn = new URL(cleanUrl).openConnection();
+                    conn.setConnectTimeout(1500);
+                    conn.setReadTimeout(2000);
+                    try (java.io.InputStream in = conn.getInputStream()) {
+                        bytes = in.readAllBytes();
                     }
+                } catch (Exception netEx) {
+                    log.debug("Falha ao baixar logo por URL ({}) com timeout: {}", cleanUrl, netEx.getMessage());
                 }
             }
 
@@ -840,6 +893,7 @@ public class FleetWorkOrderPdfService {
             // para evitar que transparência de PNG/WEBP seja renderizada em preto pelo Flying Saucer/iText
             String normalized = flattenLogoOntoWhite(bytes);
             if (normalized != null) {
+                LOGO_CACHE.put(cleanUrl, normalized);
                 return normalized;
             }
 
@@ -849,7 +903,9 @@ public class FleetWorkOrderPdfService {
             } else if (lower.endsWith(".gif")) {
                 mime = "image/gif";
             }
-            return "data:" + mime + ";base64," + Base64.getEncoder().encodeToString(bytes);
+            String result = "data:" + mime + ";base64," + Base64.getEncoder().encodeToString(bytes);
+            LOGO_CACHE.put(cleanUrl, result);
+            return result;
         } catch (Exception e) {
             log.warn("Erro ao carregar logo da empresa ({}): {}", logoUrl, e.getMessage());
             return null;
@@ -857,7 +913,8 @@ public class FleetWorkOrderPdfService {
     }
 
     /**
-     * Normaliza a logomarca para PNG RGB sobre fundo branco puro.
+     * Normaliza a logomarca para PNG RGB sobre fundo branco puro e redimensiona
+     * proporcionalmente para dimensões de cabeçalho seguras (max 200x50 px).
      * Se as bordas tiverem fundo preto sólido opaco, remove-o por flood-fill
      * conectado às extremidades preservando o conteúdo colorido interno.
      */
@@ -877,11 +934,25 @@ public class FleetWorkOrderPdfService {
 
             removeOuterBlackBackground(argb);
 
-            BufferedImage whiteRgb = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
+            // Redimensiona proporcionalmente para cabeçalho de alta nitidez sem estourar no Flying Saucer
+            int maxLogoW = 200;
+            int maxLogoH = 50;
+            int targetW = w;
+            int targetH = h;
+            if (w > maxLogoW || h > maxLogoH) {
+                double scale = Math.min((double) maxLogoW / w, (double) maxLogoH / h);
+                targetW = Math.max(1, (int) Math.round(w * scale));
+                targetH = Math.max(1, (int) Math.round(h * scale));
+            }
+
+            BufferedImage whiteRgb = new BufferedImage(targetW, targetH, BufferedImage.TYPE_INT_RGB);
             Graphics2D gWhite = whiteRgb.createGraphics();
+            gWhite.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, java.awt.RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            gWhite.setRenderingHint(java.awt.RenderingHints.KEY_RENDERING, java.awt.RenderingHints.VALUE_RENDER_QUALITY);
+            gWhite.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
             gWhite.setColor(Color.WHITE);
-            gWhite.fillRect(0, 0, w, h);
-            gWhite.drawImage(argb, 0, 0, null);
+            gWhite.fillRect(0, 0, targetW, targetH);
+            gWhite.drawImage(argb, 0, 0, targetW, targetH, null);
             gWhite.dispose();
 
             ByteArrayOutputStream pngOut = new ByteArrayOutputStream();
@@ -1126,6 +1197,11 @@ public class FleetWorkOrderPdfService {
             return null;
         }
         String trimmed = photoUrl.trim();
+        String cached = PHOTO_CACHE.get(trimmed);
+        if (cached != null) {
+            return cached;
+        }
+
         try {
             byte[] bytes = null;
             String mime = "image/jpeg";
@@ -1135,42 +1211,49 @@ public class FleetWorkOrderPdfService {
                 if (commaIdx > 0) {
                     String header = trimmed.substring(0, commaIdx).toLowerCase();
                     String base64Part = trimmed.substring(commaIdx + 1).replaceAll("\\s+", "");
-                    // Se já for JPEG ou PNG válido e não WebP, podemos normalizar ou retornar
-                    // direto
+                    // Se já for JPEG ou PNG válido e não WebP, podemos normalizar ou retornar direto
                     if (!header.contains("webp")) {
+                        PHOTO_CACHE.put(trimmed, trimmed);
                         return trimmed;
                     }
                     bytes = Base64.getDecoder().decode(base64Part);
                 } else {
                     return trimmed;
                 }
-            } else if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-                try {
-                    bytes = new URL(trimmed).openStream().readAllBytes();
-                } catch (Exception netEx) {
-                    Path localFallback = resolvePhotoPath(trimmed);
-                    if (localFallback != null && Files.exists(localFallback)) {
-                        bytes = Files.readAllBytes(localFallback);
-                    }
-                }
-                if ((bytes == null || bytes.length == 0) && storedUploadService != null) {
-                    String fn = extractFilenameFromUrl(trimmed);
-                    var dbPhoto = storedUploadService.find("maintenance", fn);
-                    if (dbPhoto.isPresent()) {
-                        bytes = dbPhoto.get().getData();
-                    }
-                }
             } else {
+                // 1. Tenta PRIMEIRO o disco local (instantâneo, sem I/O de rede)
                 Path photoPath = resolvePhotoPath(trimmed);
                 if (photoPath != null && Files.exists(photoPath)) {
-                    bytes = Files.readAllBytes(photoPath);
-                } else if (storedUploadService != null) {
-                    String fn = extractFilenameFromUrl(trimmed);
-                    var dbPhoto = storedUploadService.find("maintenance", fn);
-                    if (dbPhoto.isPresent()) {
-                        bytes = dbPhoto.get().getData();
+                    try {
+                        bytes = Files.readAllBytes(photoPath);
+                    } catch (Exception ignored) {}
+                }
+
+                // 2. Tenta o banco de dados via StoredUploadService (instantâneo)
+                if ((bytes == null || bytes.length == 0) && storedUploadService != null) {
+                    try {
+                        String fn = extractFilenameFromUrl(trimmed);
+                        var dbPhoto = storedUploadService.find("maintenance", fn);
+                        if (dbPhoto.isPresent()) {
+                            bytes = dbPhoto.get().getData();
+                        }
+                    } catch (Exception ignored) {}
+                }
+
+                // 3. Fallback de rede com TIMEOUT RÍGIDO (1500ms conectar, 2000ms leitura)
+                if ((bytes == null || bytes.length == 0) && (trimmed.startsWith("http://") || trimmed.startsWith("https://"))) {
+                    try {
+                        java.net.URLConnection conn = new URL(trimmed).openConnection();
+                        conn.setConnectTimeout(1500);
+                        conn.setReadTimeout(2000);
+                        try (java.io.InputStream in = conn.getInputStream()) {
+                            bytes = in.readAllBytes();
+                        }
+                    } catch (Exception netEx) {
+                        log.debug("Timeout ou falha ao buscar foto via HTTP ({}): {}", trimmed, netEx.getMessage());
                     }
                 }
+
                 if (bytes == null || bytes.length == 0) {
                     log.warn("Foto da OS não encontrada em disco nem no banco: {}", trimmed);
                     return null;
@@ -1181,13 +1264,11 @@ public class FleetWorkOrderPdfService {
                 return null;
             }
 
-            // Tenta normalizar para RGB JPEG via ImageIO (garante compatibilidade total com
-            // Flying Saucer/iText)
+            // Normalização rápida com max 800px para geração instantânea e leve
             try {
                 BufferedImage img = ImageIO.read(new ByteArrayInputStream(bytes));
                 if (img != null && img.getWidth() > 0 && img.getHeight() > 0) {
-                    // Redimensiona se for muito grande (> 1200px) para manter o PDF leve e rápido
-                    int maxDim = 1200;
+                    int maxDim = 800;
                     int w = img.getWidth();
                     int h = img.getHeight();
                     if (w > maxDim || h > maxDim) {
@@ -1210,7 +1291,9 @@ public class FleetWorkOrderPdfService {
                     if (ImageIO.write(rgbImage, "jpg", jpegOut)) {
                         byte[] jpegBytes = jpegOut.toByteArray();
                         if (jpegBytes.length > 0) {
-                            return "data:image/jpeg;base64," + Base64.getEncoder().encodeToString(jpegBytes);
+                            String res = "data:image/jpeg;base64," + Base64.getEncoder().encodeToString(jpegBytes);
+                            PHOTO_CACHE.put(trimmed, res);
+                            return res;
                         }
                     }
                 }
@@ -1227,7 +1310,9 @@ public class FleetWorkOrderPdfService {
             } else if (pathOnly.endsWith(".bmp")) {
                 mime = "image/bmp";
             }
-            return "data:" + mime + ";base64," + Base64.getEncoder().encodeToString(bytes);
+            String res = "data:" + mime + ";base64," + Base64.getEncoder().encodeToString(bytes);
+            PHOTO_CACHE.put(trimmed, res);
+            return res;
         } catch (Exception e) {
             log.warn("Erro ao processar foto da OS ({}): {}", photoUrl, e.getMessage());
             return null;

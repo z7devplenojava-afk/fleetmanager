@@ -416,15 +416,27 @@ public class FleetWorkOrderService {
             } catch (Exception ignored) {}
         }
 
-        // Gerar código sequencial do serviço (ex: SRV-0012)
-        long count = serviceRepository.count();
-        String generatedCode = String.format("SRV-%04d", count + 1);
-        int attempts = 1;
-        while (serviceRepository.existsByCode(generatedCode)) {
-            attempts++;
-            generatedCode = String.format("SRV-%04d", count + attempts);
+        // Gerar código sequencial do serviço (ex: SRV-0012) sem colisão com serviços existentes
+        int nextNum = 1;
+        try {
+            Integer maxNum = serviceRepository.findMaxServiceCodeNumber();
+            if (maxNum != null && maxNum > 0) {
+                nextNum = maxNum + 1;
+            }
+        } catch (Exception e) {
+            log.warn("Erro ao buscar maior código sequencial de serviço: {}", e.getMessage());
+            nextNum = (int) serviceRepository.count() + 1;
         }
 
+        String generatedCode = String.format("SRV-%04d", nextNum);
+        int attempts = 0;
+        while (attempts < 1000 && (serviceRepository.existsByCodeNative(generatedCode) || serviceRepository.existsByCode(generatedCode))) {
+            attempts++;
+            nextNum++;
+            generatedCode = String.format("SRV-%04d", nextNum);
+        }
+
+        UUID companyId = TenantContext.get();
         com.z7design.fleet_manager.model.Service service = com.z7design.fleet_manager.model.Service.builder()
                 .name(name.trim())
                 .description(description != null ? description.trim() : null)
@@ -432,6 +444,7 @@ public class FleetWorkOrderService {
                 .code(generatedCode)
                 .unitPrice(unitPrice)
                 .unit("UN")
+                .companyId(companyId)
                 .status(com.z7design.fleet_manager.model.Service.ServiceStatus.ACTIVE)
                 .isBillable(true)
                 .build();

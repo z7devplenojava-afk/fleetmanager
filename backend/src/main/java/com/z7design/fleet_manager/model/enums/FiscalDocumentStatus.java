@@ -7,6 +7,7 @@ public enum FiscalDocumentStatus {
     PENDING("Pendente"),
     IMPORTED("Importado"),
     VALIDATED("Validado"),
+    ISSUED("Emitido"),
     CANCELLED("Cancelado"),
     ERROR("Erro processamento");
 

@@ -182,6 +182,9 @@ const trafegoMenuItems = [
 // Módulo Fiscal (Novo)
 const fiscalMenuItems = [
   { icon: FileText, text: 'Documentos Fiscais', to: '/fiscal', id: 'fiscal-dashboard' },
+  { icon: FileSignature, text: 'Emissão NFS-e', to: '/fiscal/nfse', id: 'fiscal-nfse' },
+  { icon: FileSignature, text: 'Emissão NF-e (55)', to: '/fiscal/nfe', id: 'fiscal-nfe' },
+  { icon: Truck, text: 'Emissão de CT-e', to: '/fiscal/cte', id: 'fiscal-cte' },
   { icon: Upload, text: 'Importar XML/PDF', to: '/fiscal/importar', id: 'fiscal-importar' },
   { icon: Calculator, text: 'Controle de Impostos', to: '/fiscal/impostos', id: 'fiscal-impostos' },
   { icon: FileCheck, text: 'Relatórios Fiscais', to: '/fiscal/relatorios', id: 'fiscal-relatorios' },
@@ -1410,6 +1413,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'driver-trips',
     'passenger-qrcode',
     'fiscal-dashboard',
+    'fiscal-nfse',
     'fiscal-importar',
     'fiscal-impostos',
     'fiscal-relatorios',
@@ -1541,6 +1545,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'driver-trips',
     'passenger-qrcode',
     'fiscal-dashboard',
+    'fiscal-nfse',
     'fiscal-importar',
     'fiscal-impostos',
     'fiscal-relatorios',
@@ -1712,6 +1717,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     
     // Fiscal
     'fiscal-dashboard',
+    'fiscal-nfse',
     'fiscal-importar',
     'fiscal-impostos',
     'fiscal-relatorios',

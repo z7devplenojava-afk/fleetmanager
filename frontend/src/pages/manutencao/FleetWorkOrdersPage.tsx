@@ -755,12 +755,12 @@ const FleetWorkOrdersPage: React.FC = () => {
                                                     <th className="p-2 sm:px-2 text-right cursor-pointer hover:text-white transition-colors select-none whitespace-nowrap" onClick={() => handleSort('totalCost')}>
                                                         <span className="flex items-center justify-end">Custo <SortIcon field="totalCost" /></span>
                                                     </th>
-                                                    <th className="p-2 sm:px-2.5 text-center uppercase text-[10px] sm:text-[11px] tracking-wider whitespace-nowrap sticky right-0 bg-[#121318] z-20 shadow-[-6px_0_10px_rgba(0,0,0,0.4)]">
+                                                    <th className="p-2 sm:px-2.5 text-center uppercase text-[10px] sm:text-[11px] tracking-wider whitespace-nowrap sticky right-0 bg-slate-100 dark:bg-[#121318] text-slate-700 dark:text-gray-300 z-20 shadow-[-6px_0_10px_rgba(0,0,0,0.06)] dark:shadow-[-6px_0_10px_rgba(0,0,0,0.4)]">
                                                         Ações
                                                     </th>
                                                 </tr>
                                             </thead>
-                                            <tbody className="divide-y divide-gray-700/60">
+                                            <tbody className="divide-y divide-slate-200 dark:divide-gray-700/60">
                                                 {isLoading && orders.length === 0 ? (
                                                     Array.from({ length: 5 }).map((_, idx) => (
                                                         <tr key={`skeleton-${idx}`} className="animate-pulse">
@@ -775,11 +775,11 @@ const FleetWorkOrdersPage: React.FC = () => {
                                                             <td className="hidden xl:table-cell p-2 sm:px-2"><div className="h-4 w-14 bg-gray-700 rounded" /></td>
                                                             <td className="hidden md:table-cell p-2 sm:px-2"><div className="h-4 w-20 bg-gray-700 rounded" /></td>
                                                             <td className="p-2 sm:px-2 text-right"><div className="h-4 w-14 sm:w-16 bg-gray-700 rounded ml-auto" /></td>
-                                                            <td className="p-2 sm:px-2.5 sticky right-0 bg-[#16181f] z-10 shadow-[-6px_0_10px_rgba(0,0,0,0.4)]"><div className="h-7 w-16 bg-gray-700 rounded mx-auto" /></td>
+                                                            <td className="p-2 sm:px-2.5 sticky right-0 bg-white dark:bg-[#16181f] z-10 shadow-[-6px_0_10px_rgba(0,0,0,0.06)] dark:shadow-[-6px_0_10px_rgba(0,0,0,0.4)]"><div className="h-7 w-16 bg-gray-200 dark:bg-gray-700 rounded mx-auto" /></td>
                                                         </tr>
                                                     ))
                                                 ) : sortedOrders.map(order => (
-                                                    <tr key={order.id} className={`hover:bg-seguranca-black/40 transition-colors ${selectedOrderIds.includes(order.id) ? 'bg-seguranca-yellow/5' : ''}`}>
+                                                    <tr key={order.id} className={`hover:bg-slate-50 dark:hover:bg-seguranca-black/40 transition-colors ${selectedOrderIds.includes(order.id) ? 'bg-amber-50/60 dark:bg-seguranca-yellow/5' : ''}`}>
                                                         <td className="p-2 sm:px-2.5 text-center">
                                                             <input
                                                                 type="checkbox"
@@ -857,7 +857,7 @@ const FleetWorkOrdersPage: React.FC = () => {
                                                         <td className="p-2 sm:px-2 text-right font-mono font-bold text-seguranca-lightgray text-xs whitespace-nowrap">
                                                             {(order.totalCost || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                                         </td>
-                                                        <td className="p-2 sm:px-2.5 text-center whitespace-nowrap sticky right-0 bg-[#16181f] z-20 shadow-[-6px_0_10px_rgba(0,0,0,0.4)]">
+                                                        <td className="p-2 sm:px-2.5 text-center whitespace-nowrap sticky right-0 bg-white dark:bg-[#16181f] text-slate-800 dark:text-gray-200 z-20 shadow-[-6px_0_10px_rgba(0,0,0,0.06)] dark:shadow-[-6px_0_10px_rgba(0,0,0,0.4)]">
                                                             <div className="flex items-center justify-center gap-1">
                                                                 <Button
                                                                     variant="outline"
@@ -1037,6 +1037,8 @@ const FleetWorkOrdersPage: React.FC = () => {
                     setIsFormOpen(false);
                     setSelectedOrder(undefined);
                     setPrefillOrderValues(undefined);
+                    queryClient.invalidateQueries({ queryKey: ['fleet-work-orders'] });
+                    queryClient.invalidateQueries({ queryKey: ['fleet-component-controls'] });
                     setTimeout(() => {
                         if (!document.querySelector('[role="dialog"], [role="alertdialog"]')) {
                             document.body.style.pointerEvents = '';

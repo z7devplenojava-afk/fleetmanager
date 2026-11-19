@@ -18,7 +18,7 @@ public class CompanyOverviewController {
     private final CompanyOverviewMetricsService companyOverviewMetricsService;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'FLEX_ADMIN', 'ROOT', 'GESTOR', 'DIRETORIA')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN', 'FLEX_ADMIN', 'ROOT', 'GESTOR', 'DIRETORIA') or hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'COMPANY_ADMIN', 'SUPER_ADMIN', 'ADMIN')")
     public ResponseEntity<CompanyOverviewDTO> getCompanyOverview() {
         log.info("📡 Requisição de indicadores 360 da empresa recebida");
         CompanyOverviewDTO overview = companyOverviewMetricsService.getCompanyOverview();

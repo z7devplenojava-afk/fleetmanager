@@ -102,6 +102,26 @@ public class Company {
     @Column(name = "icon_url", length = 500)
     private String iconUrl;
 
+    // ===================== Dados fiscais =====================
+
+    @Size(max = 20, message = "Inscrição estadual must not exceed 20 characters")
+    @Column(name = "inscricao_estadual", length = 20)
+    private String inscricaoEstadual;
+
+    @Size(max = 20, message = "Inscrição municipal must not exceed 20 characters")
+    @Column(name = "inscricao_municipal", length = 20)
+    private String inscricaoMunicipal;
+
+    /** Código IBGE do município emissor (7 dígitos). */
+    @Size(max = 7, message = "Código do município deve ter 7 dígitos")
+    @Column(name = "codigo_municipio", length = 7)
+    private String codigoMunicipio;
+
+    /** Situação perante o Simples Nacional: 1=Não optante, 2=MEI, 3=ME/EPP. */
+    @Size(max = 2, message = "Regime tributário must not exceed 2 characters")
+    @Column(name = "regime_tributario", length = 2)
+    private String regimeTributario;
+
     @Column(name = "banner_urls", columnDefinition = "TEXT")
     private String bannerUrls;
 

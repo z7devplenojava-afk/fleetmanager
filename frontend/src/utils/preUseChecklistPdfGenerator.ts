@@ -52,6 +52,16 @@ export async function generatePreUseChecklistPDF(data: PreUseChecklistPDFData): 
   const totalNaoConformes = items.filter(i => i.negativo === 1).length;
   const totalItens = items.length;
 
+  // Separar itens normais de itens de avarias
+  const isAvaria = (item: PreUseChecklistItem) => {
+    const l = (item.label || '').toLowerCase();
+    const c = (item.category || '').toLowerCase();
+    return l.includes('[avaria]') || l.includes('avaria') || c.includes('avaria') || l.includes('amassado') || l.includes('arranhao') || l.includes('trinca');
+  };
+
+  const avariaItems = items.filter(isAvaria);
+  const generalItems = items.filter(i => !isAvaria(i));
+
   const getStatusBadge = (item: PreUseChecklistItem) => {
     if (item.positivo === 1) {
       return '<span style="color: #16a34a; font-weight: 800; background-color: #dcfce7; padding: 2px 8px; border-radius: 4px; font-size: 10px;">✅ CONFORME</span>';
@@ -62,56 +72,59 @@ export async function generatePreUseChecklistPDF(data: PreUseChecklistPDFData): 
     }
   };
 
-  const rowsHtml = items.map((item, index) => `
+  const renderTableRows = (itemList: PreUseChecklistItem[]) => itemList.map((item, index) => `
     <tr style="background-color: ${index % 2 === 0 ? '#ffffff' : '#f8fafc'}; border-bottom: 1px solid #e2e8f0;">
       <td style="padding: 6px 8px; font-size: 10px; color: #64748b; text-align: center; width: 30px;">${index + 1}</td>
       <td style="padding: 6px 8px; font-size: 10px; font-weight: 700; color: #334155; width: 110px;">${item.category || 'Geral'}</td>
-      <td style="padding: 6px 8px; font-size: 10px; font-weight: 600; color: #0f172a;">${item.label}</td>
+      <td style="padding: 6px 8px; font-size: 10px; font-weight: 600; color: #0f172a;">${item.label.replace(/^\[Avaria\]\s*/i, '')}</td>
       <td style="padding: 6px 8px; text-align: center; width: 120px;">${getStatusBadge(item)}</td>
       <td style="padding: 6px 8px; font-size: 9px; color: #475569; width: 140px;">${item.observacao || '-'}</td>
     </tr>
   `).join('');
 
+  const generalRowsHtml = renderTableRows(generalItems.length > 0 ? generalItems : items);
+  const avariaRowsHtml = avariaItems.length > 0 ? renderTableRows(avariaItems) : '';
+
   container.innerHTML = `
-    <!-- CABEÇALHO OFICIAL VIAÇÃO SÃO SILVESTRE -->
-    <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 3px solid #7c3aed; padding-bottom: 12px; margin-bottom: 16px;">
-      <div style="display: flex; align-items: center; gap: 14px;">
-        <div style="width: 48px; height: 48px; background-color: #7c3aed; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #ffffff; font-weight: 900; font-size: 18px;">
-          VSS
-        </div>
+    <!-- CABEÇALHO OFICIAL NO FORMATO DA ORDEM DE SERVIÇO -->
+    <div style="border-bottom: 2px solid #2e7d32; padding-bottom: 8px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between;">
+      <div style="display: flex; align-items: center; gap: 12px; width: 60%;">
+        <img src="/images/sao-silvestre-logo.png" alt="Logo" style="height: 38px; width: auto; object-fit: contain;" />
         <div>
-          <div style="font-size: 17px; font-weight: 800; color: #7c3aed; letter-spacing: -0.5px;">VIAÇÃO SÃO SILVESTRE LTDA.</div>
-          <div style="font-size: 10px; color: #64748b; font-weight: 600;">INSPEÇÃO TÉCNICA E CHECKLIST DE PRÉ-USO DE VEÍCULOS</div>
-          <div style="font-size: 9px; color: #94a3b8;">CNPJ: 71.055.644/0001-25 • Sistema Integrado de Mobilização e Segurança</div>
+          <div style="font-size: 13px; font-weight: 900; color: #111827; text-transform: uppercase; letter-spacing: 0.3px;">VIAÇÃO SÃO SILVESTRE S.A.</div>
+          <div style="font-size: 9px; color: #4b5563; line-height: 1.2;">SISTEMA INTEGRADO DE MOBILIZAÇÃO E INSPEÇÃO TÉCNICA</div>
+          <div style="font-size: 8px; color: #6b7280;">CNPJ: 71.055.644/0001-25 • Transporte e Fretamento</div>
         </div>
       </div>
-      <div style="text-align: right;">
-        <div style="font-size: 12px; font-weight: 900; color: #0f172a; font-family: monospace;">${codigoChecklist}</div>
-        <div style="font-size: 10px; color: #64748b;">Emissão: ${dataEmissao}</div>
-        <div style="display: inline-block; background-color: #f3e8ff; color: #6b21a8; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; margin-top: 4px;">CHECKLIST PRÉ-USO</div>
+      <div style="text-align: right; width: 40%;">
+        <div style="font-size: 12px; font-weight: 900; color: #2e7d32; text-transform: uppercase; letter-spacing: 0.5px;">CHECK-LIST DE PRÉ-USO</div>
+        <div style="display: inline-block; background-color: #f1f8e9; border: 1px solid #2e7d32; color: #2e7d32; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 4px; margin-top: 2px;">
+          ${codigoChecklist}
+        </div>
+        <div style="font-size: 9px; color: #4b5563; margin-top: 2px;">Emissão: ${dataEmissao}</div>
       </div>
     </div>
 
     <!-- PAINEL DE IDENTIFICAÇÃO DO VEÍCULO E MOTORISTA -->
-    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; margin-bottom: 14px; font-size: 10px;">
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; background-color: #fafafa; border: 1px solid #ddd; border-radius: 6px; padding: 8px; margin-bottom: 12px; font-size: 9.5px;">
       <div>
-        <span style="color: #64748b; display: block; font-size: 9px;">VEÍCULO / PLACA:</span>
-        <strong style="color: #0f172a; font-size: 12px; font-family: monospace;">${data.vehiclePlate || '-'}</strong>
-        <span style="color: #475569; display: block; font-size: 9px;">${data.vehicleBrand || ''} ${data.vehicleModel || ''}</span>
+        <span style="color: #64748b; display: block; font-size: 8.5px; font-weight: 700; text-transform: uppercase;">VEÍCULO / PLACA:</span>
+        <strong style="color: #0f172a; font-size: 11px; font-family: monospace;">${data.vehiclePlate || '-'}</strong>
+        <span style="color: #475569; display: block; font-size: 8.5px;">${data.vehicleBrand || ''} ${data.vehicleModel || ''}</span>
       </div>
       <div>
-        <span style="color: #64748b; display: block; font-size: 9px;">HODÔMETRO (KM):</span>
-        <strong style="color: #7c3aed; font-size: 12px; font-family: monospace;">${data.kmReading ? Number(data.kmReading).toLocaleString('pt-BR') + ' KM' : '-'}</strong>
+        <span style="color: #64748b; display: block; font-size: 8.5px; font-weight: 700; text-transform: uppercase;">HODÔMETRO (KM):</span>
+        <strong style="color: #2e7d32; font-size: 11px; font-family: monospace;">${data.kmReading ? Number(data.kmReading).toLocaleString('pt-BR') + ' KM' : '-'}</strong>
       </div>
       <div>
-        <span style="color: #64748b; display: block; font-size: 9px;">MOTORISTA RESPONSÁVEL:</span>
-        <strong style="color: #0f172a; font-size: 10px;">${data.driverName || 'Não Informado'}</strong>
-        <span style="color: #475569; display: block; font-size: 9px;">CPF: ${data.driverCpf || '-'}</span>
+        <span style="color: #64748b; display: block; font-size: 8.5px; font-weight: 700; text-transform: uppercase;">MOTORISTA RESPONSÁVEL:</span>
+        <strong style="color: #0f172a; font-size: 9.5px;">${data.driverName || 'Não Informado'}</strong>
+        <span style="color: #475569; display: block; font-size: 8.5px;">CPF: ${data.driverCpf || '-'}</span>
       </div>
       <div>
-        <span style="color: #64748b; display: block; font-size: 9px;">CLIENTE / OBRA:</span>
-        <strong style="color: #0f172a; font-size: 10px;">${data.clientName || 'Geral'}</strong>
-        <span style="color: #475569; display: block; font-size: 9px;">Posto: ${data.workPostName || '-'}</span>
+        <span style="color: #64748b; display: block; font-size: 8.5px; font-weight: 700; text-transform: uppercase;">CLIENTE / OBRA:</span>
+        <strong style="color: #0f172a; font-size: 9.5px;">${data.clientName || 'Geral'}</strong>
+        <span style="color: #475569; display: block; font-size: 8.5px;">Posto: ${data.workPostName || '-'}</span>
       </div>
     </div>
 
@@ -130,7 +143,7 @@ export async function generatePreUseChecklistPDF(data: PreUseChecklistPDFData): 
     <!-- TABELA DE ITENS DO CHECKLIST -->
     <div style="margin-bottom: 14px;">
       <div style="font-size: 10px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
-        <span>DETALHAMENTO DOS ITENS DE INSPEÇÃO (${totalItens} ITENS AUDITADOS)</span>
+        <span>DETALHAMENTO DOS ITENS DE INSPEÇÃO (${generalItems.length > 0 ? generalItems.length : totalItens} ITENS)</span>
       </div>
       <table style="width: 100%; border-collapse: collapse; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden;">
         <thead>
@@ -143,10 +156,34 @@ export async function generatePreUseChecklistPDF(data: PreUseChecklistPDFData): 
           </tr>
         </thead>
         <tbody>
-          ${rowsHtml}
+          ${generalRowsHtml}
         </tbody>
       </table>
     </div>
+
+    ${avariaItems.length > 0 ? `
+    <!-- SEÇÃO DEDICADA DE AVARIAS, LATARIA E PINTURA -->
+    <div style="margin-bottom: 14px; border: 1.5px solid #f59e0b; border-radius: 6px; overflow: hidden;">
+      <div style="background-color: #fef3c7; color: #92400e; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; padding: 6px 10px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #fde68a;">
+        <span>🔍 INSPEÇÃO DE AVARIAS, LATARIA E PINTURA (${avariaItems.length} ITENS AVALIADOS)</span>
+        <span style="font-size: 9px; font-weight: 700; color: #b45309;">Conferência Visual Externa & Interna</span>
+      </div>
+      <table style="width: 100%; border-collapse: collapse; background-color: #ffffff;">
+        <thead>
+          <tr style="background-color: #fffbeb; color: #78350f; font-size: 9px; text-transform: uppercase; font-weight: 800; text-align: left;">
+            <th style="padding: 5px 8px; text-align: center; border-bottom: 1.5px solid #fde68a; width: 30px;">#</th>
+            <th style="padding: 5px 8px; border-bottom: 1.5px solid #fde68a; width: 110px;">Tipo de Avaria</th>
+            <th style="padding: 5px 8px; border-bottom: 1.5px solid #fde68a;">Região / Componente</th>
+            <th style="padding: 5px 8px; text-align: center; border-bottom: 1.5px solid #fde68a; width: 120px;">Condição</th>
+            <th style="padding: 5px 8px; border-bottom: 1.5px solid #fde68a; width: 140px;">Registro de Danos / Detalhes</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${avariaRowsHtml}
+        </tbody>
+      </table>
+    </div>
+    ` : ''}
 
     ${data.observations ? `
       <!-- OBSERVAÇÕES GERAIS -->
