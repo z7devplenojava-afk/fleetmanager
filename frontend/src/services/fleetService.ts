@@ -237,7 +237,7 @@ class FleetService {
           } else {
             const parsed = JSON.parse(stored);
             if (Array.isArray(parsed) && parsed.length > 0) {
-              this.vehiclesCache = { data: parsed, timestamp: Date.now() - (this.CACHE_TTL_MS - 5000) };
+              this.vehiclesCache = { data: parsed, timestamp: Date.now() };
             }
           }
         }
@@ -284,14 +284,12 @@ class FleetService {
 
     this.vehiclesInFlight = (async () => {
       try {
-        console.log('🔍 FleetService - Buscando veículos da API (/api/vehicles)...');
         const response = await api.get('/api/vehicles', { timeout: 15000 });
         
         const list: Vehicle[] = Array.isArray(response?.data) 
           ? response.data 
           : (Array.isArray(response?.data?.content) ? response.data.content : []);
         
-        console.log(`✅ FleetService - Veículos retornados pelo servidor: ${list.length}`);
         this.vehiclesCache = { data: list, timestamp: Date.now() };
         try {
           if (typeof window !== 'undefined' && window.localStorage) {

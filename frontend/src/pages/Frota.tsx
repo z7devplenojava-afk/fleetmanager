@@ -281,9 +281,9 @@ const Frota: React.FC = () => {
   } = useQuery({
     queryKey: ['vehicles'],
     queryFn: () => fleetService.getVehicles(),
-    staleTime: 5 * 1000,
+    staleTime: 60 * 1000,
     gcTime: 10 * 60 * 1000,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false,
     retry: 1
   });
 

@@ -80,24 +80,50 @@ export interface SimpleEmployee {
   document?: string;
 }
 
+// Cache de alta performance e deduplicação de requisições em voo
+let employeesCache: { data: Employee[]; timestamp: number } | null = null;
+let employeesInFlight: Promise<Employee[]> | null = null;
+const EMPLOYEES_CACHE_TTL_MS = 60 * 1000; // 60 segundos de retenção em memória
+
 export const employeeService = {
   /**
-   * Buscar todos os funcionários
+   * Buscar todos os funcionários (com cache e deduplicação de alta performance)
    */
-  async getAllEmployees(searchTerm?: string): Promise<Employee[]> {
+  async getAllEmployees(searchTerm?: string, forceRefresh = false): Promise<Employee[]> {
     try {
-      const params: any = {};
-      if (searchTerm && searchTerm.trim()) {
-        params.searchTerm = searchTerm.trim();
-        console.log('🔍 [EmployeeService] Buscando com searchTerm:', params.searchTerm);
-      } else {
-        console.log('🔍 [EmployeeService] Buscando todos os funcionários (sem searchTerm)');
+      const hasSearch = Boolean(searchTerm && searchTerm.trim());
+      if (hasSearch) {
+        const response = await api.get('/api/employees', { params: { searchTerm: searchTerm!.trim() } });
+        return response.data || [];
       }
-      const response = await api.get('/api/employees', { params });
-      console.log('🔍 [EmployeeService] Resposta recebida:', response.data?.length || 0, 'funcionários');
-      return response.data || [];
+
+      // Reutiliza requisição idêntica já em andamento (evita requisições concorrentes duplicadas)
+      if (employeesInFlight) {
+        return employeesInFlight;
+      }
+
+      // Retorna do cache em memória se ainda for válido
+      if (!forceRefresh && employeesCache && Date.now() - employeesCache.timestamp < EMPLOYEES_CACHE_TTL_MS) {
+        return employeesCache.data;
+      }
+
+      employeesInFlight = (async () => {
+        try {
+          const response = await api.get('/api/employees');
+          const list: Employee[] = Array.isArray(response.data) ? response.data : (response.data?.content || []);
+          employeesCache = { data: list, timestamp: Date.now() };
+          return list;
+        } finally {
+          employeesInFlight = null;
+        }
+      })();
+
+      return employeesInFlight;
     } catch (error) {
-      console.error('Erro ao buscar funcionários:', error);
+      console.warn('Erro ao buscar funcionários:', (error as any)?.message || error);
+      if (employeesCache?.data) {
+        return employeesCache.data;
+      }
       return [];
     }
   },

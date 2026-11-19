@@ -63,6 +63,8 @@ const GestaoChecklistVeiculo: React.FC = () => {
     const { data: vehicles = [] } = useQuery({
         queryKey: ['vehicles'],
         queryFn: fleetService.getVehicles,
+        staleTime: 60 * 1000,
+        refetchOnWindowFocus: false,
     });
 
     const loadItems = useCallback(async () => {

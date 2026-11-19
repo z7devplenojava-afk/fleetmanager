@@ -278,11 +278,12 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         });
 
 
-        // Veículos da frota via React Query
+        // Veículos da frota via React Query (compartilha cache global com Frota.tsx)
         const { data: vehiclesRaw = [], isLoading: isLoadingVehicles } = useQuery<Vehicle[]>({
-            queryKey: ['fleet-vehicles-all'],
+            queryKey: ['vehicles'],
             queryFn: () => fleetService.getVehicles(),
             staleTime: 60_000,
+            refetchOnWindowFocus: false,
             enabled: isOpen,
         });
 
@@ -298,30 +299,35 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
             queryKey: ['clients-for-select'],
             queryFn: () => clientService.getClientsForSelect(),
             staleTime: 60_000,
+            refetchOnWindowFocus: false,
             enabled: isOpen,
         });
         const { data: allWorkPosts = [] } = useQuery<WorkPost[]>({
             queryKey: ['work-posts-all'],
             queryFn: () => workPostService.getAllWorkPosts(),
             staleTime: 60_000,
+            refetchOnWindowFocus: false,
             enabled: isOpen,
         });
         const { data: departments = [] } = useQuery({
             queryKey: ['departments-active'],
             queryFn: () => departmentService.getAll(),
             staleTime: 60_000,
+            refetchOnWindowFocus: false,
             enabled: isOpen,
         });
         const { data: employees = [] } = useQuery({
-            queryKey: ['employees-all-select'],
+            queryKey: ['employees'],
             queryFn: () => employeeService.getAllEmployees(),
             staleTime: 60_000,
+            refetchOnWindowFocus: false,
             enabled: isOpen,
         });
         const { data: garagesForOS = [] } = useQuery<Garage[]>({
             queryKey: ['garages-for-os'],
             queryFn: () => garageService.list(),
             staleTime: 60_000,
+            refetchOnWindowFocus: false,
             enabled: isOpen,
         });
 
@@ -1325,6 +1331,14 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                 });
                 return;
             }
+            if (!formData.items || formData.items.length === 0) {
+                toast({
+                    title: "Nenhum item cadastrado",
+                    description: "Adicione peças à lista de itens da OS antes de notificar o Almoxarifado.",
+                    variant: "destructive",
+                });
+                return;
+            }
             if (unnotifiedParts.length === 0) {
                 toast({
                     title: "Peças já Solicitadas",
@@ -1334,6 +1348,8 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
             }
             setIsRequestingPurchase(true);
             try {
+                // Salva a OS para garantir que as peças inseridas em tela estejam sincronizadas no banco antes de disparar a requisição
+                await handleSubmit(undefined, true);
                 const res = await fleetWorkOrderService.notifyAlmoxarifado(order.id);
                 toast({
                     title: res?.alreadyNotified ? "Peças já Notificadas" : "Almoxarifado Notificado com Sucesso!",

@@ -24,10 +24,12 @@ interface SearchableSelectProps {
   emptyText?: string;
   minSearchLength?: number;
   minSearchHint?: string;
+  requireMinLengthToDisplay?: boolean;
   maxVisibleOptions?: number;
   disabled?: boolean;
   size?: 'default' | 'lg';
   className?: string;
+  buttonClassName?: string;
   allowCustomValue?: boolean;
   customValuePrefix?: string;
   onCreateCustomOption?: (customValue: string) => void;
@@ -52,10 +54,12 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   emptyText = 'Nenhum registro encontrado.',
   minSearchLength,
   minSearchHint,
+  requireMinLengthToDisplay = false,
   maxVisibleOptions = 100,
   disabled = false,
   size = 'default',
   className,
+  buttonClassName,
   allowCustomValue = false,
   customValuePrefix = 'Usar / Cadastrar',
   onCreateCustomOption,
@@ -114,6 +118,12 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   // Filtragem dos registros
   const filteredOptions = useMemo(() => {
     const rawQuery = searchQuery.trim();
+
+    // Se requireMinLengthToDisplay for true, não exibe resultados até atingir minSearchLength
+    if (requireMinLengthToDisplay && minSearchLength && rawQuery.length < minSearchLength) {
+      return [];
+    }
+
     if (!rawQuery) {
       return options;
     }
@@ -151,7 +161,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
 
       return false;
     });
-  }, [options, searchQuery, minSearchLength]);
+  }, [options, searchQuery, minSearchLength, requireMinLengthToDisplay]);
 
   const handleSelect = (option: SearchableOption) => {
     if (option.disabled) return;
@@ -168,7 +178,11 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   };
 
   const isBelowMin = Boolean(
-    minSearchLength && searchQuery.trim().length > 0 && searchQuery.trim().length < minSearchLength
+    minSearchLength && (
+      requireMinLengthToDisplay
+        ? searchQuery.trim().length < minSearchLength
+        : (searchQuery.trim().length > 0 && searchQuery.trim().length < minSearchLength)
+    )
   );
 
   return (
@@ -194,7 +208,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
           size === 'lg'
             ? 'min-h-[50px] sm:min-h-[48px] px-3.5 py-2.5 text-sm sm:text-base'
             : 'min-h-[38px] px-3 py-1.5 text-xs sm:text-sm',
-          'border-gray-600 bg-seguranca-black text-white hover:border-gray-500 focus:outline-none focus:border-seguranca-yellow',
+          buttonClassName || 'border-gray-600 bg-seguranca-black text-white hover:border-gray-500 focus:outline-none focus:border-seguranca-yellow',
           open && 'border-seguranca-yellow ring-1 ring-seguranca-yellow/30',
           disabled && 'opacity-50 cursor-not-allowed'
         )}

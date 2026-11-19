@@ -134,6 +134,8 @@ const NfseEmissionPage: React.FC = () => {
     const { toast } = useToast();
     const queryClient = useQueryClient();
     const [form, setForm] = useState<FormState>(initialForm);
+    const [formErrors, setFormErrors] = useState<string[]>([]);
+    const [showEmptyTemplate, setShowEmptyTemplate] = useState(false);
     const [preview, setPreview] = useState<NfsePreviewResponse | null>(null);
     const [lastResult, setLastResult] = useState<NfseResponse | null>(null);
     const [previewing, setPreviewing] = useState(false);
@@ -234,13 +236,113 @@ const NfseEmissionPage: React.FC = () => {
             : undefined,
     });
 
+    const validateFormForPreview = (): string[] => {
+        const errors: string[] = [];
+        if (!form.takerName?.trim()) {
+            errors.push('Nome / Razão Social do Tomador');
+        }
+        const taxDigits = digits(form.takerTaxId);
+        if (!taxDigits || (taxDigits.length !== 11 && taxDigits.length !== 14)) {
+            errors.push('CPF (11 dígitos) ou CNPJ (14 dígitos) do Tomador');
+        }
+        if (!form.serviceDescription?.trim()) {
+            errors.push('Descrição dos Serviços Prestados');
+        }
+        const grossVal = numberOrUndefined(form.grossAmount);
+        if (!grossVal || grossVal <= 0) {
+            errors.push('Valor Bruto do Serviço (R$)');
+        }
+        const srvCode = digits(form.serviceCode);
+        if (!srvCode || srvCode.length !== 6) {
+            errors.push('Código de Tributação Nacional (cTribNac com 6 dígitos)');
+        }
+        return errors;
+    };
+
+    const handleShowEmptyTemplate = () => {
+        setShowEmptyTemplate(true);
+        setFormErrors([]);
+        setPreview({
+            dpsId: 'DPS_MODELO_EM_BRANCO_V101',
+            xml: `<?xml version="1.0" encoding="UTF-8"?>
+<!-- MODELO DEMONSTRATIVO DE DPS EM BRANCO (LEIAUTE NACIONAL V1.01) -->
+<!-- Preencha os campos da nota fiscal para gerar o XML oficial validado -->
+<DPS xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.01">
+  <infDPS Id="DPS_MODELO_EXEMPLO">
+    <tpAmb>2</tpAmb>
+    <dhEmi>${new Date().toISOString()}</dhEmi>
+    <verAplic>FluxBus_Nfse_v1.01</verAplic>
+    <serie>${form.series || '900'}</serie>
+    <nDPS>1</nDPS>
+    <dCompet>${form.competence || new Date().toISOString().split('T')[0]}</dCompet>
+    <prest>
+      <CNPJ>[CNPJ_DA_EMPRESA_EMITENTE]</CNPJ>
+      <xNome>[RAZAO_SOCIAL_PRESTADOR]</xNome>
+    </prest>
+    <toma>
+      <CNPJ>${digits(form.takerTaxId) || '[CNPJ_OU_CPF_DO_TOMADOR]'}</CNPJ>
+      <xNome>${form.takerName || '[NOME_OU_RAZAO_SOCIAL_DO_TOMADOR]'}</xNome>
+      <end>
+        <xLgr>${form.takerAddress || '[LOGRADOURO_TOMADOR]'}</xLgr>
+        <nro>${form.takerAddressNumber || '[NUMERO]'}</nro>
+        <xBairro>${form.takerNeighborhood || '[BAIRRO]'}</xBairro>
+        <cMun>${digits(form.takerMunicipalityCode) || '[COD_MUNICIPIO_IBGE_7_DIGITOS]'}</cMun>
+        <UF>${form.takerState || '[UF]'}</UF>
+        <CEP>${digits(form.takerZip) || '[CEP_8_DIGITOS]'}</CEP>
+      </end>
+    </toma>
+    <serv>
+      <locPrest>
+        <cLocPrestacao>[COD_MUNICIPIO_PRESTACAO]</cLocPrestacao>
+      </locPrest>
+      <cServ>
+        <cTribNac>${form.serviceCode || '[COD_TRIB_NAC_6_DIGITOS]'}</cTribNac>
+        <xDescServ>${form.serviceDescription || '[DESCRICAO_DETALHADA_DO_SERVICO_PRESTADO]'}</xDescServ>
+      </cServ>
+    </serv>
+    <valores>
+      <vServPrest>
+        <vServ>${numberOrUndefined(form.grossAmount)?.toFixed(2) || '0.00'}</vServ>
+      </vServPrest>
+      <trib>
+        <tribMun>
+          <tribISSQN>1</tribISSQN>
+          <pAliq>${form.issRate || '0.00'}</pAliq>
+          <vISSQN>0.00</vISSQN>
+          <tpRetISSQN>${form.issWithheld ? '2' : '1'}</tpRetISSQN>
+        </tribMun>
+      </trib>
+    </valores>
+  </infDPS>
+</DPS>`,
+            schemaValid: false,
+            messages: ['Modelo em branco exibido para conferência estrutural da DPS. Preencha os campos obrigatórios da nota para gerar a DPS oficial e validar.'],
+            grossAmount: numberOrUndefined(form.grossAmount) || 0,
+            issAmount: 0,
+            netAmount: numberOrUndefined(form.grossAmount) || 0,
+        });
+    };
+
     const handlePreview = async () => {
+        const errors = validateFormForPreview();
+        if (errors.length > 0) {
+            setFormErrors(errors);
+            toast({
+                title: 'Preencha os campos da nota para pré-visualizar',
+                description: `Informe os dados obrigatórios: ${errors.join(', ')}.`,
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        setFormErrors([]);
+        setShowEmptyTemplate(false);
         setPreviewing(true);
         try {
             const result = await nfseService.preview(buildPayload());
             setPreview(result);
             toast({
-                title: result.schemaValid ? 'Prévia gerada' : 'Prévia com alertas',
+                title: result.schemaValid ? 'Prévia gerada com sucesso' : 'Prévia gerada com alertas',
                 description: result.schemaValid
                     ? 'O XML da DPS passou na validação do leiaute v1.01.'
                     : result.messages.join(' | '),
@@ -248,8 +350,8 @@ const NfseEmissionPage: React.FC = () => {
             });
         } catch (error: any) {
             toast({
-                title: 'Não foi possível pré-visualizar',
-                description: error?.response?.data?.message || error?.message,
+                title: 'Não foi possível pré-visualizar o XML',
+                description: error?.response?.data?.message || error?.message || 'Verifique se os dados da nota foram preenchidos corretamente.',
                 variant: 'destructive',
             });
         } finally {
@@ -735,9 +837,26 @@ const NfseEmissionPage: React.FC = () => {
                                     <CardContent className="space-y-3">
                                         {preview ? (
                                             <>
-                                                <div className={`rounded-md border p-3 text-sm ${preview.schemaValid ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200' : 'border-red-500/40 bg-red-500/10 text-red-200'}`}>
-                                                    {preview.schemaValid ? 'XML válido no leiaute v1.01' : 'XML com inconsistências'}
-                                                </div>
+                                                {showEmptyTemplate ? (
+                                                    <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2.5 text-xs text-amber-200 flex items-center justify-between">
+                                                        <span className="font-semibold">Modelo Demonstrativo em Branco (DPS Vazia)</span>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className="h-6 text-[10px] text-amber-300 hover:bg-amber-500/20 px-2"
+                                                            onClick={() => {
+                                                                setPreview(null);
+                                                                setShowEmptyTemplate(false);
+                                                            }}
+                                                        >
+                                                            Fechar Modelo
+                                                        </Button>
+                                                    </div>
+                                                ) : (
+                                                    <div className={`rounded-md border p-3 text-sm ${preview.schemaValid ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200' : 'border-red-500/40 bg-red-500/10 text-red-200'}`}>
+                                                        {preview.schemaValid ? 'XML válido no leiaute v1.01' : 'XML com inconsistências'}
+                                                    </div>
+                                                )}
                                                 <div className="grid grid-cols-2 gap-2 text-sm">
                                                     <span className="text-gray-400">Bruto</span>
                                                     <span className="text-right text-gray-100">{money(preview.grossAmount)}</span>
@@ -759,10 +878,42 @@ const NfseEmissionPage: React.FC = () => {
                                                     </ul>
                                                 )}
                                             </>
+                                        ) : formErrors.length > 0 ? (
+                                            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-amber-200 space-y-2.5">
+                                                <div className="flex items-center gap-1.5 font-semibold text-xs text-amber-300">
+                                                    <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
+                                                    <span>Preencha os campos obrigatórios da nota:</span>
+                                                </div>
+                                                <ul className="list-disc pl-4 space-y-1 text-xs text-amber-200">
+                                                    {formErrors.map((err, idx) => (
+                                                        <li key={idx}>{err}</li>
+                                                    ))}
+                                                </ul>
+                                                <div className="pt-1.5 border-t border-amber-500/20">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={handleShowEmptyTemplate}
+                                                        className="w-full text-xs border-amber-500/40 text-amber-300 hover:bg-amber-500/20"
+                                                    >
+                                                        Exibir Modelo de DPS em Branco (XML Vazio)
+                                                    </Button>
+                                                </div>
+                                            </div>
                                         ) : (
-                                            <p className="text-sm text-gray-400">
-                                                Preencha os dados e clique em "Pré-visualizar XML" para conferir a DPS antes do envio.
-                                            </p>
+                                            <div className="space-y-3">
+                                                <p className="text-sm text-gray-400">
+                                                    Preencha os dados e clique em "Pré-visualizar XML" para conferir a DPS antes do envio.
+                                                </p>
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    onClick={handleShowEmptyTemplate}
+                                                    className="text-xs text-gray-400 hover:text-white p-0 h-auto underline"
+                                                >
+                                                    Ou clique aqui para exibir um modelo de DPS em branco
+                                                </Button>
+                                            </div>
                                         )}
                                     </CardContent>
                                 </Card>

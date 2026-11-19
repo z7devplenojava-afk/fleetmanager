@@ -77,7 +77,7 @@ public class FleetWorkOrderPdfService {
     private static final NumberFormat CURRENCY = NumberFormat.getCurrencyInstance(new Locale("pt", "BR"));
 
     // Caches de alta performance em memória para geração quase instantânea de PDF
-    private static final String PDF_CACHE_VERSION = "v4_matching_model_atual";
+    private static final String PDF_CACHE_VERSION = "v7_model2_two_cols_evidences_active";
     private static final Map<String, byte[]> PDF_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
     private static final Map<String, String> LOGO_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
     private static final Map<String, String> PHOTO_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
@@ -606,6 +606,23 @@ public class FleetWorkOrderPdfService {
         }
         data.put("checklistByGroup", checklistByGroup);
 
+        // Divide os grupos do checklist em 2 colunas equilibradas para layout de 2 colunas
+        Map<String, List<Map<String, Object>>> checklistGroupsCol1 = new LinkedHashMap<>();
+        Map<String, List<Map<String, Object>>> checklistGroupsCol2 = new LinkedHashMap<>();
+        int totalItemsInChecklist = checklistData.size();
+        int halfItems = (totalItemsInChecklist + 1) / 2;
+        int runningCount = 0;
+        for (Map.Entry<String, List<Map<String, Object>>> entry : checklistByGroup.entrySet()) {
+            if (runningCount < halfItems || checklistGroupsCol1.isEmpty()) {
+                checklistGroupsCol1.put(entry.getKey(), entry.getValue());
+                runningCount += entry.getValue().size();
+            } else {
+                checklistGroupsCol2.put(entry.getKey(), entry.getValue());
+            }
+        }
+        data.put("checklistGroupsCol1", checklistGroupsCol1);
+        data.put("checklistGroupsCol2", checklistGroupsCol2);
+
         // Divide o checklist em 2 colunas equilibradas para templates compactos
         List<Map<String, Object>> checklistCol1 = new ArrayList<>();
         List<Map<String, Object>> checklistCol2 = new ArrayList<>();
@@ -659,9 +676,9 @@ public class FleetWorkOrderPdfService {
         // Observações
         data.put("observacoes", order.getNotes());
 
-        // Evidências Fotográficas / Fotos (Bypassa totalmente se for Modelo Resumido ou checklist em branco)
+        // Evidências Fotográficas / Fotos (processa para todos os modelos de OS quando houver evidências)
         List<String> processedPhotos = new ArrayList<>();
-        if (!isResumidoActive && !blankChecklist) {
+        if (!blankChecklist) {
             try {
                 Set<String> rawPhotoCandidates = new LinkedHashSet<>();
                 if (order.getPhotoAttachments() != null) {
@@ -677,6 +694,9 @@ public class FleetWorkOrderPdfService {
                 if (rawPhotoCandidates.isEmpty()) {
                     rawPhotoCandidates.addAll(collectFallbackEvidenceUrls(order));
                 }
+
+                log.info("Processando evidências fotográficas para OS {} (modelo {}): {} candidatas encontradas",
+                        order.getOsNumber(), activeModel, rawPhotoCandidates.size());
 
                 for (String photo : rawPhotoCandidates) {
                     String uri = processPhotoAsDataUri(photo);

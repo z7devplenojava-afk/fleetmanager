@@ -16,8 +16,15 @@ function getTokenExpirationMs(token: string): number | null {
 const PROACTIVE_REFRESH_THRESHOLD_MS = 5 * 60 * 1000;
 let isRefreshing = false;
 let pendingRefreshResolvers: Array<() => void> = [];
+let lastFailedRefreshTime = 0;
+const FAILED_REFRESH_COOLDOWN_MS = 60 * 1000; // Aguarda 60s após falha de refresh para não travar a thread do navegador
 
 async function proactiveTokenRefresh(): Promise<void> {
+  // Se falhou recentemente, não tenta de novo a cada milissegundo em cada requisição
+  if (Date.now() - lastFailedRefreshTime < FAILED_REFRESH_COOLDOWN_MS) {
+    return;
+  }
+
   const tokenKey = import.meta.env.VITE_TOKEN_KEY || 'token';
   const refreshKey = import.meta.env.VITE_REFRESH_TOKEN_KEY || 'refreshToken';
   const token = localStorage.getItem(tokenKey) || localStorage.getItem('token');
@@ -51,10 +58,12 @@ async function proactiveTokenRefresh(): Promise<void> {
       localStorage.setItem(refreshKey, newRefreshToken);
       localStorage.setItem('refreshToken', newRefreshToken);
     }
+    lastFailedRefreshTime = 0;
     pendingRefreshResolvers.forEach(r => r());
   } catch (err) {
-    // Refresh falhou — não interrompe a requisição; o interceptor de response trata o 401
-    console.warn('[axios] Refresh proativo falhou:', err);
+    // Refresh falhou — registra cooldown para não congelar o browser repetindo o erro
+    lastFailedRefreshTime = Date.now();
+    console.warn('[axios] Refresh proativo falhou (cooldown 60s ativado):', (err as any)?.message || err);
   } finally {
     isRefreshing = false;
     pendingRefreshResolvers = [];

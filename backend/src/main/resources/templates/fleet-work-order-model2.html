@@ -213,11 +213,30 @@
       text-align: left;
     }
 
+    .two-col-checklist-layout {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 2px;
+      table-layout: fixed;
+    }
+
+    .col-checklist-left {
+      width: 50%;
+      vertical-align: top;
+      padding-right: 3px;
+    }
+
+    .col-checklist-right {
+      width: 50%;
+      vertical-align: top;
+      padding-left: 3px;
+    }
+
     .checklist-table td {
       border: 1px solid #6b7280;
-      padding: 1.2px 3px;
+      padding: 1px 2.5px;
       vertical-align: middle;
-      font-size: 6.6px;
+      font-size: 6.2px;
     }
 
     .checklist-table tr {
@@ -225,27 +244,29 @@
     }
 
     .col-item {
-      width: 26px;
+      width: 18px;
       text-align: center;
       font-weight: bold;
       color: #111827;
+      font-size: 6.2px;
     }
 
     .col-desc-cell {
-      width: 36%;
+      width: 44%;
       color: #111827;
     }
 
     .col-sit {
-      width: 31%;
+      width: 38%;
       text-align: center;
       white-space: nowrap;
-      font-size: 6.5px;
+      font-size: 5.9px;
     }
 
     .col-obs {
       width: auto;
       color: #374151;
+      font-size: 5.9px;
     }
 
     .sit-marked {
@@ -256,6 +277,61 @@
     .sit-fail {
       font-weight: bold;
       color: #991b1b;
+    }
+
+    /* Evidências Fotográficas */
+    table.fotos-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 2px;
+      margin-bottom: 3px;
+    }
+
+    table.fotos-table tr {
+      page-break-inside: avoid;
+    }
+
+    .foto-cell {
+      width: 25%;
+      text-align: center;
+      vertical-align: top;
+      padding: 2px;
+      box-sizing: border-box;
+    }
+
+    .foto-container {
+      border: 1px solid #d0d0d0;
+      border-radius: 3px;
+      padding: 2px;
+      background-color: #fafafa;
+      text-align: center;
+      box-sizing: border-box;
+      height: 75px;
+      overflow: hidden;
+    }
+
+    .foto-img {
+      width: 100%;
+      max-width: 155px;
+      height: 70px;
+      max-height: 70px;
+      object-fit: cover;
+      display: block;
+      margin: 0 auto;
+      border-radius: 2px;
+    }
+
+    .sem-fotos-box {
+      border: 1px dashed #cbd5e1;
+      background-color: #f8fafc;
+      padding: 3.5px 6px;
+      font-size: 6.6px;
+      color: #64748b;
+      font-style: italic;
+      text-align: center;
+      margin-top: 2px;
+      margin-bottom: 3px;
+      border-radius: 3px;
     }
 
     .sign-table {
@@ -443,42 +519,155 @@
   <!-- BANNER PRINCIPAL (IDÊNTICO À FICHA FÍSICA) -->
   <div class="title-banner">CHECK-LIST DE VERIFICAÇÃO DE FROTA</div>
 
-  <!-- GRUPOS A até F (IDÊNTICO À FICHA DE VERIFICAÇÃO DE FROTA) -->
-  <div th:each="entry : ${checklistByGroup}" class="group-wrapper">
-    <div class="group-title" th:text="${entry.key}">A. VISUAL (INTERNO / EXTERNO)</div>
-    <table class="checklist-table">
-      <thead>
-        <tr>
-          <th class="col-item">ITEM</th>
-          <th class="col-desc">DESCRIÇÃO</th>
-          <th class="col-sit">SITUAÇÃO</th>
-          <th class="col-obs">ANOTAÇÕES / OBSERVAÇÕES</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr th:each="cItem : ${entry.value}">
-          <td class="col-item" th:text="${cItem['itemCode']}">1</td>
-          <td class="col-desc-cell" th:text="${cItem['itemLabel']}">Item</td>
-          <td class="col-sit">
-            <span th:if="${blankChecklist or cItem['situacao'] == 'BLANK'}">(   ) Verificado / (   ) N-A / (   ) Não Conforme</span>
-            <span th:if="${!blankChecklist and cItem['situacao'] == 'OK'}">
-              <span class="sit-marked">( X ) Verificado</span> / (   ) N-A / (   ) Não Conforme
-            </span>
-            <span th:if="${!blankChecklist and cItem['situacao'] == 'NAO_APLICA'}">
-              (   ) Verificado / <span class="sit-marked">( X ) N-A</span> / (   ) Não Conforme
-            </span>
-            <span th:if="${!blankChecklist and (cItem['situacao'] == 'NAO_OK' or cItem['situacao'] == 'TROCAR')}">
-              (   ) Verificado / (   ) N-A / <span class="sit-fail">( X ) Não Conforme</span>
-            </span>
-          </td>
-          <td class="col-obs">
-            <span th:if="${cItem['observacao'] != null}" th:text="${cItem['observacao']}"></span>
-            <span th:if="${cItem['reparoRealizado'] != null and !#strings.isEmpty(cItem['reparoRealizado'])}"
-                  th:text="${(cItem['observacao'] != null ? ' | Reparo: ' : 'Reparo: ') + cItem['reparoRealizado']}"></span>
-          </td>
-        </tr>
-      </tbody>
+  <!-- CHECKLIST EM DUAS COLUNAS LADO A LADO -->
+  <table class="two-col-checklist-layout" th:if="${checklistGroupsCol1 != null and !checklistGroupsCol1.isEmpty()}">
+    <tr>
+      <!-- COLUNA DA ESQUERDA -->
+      <td class="col-checklist-left">
+        <div th:each="entry : ${checklistGroupsCol1}" class="group-wrapper">
+          <div class="group-title" th:text="${entry.key}">A. VISUAL (INTERNO / EXTERNO)</div>
+          <table class="checklist-table">
+            <thead>
+              <tr>
+                <th class="col-item">ITEM</th>
+                <th class="col-desc">DESCRIÇÃO</th>
+                <th class="col-sit">SITUAÇÃO</th>
+                <th class="col-obs">OBS</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr th:each="cItem : ${entry.value}">
+                <td class="col-item" th:text="${cItem['itemCode']}">1</td>
+                <td class="col-desc-cell" th:text="${cItem['itemLabel']}">Item</td>
+                <td class="col-sit">
+                  <span th:if="${blankChecklist or cItem['situacao'] == 'BLANK'}">( ) Verif / ( ) N-A / ( ) Ñ Conf</span>
+                  <span th:if="${!blankChecklist and cItem['situacao'] == 'OK'}">
+                    <span class="sit-marked">( X ) Verif</span> / ( ) N-A / ( ) Ñ Conf
+                  </span>
+                  <span th:if="${!blankChecklist and cItem['situacao'] == 'NAO_APLICA'}">
+                    ( ) Verif / <span class="sit-marked">( X ) N-A</span> / ( ) Ñ Conf
+                  </span>
+                  <span th:if="${!blankChecklist and (cItem['situacao'] == 'NAO_OK' or cItem['situacao'] == 'TROCAR')}">
+                    ( ) Verif / ( ) N-A / <span class="sit-fail">( X ) Ñ Conf</span>
+                  </span>
+                </td>
+                <td class="col-obs">
+                  <span th:if="${cItem['observacao'] != null}" th:text="${cItem['observacao']}"></span>
+                  <span th:if="${cItem['reparoRealizado'] != null and !#strings.isEmpty(cItem['reparoRealizado'])}"
+                        th:text="${(cItem['observacao'] != null ? ' | ' : '') + cItem['reparoRealizado']}"></span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </td>
+
+      <!-- COLUNA DA DIREITA -->
+      <td class="col-checklist-right">
+        <div th:each="entry : ${checklistGroupsCol2}" class="group-wrapper">
+          <div class="group-title" th:text="${entry.key}">D. SISTEMA PNEUMÁTICO</div>
+          <table class="checklist-table">
+            <thead>
+              <tr>
+                <th class="col-item">ITEM</th>
+                <th class="col-desc">DESCRIÇÃO</th>
+                <th class="col-sit">SITUAÇÃO</th>
+                <th class="col-obs">OBS</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr th:each="cItem : ${entry.value}">
+                <td class="col-item" th:text="${cItem['itemCode']}">1</td>
+                <td class="col-desc-cell" th:text="${cItem['itemLabel']}">Item</td>
+                <td class="col-sit">
+                  <span th:if="${blankChecklist or cItem['situacao'] == 'BLANK'}">( ) Verif / ( ) N-A / ( ) Ñ Conf</span>
+                  <span th:if="${!blankChecklist and cItem['situacao'] == 'OK'}">
+                    <span class="sit-marked">( X ) Verif</span> / ( ) N-A / ( ) Ñ Conf
+                  </span>
+                  <span th:if="${!blankChecklist and cItem['situacao'] == 'NAO_APLICA'}">
+                    ( ) Verif / <span class="sit-marked">( X ) N-A</span> / ( ) Ñ Conf
+                  </span>
+                  <span th:if="${!blankChecklist and (cItem['situacao'] == 'NAO_OK' or cItem['situacao'] == 'TROCAR')}">
+                    ( ) Verif / ( ) N-A / <span class="sit-fail">( X ) Ñ Conf</span>
+                  </span>
+                </td>
+                <td class="col-obs">
+                  <span th:if="${cItem['observacao'] != null}" th:text="${cItem['observacao']}"></span>
+                  <span th:if="${cItem['reparoRealizado'] != null and !#strings.isEmpty(cItem['reparoRealizado'])}"
+                        th:text="${(cItem['observacao'] != null ? ' | ' : '') + cItem['reparoRealizado']}"></span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </td>
+    </tr>
+  </table>
+
+  <!-- FALLBACK: COLUNA ÚNICA (CASO NÃO HAJA DIVISÃO DE COLUNAS) -->
+  <div th:if="${checklistGroupsCol1 == null or checklistGroupsCol1.isEmpty()}">
+    <div th:each="entry : ${checklistByGroup}" class="group-wrapper">
+      <div class="group-title" th:text="${entry.key}">A. VISUAL (INTERNO / EXTERNO)</div>
+      <table class="checklist-table">
+        <thead>
+          <tr>
+            <th class="col-item">ITEM</th>
+            <th class="col-desc">DESCRIÇÃO</th>
+            <th class="col-sit">SITUAÇÃO</th>
+            <th class="col-obs">ANOTAÇÕES / OBSERVAÇÕES</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr th:each="cItem : ${entry.value}">
+            <td class="col-item" th:text="${cItem['itemCode']}">1</td>
+            <td class="col-desc-cell" th:text="${cItem['itemLabel']}">Item</td>
+            <td class="col-sit">
+              <span th:if="${blankChecklist or cItem['situacao'] == 'BLANK'}">(   ) Verificado / (   ) N-A / (   ) Não Conforme</span>
+              <span th:if="${!blankChecklist and cItem['situacao'] == 'OK'}">
+                <span class="sit-marked">( X ) Verificado</span> / (   ) N-A / (   ) Não Conforme
+              </span>
+              <span th:if="${!blankChecklist and cItem['situacao'] == 'NAO_APLICA'}">
+                (   ) Verificado / <span class="sit-marked">( X ) N-A</span> / (   ) Não Conforme
+              </span>
+              <span th:if="${!blankChecklist and (cItem['situacao'] == 'NAO_OK' or cItem['situacao'] == 'TROCAR')}">
+                (   ) Verificado / (   ) N-A / <span class="sit-fail">( X ) Não Conforme</span>
+              </span>
+            </td>
+            <td class="col-obs">
+              <span th:if="${cItem['observacao'] != null}" th:text="${cItem['observacao']}"></span>
+              <span th:if="${cItem['reparoRealizado'] != null and !#strings.isEmpty(cItem['reparoRealizado'])}"
+                    th:text="${(cItem['observacao'] != null ? ' | Reparo: ' : 'Reparo: ') + cItem['reparoRealizado']}"></span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- EVIDÊNCIAS FOTOGRÁFICAS (NÃO OBRIGATÓRIO — EXIBIDAS QUANDO HOUVEREM) -->
+  <div class="secao" style="margin-top: 4px; page-break-inside: avoid;">
+    <div class="secao-titulo">Evidências Fotográficas da Manutenção (Não obrigatório)</div>
+
+    <table class="fotos-table" th:if="${hasPhotos}">
+      <tr th:each="row : ${photoRows}">
+        <td class="foto-cell" th:each="photo : ${row}">
+          <div class="foto-container">
+            <img class="foto-img" th:src="${photo}" alt="Evidência Fotográfica" width="155" height="70" />
+          </div>
+        </td>
+        <td class="foto-cell" th:if="${#lists.size(row) == 1}"></td>
+        <td class="foto-cell" th:if="${#lists.size(row) == 1}"></td>
+        <td class="foto-cell" th:if="${#lists.size(row) == 1}"></td>
+        <td class="foto-cell" th:if="${#lists.size(row) == 2}"></td>
+        <td class="foto-cell" th:if="${#lists.size(row) == 2}"></td>
+        <td class="foto-cell" th:if="${#lists.size(row) == 3}"></td>
+      </tr>
     </table>
+
+    <div class="sem-fotos-box" th:unless="${hasPhotos}">
+      <span th:if="${blankChecklist}">[ Espaço reservado para registro ou anexo de fotos / evidências fotográficas da manutenção se houverem ]</span>
+      <span th:unless="${blankChecklist}">Nenhuma evidência fotográfica anexada a esta Ordem de Serviço (registro de fotos opcional / não obrigatório).</span>
+    </div>
   </div>
 
   <!-- RODAPÉ DE ASSINATURA DO RESPONSÁVEL TÉCNICO -->

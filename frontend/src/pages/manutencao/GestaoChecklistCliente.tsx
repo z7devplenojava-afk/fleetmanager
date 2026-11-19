@@ -91,6 +91,8 @@ const GestaoChecklistCliente: React.FC = () => {
   const { data: clients = [] } = useQuery({
     queryKey: ['clients-select'],
     queryFn: clientService.getClientsForSelect,
+    staleTime: 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const clientIdForTemplates = formData.clientId || (activeTab === 'history' ? filters.clientId : '');
@@ -98,16 +100,22 @@ const GestaoChecklistCliente: React.FC = () => {
     queryKey: ['client-checklist-templates', clientIdForTemplates],
     queryFn: () => clientChecklistService.getTemplates(clientIdForTemplates),
     enabled: !!clientIdForTemplates && clientIdForTemplates !== 'all',
+    staleTime: 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: vehicles = [] } = useQuery({
     queryKey: ['vehicles'],
     queryFn: fleetService.getVehicles,
+    staleTime: 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: drivers = [] } = useQuery({
     queryKey: ['drivers'],
     queryFn: driverService.getDrivers,
+    staleTime: 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: records = [], isLoading: recordsLoading } = useQuery({
