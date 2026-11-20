@@ -3,6 +3,7 @@ package com.z7design.fleet_manager.repository;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -47,6 +48,16 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, UUID> 
     @Query(value = "SELECT COUNT(*) FROM chat_messages WHERE (recipient_id = CAST(:userId AS uuid) AND is_read = false) OR (group_id IS NOT NULL AND is_read = false)", nativeQuery = true)
     Long countUnreadMessagesForUser(@Param("userId") UUID userId);
     
+    /**
+     * Busca mensagens recentes do usuário com suporte a paginação (JPQL 100% seguro contra dialetos SQL)
+     */
+    @Query("SELECT cm FROM ChatMessage cm WHERE " +
+           "cm.sender.id = :userId OR cm.recipient.id = :userId OR " +
+           "(cm.group.id IN (SELECT ug.id FROM User u JOIN u.groups ug WHERE u.id = :userId)) OR " +
+           "(cm.department.id IS NOT NULL) " +
+           "ORDER BY cm.createdAt DESC")
+    List<ChatMessage> findRecentMessagesForUser(@Param("userId") UUID userId, Pageable pageable);
+
     /**
      * Busca últimas mensagens de conversas para um usuário
      */

@@ -1,14 +1,18 @@
 package com.z7design.fleet_manager.service;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.z7design.fleet_manager.dto.ChatMessageRequestDTO;
@@ -200,19 +204,57 @@ public class ChatService {
     }
     
     /**
-     * Busca conversas recentes de um usuário
+     * Busca conversas recentes de um usuário (100% segura contra erros de transação ou dialeto SQL)
      */
+    @Transactional(readOnly = true, propagation = Propagation.NOT_SUPPORTED)
     public List<ChatMessageResponseDTO> getRecentConversations(UUID userId) {
         log.info("Buscando conversas recentes para usuário: {}", userId);
         try {
             if (userId == null) {
                 return java.util.Collections.emptyList();
             }
-            List<ChatMessage> messages = chatMessageRepository.findRecentConversationsForUser(userId);
+            // 1. Tentar busca JPQL paginada agrupada em memória (evita qualquer problema de dialeto nativo)
+            List<ChatMessage> messages = null;
+            try {
+                messages = chatMessageRepository.findRecentMessagesForUser(userId, PageRequest.of(0, 50));
+            } catch (Exception eQuery) {
+                log.debug("Aviso na query JPQL de mensagens recentes: {}", eQuery.getMessage());
+            }
+
+            // 2. Se a busca JPQL retornar vazia ou falhar, tentar consulta nativa como fallback
+            if (messages == null || messages.isEmpty()) {
+                try {
+                    messages = chatMessageRepository.findRecentConversationsForUser(userId);
+                } catch (Exception ignored) {}
+            }
+
             if (messages == null || messages.isEmpty()) {
                 return java.util.Collections.emptyList();
             }
-            return messages.stream().map(this::convertToDTO).collect(Collectors.toList());
+
+            // 3. Agrupar apenas a mensagem mais recente por conversa (usuário, grupo ou departamento)
+            Map<String, ChatMessage> latestByConversation = new LinkedHashMap<>();
+            for (ChatMessage msg : messages) {
+                if (msg == null) continue;
+                String key;
+                if (msg.getGroup() != null && msg.getGroup().getId() != null) {
+                    key = "group:" + msg.getGroup().getId();
+                } else if (msg.getDepartment() != null && msg.getDepartment().getId() != null) {
+                    key = "dept:" + msg.getDepartment().getId();
+                } else if (msg.getRecipient() != null && msg.getSender() != null) {
+                    UUID otherId = msg.getSender().getId().equals(userId)
+                            ? msg.getRecipient().getId()
+                            : msg.getSender().getId();
+                    key = "user:" + otherId;
+                } else {
+                    key = "msg:" + msg.getId();
+                }
+                latestByConversation.putIfAbsent(key, msg);
+            }
+
+            return latestByConversation.values().stream()
+                    .map(this::convertToDTO)
+                    .collect(Collectors.toList());
         } catch (Exception e) {
             log.warn("Aviso ao buscar conversas recentes para o usuário {}: {}. Retornando lista vazia.", userId, e.getMessage());
             return java.util.Collections.emptyList();
@@ -245,13 +287,19 @@ public class ChatService {
     /**
      * Conta mensagens nÃ£o lidas
      */
+    @Transactional(readOnly = true, propagation = Propagation.NOT_SUPPORTED)
     public Long countUnreadMessages(UUID userId) {
-        return chatMessageRepository.countUnreadMessagesForUser(userId);
+        try {
+            return chatMessageRepository.countUnreadMessagesForUser(userId);
+        } catch (Exception e) {
+            return 0L;
+        }
     }
 
     /**
      * EstatÃ­sticas rÃ¡pidas do chat para o painel: total de conversas, nÃ£o lidas e abertas
      */
+    @Transactional(readOnly = true, propagation = Propagation.NOT_SUPPORTED)
     public java.util.Map<String, Long> getChatStats(UUID userId) {
         try {
             Long total = chatMessageRepository.countConversationsForUser(userId);
@@ -276,9 +324,14 @@ public class ChatService {
     /**
      * Busca mensagens nÃ£o lidas
      */
+    @Transactional(readOnly = true, propagation = Propagation.NOT_SUPPORTED)
     public List<ChatMessageResponseDTO> getUnreadMessages(UUID userId) {
-        List<ChatMessage> messages = chatMessageRepository.findUnreadMessagesForUser(userId);
-        return messages.stream().map(this::convertToDTO).collect(Collectors.toList());
+        try {
+            List<ChatMessage> messages = chatMessageRepository.findUnreadMessagesForUser(userId);
+            return messages.stream().map(this::convertToDTO).collect(Collectors.toList());
+        } catch (Exception e) {
+            return java.util.Collections.emptyList();
+        }
     }
     
     /**

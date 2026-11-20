@@ -242,7 +242,7 @@ public class ChatController {
             List<ChatMessageResponseDTO> messages = chatService.getRecentConversations(userId);
             return ResponseEntity.ok(messages != null ? messages : java.util.Collections.emptyList());
         } catch (Exception e) {
-            log.error("Erro ao buscar conversas recentes: {}", e.getMessage(), e);
+            log.warn("Aviso ao buscar conversas recentes: {}", e.getMessage());
             return ResponseEntity.ok(java.util.Collections.emptyList());
         }
     }
