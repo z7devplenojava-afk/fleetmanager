@@ -1257,8 +1257,11 @@ export const ClientVehicleAllocationBoard: React.FC = () => {
                   onChange={(val) => setModalVehicleId(val)}
                   options={vehicleOptions}
                   placeholder="Selecione o veículo..."
-                  searchPlaceholder="Digite placa, frota ou modelo..."
+                  searchPlaceholder="Digite pelo menos 3 caracteres da placa ou modelo..."
                   emptyText="Nenhum veículo encontrado."
+                  minSearchLength={3}
+                  minSearchHint="Digite pelo menos 3 caracteres para buscar..."
+                  requireMinLengthToDisplay={true}
                   maxVisibleOptions={60}
                 />
               </div>
@@ -1277,8 +1280,11 @@ export const ClientVehicleAllocationBoard: React.FC = () => {
                   onChange={(val) => setModalDriverName(val)}
                   options={driverOptions}
                   placeholder="Selecione o motorista (opcional)..."
-                  searchPlaceholder="Digite o nome ou CPF do motorista..."
+                  searchPlaceholder="Digite pelo menos 3 caracteres do nome ou CPF..."
                   emptyText="Nenhum motorista encontrado."
+                  minSearchLength={3}
+                  minSearchHint="Digite pelo menos 3 caracteres para buscar..."
+                  requireMinLengthToDisplay={true}
                   maxVisibleOptions={70}
                 />
               </div>
@@ -1299,8 +1305,11 @@ export const ClientVehicleAllocationBoard: React.FC = () => {
                   allowCustomValue={true}
                   customValuePrefix="Definir obra/setor"
                   placeholder="Digite ou selecione a obra/setor..."
-                  searchPlaceholder="Digite o nome da obra ou setor..."
+                  searchPlaceholder="Digite pelo menos 3 caracteres da obra ou setor..."
                   emptyText="Nenhuma obra encontrada. Pressione Enter para cadastrar com o texto digitado."
+                  minSearchLength={3}
+                  minSearchHint="Digite pelo menos 3 caracteres para pesquisar..."
+                  requireMinLengthToDisplay={true}
                   maxVisibleOptions={30}
                 />
 

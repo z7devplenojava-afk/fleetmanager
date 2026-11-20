@@ -226,7 +226,7 @@ class FleetService {
         const empresaRaw = localStorage.getItem('empresa');
         if (empresaRaw) {
           const emp = JSON.parse(empresaRaw);
-          if (emp?.id) return `fleet_vehicles_cache_${emp.id}`;
+          if (emp?.id && emp.id !== 'none') return `fleet_vehicles_cache_${emp.id}`;
         }
         const userRaw = localStorage.getItem('user');
         if (userRaw) {
@@ -248,6 +248,7 @@ class FleetService {
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
         localStorage.removeItem('fleet_vehicles_cache');
+        localStorage.removeItem('fleet_vehicles_cache_default');
         const key = this.getCacheKey();
         const stored = localStorage.getItem(key);
         if (stored) {
@@ -256,8 +257,16 @@ class FleetService {
           } else {
             const parsed = JSON.parse(stored);
             if (Array.isArray(parsed) && parsed.length > 0) {
-              // Se tiver mais de 500 veículos ou for mock antigo, não injeta em tenant de demonstração
-              this.vehiclesCache = { data: parsed, timestamp: Date.now() };
+              const empresaRaw = localStorage.getItem('empresa') || '';
+              const isFluxbus = empresaRaw.toUpperCase().includes('FLUXBUS') || empresaRaw.includes('19b92948');
+              // Se for FluxBus (tenant demo) e houver mais de 50 veículos em cache, houve contaminação de outra empresa
+              if (isFluxbus && parsed.length > 20) {
+                console.warn('🧹 Purgando cache contaminado de veículos de demonstração FluxBus...');
+                localStorage.removeItem(key);
+                this.vehiclesCache = null;
+              } else {
+                this.vehiclesCache = { data: parsed, timestamp: Date.now() };
+              }
             }
           }
         }
@@ -282,7 +291,14 @@ class FleetService {
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
         localStorage.removeItem('fleet_vehicles_cache');
+        localStorage.removeItem('fleet_vehicles_cache_default');
         localStorage.removeItem(this.getCacheKey());
+        // Limpar qualquer cache de veículos de outras empresas no storage
+        Object.keys(localStorage).forEach((k) => {
+          if (k.startsWith('fleet_vehicles_cache')) {
+            localStorage.removeItem(k);
+          }
+        });
       }
     } catch (_) {}
   }
@@ -307,10 +323,21 @@ class FleetService {
       try {
         const response = await api.get('/api/vehicles', { timeout: 15000 });
         
-        const list: Vehicle[] = Array.isArray(response?.data) 
+        let list: Vehicle[] = Array.isArray(response?.data) 
           ? response.data 
           : (Array.isArray(response?.data?.content) ? response.data.content : []);
         
+        // Isolamento estrito de demonstração para FluxBus (não vazar frota de outras empresas)
+        const empresaRaw = typeof window !== 'undefined' ? localStorage.getItem('empresa') || '' : '';
+        const isFluxbus = empresaRaw.toUpperCase().includes('FLUXBUS') || empresaRaw.includes('19b92948-1acd-401f-935a-9fb376961e33');
+        if (isFluxbus) {
+          list = list.filter((v: any) => {
+            const cId = v.companyId ? String(v.companyId) : '';
+            if (cId) return cId === '19b92948-1acd-401f-935a-9fb376961e33';
+            return v.plate?.toUpperCase().startsWith('FLX');
+          });
+        }
+
         this.vehiclesCache = { data: list, timestamp: Date.now() };
         try {
           if (typeof window !== 'undefined' && window.localStorage) {

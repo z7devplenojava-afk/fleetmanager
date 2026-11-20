@@ -28,63 +28,9 @@ public class FrotaController {
     @GetMapping("/vehicles")
     public ResponseEntity<List<VehicleDTO>> getAllVehicles() {
         try {
-            System.out.println("[DEBUG] FrotaController.getAllVehicles() - Iniciando busca...");
-
-            // Testar conexÃ£o com o banco primeiro
-            try {
-                long count = vehicleRepository.count();
-                System.out.println(
-                        "[DEBUG] FrotaController.getAllVehicles() - ConexÃ£o com banco OK. Total de veÃ­culos: "
-                                + count);
-            } catch (Exception dbError) {
-                System.err.println("[DEBUG] FrotaController.getAllVehicles() - Erro na conexÃ£o com banco: "
-                        + dbError.getMessage());
-                dbError.printStackTrace();
-                return ResponseEntity.status(500).body(List.of());
-            }
-
-            List<Vehicle> vehicles = vehicleRepository.findAll();
-            System.out.println(
-                    "[DEBUG] FrotaController.getAllVehicles() - VeÃ­culos encontrados no banco: " + vehicles.size());
-
-            if (vehicles.isEmpty()) {
-                System.out.println("[DEBUG] FrotaController.getAllVehicles() - Lista vazia, retornando array vazio");
-                return ResponseEntity.ok(List.of());
-            }
-
-            System.out.println(
-                    "[DEBUG] FrotaController.getAllVehicles() - Primeiro veÃ­culo: " + vehicles.get(0).getPlate());
-
-            List<VehicleDTO> vehicleDTOs = vehicles.stream()
-                    .map(vehicle -> {
-                        try {
-                            System.out.println("[DEBUG] FrotaController.getAllVehicles() - Convertendo veÃ­culo: "
-                                    + vehicle.getPlate());
-                            VehicleDTO dto = VehicleDTO.fromEntity(vehicle);
-                            System.out
-                                    .println("[DEBUG] FrotaController.getAllVehicles() - DTO criado com sucesso para: "
-                                            + vehicle.getPlate());
-                            return dto;
-                        } catch (Exception e) {
-                            System.err.println("[DEBUG] FrotaController.getAllVehicles() - Erro ao converter veÃ­culo "
-                                    + vehicle.getPlate() + ": " + e.getMessage());
-                            System.err.println("[DEBUG] FrotaController.getAllVehicles() - Stack trace completo:");
-                            e.printStackTrace();
-                            throw e;
-                        }
-                    })
-                    .collect(Collectors.toList());
-
-            System.out.println("[DEBUG] FrotaController.getAllVehicles() - DTOs criados: " + vehicleDTOs.size());
-            return ResponseEntity.ok(vehicleDTOs);
-
+            return ResponseEntity.ok(vehicleService.getAllVehicles());
         } catch (Exception e) {
             System.err.println("[DEBUG] FrotaController.getAllVehicles() - Erro geral: " + e.getMessage());
-            System.err.println(
-                    "[DEBUG] FrotaController.getAllVehicles() - Tipo de erro: " + e.getClass().getSimpleName());
-            System.err.println("[DEBUG] FrotaController.getAllVehicles() - Stack trace completo:");
-            e.printStackTrace();
-            // Evitar 500: retornar lista vazia para o frontend lidar graciosamente
             return ResponseEntity.ok(List.of());
         }
     }
@@ -92,56 +38,36 @@ public class FrotaController {
     @GetMapping("/vehicles/{id}")
     public ResponseEntity<VehicleDTO> getVehicleById(@PathVariable("id") UUID id) {
         try {
-            Vehicle vehicle = vehicleRepository.findById(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("VeÃ­culo nÃ£o encontrado com ID: " + id));
-            return ResponseEntity.ok(VehicleDTO.fromEntity(vehicle));
+            return ResponseEntity.ok(vehicleService.getVehicleById(id));
         } catch (Exception e) {
-            System.err.println("[DEBUG] FrotaController.getVehicleById() - Erro: " + e.getMessage());
-            e.printStackTrace();
-            throw e;
+            return ResponseEntity.notFound().build();
         }
     }
 
     @GetMapping("/vehicles/plate/{plate}")
     public ResponseEntity<VehicleDTO> getVehicleByPlate(@PathVariable("plate") String plate) {
-        try {
-            Vehicle vehicle = vehicleRepository.findByPlate(plate)
-                    .orElseThrow(() -> new ResourceNotFoundException("VeÃ­culo nÃ£o encontrado com placa: " + plate));
-            return ResponseEntity.ok(VehicleDTO.fromEntity(vehicle));
-        } catch (Exception e) {
-            System.err.println("[DEBUG] FrotaController.getVehicleByPlate() - Erro: " + e.getMessage());
-            e.printStackTrace();
-            throw e;
-        }
+        return vehicleService.getVehicleByPlate(plate)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/vehicles/status/{status}")
     public ResponseEntity<List<VehicleDTO>> getVehiclesByStatus(@PathVariable("status") Vehicle.VehicleStatus status) {
         try {
-            List<Vehicle> vehicles = vehicleRepository.findByStatus(status);
-            List<VehicleDTO> vehicleDTOs = vehicles.stream()
-                    .map(VehicleDTO::fromEntity)
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(vehicleDTOs);
+            return ResponseEntity.ok(vehicleService.getVehiclesByStatus(status));
         } catch (Exception e) {
             System.err.println("[DEBUG] FrotaController.getVehiclesByStatus() - Erro: " + e.getMessage());
-            e.printStackTrace();
-            throw e;
+            return ResponseEntity.ok(List.of());
         }
     }
 
     @GetMapping("/vehicles/search")
     public ResponseEntity<List<VehicleDTO>> searchVehicles(@RequestParam(name = "searchTerm") String searchTerm) {
         try {
-            List<Vehicle> vehicles = vehicleRepository.findBySearchTerm(searchTerm);
-            List<VehicleDTO> vehicleDTOs = vehicles.stream()
-                    .map(VehicleDTO::fromEntity)
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(vehicleDTOs);
+            return ResponseEntity.ok(vehicleService.searchVehicles(searchTerm));
         } catch (Exception e) {
             System.err.println("[DEBUG] FrotaController.searchVehicles() - Erro: " + e.getMessage());
-            e.printStackTrace();
-            throw e;
+            return ResponseEntity.ok(List.of());
         }
     }
 

@@ -51,6 +51,7 @@ public class UserCompanyResolver {
         // Fallback para a empresa de demonstração da FluxBus
         try {
             return companyRepository.findFirstBySiglaIgnoreCase("FLU")
+                    .or(() -> companyRepository.findFirstBySiglaIgnoreCase("FLUXBU"))
                     .or(() -> companyRepository.findAll().stream()
                             .filter(c -> c.getName() != null && c.getName().toUpperCase().contains("FLUXBUS"))
                             .findFirst())
@@ -142,6 +143,7 @@ public class UserCompanyResolver {
         if (privileged) {
             try {
                 Optional<Company> fluxbus = companyRepository.findFirstBySiglaIgnoreCase("FLU")
+                        .or(() -> companyRepository.findFirstBySiglaIgnoreCase("FLUXBU"))
                         .or(() -> companyRepository.findAll().stream()
                                 .filter(c -> c.getName() != null && c.getName().toUpperCase().contains("FLUXBUS"))
                                 .findFirst());

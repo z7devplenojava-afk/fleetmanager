@@ -51,15 +51,15 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, UUID> 
      * Busca últimas mensagens de conversas para um usuário
      */
     @Query(value = "SELECT * FROM chat_messages WHERE id IN (" +
-           "SELECT DISTINCT ON (" +
-           "  COALESCE(CASE WHEN recipient_id = CAST(:userId AS uuid) THEN sender_id WHEN sender_id = CAST(:userId AS uuid) THEN recipient_id ELSE NULL END, group_id, department_id, id)" +
-           ") id FROM chat_messages " +
-           "WHERE (sender_id = CAST(:userId AS uuid) OR recipient_id = CAST(:userId AS uuid) " +
-           "       OR group_id IN (SELECT group_id FROM user_group_membership WHERE user_id = CAST(:userId AS uuid)) " +
-           "       OR department_id IS NOT NULL) " +
-           "ORDER BY " +
-           "  COALESCE(CASE WHEN recipient_id = CAST(:userId AS uuid) THEN sender_id WHEN sender_id = CAST(:userId AS uuid) THEN recipient_id ELSE NULL END, group_id, department_id, id), " +
-           "  created_at DESC" +
+           "SELECT id FROM (" +
+           "  SELECT id, ROW_NUMBER() OVER (" +
+           "    PARTITION BY COALESCE(CASE WHEN recipient_id = CAST(:userId AS uuid) THEN sender_id WHEN sender_id = CAST(:userId AS uuid) THEN recipient_id ELSE NULL END, group_id, department_id, id) " +
+           "    ORDER BY created_at DESC" +
+           "  ) as rn FROM chat_messages " +
+           "  WHERE (sender_id = CAST(:userId AS uuid) OR recipient_id = CAST(:userId AS uuid) " +
+           "         OR group_id IN (SELECT group_id FROM user_group_membership WHERE user_id = CAST(:userId AS uuid)) " +
+           "         OR department_id IS NOT NULL) " +
+           ") sub WHERE sub.rn = 1" +
            ") ORDER BY created_at DESC", nativeQuery = true)
     List<ChatMessage> findRecentConversationsForUser(@Param("userId") UUID userId);
 

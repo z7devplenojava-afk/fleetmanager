@@ -450,6 +450,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             if (companyOpt.isEmpty()) {
                 if (privileged) {
                     Optional<Company> fluxbus = companyRepository.findFirstBySiglaIgnoreCase("FLU")
+                            .or(() -> companyRepository.findFirstBySiglaIgnoreCase("FLUXBU"))
                             .or(() -> companyRepository.findAll().stream()
                                     .filter(comp -> comp.getName() != null && comp.getName().toUpperCase().contains("FLUXBUS"))
                                     .findFirst());
