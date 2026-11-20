@@ -30,6 +30,9 @@ export interface VehicleCleaningOrder {
   vehicleGarageName?: string;
   driverId?: string;
   driverName?: string;
+  workPostId?: string;
+  workPostName?: string;
+  workPostClientName?: string;
   status: CleaningStatus;
   cleaningType: CleaningType;
   checklistData?: string;
@@ -72,6 +75,7 @@ export interface VehicleCleaningOrder {
 export interface CreateCleaningOrderRequest {
   vehicleId: string;
   driverId?: string;
+  workPostId?: string;
   driverUserId?: string;
   driverPhone?: string;
   cleaningType: CleaningType;

@@ -78,6 +78,7 @@ public class FleetWorkOrderPdfService {
 
     // Caches de alta performance em memória para geração quase instantânea de PDF
     private static final String PDF_CACHE_VERSION = "v7_model2_two_cols_evidences_active";
+    private static final String MODEL_2_SINGLE_COLUMN_CACHE_VERSION = "v8_model2_single_column_evidences_active";
     private static final Map<String, byte[]> PDF_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
     private static final Map<String, String> LOGO_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
     private static final Map<String, String> PHOTO_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
@@ -140,7 +141,8 @@ public class FleetWorkOrderPdfService {
 
         boolean isResumido = "MODELO_RESUMIDO".equals(activeModel) || "MODELO_2".equals(activeModel) || "RESUMIDO".equals(activeModel);
 
-        String cacheKey = PDF_CACHE_VERSION + ":" + workOrderId + ":" + blankChecklist + ":" + activeModel + ":"
+        String cacheVersion = isResumido ? MODEL_2_SINGLE_COLUMN_CACHE_VERSION : PDF_CACHE_VERSION;
+        String cacheKey = cacheVersion + ":" + workOrderId + ":" + blankChecklist + ":" + activeModel + ":"
                 + (order.getUpdatedAt() != null ? order.getUpdatedAt().toString() : "0");
         byte[] cachedPdf = PDF_CACHE.get(cacheKey);
         if (cachedPdf != null && cachedPdf.length > 0) {

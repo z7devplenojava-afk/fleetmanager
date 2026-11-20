@@ -42,7 +42,11 @@ import { useToast } from '@/hooks/use-toast';
 import { sstService, SSTTraining, CreateSSTTrainingDTO } from '@/services/sstService';
 import TrainingFormModal from '@/components/sst/TrainingFormModal';
 
-const SSTTreinamentos: React.FC = () => {
+export interface SSTTreinamentosProps {
+  embedded?: boolean;
+}
+
+const SSTTreinamentos: React.FC<SSTTreinamentosProps> = ({ embedded = false }) => {
   const navigate = useNavigate();
   const { toast } = useToast();
   
@@ -180,10 +184,10 @@ const SSTTreinamentos: React.FC = () => {
     }
   };
 
-  return (
-    <StandardLayout>
-      <div className="space-y-4 sm:space-y-6">
-        {/* Header */}
+  const innerContent = (
+    <div className="space-y-4 sm:space-y-6">
+      {/* Header */}
+      {!embedded ? (
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-seguranca-lightgray flex items-center gap-2">
@@ -212,6 +216,30 @@ const SSTTreinamentos: React.FC = () => {
             </Button>
           </div>
         </div>
+      ) : (
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-slate-800">
+          <div>
+            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+              <GraduationCap className="h-5 w-5 text-amber-400" />
+              Treinamentos e NRs
+            </h3>
+            <p className="text-xs text-slate-400">
+              Controle de capacitação, reciclagens e matriz de treinamentos obrigatórios
+            </p>
+          </div>
+          <Button 
+            size="sm"
+            onClick={() => {
+              setSelectedTraining(null);
+              setShowCreateModal(true);
+            }}
+            className="bg-red-600 hover:bg-red-700 text-white shadow-sm"
+          >
+            <Plus className="h-4 w-4 mr-1.5" />
+            Novo Treinamento
+          </Button>
+        </div>
+      )}
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -478,8 +506,9 @@ const SSTTreinamentos: React.FC = () => {
           </AlertDialogContent>
         </AlertDialog>
       </div>
-    </StandardLayout>
   );
+
+  return embedded ? innerContent : <StandardLayout>{innerContent}</StandardLayout>;
 };
 
 export default SSTTreinamentos;

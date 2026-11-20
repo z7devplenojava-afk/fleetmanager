@@ -233,9 +233,11 @@ export const fretamentoCheckinService = {
           vehiclePlate: b.vehiclePlate || 'Veículo Executivo',
           direction: b.direction || 'IDA',
           checkinType: (b.validationMode as any) || 'QR_SCAN_BY_PASSENGER',
-          latitude: b.boardingLatitude || -19.9227,
-          longitude: b.boardingLongitude || -43.9451,
-          address: 'Ponto de Embarque Confirmado',
+          latitude: b.boardingLatitude ?? 0,
+          longitude: b.boardingLongitude ?? 0,
+          address: b.boardingLatitude != null && b.boardingLongitude != null
+            ? `Localização registrada (${Number(b.boardingLatitude).toFixed(5)}, ${Number(b.boardingLongitude).toFixed(5)})`
+            : 'Localização não registrada',
           timestamp: b.boardingTime || b.createdAt,
           synced: true,
         }));

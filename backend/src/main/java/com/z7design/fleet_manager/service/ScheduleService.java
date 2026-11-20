@@ -215,6 +215,7 @@ public class ScheduleService {
                     .travelTrip(travelTrip)
                     .legs(dto.getLegs())
                     .scheduleDate(dto.getScheduleDate())
+                    .scheduleRecurrence(dto.getScheduleRecurrence())
                     .shift(dto.getShift())
                     .startTime(dto.getStartTime())
                     .endTime(dto.getEndTime())
@@ -304,6 +305,9 @@ public class ScheduleService {
         }
         if (dto.getScheduleDate() != null) {
             existingSchedule.setScheduleDate(dto.getScheduleDate());
+        }
+        if (dto.getScheduleRecurrence() != null) {
+            existingSchedule.setScheduleRecurrence(dto.getScheduleRecurrence());
         }
         if (dto.getShift() != null) {
             existingSchedule.setShift(dto.getShift());

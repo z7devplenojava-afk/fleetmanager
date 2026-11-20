@@ -257,16 +257,18 @@ const departamentoPessoalMenuItems = [
 
 // Módulo Operacional
 const operacionalMenuItems = [
-  { icon: BarChart3, text: 'Dashboard Operacional', to: '/operacional-dashboard', id: 'operacional-dashboard' },
+  { icon: BarChart3, text: 'Dashboard Geral', to: '/operacional-dashboard', id: 'operacional-dashboard' },
+  { icon: Bus, text: 'Fretamentos', to: '/operacional?tab=fretamentos', id: 'operacional-fretamentos' },
   { icon: Building2, text: 'Gestão de Postos', to: '/operacional/postos', id: 'operacional-postos' },
-  { icon: Clock, text: 'Gestão de Escalas', to: '/operacional/escalas', id: 'operacional-escalas' },
-  { icon: CheckSquare, text: 'Gestão de Tarefas', to: '/operacional/tarefas', id: 'operacional-tarefas' },
+  { icon: Clock, text: 'Escalas de Motoristas', to: '/operacional/escalas', id: 'operacional-escalas' },
+  { icon: CheckSquare, text: 'Tarefas Operacionais', to: '/operacional/tarefas', id: 'operacional-tarefas' },
   { icon: FileText, text: 'Relatórios Operacionais', to: '/operacional/relatorios', id: 'operacional-relatorios' },
   { icon: CheckSquare, text: 'Controle de Visitas de Supervisor', to: '/gestao-visitas-supervisor', id: 'gestao-visitas-supervisor' },
-  { icon: ClipboardList, text: 'Serviços', to: '/operacional?tab=servicos', id: 'operacional-servicos' },
-  { icon: Calendar, text: 'Controle de Escalas', to: '/operacional?tab=escalas', id: 'operacional-escalas' },
+  { icon: ClipboardList, text: 'Ordens de Serviço', to: '/operacional?tab=servicos', id: 'operacional-servicos' },
+  { icon: Bus, text: 'Controle Operacional de Veículos', to: '/operacional?tab=controle-operacional', id: 'controle-operacional-veiculos' },
   { icon: Route, text: 'Supervisão de Postos', to: '/rota-semanal-supervisao', id: 'rota-semanal-supervisao' },
-  { icon: Shield, text: 'Equipamentos', to: '/operacional', id: 'equipamentos' },
+  { icon: Bus, text: 'Frota', to: '/operacional?tab=frota', id: 'operacional-frota' },
+  { icon: UserCheck, text: 'Gestão de Agregados', to: '/operacional?tab=agregados', id: 'operacional-agregados' },
   { icon: ArrowUpDown, text: 'Troca de Plantão', to: '/operacional/troca-plantao', id: 'troca-plantao' },
   { icon: Ruler, text: 'Medição', to: '/operacional/medicao', id: 'operacional-medicao' },
 ];

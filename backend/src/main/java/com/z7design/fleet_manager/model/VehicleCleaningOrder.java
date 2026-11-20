@@ -45,6 +45,10 @@ public class VehicleCleaningOrder {
     @JoinColumn(name = "driver_id")
     private Driver driver;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "work_post_id")
+    private WorkPost workPost;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private CleaningStatus status;

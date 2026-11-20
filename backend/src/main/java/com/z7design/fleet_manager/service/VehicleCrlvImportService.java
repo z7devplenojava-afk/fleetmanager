@@ -30,7 +30,6 @@ public class VehicleCrlvImportService {
         return crlvParserService.parsePdf(file);
     }
 
-    @Transactional
     public CrlvImportResultDTO importCrlvBatch(List<MultipartFile> files) {
         if (files == null || files.isEmpty()) {
             throw new IllegalArgumentException("Nenhum arquivo enviado para importação.");
@@ -98,6 +97,12 @@ public class VehicleCrlvImportService {
 
                 if (!cleanPlateStr.isEmpty()) {
                     existing = existingMap.get(cleanPlateStr);
+                    if (existing == null) {
+                        existing = vehicleRepository.findByPlateGlobal(cleanPlateStr).orElse(null);
+                        if (existing != null) {
+                            existingMap.put(cleanPlateStr, existing);
+                        }
+                    }
                 }
 
                 // Se não localizou por placa, mas possui número de frota no CRLV/nome do arquivo, tenta cruzar pela frota
@@ -123,6 +128,12 @@ public class VehicleCrlvImportService {
                     // ============================================================
                     // VEÍCULO EXISTE: Preenche SOMENTE campos vazios / em branco
                     // ============================================================
+                    if (existing.getCompanyId() == null && currentCompanyId != null) {
+                        existing.setCompanyId(currentCompanyId);
+                        if (currentCompany.isPresent()) {
+                            existing.setCompany(currentCompany.get());
+                        }
+                    }
                     List<String> updatedFields = new ArrayList<>();
 
                     if ((existing.getFleetNumber() == null || existing.getFleetNumber().isBlank()) && parsed.getFleetNumber() != null) {
@@ -191,7 +202,7 @@ public class VehicleCrlvImportService {
                     }
 
                     if (!updatedFields.isEmpty()) {
-                        vehicleRepository.save(existing);
+                        vehicleRepository.saveAndFlush(existing);
                         result.setUpdated(result.getUpdated() + 1);
                         result.getItems().add(CrlvImportItemDTO.builder()
                                 .fileName(fileName)
@@ -224,55 +235,89 @@ public class VehicleCrlvImportService {
                     // ============================================================
                     // VEÍCULO NÃO EXISTE: Cria diretamente conforme solicitado
                     // ============================================================
-                    Vehicle newVehicle = new Vehicle();
-                    newVehicle.setPlate(cleanPlateStr);
-                    newVehicle.setBrand(parsed.getBrand() != null ? parsed.getBrand() : "Outros");
-                    newVehicle.setModel(parsed.getModel() != null ? parsed.getModel() : "Não Informado");
-                    newVehicle.setYear(parsed.getManufactureYear() != null ? parsed.getManufactureYear()
-                            : (parsed.getModelYear() != null ? parsed.getModelYear() : 2024));
-                    newVehicle.setModelYear(parsed.getModelYear());
-                    newVehicle.setColor(parsed.getColor() != null ? parsed.getColor() : "Branco");
-                    newVehicle.setFuelType(parsed.getFuelType() != null ? parsed.getFuelType() : FuelType.DIESEL);
-                    newVehicle.setCapacity(parsed.getCapacity() != null ? parsed.getCapacity() : 40);
-                    newVehicle.setCurrentMileage(0);
-                    newVehicle.setStatus(VehicleStatus.ACTIVE);
-                    newVehicle.setVehicleType(parsed.getVehicleType() != null ? parsed.getVehicleType() : VehicleType.BUS_ROAD);
-                    newVehicle.setChassisNumber(parsed.getChassisNumber());
-                    newVehicle.setRenavan(parsed.getRenavam());
-                    newVehicle.setBusType(parsed.getBusType());
-                    newVehicle.setPassengerCapacity(parsed.getCapacity());
-                    newVehicle.setEnginePowerHp(parsed.getEnginePowerHp());
-                    newVehicle.setTotalWeightKg(parsed.getTotalWeightKg());
-                    newVehicle.setAxleCount(parsed.getAxleCount());
-                    newVehicle.setEngineModel(parsed.getEngineNumber());
-                    if (parsed.getFleetNumber() != null && !parsed.getFleetNumber().isBlank()) {
-                        newVehicle.setFleetNumber(parsed.getFleetNumber().trim());
-                    }
+                    Optional<Vehicle> globalExisting = vehicleRepository.findByPlateGlobal(cleanPlateStr);
+                    if (globalExisting.isPresent()) {
+                        Vehicle recovered = globalExisting.get();
+                        existingMap.put(cleanPlateStr, recovered);
+                        if (recovered.getCompanyId() == null && currentCompanyId != null) {
+                            recovered.setCompanyId(currentCompanyId);
+                            if (currentCompany.isPresent()) {
+                                recovered.setCompany(currentCompany.get());
+                            }
+                        }
+                        if (parsed.getFleetNumber() != null && (recovered.getFleetNumber() == null || recovered.getFleetNumber().isBlank())) {
+                            recovered.setFleetNumber(parsed.getFleetNumber().trim());
+                        }
+                        if (parsed.getChassisNumber() != null && (recovered.getChassisNumber() == null || recovered.getChassisNumber().isBlank())) {
+                            recovered.setChassisNumber(parsed.getChassisNumber().trim());
+                        }
+                        if (parsed.getRenavam() != null && (recovered.getRenavan() == null || recovered.getRenavan().isBlank())) {
+                            recovered.setRenavan(parsed.getRenavam().trim());
+                        }
+                        vehicleRepository.saveAndFlush(recovered);
+                        result.setUpdated(result.getUpdated() + 1);
+                        result.getItems().add(CrlvImportItemDTO.builder()
+                                .fileName(fileName)
+                                .plate(recovered.getPlate())
+                                .renavam(recovered.getRenavan())
+                                .chassisNumber(recovered.getChassisNumber())
+                                .brand(recovered.getBrand())
+                                .model(recovered.getModel())
+                                .year(recovered.getYear())
+                                .action("UPDATED")
+                                .message("Veículo localizado na base e atualizado com dados do CRLV.")
+                                .build());
+                    } else {
+                        Vehicle newVehicle = new Vehicle();
+                        newVehicle.setPlate(cleanPlateStr);
+                        newVehicle.setBrand(parsed.getBrand() != null ? parsed.getBrand() : "Outros");
+                        newVehicle.setModel(parsed.getModel() != null ? parsed.getModel() : "Não Informado");
+                        newVehicle.setYear(parsed.getManufactureYear() != null ? parsed.getManufactureYear()
+                                : (parsed.getModelYear() != null ? parsed.getModelYear() : 2024));
+                        newVehicle.setModelYear(parsed.getModelYear());
+                        newVehicle.setColor(parsed.getColor() != null ? parsed.getColor() : "Branco");
+                        newVehicle.setFuelType(parsed.getFuelType() != null ? parsed.getFuelType() : FuelType.DIESEL);
+                        newVehicle.setCapacity(parsed.getCapacity() != null ? parsed.getCapacity() : 40);
+                        newVehicle.setCurrentMileage(0);
+                        newVehicle.setStatus(VehicleStatus.ACTIVE);
+                        newVehicle.setVehicleType(parsed.getVehicleType() != null ? parsed.getVehicleType() : VehicleType.BUS_ROAD);
+                        newVehicle.setChassisNumber(parsed.getChassisNumber());
+                        newVehicle.setRenavan(parsed.getRenavam());
+                        newVehicle.setBusType(parsed.getBusType());
+                        newVehicle.setPassengerCapacity(parsed.getCapacity());
+                        newVehicle.setEnginePowerHp(parsed.getEnginePowerHp());
+                        newVehicle.setTotalWeightKg(parsed.getTotalWeightKg());
+                        newVehicle.setAxleCount(parsed.getAxleCount());
+                        newVehicle.setEngineModel(parsed.getEngineNumber());
+                        if (parsed.getFleetNumber() != null && !parsed.getFleetNumber().isBlank()) {
+                            newVehicle.setFleetNumber(parsed.getFleetNumber().trim());
+                        }
 
-                    if (currentCompany.isPresent()) {
-                        newVehicle.setCompany(currentCompany.get());
-                    } else if (currentCompanyId != null) {
-                        newVehicle.setCompanyId(currentCompanyId);
-                    }
+                        if (currentCompany.isPresent()) {
+                            newVehicle.setCompany(currentCompany.get());
+                        } else if (currentCompanyId != null) {
+                            newVehicle.setCompanyId(currentCompanyId);
+                        }
 
-                    Vehicle saved = vehicleRepository.save(newVehicle);
-                    existingMap.put(cleanPlateStr, saved); // Adiciona ao cache local
-                    if (saved.getFleetNumber() != null && !saved.getFleetNumber().isBlank()) {
-                        existingFleetMap.put(saved.getFleetNumber().trim().toUpperCase(), saved);
-                    }
+                        Vehicle saved = vehicleRepository.saveAndFlush(newVehicle);
+                        existingMap.put(cleanPlateStr, saved); // Adiciona ao cache local
+                        if (saved.getFleetNumber() != null && !saved.getFleetNumber().isBlank()) {
+                            existingFleetMap.put(saved.getFleetNumber().trim().toUpperCase(), saved);
+                        }
 
-                    result.setInserted(result.getInserted() + 1);
-                    result.getItems().add(CrlvImportItemDTO.builder()
-                            .fileName(fileName)
-                            .plate(saved.getPlate())
-                            .renavam(saved.getRenavan())
-                            .chassisNumber(saved.getChassisNumber())
-                            .brand(saved.getBrand())
-                            .model(saved.getModel())
-                            .year(saved.getYear())
-                            .action("CREATED")
-                            .message("Novo veículo cadastrado automaticamente via CRLV.")
-                            .build());
+                        result.setInserted(result.getInserted() + 1);
+                        result.getItems().add(CrlvImportItemDTO.builder()
+                                .fileName(fileName)
+                                .plate(saved.getPlate())
+                                .renavam(saved.getRenavan())
+                                .chassisNumber(saved.getChassisNumber())
+                                .brand(saved.getBrand())
+                                .model(saved.getModel())
+                                .year(saved.getYear())
+                                .action("CREATED")
+                                .message("Novo veículo cadastrado automaticamente via CRLV.")
+                                .build());
+                    }
                 }
 
             } catch (Exception e) {

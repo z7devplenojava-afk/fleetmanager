@@ -27,22 +27,14 @@ import com.z7design.fleet_manager.repository.AccountsReceivableRepository;
 @Service
 @Transactional
 @Slf4j
+@lombok.RequiredArgsConstructor
 public class ClientService {
     
-    @Autowired
-    private ClientRepository clientRepository;
-
-    @Autowired
-    private WorkPostRepository workPostRepository;
-
-    @Autowired
-    private VehicleRepository vehicleRepository;
-
-    @Autowired
-    private AccountsReceivableRepository accountsReceivableRepository;
-
-    @Autowired
-    private UserCompanyResolver userCompanyResolver;
+    private final ClientRepository clientRepository;
+    private final WorkPostRepository workPostRepository;
+    private final VehicleRepository vehicleRepository;
+    private final AccountsReceivableRepository accountsReceivableRepository;
+    private final UserCompanyResolver userCompanyResolver;
     
     public ClientDTO createClient(ClientDTO clientDTO) {
         try {

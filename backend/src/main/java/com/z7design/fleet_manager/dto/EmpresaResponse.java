@@ -17,6 +17,7 @@ import lombok.NoArgsConstructor;
 public class EmpresaResponse {
     private String id;
     private String nome;
+    private String sigla;
     private String logoUrl;
     private String iconUrl;
     private String temaCor;

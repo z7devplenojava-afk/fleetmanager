@@ -1,7 +1,19 @@
 package com.z7design.fleet_manager.controller;
 
 import com.z7design.fleet_manager.dto.PassengerDTO;
+import com.z7design.fleet_manager.model.DriverShift;
+import com.z7design.fleet_manager.model.Passenger;
+import com.z7design.fleet_manager.model.Route;
+import com.z7design.fleet_manager.model.RouteExecution;
+import com.z7design.fleet_manager.model.RouteExecutionStatus;
+import com.z7design.fleet_manager.model.RoutePoint;
+import com.z7design.fleet_manager.model.User;
+import com.z7design.fleet_manager.repository.DriverShiftRepository;
+import com.z7design.fleet_manager.repository.PassengerRepository;
+import com.z7design.fleet_manager.service.AuthenticationService;
 import com.z7design.fleet_manager.service.PassengerService;
+import org.springframework.security.core.Authentication;
+import org.springframework.transaction.annotation.Transactional;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +24,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.ArrayList;
 import java.util.UUID;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.util.Comparator;
+import java.util.Collections;
 
 @RestController
 @RequestMapping("/api/passengers")
@@ -20,6 +38,89 @@ import java.util.UUID;
 public class PassengerController {
 
     private final PassengerService passengerService;
+    private final PassengerRepository passengerRepository;
+    private final DriverShiftRepository driverShiftRepository;
+    private final AuthenticationService authenticationService;
+
+    @GetMapping("/me/route-tracking")
+    @Transactional(readOnly = true)
+    @Operation(summary = "Acompanhar rota autorizada", description = "Retorna somente a rota do passageiro autenticado e a posição do veículo em execução")
+    public ResponseEntity<?> getMyRouteTracking(
+            Authentication authentication,
+            @RequestParam(value = "direction", defaultValue = "IDA") String direction) {
+        User user;
+        try {
+            user = authenticationService.getCurrentUser(authentication);
+        } catch (Exception e) {
+            return ResponseEntity.status(401).build();
+        }
+        if (user == null) return ResponseEntity.status(401).build();
+
+        Passenger passenger = passengerRepository.findByUserId(user.getId()).orElse(null);
+        if (passenger == null || !Boolean.TRUE.equals(passenger.getActive())) {
+            return ResponseEntity.ok(PassengerRouteTracking.unassigned(direction));
+        }
+
+        boolean returning = "RETORNO".equalsIgnoreCase(direction);
+        Route route = returning && passenger.getReturnRoute() != null
+                ? passenger.getReturnRoute() : passenger.getRoute();
+        RoutePoint boardingPoint = returning && passenger.getReturnBoardingPoint() != null
+                ? passenger.getReturnBoardingPoint() : passenger.getBoardingPoint();
+        if (route == null) return ResponseEntity.ok(PassengerRouteTracking.unassigned(direction));
+
+        List<RouteTrackingPoint> points = route.getPoints() == null ? Collections.emptyList()
+                : route.getPoints().stream()
+                        .sorted(Comparator.comparing(RoutePoint::getOrder, Comparator.nullsLast(Integer::compareTo)))
+                        .map(point -> new RouteTrackingPoint(point.getId(), point.getName(), point.getLatitude(),
+                                point.getLongitude(), point.getType() != null ? point.getType().name() : "BOARDING",
+                                point.getOrder()))
+                        .toList();
+
+        DriverShift activeShift = driverShiftRepository.findByShiftDate(LocalDate.now(ZoneId.of("America/Sao_Paulo"))).stream()
+                .filter(shift -> shift.getStatus() == DriverShift.DriverShiftStatus.IN_PROGRESS)
+                .filter(shift -> shift.getRouteExecutions() != null && shift.getRouteExecutions().stream().anyMatch(execution ->
+                        execution.getRoute() != null && route.getId().equals(execution.getRoute().getId())
+                                && (execution.getStatus() == RouteExecutionStatus.IN_PROGRESS
+                                    || execution.getStatus() == RouteExecutionStatus.DELAYED)))
+                .max(Comparator.comparing(DriverShift::getUpdatedAt, Comparator.nullsFirst(LocalDateTime::compareTo)))
+                .orElse(null);
+
+        RouteExecution activeExecution = activeShift == null ? null : activeShift.getRouteExecutions().stream()
+                .filter(execution -> execution.getRoute() != null && route.getId().equals(execution.getRoute().getId()))
+                .filter(execution -> execution.getStatus() == RouteExecutionStatus.IN_PROGRESS
+                        || execution.getStatus() == RouteExecutionStatus.DELAYED)
+                .findFirst().orElse(null);
+        var vehicle = activeExecution != null && activeExecution.getVehicle() != null
+                ? activeExecution.getVehicle() : activeShift != null ? activeShift.getVehicle() : null;
+        var driver = activeExecution != null && activeExecution.getDriver() != null
+                ? activeExecution.getDriver() : activeShift != null ? activeShift.getDriver() : null;
+        LocalTime scheduledStart = activeExecution != null ? activeExecution.getPlannedStartTime() : null;
+
+        return ResponseEntity.ok(new PassengerRouteTracking(true, direction.toUpperCase(), route.getId(), route.getName(),
+                route.getColor(), points,
+                boardingPoint != null ? new RouteTrackingPoint(boardingPoint.getId(), boardingPoint.getName(),
+                        boardingPoint.getLatitude(), boardingPoint.getLongitude(),
+                        boardingPoint.getType() != null ? boardingPoint.getType().name() : "BOARDING", boardingPoint.getOrder()) : null,
+                vehicle != null ? vehicle.getPlate() : null,
+                driver != null ? driver.getName() : null,
+                activeShift != null ? activeShift.getCurrentLatitude() : null,
+                activeShift != null ? activeShift.getCurrentLongitude() : null,
+                activeShift != null ? activeShift.getUpdatedAt() : null,
+                activeExecution != null ? activeExecution.getStatus().name() : "SCHEDULED",
+                scheduledStart));
+    }
+
+    public record RouteTrackingPoint(UUID id, String name, Double latitude, Double longitude, String type, Integer order) {}
+
+    public record PassengerRouteTracking(boolean assigned, String direction, UUID routeId, String routeName,
+            String color, List<RouteTrackingPoint> points, RouteTrackingPoint boardingPoint,
+            String vehiclePlate, String driverName, Double vehicleLatitude, Double vehicleLongitude,
+            LocalDateTime locationUpdatedAt, String executionStatus, LocalTime plannedStartTime) {
+        static PassengerRouteTracking unassigned(String direction) {
+            return new PassengerRouteTracking(false, direction, null, null, null, Collections.emptyList(),
+                    null, null, null, null, null, null, null, null);
+        }
+    }
 
     @GetMapping
     @Operation(summary = "Listar todos os passageiros", description = "Retorna todos os passageiros")

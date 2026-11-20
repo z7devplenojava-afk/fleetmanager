@@ -234,16 +234,21 @@ public class GlobalExceptionHandler {
             WebRequest request) {
         log.warn("ViolaÃ§Ã£o de integridade de dados: {}", ex.getMessage());
 
-        String message = "Erro ao salvar dados. Verifique se os dados jÃ¡ existem (ex: username ou email jÃ¡ cadastrado).";
+        String message = "Erro ao salvar dados. Verifique se os dados já existem no sistema.";
 
-        // Tentar extrair uma mensagem mais especÃ­fica da exceÃ§Ã£o
+        // Tentar extrair uma mensagem mais específica da exceção
         if (ex.getMessage() != null) {
-            if (ex.getMessage().contains("username")
-                    || ex.getMessage().contains("UK_") && ex.getMessage().contains("username")) {
-                message = "Nome de usuÃ¡rio jÃ¡ estÃ¡ em uso";
-            } else if (ex.getMessage().contains("email")
-                    || ex.getMessage().contains("UK_") && ex.getMessage().contains("email")) {
-                message = "Email jÃ¡ estÃ¡ em uso";
+            String lower = ex.getMessage().toLowerCase();
+            if (lower.contains("vehicles_plate_key") || lower.contains("(plate)=") || lower.contains("chave (plate)")) {
+                message = "Já existe um veículo cadastrado com esta placa";
+            } else if (lower.contains("users_username_key") || lower.contains("(username)=") || lower.contains("chave (username)")) {
+                message = "Nome de usuário já está em uso";
+            } else if (lower.contains("users_email_key") || lower.contains("uk_users_email") || (lower.contains("email") && lower.contains("users_"))) {
+                message = "Email já está em uso";
+            } else if (lower.contains("cpf") && (lower.contains("employees") || lower.contains("drivers"))) {
+                message = "CPF já cadastrado no sistema";
+            } else if (lower.contains("cnpj") && lower.contains("clients")) {
+                message = "CNPJ já cadastrado para este cliente";
             }
         }
 

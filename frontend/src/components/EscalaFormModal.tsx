@@ -1204,35 +1204,35 @@ const EscalaFormModal: React.FC<EscalaFormModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-seguranca-graphite text-seguranca-lightgray border-gray-700 sm:max-w-2xl max-h-[92vh] overflow-y-auto">
-        <DialogHeader className="pb-4 border-b border-gray-700/70">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-seguranca-yellow/20 rounded-lg flex items-center justify-center">
-              <CalendarLucide className="w-5 h-5 text-seguranca-yellow" />
+      <DialogContent className="flex w-[calc(100%-1rem)] max-w-5xl max-h-[calc(100dvh-1rem)] flex-col gap-0 overflow-hidden border-slate-200 bg-white p-0 text-slate-900 shadow-2xl sm:w-[calc(100%-2rem)] sm:max-h-[90dvh] sm:rounded-2xl">
+        <DialogHeader className="shrink-0 border-b border-slate-200 bg-white px-4 py-4 pr-12 sm:px-6 sm:py-5">
+          <div className="flex min-w-0 items-start gap-3 text-left">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 ring-1 ring-amber-200">
+              <CalendarLucide className="w-5 h-5 text-amber-800" />
             </div>
-            <div>
-              <DialogTitle className="text-xl font-semibold">
+            <div className="min-w-0">
+              <DialogTitle className="text-lg font-semibold leading-snug sm:text-xl">
                 {mode === 'edit' || initialData?.id ? 'Edição de Escala' : 'Nova Escala de Motorista'}
               </DialogTitle>
-              <DialogDescription className="text-gray-400 mt-0.5 text-xs">
+              <DialogDescription className="mt-1 text-xs leading-relaxed text-slate-600">
                 Campos obrigatórios (*): Motorista (Funcionário), Veículo, Data, Horário e Rota.
               </DialogDescription>
             </div>
           </div>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-5 pt-2">
+        <form onSubmit={handleSubmit} className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white px-4 pb-4 pt-4 [scrollbar-gutter:stable] sm:px-6 sm:pb-6 sm:pt-5">
           {/* 1. Motorista (Funcionário) - OBRIGATÓRIO */}
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <User className="w-4 h-4 text-seguranca-yellow" />
+              <User className="w-4 h-4 text-amber-700" />
               <Label className="text-sm font-semibold">
                 Motorista (Funcionário) <span className="text-red-400">*</span>
               </Label>
               {timeBankBalance && (
                 <Badge
                   variant="outline"
-                  className={`ml-auto border-gray-600 ${
+                  className={`ml-auto border-slate-300 ${
                     timeBankBalance.startsWith('-') ? 'text-red-400' : 'text-green-400'
                   }`}
                 >
@@ -1241,6 +1241,7 @@ const EscalaFormModal: React.FC<EscalaFormModalProps> = ({
               )}
             </div>
             <SearchableSelect
+              theme="light"
               value={String(formData.employeeId || '')}
               fallbackLabel={initialEmployeeName}
               onChange={(val) => handleInputChange('employeeId', val)}
@@ -1262,19 +1263,20 @@ const EscalaFormModal: React.FC<EscalaFormModalProps> = ({
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Car className="w-4 h-4 text-purple-400" />
+                <Car className="w-4 h-4 text-purple-700" />
                 <Label className="text-sm font-semibold">
                   Veículo Escalado <span className="text-red-400">*</span>
                 </Label>
-                <span className="text-[10px] text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full">
+                <span className="text-[10px] text-amber-800 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full">
                   1 rota por vez (sem sobreposição de horário)
                 </span>
               </div>
-              <span className="text-[11px] text-gray-400">
+              <span className="text-[11px] text-slate-600">
                 {veiculos.length > 0 ? `${veiculos.length} veículos disponíveis` : ''}
               </span>
             </div>
             <SearchableSelect
+              theme="light"
               value={String(formData.vehicleId || '')}
               fallbackLabel={initialVehicleLabel}
               onChange={(val) => handleInputChange('vehicleId', val)}
@@ -1285,9 +1287,9 @@ const EscalaFormModal: React.FC<EscalaFormModalProps> = ({
               disabled={mode === 'view'}
             />
             {vehicleExistingPegadas.length > 0 && (
-              <div className="p-2.5 rounded-lg bg-seguranca-black/70 border border-gray-700 text-xs space-y-1">
-                <div className="text-[11px] font-semibold text-gray-300 flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-seguranca-yellow" />
+              <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-xs space-y-1">
+                <div className="text-[11px] font-semibold text-slate-700 flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-amber-700" />
                   Horários já ocupados por este veículo ({currentVehiclePlate}) nesta data/regime:
                 </div>
                 <div className="flex flex-wrap gap-1.5 pt-0.5">
@@ -1322,12 +1324,13 @@ const EscalaFormModal: React.FC<EscalaFormModalProps> = ({
             {/* Rota Associada (Obrigatória) */}
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <RouteIcon className="w-4 h-4 text-seguranca-yellow" />
+                <RouteIcon className="w-4 h-4 text-amber-700" />
                 <Label className="text-sm font-semibold">
                   Rota <span className="text-red-400">*</span>
                 </Label>
               </div>
               <SearchableSelect
+                theme="light"
                 value={String(formData.routeId || '')}
                 fallbackLabel={initialRouteLabel}
                 onChange={(val) => {
@@ -1353,10 +1356,11 @@ const EscalaFormModal: React.FC<EscalaFormModalProps> = ({
             {/* Viagem (Integrada com Rotas e Viagens Ativas) */}
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <Bus className="w-4 h-4 text-seguranca-yellow" />
+                <Bus className="w-4 h-4 text-amber-700" />
                 <Label className="text-sm font-semibold">Viagem / Linha</Label>
               </div>
               <SearchableSelect
+                theme="light"
                 value={String(formData.travelTripId || formData.routeId || '')}
                 fallbackLabel={initialData?.travelTrip?.name || initialRouteLabel}
                 onChange={(val) => {
@@ -1379,30 +1383,30 @@ const EscalaFormModal: React.FC<EscalaFormModalProps> = ({
           </div>
 
           {/* Regime / Vigência da Escala: Fixa Semanal vs Final de Semana (FDS) */}
-          <div className="p-3.5 rounded-xl bg-seguranca-black/60 border border-seguranca-yellow/30 space-y-2.5">
+          <div className="p-3.5 rounded-xl bg-slate-50 border border-seguranca-yellow/30 space-y-2.5">
             <div className="flex items-center justify-between flex-wrap gap-2">
-              <Label className="text-sm font-bold text-seguranca-yellow flex items-center gap-2">
+              <Label className="text-sm font-bold text-amber-700 flex items-center gap-2">
                 <CalendarLucide className="w-4 h-4" />
                 Regime / Vigência da Escala <span className="text-red-400">*</span>
               </Label>
-              <span className="text-[11px] text-gray-400">
-                A escala fixa semanal vale todos os dias da semana até ser editada
+              <span className="text-[11px] text-slate-600">
+                Escolha uma recorrência fixa ou programe cada serviço conforme a disponibilidade
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
               <button
                 type="button"
                 disabled={mode === 'view'}
                 onClick={() => handleInputChange('scheduleRecurrence', 'WEEKLY_FIXED')}
                 className={`p-2.5 rounded-lg border text-left transition-all ${
                   (formData.scheduleRecurrence || 'WEEKLY_FIXED') === 'WEEKLY_FIXED'
-                    ? 'bg-emerald-500/20 border-emerald-500 text-white shadow-md'
-                    : 'bg-seguranca-black border-gray-700 text-gray-400 hover:border-gray-500'
+                    ? 'bg-emerald-100 border-emerald-500 text-slate-900 shadow-sm'
+                    : 'bg-white border-slate-300 text-slate-700 hover:border-emerald-400'
                 }`}
               >
-                <div className="text-xs font-bold text-emerald-300">📅 Escala Fixa Semanal</div>
-                <div className="text-[10px] text-gray-300 mt-0.5">
+                <div className="text-xs font-bold text-emerald-800">📅 Escala Fixa Semanal</div>
+                <div className="text-[10px] text-slate-700 mt-0.5">
                   Segunda a Sexta (mantida fixa até editar)
                 </div>
               </button>
@@ -1413,12 +1417,12 @@ const EscalaFormModal: React.FC<EscalaFormModalProps> = ({
                 onClick={() => handleInputChange('scheduleRecurrence', 'WEEKEND')}
                 className={`p-2.5 rounded-lg border text-left transition-all ${
                   formData.scheduleRecurrence === 'WEEKEND'
-                    ? 'bg-amber-500/20 border-amber-500 text-white shadow-md'
-                    : 'bg-seguranca-black border-gray-700 text-gray-400 hover:border-gray-500'
+                    ? 'bg-amber-100 border-amber-500 text-slate-900 shadow-sm'
+                    : 'bg-white border-slate-300 text-slate-700 hover:border-amber-400'
                 }`}
               >
-                <div className="text-xs font-bold text-amber-300">🗓️ Escala Final de Semana (FDS)</div>
-                <div className="text-[10px] text-gray-300 mt-0.5">
+                <div className="text-xs font-bold text-amber-800">🗓️ Escala Final de Semana (FDS)</div>
+                <div className="text-[10px] text-slate-700 mt-0.5">
                   Sábado e Domingo (escala de plantão/FDS)
                 </div>
               </button>
@@ -1429,13 +1433,29 @@ const EscalaFormModal: React.FC<EscalaFormModalProps> = ({
                 onClick={() => handleInputChange('scheduleRecurrence', 'SINGLE_DAY')}
                 className={`p-2.5 rounded-lg border text-left transition-all ${
                   formData.scheduleRecurrence === 'SINGLE_DAY'
-                    ? 'bg-blue-500/20 border-blue-500 text-white shadow-md'
-                    : 'bg-seguranca-black border-gray-700 text-gray-400 hover:border-gray-500'
+                    ? 'bg-blue-100 border-blue-500 text-slate-900 shadow-sm'
+                    : 'bg-white border-slate-300 text-slate-700 hover:border-blue-400'
                 }`}
               >
-                <div className="text-xs font-bold text-blue-300">📌 Data Específica / Extra</div>
-                <div className="text-[10px] text-gray-300 mt-0.5">
+                <div className="text-xs font-bold text-blue-800">📌 Data Específica / Extra</div>
+                <div className="text-[10px] text-slate-700 mt-0.5">
                   Válida apenas na data selecionada abaixo
+                </div>
+              </button>
+
+              <button
+                type="button"
+                disabled={mode === 'view'}
+                onClick={() => handleInputChange('scheduleRecurrence', 'FLEXIBLE')}
+                className={`p-2.5 rounded-lg border text-left transition-all ${
+                  formData.scheduleRecurrence === 'FLEXIBLE'
+                    ? 'bg-violet-100 border-violet-400 text-slate-900 shadow-sm'
+                    : 'bg-white border-slate-300 text-slate-700 hover:border-violet-300'
+                }`}
+              >
+                <div className="text-xs font-bold text-violet-700">⚙️ Escala flexível</div>
+                <div className="text-[10px] text-slate-600 mt-0.5">
+                  Sob demanda: ajuste data, motorista, veículo e horários conforme a operação
                 </div>
               </button>
             </div>
@@ -1446,7 +1466,7 @@ const EscalaFormModal: React.FC<EscalaFormModalProps> = ({
             {/* Data */}
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <CalendarIcon className="w-4 h-4 text-seguranca-yellow" />
+                <CalendarIcon className="w-4 h-4 text-amber-700" />
                 <Label htmlFor="scheduleDate" className="text-sm font-semibold">
                   Data de Referência / Início <span className="text-red-400">*</span>
                 </Label>
@@ -1468,10 +1488,10 @@ const EscalaFormModal: React.FC<EscalaFormModalProps> = ({
                   }
                 }}
                 disabled={mode === 'view'}
-                className={`bg-seguranca-black border transition-colors h-10 text-seguranca-lightgray ${
+                className={`bg-white border transition-colors h-10 text-slate-900 ${
                   errors.scheduleDate
                     ? 'border-red-500 focus:border-red-500'
-                    : 'border-gray-600 hover:border-gray-500 focus:border-seguranca-yellow'
+                    : 'border-slate-300 hover:border-slate-400 focus:border-seguranca-yellow'
                 }`}
               />
               {formData.scheduleDate && isWeekend(formData.scheduleDate) && (
@@ -1491,12 +1511,12 @@ const EscalaFormModal: React.FC<EscalaFormModalProps> = ({
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-seguranca-yellow" />
+                  <Clock className="w-4 h-4 text-amber-700" />
                   <Label htmlFor="shift" className="text-sm font-semibold">
                     Turno / Faixa de Pegada <span className="text-red-400">*</span>
                   </Label>
                 </div>
-                <Badge variant="outline" className="text-[10px] border-gray-600 text-gray-300">
+                <Badge variant="outline" className="text-[10px] border-slate-300 text-slate-700">
                   {formData.shift === 'NIGHT'
                     ? 'Noturno'
                     : formData.shift === 'MIXED'
@@ -1509,15 +1529,15 @@ const EscalaFormModal: React.FC<EscalaFormModalProps> = ({
                 onValueChange={(value) => handleShiftPresetChange(value)}
                 disabled={mode === 'view'}
               >
-                <SelectTrigger className="bg-seguranca-black border border-gray-600 hover:border-gray-500 focus:border-seguranca-yellow h-10">
+                <SelectTrigger className="bg-white border border-slate-300 hover:border-slate-400 focus:border-seguranca-yellow h-10">
                   <SelectValue placeholder="Selecione a pegada ou turno" />
                 </SelectTrigger>
-                <SelectContent className="bg-seguranca-graphite border-gray-600 z-[10095] max-h-80">
+                <SelectContent className="bg-white border-slate-300 z-[10095] max-h-80">
                   {TURNOS_E_PEGADAS.map((turno) => (
-                    <SelectItem key={turno.value} value={turno.value} className="hover:bg-seguranca-black/50">
+                    <SelectItem key={turno.value} value={turno.value} className="hover:bg-white/50">
                       <div className="flex items-center justify-between w-full gap-2">
                         <span className="font-medium">{turno.label}</span>
-                        <span className="text-xs text-seguranca-yellow font-mono">
+                        <span className="text-xs text-amber-700 font-mono">
                           {turno.value === 'CUSTOM' && formData.startTime && formData.endTime
                             ? `(${formData.startTime} às ${formData.endTime})`
                             : `(${turno.description})`}
@@ -1531,16 +1551,16 @@ const EscalaFormModal: React.FC<EscalaFormModalProps> = ({
           </div>
 
           {/* Horário de Início e Horário de Término - OBRIGATÓRIOS */}
-          <div className="p-3.5 rounded-lg bg-seguranca-black/40 border border-gray-700 space-y-3">
+          <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-200 space-y-3">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-seguranca-yellow" />
+                <Clock className="w-4 h-4 text-amber-700" />
                 <Label className="text-sm font-semibold">
                   Horário da Pegada / Execução da Rota (Tolerância ±10 min) <span className="text-red-400">*</span>
                 </Label>
               </div>
               {formData.startTime && formData.endTime && (
-                <span className="text-xs text-seguranca-yellow font-medium">
+                <span className="text-xs text-amber-700 font-medium">
                   Duração: {calculateShiftDuration()}
                 </span>
               )}
@@ -1548,7 +1568,7 @@ const EscalaFormModal: React.FC<EscalaFormModalProps> = ({
 
             {/* Atalhos Rápidos de Pegadas Curtas */}
             <div className="space-y-1.5">
-              <span className="text-[11px] text-gray-400 block">
+              <span className="text-[11px] text-slate-600 block">
                 Atalhos de pegada curta (o motorista pode fazer uma rota curta e depois outra rota em outro horário):
               </span>
               <div className="flex flex-wrap gap-1.5">
@@ -1563,8 +1583,8 @@ const EscalaFormModal: React.FC<EscalaFormModalProps> = ({
                       onClick={() => handleShiftPresetChange(p.value)}
                       className={`px-2.5 py-1 rounded-md text-[11px] font-mono transition-all border ${
                         isSelected
-                          ? 'bg-seguranca-yellow text-seguranca-black border-seguranca-yellow font-bold shadow-sm'
-                          : 'bg-seguranca-black text-gray-300 border-gray-700 hover:border-seguranca-yellow/50 hover:text-white'
+                          ? 'bg-amber-100 text-amber-900 border-amber-400 font-bold shadow-sm'
+                          : 'bg-white text-slate-700 border-slate-200 hover:border-amber-400 hover:text-slate-900'
                       }`}
                     >
                       {p.startTime} às {p.endTime}
@@ -1576,7 +1596,7 @@ const EscalaFormModal: React.FC<EscalaFormModalProps> = ({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label htmlFor="startTime" className="text-xs text-gray-300">
+                <Label htmlFor="startTime" className="text-xs text-slate-700">
                   Horário de Início / Partida <span className="text-red-400">*</span>
                 </Label>
                 <Input
@@ -1585,8 +1605,8 @@ const EscalaFormModal: React.FC<EscalaFormModalProps> = ({
                   value={formData.startTime || ''}
                   onChange={(e) => handleInputChange('startTime', e.target.value)}
                   disabled={mode === 'view'}
-                  className={`bg-seguranca-black border h-10 ${
-                    errors.startTime ? 'border-red-500' : 'border-gray-600 focus:border-seguranca-yellow'
+                  className={`bg-white border h-10 ${
+                    errors.startTime ? 'border-red-500' : 'border-slate-300 focus:border-seguranca-yellow'
                   }`}
                 />
                 {errors.startTime && (
@@ -1598,7 +1618,7 @@ const EscalaFormModal: React.FC<EscalaFormModalProps> = ({
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="endTime" className="text-xs text-gray-300">
+                <Label htmlFor="endTime" className="text-xs text-slate-700">
                   Horário de Término Previsto <span className="text-red-400">*</span>
                 </Label>
                 <Input
@@ -1607,8 +1627,8 @@ const EscalaFormModal: React.FC<EscalaFormModalProps> = ({
                   value={formData.endTime || ''}
                   onChange={(e) => handleInputChange('endTime', e.target.value)}
                   disabled={mode === 'view'}
-                  className={`bg-seguranca-black border h-10 ${
-                    errors.endTime ? 'border-red-500' : 'border-gray-600 focus:border-seguranca-yellow'
+                  className={`bg-white border h-10 ${
+                    errors.endTime ? 'border-red-500' : 'border-slate-300 focus:border-seguranca-yellow'
                   }`}
                 />
                 {errors.endTime && (
@@ -1625,10 +1645,11 @@ const EscalaFormModal: React.FC<EscalaFormModalProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-seguranca-yellow" />
-                <Label className="text-xs font-medium text-gray-300">Cliente / Empresa</Label>
+                <MapPin className="w-4 h-4 text-amber-700" />
+                <Label className="text-xs font-medium text-slate-700">Cliente / Empresa</Label>
               </div>
               <SearchableSelect
+                theme="light"
                 value={String(selectedClientId || '')}
                 fallbackLabel={
                   formData.clientName ||
@@ -1653,10 +1674,11 @@ const EscalaFormModal: React.FC<EscalaFormModalProps> = ({
 
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <Building className="w-4 h-4 text-seguranca-yellow" />
-                <Label className="text-xs font-medium text-gray-300">Posto de Trabalho / Base</Label>
+                <Building className="w-4 h-4 text-amber-700" />
+                <Label className="text-xs font-medium text-slate-700">Posto de Trabalho / Base</Label>
               </div>
               <SearchableSelect
+                theme="light"
                 value={String(formData.workPostId || '')}
                 fallbackLabel={initialData?.workPost?.name || initialData?.location?.name}
                 onChange={(val) => {
@@ -1673,18 +1695,18 @@ const EscalaFormModal: React.FC<EscalaFormModalProps> = ({
 
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <Footprints className="w-4 h-4 text-seguranca-yellow" />
-                <Label className="text-xs font-medium text-gray-300">Pegadas (Trechos)</Label>
+                <Footprints className="w-4 h-4 text-amber-700" />
+                <Label className="text-xs font-medium text-slate-700">Pegadas (Trechos)</Label>
               </div>
               <Select
                 value={String(formData.legs || 1)}
                 onValueChange={(value) => handleInputChange('legs', Number.parseInt(value, 10))}
                 disabled={mode === 'view'}
               >
-                <SelectTrigger className="bg-seguranca-black border border-gray-600 h-10">
+                <SelectTrigger className="bg-white border border-slate-300 h-10">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-seguranca-graphite border-gray-600 z-[10095]">
+                <SelectContent className="bg-white border-slate-300 z-[10095]">
                   {[1, 2, 3, 4].map((n) => (
                     <SelectItem key={n} value={String(n)}>
                       {n} pegada{n > 1 ? 's' : ''}
@@ -1698,16 +1720,16 @@ const EscalaFormModal: React.FC<EscalaFormModalProps> = ({
           {/* Status e Observações */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-xs font-medium text-gray-300">Status da Escala</Label>
+              <Label className="text-xs font-medium text-slate-700">Status da Escala</Label>
               <Select
                 value={formData.status || 'PENDING'}
                 onValueChange={(value) => handleInputChange('status', value as ScheduleStatus)}
                 disabled={mode === 'view'}
               >
-                <SelectTrigger className="bg-seguranca-black border border-gray-600 h-10">
+                <SelectTrigger className="bg-white border border-slate-300 h-10">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-seguranca-graphite border-gray-600 z-[10095]">
+                <SelectContent className="bg-white border-slate-300 z-[10095]">
                   <SelectItem value="PENDING">Pendente</SelectItem>
                   <SelectItem value="CONFIRMED">Confirmada</SelectItem>
                   <SelectItem value="IN_PROGRESS">Em Andamento</SelectItem>
@@ -1718,7 +1740,7 @@ const EscalaFormModal: React.FC<EscalaFormModalProps> = ({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="observations" className="text-xs font-medium text-gray-300">
+              <Label htmlFor="observations" className="text-xs font-medium text-slate-700">
                 Observações
               </Label>
               <Textarea
@@ -1727,20 +1749,20 @@ const EscalaFormModal: React.FC<EscalaFormModalProps> = ({
                 onChange={(e) => handleInputChange('observations', e.target.value)}
                 placeholder="Observações da escala (opcional)"
                 disabled={mode === 'view'}
-                className="bg-seguranca-black border border-gray-600 resize-none h-10 min-h-[40px]"
+                className="bg-white border border-slate-300 resize-none h-10 min-h-[40px]"
                 rows={1}
               />
             </div>
           </div>
 
-          <DialogFooter className="pt-4 border-t border-gray-700">
-            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+          <DialogFooter className="sticky bottom-0 z-10 -mx-4 mt-5 border-t border-slate-200 bg-white/95 px-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur sm:-mx-6 sm:mt-6 sm:flex-row sm:px-6 sm:pb-4">
+            <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row sm:gap-3">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
                 disabled={isSubmitting}
-                className="bg-seguranca-black border-gray-600 hover:bg-seguranca-graphite"
+                className="h-11 w-full border-slate-300 bg-white text-slate-800 hover:bg-slate-100 sm:w-auto"
               >
                 {mode === 'view' ? 'Fechar' : 'Cancelar'}
               </Button>
@@ -1748,7 +1770,7 @@ const EscalaFormModal: React.FC<EscalaFormModalProps> = ({
                 <Button
                   type="submit"
                   disabled={isSubmitting}
-                  className="bg-seguranca-red hover:bg-seguranca-red/80 text-white font-semibold"
+                  className="h-11 w-full bg-seguranca-red font-semibold text-white hover:bg-seguranca-red/80 sm:w-auto"
                 >
                   {isSubmitting ? (
                     <div className="flex items-center gap-2">

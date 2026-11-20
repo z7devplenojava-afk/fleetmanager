@@ -101,6 +101,7 @@ import {
 } from '@/services/vehicleCleaningService';
 import { garageService, Garage } from '@/services/garageService';
 import { carWashService, CarWash } from '@/services/carWashService';
+import { workPostService, WorkPost } from '@/services/workPostService';
 import { CarWashManagerModal } from '@/components/limpeza/CarWashManagerModal';
 import { EvidencePhotosSection } from '@/components/limpeza/EvidencePhotosSection';
 import { exportToXLSX, exportToPDF } from '@/utils/exportUtils';
@@ -132,6 +133,9 @@ const GestaoLimpezaVeiculos: React.FC = () => {
   const [orders, setOrders] = useState<VehicleCleaningOrder[]>([]);
   const [vehicles, setVehicles] = useState<VehicleOption[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [workPosts, setWorkPosts] = useState<WorkPost[]>([]);
+  const [isLoadingOptions, setIsLoadingOptions] = useState(false);
+  const [optionsError, setOptionsError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [garageFilter, setGarageFilter] = useState<string>('ALL');
@@ -150,6 +154,7 @@ const GestaoLimpezaVeiculos: React.FC = () => {
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [newVehicleId, setNewVehicleId] = useState('');
   const [newDriverId, setNewDriverId] = useState('');
+  const [newWorkPostId, setNewWorkPostId] = useState('');
   const [newDriverPhone, setNewDriverPhone] = useState('');
   const [newCleaningType, setNewCleaningType] = useState<CleaningType>('COMPLETE');
   const [newSector, setNewSector] = useState<RequesterSector>('OPERATIONAL');
@@ -208,26 +213,67 @@ const GestaoLimpezaVeiculos: React.FC = () => {
   }, [statusFilter, garageFilter, toast]);
 
   const loadVehiclesAndDrivers = useCallback(async () => {
-    try {
-      const [vehData, drvData, garageData, carWashData] = await Promise.all([
-        fleetService.getVehicles(),
-        driverService.getDrivers(),
-        garageService.list().catch(() => []),
-        carWashService.list().catch(() => []),
-      ]);
-      setVehicles(vehData.map((v: any) => ({
-        id: v.id,
-        plate: v.plate,
-        model: v.model || '',
-        fleetNumber: v.fleetNumber,
-        garageId: v.garageId,
-      })));
-      setDrivers(drvData);
-      setGarages(garageData);
-      setCarWashes(carWashData);
-    } catch {
-      // silencioso
+    setIsLoadingOptions(true);
+    setOptionsError('');
+
+    const [vehiclesResult, driversResult, workPostsResult, garagesResult, carWashesResult] = await Promise.allSettled([
+      fleetService.getVehicles(true, true),
+      driverService.getDrivers(),
+      workPostService.getAllWorkPosts(true),
+      garageService.list(),
+      carWashService.list(),
+    ]);
+    const problems: string[] = [];
+
+    if (vehiclesResult.status === 'fulfilled') {
+      const data = Array.isArray(vehiclesResult.value) ? vehiclesResult.value : [];
+      const options = data
+        .filter((vehicle: any) => vehicle?.id && (vehicle.plate || vehicle.placa))
+        .map((vehicle: any) => ({
+          id: String(vehicle.id),
+          plate: vehicle.plate || vehicle.placa,
+          model: vehicle.model || vehicle.modelo || '',
+          fleetNumber: vehicle.fleetNumber || vehicle.numeroFrota,
+          garageId: vehicle.garageId,
+        }));
+      setVehicles(options);
+      if (!options.length) problems.push('nenhum veículo foi retornado');
+    } else {
+      setVehicles([]);
+      problems.push('falha ao carregar veículos');
     }
+
+    if (driversResult.status === 'fulfilled') {
+      const response = driversResult.value as unknown;
+      const data = Array.isArray(response)
+        ? response
+        : Array.isArray((response as { content?: unknown[] } | null)?.content)
+          ? (response as { content: unknown[] }).content
+          : [];
+      const options = (data as Driver[]).filter(driver => driver?.id && driver?.name);
+      setDrivers(options);
+      if (!options.length) problems.push('nenhum motorista foi retornado');
+    } else {
+      setDrivers([]);
+      problems.push('falha ao carregar motoristas');
+    }
+
+    if (workPostsResult.status === 'fulfilled') {
+      const options = workPostsResult.value.filter(post => {
+        const status = String(post.status || '').toUpperCase();
+        return !status || ['ATIVO', 'ACTIVE', 'EM_IMPLANTACAO'].includes(status);
+      });
+      setWorkPosts(options);
+      if (!options.length) problems.push('nenhuma obra/setor de trabalho foi retornado');
+    } else {
+      setWorkPosts([]);
+      problems.push('falha ao carregar obras/setores de trabalho');
+    }
+
+    setGarages(garagesResult.status === 'fulfilled' && Array.isArray(garagesResult.value) ? garagesResult.value : []);
+    setCarWashes(carWashesResult.status === 'fulfilled' && Array.isArray(carWashesResult.value) ? carWashesResult.value : []);
+    if (problems.length) setOptionsError(`${problems.join('; ')}. Confira a conexão e os cadastros.`);
+    setIsLoadingOptions(false);
   }, []);
 
   useEffect(() => { loadOrders(); }, [loadOrders]);
@@ -248,6 +294,12 @@ const GestaoLimpezaVeiculos: React.FC = () => {
       search: `${d.name || ''} ${d.cpf || ''} ${d.phone || ''}`.trim()
     }));
   }, [drivers]);
+
+  const workPostComboboxOptions = useMemo(() => workPosts.map(post => ({
+    value: post.id,
+    label: `${post.name}${post.clientName ? ` — ${post.clientName}` : ''}`,
+    search: `${post.postCode || ''} ${post.name || ''} ${post.clientName || ''} ${post.address || ''}`.trim(),
+  })), [workPosts]);
 
   const sectorComboboxOptions = useMemo(() => {
     return Object.entries(SECTOR_LABELS).map(([val, label]) => ({
@@ -318,6 +370,7 @@ const GestaoLimpezaVeiculos: React.FC = () => {
       const payload: CreateCleaningOrderRequest = {
         vehicleId: newVehicleId,
         driverId: newDriverId || undefined,
+        workPostId: newWorkPostId || undefined,
         driverPhone: newDriverPhone.trim() || undefined,
         cleaningType: newCleaningType,
         requesterSector: newSector,
@@ -333,6 +386,7 @@ const GestaoLimpezaVeiculos: React.FC = () => {
       setShowNewDialog(false);
       setNewVehicleId('');
       setNewDriverId('');
+      setNewWorkPostId('');
       setNewDriverPhone('');
       setNewCleaningType('COMPLETE');
       setNewDeadline('');
@@ -1086,7 +1140,10 @@ const GestaoLimpezaVeiculos: React.FC = () => {
               <RefreshCw size={14} className={`mr-1.5 ${isLoading ? 'animate-spin text-amber-400' : ''}`} /> Atualizar
             </Button>
 
-            <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
+            <Dialog open={showNewDialog} onOpenChange={(open) => {
+              setShowNewDialog(open);
+              if (open) void loadVehiclesAndDrivers();
+            }}>
               <DialogTrigger asChild>
                 <Button className="relative group overflow-hidden bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-slate-950 font-bold px-3.5 sm:px-4 py-2 rounded-xl shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 border border-amber-300/40 flex items-center gap-2 h-9 text-xs sm:text-sm">
                   <span className="w-5 h-5 rounded-lg bg-black/15 flex items-center justify-center group-hover:rotate-90 transition-transform duration-300">
@@ -1108,9 +1165,20 @@ const GestaoLimpezaVeiculos: React.FC = () => {
                         value={newVehicleId}
                         onChange={(val) => setNewVehicleId(val)}
                         options={vehicleComboboxOptions}
-                        placeholder="Selecione o veículo..."
+                        placeholder={isLoadingOptions ? 'Carregando veículos...' : 'Selecione o veículo...'}
                         searchPlaceholder="Digite placa ou prefixo..."
-                        emptyPlaceholder="Nenhum veículo encontrado."
+                        emptyPlaceholder={isLoadingOptions ? 'Carregando veículos...' : 'Nenhum veículo encontrado.'}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-400 mb-1 block">Obra / Setor de Trabalho</label>
+                      <Combobox
+                        value={newWorkPostId}
+                        onChange={setNewWorkPostId}
+                        options={workPostComboboxOptions}
+                        placeholder={isLoadingOptions ? 'Carregando obras e setores...' : 'Selecione a obra/setor de trabalho...'}
+                        searchPlaceholder="Buscar por obra, código ou cliente..."
+                        emptyPlaceholder={isLoadingOptions ? 'Carregando obras e setores...' : 'Nenhuma obra/setor encontrado.'}
                       />
                     </div>
                     <div>
@@ -1148,11 +1216,19 @@ const GestaoLimpezaVeiculos: React.FC = () => {
                           setNewDriverPhone(selected?.phone || '');
                         }}
                         options={driverComboboxOptions}
-                        placeholder="Selecione o motorista..."
+                        placeholder={isLoadingOptions ? 'Carregando motoristas...' : 'Selecione o motorista...'}
                         searchPlaceholder="Buscar por nome ou CPF..."
-                        emptyPlaceholder="Nenhum motorista encontrado."
+                        emptyPlaceholder={isLoadingOptions ? 'Carregando motoristas...' : 'Nenhum motorista encontrado.'}
                       />
                     </div>
+                    {optionsError && (
+                      <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+                        <span>{optionsError}</span>
+                        <button type="button" onClick={() => void loadVehiclesAndDrivers()} disabled={isLoadingOptions} className="shrink-0 font-semibold underline underline-offset-2 disabled:opacity-50">
+                          {isLoadingOptions ? 'Carregando...' : 'Tentar novamente'}
+                        </button>
+                      </div>
+                    )}
                     <div>
                       <label className="text-sm text-gray-400 mb-1 block">WhatsApp do Motorista</label>
                       <div className="relative">

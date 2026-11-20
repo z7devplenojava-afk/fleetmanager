@@ -213,30 +213,11 @@
       text-align: left;
     }
 
-    .two-col-checklist-layout {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 2px;
-      table-layout: fixed;
-    }
-
-    .col-checklist-left {
-      width: 50%;
-      vertical-align: top;
-      padding-right: 3px;
-    }
-
-    .col-checklist-right {
-      width: 50%;
-      vertical-align: top;
-      padding-left: 3px;
-    }
-
     .checklist-table td {
       border: 1px solid #6b7280;
-      padding: 1px 2.5px;
+      padding: 2px 3px;
       vertical-align: middle;
-      font-size: 6.2px;
+      font-size: 7px;
     }
 
     .checklist-table tr {
@@ -248,25 +229,24 @@
       text-align: center;
       font-weight: bold;
       color: #111827;
-      font-size: 6.2px;
+      font-size: 7px;
     }
 
     .col-desc-cell {
-      width: 44%;
+      width: 43%;
       color: #111827;
     }
 
     .col-sit {
-      width: 38%;
+      width: 28%;
       text-align: center;
-      white-space: nowrap;
-      font-size: 5.9px;
+      font-size: 7px;
     }
 
     .col-obs {
-      width: auto;
+      width: 24%;
       color: #374151;
-      font-size: 5.9px;
+      font-size: 7px;
     }
 
     .sit-marked {
@@ -519,93 +499,8 @@
   <!-- BANNER PRINCIPAL (IDÊNTICO À FICHA FÍSICA) -->
   <div class="title-banner">CHECK-LIST DE VERIFICAÇÃO DE FROTA</div>
 
-  <!-- CHECKLIST EM DUAS COLUNAS LADO A LADO -->
-  <table class="two-col-checklist-layout" th:if="${checklistGroupsCol1 != null and !checklistGroupsCol1.isEmpty()}">
-    <tr>
-      <!-- COLUNA DA ESQUERDA -->
-      <td class="col-checklist-left">
-        <div th:each="entry : ${checklistGroupsCol1}" class="group-wrapper">
-          <div class="group-title" th:text="${entry.key}">A. VISUAL (INTERNO / EXTERNO)</div>
-          <table class="checklist-table">
-            <thead>
-              <tr>
-                <th class="col-item">ITEM</th>
-                <th class="col-desc">DESCRIÇÃO</th>
-                <th class="col-sit">SITUAÇÃO</th>
-                <th class="col-obs">OBS</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr th:each="cItem : ${entry.value}">
-                <td class="col-item" th:text="${cItem['itemCode']}">1</td>
-                <td class="col-desc-cell" th:text="${cItem['itemLabel']}">Item</td>
-                <td class="col-sit">
-                  <span th:if="${blankChecklist or cItem['situacao'] == 'BLANK'}">( ) Verif / ( ) N-A / ( ) Ñ Conf</span>
-                  <span th:if="${!blankChecklist and cItem['situacao'] == 'OK'}">
-                    <span class="sit-marked">( X ) Verif</span> / ( ) N-A / ( ) Ñ Conf
-                  </span>
-                  <span th:if="${!blankChecklist and cItem['situacao'] == 'NAO_APLICA'}">
-                    ( ) Verif / <span class="sit-marked">( X ) N-A</span> / ( ) Ñ Conf
-                  </span>
-                  <span th:if="${!blankChecklist and (cItem['situacao'] == 'NAO_OK' or cItem['situacao'] == 'TROCAR')}">
-                    ( ) Verif / ( ) N-A / <span class="sit-fail">( X ) Ñ Conf</span>
-                  </span>
-                </td>
-                <td class="col-obs">
-                  <span th:if="${cItem['observacao'] != null}" th:text="${cItem['observacao']}"></span>
-                  <span th:if="${cItem['reparoRealizado'] != null and !#strings.isEmpty(cItem['reparoRealizado'])}"
-                        th:text="${(cItem['observacao'] != null ? ' | ' : '') + cItem['reparoRealizado']}"></span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </td>
-
-      <!-- COLUNA DA DIREITA -->
-      <td class="col-checklist-right">
-        <div th:each="entry : ${checklistGroupsCol2}" class="group-wrapper">
-          <div class="group-title" th:text="${entry.key}">D. SISTEMA PNEUMÁTICO</div>
-          <table class="checklist-table">
-            <thead>
-              <tr>
-                <th class="col-item">ITEM</th>
-                <th class="col-desc">DESCRIÇÃO</th>
-                <th class="col-sit">SITUAÇÃO</th>
-                <th class="col-obs">OBS</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr th:each="cItem : ${entry.value}">
-                <td class="col-item" th:text="${cItem['itemCode']}">1</td>
-                <td class="col-desc-cell" th:text="${cItem['itemLabel']}">Item</td>
-                <td class="col-sit">
-                  <span th:if="${blankChecklist or cItem['situacao'] == 'BLANK'}">( ) Verif / ( ) N-A / ( ) Ñ Conf</span>
-                  <span th:if="${!blankChecklist and cItem['situacao'] == 'OK'}">
-                    <span class="sit-marked">( X ) Verif</span> / ( ) N-A / ( ) Ñ Conf
-                  </span>
-                  <span th:if="${!blankChecklist and cItem['situacao'] == 'NAO_APLICA'}">
-                    ( ) Verif / <span class="sit-marked">( X ) N-A</span> / ( ) Ñ Conf
-                  </span>
-                  <span th:if="${!blankChecklist and (cItem['situacao'] == 'NAO_OK' or cItem['situacao'] == 'TROCAR')}">
-                    ( ) Verif / ( ) N-A / <span class="sit-fail">( X ) Ñ Conf</span>
-                  </span>
-                </td>
-                <td class="col-obs">
-                  <span th:if="${cItem['observacao'] != null}" th:text="${cItem['observacao']}"></span>
-                  <span th:if="${cItem['reparoRealizado'] != null and !#strings.isEmpty(cItem['reparoRealizado'])}"
-                        th:text="${(cItem['observacao'] != null ? ' | ' : '') + cItem['reparoRealizado']}"></span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </td>
-    </tr>
-  </table>
-
-  <!-- FALLBACK: COLUNA ÚNICA (CASO NÃO HAJA DIVISÃO DE COLUNAS) -->
-  <div th:if="${checklistGroupsCol1 == null or checklistGroupsCol1.isEmpty()}">
+  <!-- CHECKLIST EM UMA COLUNA PARA FACILITAR A LEITURA -->
+  <div>
     <div th:each="entry : ${checklistByGroup}" class="group-wrapper">
       <div class="group-title" th:text="${entry.key}">A. VISUAL (INTERNO / EXTERNO)</div>
       <table class="checklist-table">

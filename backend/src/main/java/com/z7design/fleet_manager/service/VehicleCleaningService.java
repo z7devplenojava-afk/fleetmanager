@@ -56,6 +56,7 @@ public class VehicleCleaningService {
     private final VehicleCleaningOrderRepository repository;
     private final VehicleRepository vehicleRepository;
     private final DriverRepository driverRepository;
+    private final WorkPostRepository workPostRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
     private final WhatsAppGateway whatsAppGateway;
@@ -172,6 +173,16 @@ public class VehicleCleaningService {
             driver = driverRepository.findById(request.getDriverId()).orElse(null);
         }
 
+        WorkPost workPost = null;
+        if (request.getWorkPostId() != null) {
+            workPost = workPostRepository.findById(request.getWorkPostId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Obra/setor de trabalho não encontrado"));
+            UUID workPostCompanyId = workPost.getClient() != null ? workPost.getClient().getCompanyId() : null;
+            if (userCompanyId != null && workPostCompanyId != null && !userCompanyId.equals(workPostCompanyId)) {
+                throw new ResourceNotFoundException("Obra/setor de trabalho não encontrado");
+            }
+        }
+
         // WhatsApp do motorista: se não informado no pedido, usa o telefone cadastrado no motorista
         String driverPhone = request.getDriverPhone();
         if ((driverPhone == null || driverPhone.isBlank()) && driver != null
@@ -222,6 +233,7 @@ public class VehicleCleaningService {
         VehicleCleaningOrder order = VehicleCleaningOrder.builder()
                 .vehicle(vehicle)
                 .driver(driver)
+                .workPost(workPost)
                 .status(VehicleCleaningOrder.CleaningStatus.PENDING)
                 .cleaningType(request.getCleaningType())
                 .checklistData(filterChecklistByType(checklist, request.getCleaningType()))
@@ -262,8 +274,13 @@ public class VehicleCleaningService {
                 woDto.setMechanicName(carWashName);
             }
             if (vehicle.getGarageId() != null) woDto.setGarageId(vehicle.getGarageId());
-            if (vehicle.getWorkPostId() != null) woDto.setWorkPostId(vehicle.getWorkPostId());
-            if (vehicle.getClientId() != null) woDto.setClientId(vehicle.getClientId());
+            if (workPost != null) {
+                woDto.setWorkPostId(workPost.getId());
+                if (workPost.getClient() != null) woDto.setClientId(workPost.getClient().getId());
+            } else {
+                if (vehicle.getWorkPostId() != null) woDto.setWorkPostId(vehicle.getWorkPostId());
+                if (vehicle.getClientId() != null) woDto.setClientId(vehicle.getClientId());
+            }
 
             FleetWorkOrderDTO createdWo = fleetWorkOrderService.create(woDto);
             if (createdWo != null) {
@@ -779,6 +796,13 @@ public class VehicleCleaningService {
         if (order.getDriver() != null) {
             dto.setDriverId(order.getDriver().getId());
             dto.setDriverName(order.getDriver().getName());
+        }
+        if (order.getWorkPost() != null) {
+            dto.setWorkPostId(order.getWorkPost().getId());
+            dto.setWorkPostName(order.getWorkPost().getName());
+            if (order.getWorkPost().getClient() != null) {
+                dto.setWorkPostClientName(order.getWorkPost().getClient().getName());
+            }
         }
         dto.setStatus(order.getStatus());
         dto.setCleaningType(order.getCleaningType());

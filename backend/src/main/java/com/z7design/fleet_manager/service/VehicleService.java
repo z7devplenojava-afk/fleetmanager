@@ -47,21 +47,21 @@ public class VehicleService {
     private final com.z7design.fleet_manager.repository.FuelRecordRepository fuelRecordRepository;
     private final com.z7design.fleet_manager.repository.TripRepository tripRepository;
     private final com.z7design.fleet_manager.repository.FleetComponentControlRepository fleetComponentControlRepository;
+    private final UserCompanyResolver userCompanyResolver;
     
     @Transactional(readOnly = true)
     public List<VehicleDTO> getAllVehicles() {
         log.debug("Buscando todos os veículos");
         try {
             UUID tenantId = com.z7design.fleet_manager.tenant.TenantContext.get();
-            List<Vehicle> vehicles = null;
+            if (tenantId == null) {
+                tenantId = userCompanyResolver.resolveCurrentCompanyId();
+            }
+            List<Vehicle> vehicles;
             if (tenantId != null) {
                 vehicles = vehicleRepository.findByCompanyId(tenantId);
-            }
-            if (vehicles == null || vehicles.isEmpty()) {
-                vehicles = vehicleRepository.findAll();
-            }
-            if (vehicles == null || vehicles.isEmpty()) {
-                vehicles = vehicleRepository.findAllRawIncludingDeletedAndTenants();
+            } else {
+                vehicles = java.util.Collections.emptyList();
             }
             log.debug("Encontrados {} veículos (tenant: {})", vehicles.size(), tenantId);
             return vehicles.stream()
@@ -110,9 +110,12 @@ public class VehicleService {
         log.debug("Buscando veículos por status: {}", status);
         try {
             UUID tenantId = com.z7design.fleet_manager.tenant.TenantContext.get();
+            if (tenantId == null) {
+                tenantId = userCompanyResolver.resolveCurrentCompanyId();
+            }
             List<Vehicle> vehicles = (tenantId != null) 
                     ? vehicleRepository.findByStatusAndCompanyId(status, tenantId) 
-                    : vehicleRepository.findByStatus(status);
+                    : java.util.Collections.emptyList();
             log.debug("Encontrados {} veículos com status {}", vehicles.size(), status);
             return vehicles.stream()
                     .map(VehicleDTO::fromEntity)
@@ -128,9 +131,12 @@ public class VehicleService {
         log.debug("Buscando veículos com termo: {}", searchTerm);
         try {
             UUID tenantId = com.z7design.fleet_manager.tenant.TenantContext.get();
+            if (tenantId == null) {
+                tenantId = userCompanyResolver.resolveCurrentCompanyId();
+            }
             List<Vehicle> vehicles = (tenantId != null) 
                     ? vehicleRepository.findBySearchTermAndCompanyId(searchTerm, tenantId) 
-                    : vehicleRepository.findBySearchTerm(searchTerm);
+                    : java.util.Collections.emptyList();
             log.debug("Encontrados {} veículos para o termo '{}'", vehicles.size(), searchTerm);
             return vehicles.stream()
                     .map(VehicleDTO::fromEntity)

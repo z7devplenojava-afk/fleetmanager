@@ -20,6 +20,9 @@ public class VehicleCleaningOrderDTO {
     private String vehicleGarageName;
     private UUID driverId;
     private String driverName;
+    private UUID workPostId;
+    private String workPostName;
+    private String workPostClientName;
     private VehicleCleaningOrder.CleaningStatus status;
     private VehicleCleaningOrder.CleaningType cleaningType;
     private String checklistData;

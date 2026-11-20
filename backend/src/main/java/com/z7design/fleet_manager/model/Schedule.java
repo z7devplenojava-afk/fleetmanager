@@ -73,6 +73,9 @@ public class Schedule implements TenantAware {
         @JsonFormat(pattern = "yyyy-MM-dd")
         private LocalDate scheduleDate;
 
+        @Column(name = "schedule_recurrence", length = 30)
+        private String scheduleRecurrence;
+
         @NotNull(message = "Shift is required")
         @Enumerated(EnumType.STRING)
         @Column(nullable = false)

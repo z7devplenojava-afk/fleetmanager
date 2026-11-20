@@ -42,6 +42,7 @@ interface SearchableSelectProps {
   /** Label de fallback caso a opção não esteja na lista de opções atual */
   fallbackLabel?: string;
   className?: string;
+  theme?: 'light' | 'dark';
 }
 
 export function SearchableSelect({
@@ -57,6 +58,7 @@ export function SearchableSelect({
   onSearchChange,
   fallbackLabel,
   className,
+  theme = 'dark',
 }: Readonly<SearchableSelectProps>) {
   const [open, setOpen] = React.useState(false)
   const [search, setSearch] = React.useState("")
@@ -119,7 +121,9 @@ export function SearchableSelect({
           disabled={disabled}
           title={tooltipText || undefined}
           className={cn(
-            "h-11 w-full justify-between border-gray-600 bg-seguranca-black/70 text-seguranca-lightgray hover:border-gray-500 focus:border-seguranca-yellow transition-colors disabled:opacity-50 px-3",
+            theme === 'light'
+              ? "h-11 w-full justify-between border-slate-300 bg-white text-slate-900 hover:border-slate-400 focus:border-blue-500 transition-colors disabled:opacity-50 px-3"
+              : "h-11 w-full justify-between border-gray-600 bg-seguranca-black/70 text-seguranca-lightgray hover:border-gray-500 focus:border-seguranca-yellow transition-colors disabled:opacity-50 px-3",
             className
           )}
         >
@@ -133,20 +137,20 @@ export function SearchableSelect({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="p-0 bg-seguranca-graphite border-gray-600 shadow-2xl z-[10500] w-[var(--radix-popover-trigger-width)]"
+        className={cn("p-0 shadow-2xl z-[10500] w-[var(--radix-popover-trigger-width)]", theme === 'light' ? 'bg-white border-slate-200' : 'bg-seguranca-graphite border-gray-600')}
         align="start"
       >
         <Command
-          className="bg-seguranca-graphite text-seguranca-lightgray border-none"
+          className={cn("border-none", theme === 'light' ? 'bg-white text-slate-900' : 'bg-seguranca-graphite text-seguranca-lightgray')}
           shouldFilter={false}
         >
-          <div className="flex items-center border-b border-gray-600 px-3 h-10">
-            <SearchIcon className="mr-2 h-4 w-4 shrink-0 opacity-50 text-seguranca-yellow" />
+          <div className={cn("flex items-center border-b px-3 h-10", theme === 'light' ? 'border-slate-200' : 'border-gray-600')}>
+            <SearchIcon className={cn("mr-2 h-4 w-4 shrink-0 opacity-70", theme === 'light' ? 'text-slate-500' : 'text-seguranca-yellow')} />
             <CommandInput
               placeholder={searchPlaceholder}
               value={search}
               onValueChange={setSearch}
-              className="flex h-full w-full bg-transparent py-3 text-sm outline-none placeholder:text-gray-500 disabled:cursor-not-allowed disabled:opacity-50 border-none focus:ring-0"
+              className={cn("flex h-full w-full bg-transparent py-3 text-sm outline-none disabled:cursor-not-allowed disabled:opacity-50 border-none focus:ring-0", theme === 'light' ? 'text-slate-900 placeholder:text-slate-500' : 'placeholder:text-gray-500')}
             />
           </div>
           <CommandList className="max-h-80 overflow-y-auto">
@@ -160,20 +164,21 @@ export function SearchableSelect({
                       onChange(currentValue === value ? "all" : currentValue)
                       setOpen(false)
                     }}
-                    className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-2.5 text-sm outline-none aria-selected:bg-seguranca-black/80 aria-selected:text-seguranca-yellow hover:bg-seguranca-black/80 transition-colors gap-3"
+                    className={cn("relative flex cursor-pointer select-none items-center rounded-sm px-2 py-2.5 text-sm outline-none transition-colors gap-3", theme === 'light' ? 'aria-selected:bg-blue-50 aria-selected:text-blue-900 hover:bg-slate-100' : 'aria-selected:bg-seguranca-black/80 aria-selected:text-seguranca-yellow hover:bg-seguranca-black/80')}
                   >
                     <div className="flex items-center justify-center w-5">
                       <Check
                         className={cn(
-                          "h-4 w-4 text-seguranca-yellow",
+                          "h-4 w-4",
+                          theme === 'light' ? 'text-blue-700' : 'text-seguranca-yellow',
                           value === option.value ? "opacity-100" : "opacity-0"
                         )}
                       />
                     </div>
                     <div className="flex flex-col flex-1 overflow-hidden">
-                      <span className="font-medium truncate text-gray-100">{option.label}</span>
+                      <span className={cn("font-medium truncate", theme === 'light' ? 'text-slate-900' : 'text-gray-100')}>{option.label}</span>
                       {option.description && (
-                        <span className="text-[11px] text-gray-400 truncate mt-0.5">
+                        <span className={cn("text-[11px] truncate mt-0.5", theme === 'light' ? 'text-slate-600' : 'text-gray-400')}>
                           {option.description}
                         </span>
                       )}
@@ -183,12 +188,12 @@ export function SearchableSelect({
               </CommandGroup>
             )}
             {showOptions && filteredOptions.length === 0 && (
-              <CommandEmpty className="py-6 text-center text-sm text-gray-400">
+              <CommandEmpty className={cn("py-6 text-center text-sm", theme === 'light' ? 'text-slate-600' : 'text-gray-400')}>
                 {emptyPlaceholder}
               </CommandEmpty>
             )}
             {!showOptions && (
-              <div className="py-6 text-center text-sm text-gray-400 px-4">
+              <div className={cn("py-6 text-center text-sm px-4", theme === 'light' ? 'text-slate-600' : 'text-gray-400')}>
                 {resolvedMinCharsMessage}
               </div>
             )}

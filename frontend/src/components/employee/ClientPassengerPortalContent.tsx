@@ -33,6 +33,7 @@ import { PassengerLiveMap } from '@/components/passageiro/PassengerLiveMap';
 import { PassengerQRCodeModal } from '@/components/passageiro/PassengerQRCodeModal';
 import { generateQrCodeSvgUri, generateQrCodeDataPayload } from '@/utils/qrCodeHelper';
 import fretamentoCheckinService, { FretamentoCheckinRecord, getCurrentGeoPosition, reverseGeocode } from '@/services/fretamentoCheckinService';
+import { passengerTrackingService, PassengerRouteTracking } from '@/services/passengerTrackingService';
 
 interface VehicleGalleryItem {
   id: string;
@@ -101,6 +102,8 @@ export const ClientPassengerPortalContent: React.FC = () => {
   // Histórico de Check-ins
   const [checkins, setCheckins] = useState<FretamentoCheckinRecord[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [routeTracking, setRouteTracking] = useState<PassengerRouteTracking | null>(null);
+  const [trackingLoading, setTrackingLoading] = useState(true);
 
   // Dados do passageiro
   const passengerName = user?.name || 'Colaborador Cliente';
@@ -111,13 +114,30 @@ export const ClientPassengerPortalContent: React.FC = () => {
 
   // Carregar histórico
   useEffect(() => {
-    loadCheckinHistory();
+    void loadCheckinHistory();
   }, []);
 
-  const loadCheckinHistory = () => {
-    const list = fretamentoCheckinService.getHistory(passengerCpf);
-    setCheckins(list);
+  const loadCheckinHistory = async () => {
+    const remote = await fretamentoCheckinService.fetchRemoteHistory();
+    setCheckins(remote.length ? remote : fretamentoCheckinService.getHistory(passengerCpf));
   };
+
+  useEffect(() => {
+    let active = true;
+    const refresh = async () => {
+      try {
+        const tracking = await passengerTrackingService.getMyRoute('IDA');
+        if (active) setRouteTracking(tracking);
+      } catch (error) {
+        console.warn('Não foi possível carregar a rota do passageiro:', error);
+      } finally {
+        if (active) setTrackingLoading(false);
+      }
+    };
+    void refresh();
+    const timer = window.setInterval(() => void refresh(), 20000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, []);
 
   // QR Code Payload do Passageiro
   const qrPassengerPayload = generateQrCodeDataPayload('PASSENGER', {
@@ -271,7 +291,9 @@ export const ClientPassengerPortalContent: React.FC = () => {
             <div className="lg:col-span-2">
               <PassengerLiveMap
                 lineName={currentLine}
-                lineColor="#ec4899"
+                lineColor={routeTracking?.color || '#0891b2'}
+                tracking={routeTracking}
+                isLoading={trackingLoading}
                 onOpenBoardingQr={() => setActiveTab('my-qr')}
               />
             </div>

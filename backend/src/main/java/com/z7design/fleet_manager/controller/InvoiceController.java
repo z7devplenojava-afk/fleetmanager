@@ -41,7 +41,7 @@ public class InvoiceController {
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(InvoiceController.class);
 
     private final InvoiceService invoiceService;
-    private final ClientService clientService;
+    private final @org.springframework.context.annotation.Lazy ClientService clientService;
     private final com.z7design.fleet_manager.service.ExpensePdfImportService expensePdfImportService;
     private final com.z7design.fleet_manager.service.BoletoParserService boletoParserService;
     private final com.z7design.fleet_manager.service.FileStorageService fileStorageService;

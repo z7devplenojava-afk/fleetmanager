@@ -47,7 +47,18 @@ public class UserCompanyResolver {
         } catch (Exception e) {
             log.warn("⚠️ Erro ao resolver empresa do usuário atual: {}", e.getMessage());
         }
-        return null;
+
+        // Fallback para a empresa de demonstração da FluxBus
+        try {
+            return companyRepository.findFirstBySiglaIgnoreCase("FLU")
+                    .or(() -> companyRepository.findAll().stream()
+                            .filter(c -> c.getName() != null && c.getName().toUpperCase().contains("FLUXBUS"))
+                            .findFirst())
+                    .map(Company::getId)
+                    .orElse(null);
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     /**
@@ -126,9 +137,20 @@ public class UserCompanyResolver {
             }
         } catch (Exception ignored) {}
 
-        // 3. Se for usuário privilegiado (SUPER_ADMIN, etc.), NÃO força vínculo de empresa aleatória.
-        // O Super Admin sem empresa atua no escopo global (FluxBus).
+        // 3. Se for usuário privilegiado (SUPER_ADMIN, etc.) e não tiver empresa direta,
+        // vincula à empresa de demonstração da FluxBus (dados isolados de demo).
         if (privileged) {
+            try {
+                Optional<Company> fluxbus = companyRepository.findFirstBySiglaIgnoreCase("FLU")
+                        .or(() -> companyRepository.findAll().stream()
+                                .filter(c -> c.getName() != null && c.getName().toUpperCase().contains("FLUXBUS"))
+                                .findFirst());
+                if (fluxbus.isPresent()) {
+                    return fluxbus;
+                }
+            } catch (Exception e) {
+                log.warn("⚠️ Erro ao buscar empresa de demonstração FluxBus: {}", e.getMessage());
+            }
             return Optional.empty();
         }
 

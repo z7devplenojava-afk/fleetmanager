@@ -59,7 +59,7 @@ export type ScheduleStatus = 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'CANCELLE
 
 export type PointApprovalStatus = 'NONE' | 'APPROVED' | 'PENDING_TRAFFIC_APPROVAL' | 'REJECTED';
 
-export type ScheduleRecurrence = 'WEEKLY_FIXED' | 'WEEKEND' | 'SINGLE_DAY';
+export type ScheduleRecurrence = 'WEEKLY_FIXED' | 'WEEKEND' | 'SINGLE_DAY' | 'FLEXIBLE';
 
 export interface Schedule {
   id: string;
@@ -266,7 +266,7 @@ export function isScheduleActiveForDate(schedule: Schedule, targetDateStr: strin
   if (cleanSchedule === cleanTarget) return true;
 
   const recurrence = resolveScheduleRecurrence(schedule);
-  if (recurrence === 'SINGLE_DAY') {
+  if (recurrence === 'SINGLE_DAY' || recurrence === 'FLEXIBLE') {
     return cleanSchedule === cleanTarget;
   }
 
@@ -290,7 +290,7 @@ export function matchesScheduleModeFilter(
   if (mode === 'ALL') return true;
   const rec = resolveScheduleRecurrence(schedule);
   if (mode === 'WEEKEND') return rec === 'WEEKEND';
-  return rec === 'WEEKLY_FIXED' || rec === 'SINGLE_DAY';
+  return rec === 'WEEKLY_FIXED' || rec === 'SINGLE_DAY' || rec === 'FLEXIBLE';
 }
 
 export function inferDirectionFromRouteCode(routeCode?: string, rowIndex?: number): 'IDA' | 'RETORNO' {

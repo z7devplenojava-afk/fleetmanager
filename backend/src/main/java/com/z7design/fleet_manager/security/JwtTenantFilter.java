@@ -27,6 +27,7 @@ public class JwtTenantFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final JwtConfig jwtConfig;
+    private final com.z7design.fleet_manager.service.UserCompanyResolver userCompanyResolver;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -58,8 +59,11 @@ public class JwtTenantFilter extends OncePerRequestFilter {
                         // 1. Tenant padrão sempre vem do JWT
                         UUID empresaId = jwtService.extractEmpresaId(jwt);
 
-                        // 2. Somente SUPER_ADMIN pode alternar empresa via X-Target-Company-ID
+                        // 2. Somente SUPER_ADMIN pode alternar empresa via X-Target-Company-ID ou X-Company-Id
                         String targetHeader = request.getHeader("X-Target-Company-ID");
+                        if (targetHeader == null || targetHeader.isBlank() || "none".equalsIgnoreCase(targetHeader.trim())) {
+                            targetHeader = request.getHeader("X-Company-Id");
+                        }
                         if (targetHeader != null && !targetHeader.isBlank()
                                 && !"none".equalsIgnoreCase(targetHeader.trim())) {
                             if (isSuperAdmin()) {
@@ -68,12 +72,17 @@ public class JwtTenantFilter extends OncePerRequestFilter {
                                     TenantContext.setImpersonating(true);
                                     log.debug("SUPER_ADMIN alternando contexto para empresa: {}", empresaId);
                                 } catch (IllegalArgumentException e) {
-                                    log.warn("X-Target-Company-ID inválido ignorado: {}", targetHeader);
+                                    log.warn("Target Company-ID inválido ignorado: {}", targetHeader);
                                 }
                             } else {
-                                log.warn("X-Target-Company-ID ignorado para usuário sem SUPER_ADMIN: {}",
+                                log.warn("Target Company-ID ignorado para usuário sem SUPER_ADMIN: {}",
                                         request.getRequestURI());
                             }
+                        }
+
+                        // 3. Se ainda for nulo, busca o tenant padrão do usuário ou demonstração FluxBus
+                        if (empresaId == null) {
+                            empresaId = userCompanyResolver.resolveCurrentCompanyId();
                         }
 
                         if (empresaId != null) {

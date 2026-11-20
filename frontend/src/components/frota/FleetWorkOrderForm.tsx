@@ -348,12 +348,25 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         });
 
         // Fornecedores / Prestadores de Serviço Ativos
-        const { data: suppliers = [], refetch: refetchSuppliers } = useQuery<Supplier[]>({
+        const { data: suppliers = [], refetch: refetchSuppliers, isLoading: isLoadingSuppliers } = useQuery<Supplier[]>({
             queryKey: ['suppliers-active-for-service'],
             queryFn: () => contasAPagarService.getFornecedoresAtivos(),
             staleTime: 60_000,
             enabled: isOpen,
         });
+
+        const aggregatedSupplierOptions = React.useMemo<SearchableOption[]>(() => suppliers
+            .filter((supplier) => supplier.isActive !== false)
+            .map((supplier) => {
+                const document = supplier.cnpj || supplier.registrationNumber || '';
+                return {
+                    value: supplier.name,
+                    label: supplier.name,
+                    subtitle: [supplier.tradeName, document ? `CPF/CNPJ: ${document}` : '', supplier.phone].filter(Boolean).join(' • '),
+                    badge: 'Agregado',
+                    keywords: [supplier.name, supplier.tradeName || '', document, supplier.phone || '', supplier.email || ''].filter(Boolean),
+                };
+            }), [suppliers]);
 
         // Modal de Cadastro Rápido de Novo Serviço / Serviço Externo
         const [isNewServiceModalOpen, setIsNewServiceModalOpen] = useState(false);
@@ -1237,29 +1250,52 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
             return vehicles.find(v => v.id === formData.vehicleId) || null;
         }, [formData.vehicleId, vehicles]);
 
+        useEffect(() => {
+            const ownerName = selectedVehicle?.isAggregated
+                ? String(selectedVehicle.aggregatedOwnerName || '').trim()
+                : '';
+            if (!ownerName) return;
+            setFormData((current) => current.aggregateInfo?.trim()
+                ? current
+                : { ...current, aggregateInfo: ownerName });
+        }, [selectedVehicle?.id, selectedVehicle?.isAggregated, selectedVehicle?.aggregatedOwnerName]);
+
         // Seleção de veículo centralizada com auto-preenchimento
         const handleSelectVehicle = (v: string) => {
             const selectedVeh = vehicles.find(veh => veh.id === v);
+            const selectedAggregateOwner = selectedVeh?.isAggregated
+                ? String(selectedVeh.aggregatedOwnerName || '').trim()
+                : '';
             const vehGarage = selectedVeh?.garageId
                 ? garagesForOS.find((g: Garage) => g.id === selectedVeh.garageId)
                 : undefined;
-            setFormData(p => ({
-                ...p,
-                vehicleId: v,
-                vehiclePlate: selectedVeh?.plate || (selectedVeh as any)?.placa || p.vehiclePlate,
-                vehicleModel: selectedVeh?.model || (selectedVeh as any)?.modelo || p.vehicleModel,
-                clientId: selectedVeh?.clientId || p.clientId,
-                sectorId: selectedVeh?.workPostId || p.sectorId,
-                workPostId: selectedVeh?.workPostId || p.workPostId,
-                workPostName: (selectedVeh as any)?.workPostName || p.workPostName,
-                garageId: p.garageId || selectedVeh?.garageId || undefined,
-                garageName: p.garageName || vehGarage?.name || selectedVeh?.garageName || undefined,
-                odometerIn: (selectedVeh?.currentMileage !== undefined && selectedVeh?.currentMileage !== null)
-                    ? selectedVeh.currentMileage
-                    : p.odometerIn,
-                driverName: (p.driverName && p.driverName.trim()) ? p.driverName : (selectedVeh?.assignedDriver || ''),
-                operationProfile: inferVehicleOperationProfile(selectedVeh)
-            }));
+            setFormData(p => {
+                const previousVehicle = vehicles.find(veh => veh.id === p.vehicleId);
+                const previousAggregateOwner = previousVehicle?.isAggregated
+                    ? String(previousVehicle.aggregatedOwnerName || '').trim()
+                    : '';
+                const currentAggregateInfo = p.aggregateInfo || '';
+                const shouldClearPreviousVehicleOwner = previousAggregateOwner
+                    && currentAggregateInfo.trim() === previousAggregateOwner;
+                return {
+                    ...p,
+                    vehicleId: v,
+                    vehiclePlate: selectedVeh?.plate || (selectedVeh as any)?.placa || p.vehiclePlate,
+                    vehicleModel: selectedVeh?.model || (selectedVeh as any)?.modelo || p.vehicleModel,
+                    clientId: selectedVeh?.clientId || p.clientId,
+                    sectorId: selectedVeh?.workPostId || p.sectorId,
+                    workPostId: selectedVeh?.workPostId || p.workPostId,
+                    workPostName: (selectedVeh as any)?.workPostName || p.workPostName,
+                    garageId: p.garageId || selectedVeh?.garageId || undefined,
+                    garageName: p.garageName || vehGarage?.name || selectedVeh?.garageName || undefined,
+                    odometerIn: (selectedVeh?.currentMileage !== undefined && selectedVeh?.currentMileage !== null)
+                        ? selectedVeh.currentMileage
+                        : p.odometerIn,
+                    driverName: (p.driverName && p.driverName.trim()) ? p.driverName : (selectedVeh?.assignedDriver || ''),
+                    aggregateInfo: selectedAggregateOwner || (shouldClearPreviousVehicleOwner ? '' : p.aggregateInfo),
+                    operationProfile: inferVehicleOperationProfile(selectedVeh)
+                };
+            });
             if (formData.maintenanceType === MaintenanceType.PREVENTIVA && (!isEdit || !order?.checklistItems || order.checklistItems.length === 0)) {
                 handleLoadDefaultChecklist(v);
             }
@@ -2518,9 +2554,6 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                                     }));
                                                 }}
                                                 options={mechanicOptions}
-                                                placeholder={formData.mechanicName || "Selecionar mecânico (ou deixar na fila)..."}
-                                                searchPlaceholder="Buscar mecânico..."
-                                                emptyText="Nenhum mecânico encontrado."
                                                 placeholder={formData.mechanicName || "Selecionar mecânico ou auxiliar (ou deixar na fila)..."}
                                                 searchPlaceholder="Buscar mecânico ou auxiliar por nome, matrícula..."
                                                 emptyText="Nenhum mecânico ou auxiliar encontrado."
@@ -2685,7 +2718,17 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                             </Select>
                                         </Field>
                                         <Field label="Informação de Agregado">
-                                            <Input value={formData.aggregateInfo || ''} onChange={e => setFormData(p => ({ ...p, aggregateInfo: e.target.value }))} placeholder="Ex: Carreta 02 / Reboque" className="bg-seguranca-black border-gray-600" />
+                                            <SearchableSelect
+                                                value={formData.aggregateInfo || ''}
+                                                fallbackLabel={formData.aggregateInfo || undefined}
+                                                onChange={(value) => setFormData((p) => ({ ...p, aggregateInfo: value }))}
+                                                options={aggregatedSupplierOptions}
+                                                placeholder={isLoadingSuppliers ? 'Carregando agregados...' : 'Busque o agregado por nome ou CPF/CNPJ...'}
+                                                searchPlaceholder="Digite nome, CPF/CNPJ, telefone ou razão social..."
+                                                emptyText="Nenhum agregado encontrado na tabela de fornecedores."
+                                                allowCustomValue={true}
+                                                customValuePrefix="Informar agregado"
+                                            />
                                         </Field>
 
                                         {/* PRD §6 §20 §21 §22 — Cliente, Setor (Obra do Cliente), Requerente */}

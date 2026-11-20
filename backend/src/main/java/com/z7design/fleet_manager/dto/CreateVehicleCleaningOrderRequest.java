@@ -19,6 +19,8 @@ public class CreateVehicleCleaningOrderRequest {
 
     private UUID driverId;
 
+    private UUID workPostId;
+
     private UUID driverUserId;
 
     private String driverPhone;

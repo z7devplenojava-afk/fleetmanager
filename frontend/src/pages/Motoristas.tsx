@@ -13,7 +13,7 @@ import { Search, Filter, Plus, Users, UserCheck, UserX } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StandardLayout } from '@/components/StandardLayout';
 
-const Motoristas: React.FC = () => {
+const Motoristas: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   
@@ -181,21 +181,8 @@ const Motoristas: React.FC = () => {
     setStatusFilter('all');
   };
 
-  return (
-    <StandardLayout
-      title="Gestão de Motoristas"
-      subtitle="Gerencie os motoristas da frota de veículos"
-      actions={
-        <Button 
-          onClick={openNewModal}
-          className="bg-seguranca-red hover:bg-seguranca-darkred text-white transition-colors"
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Novo Motorista
-        </Button>
-      }
-    >
-      <div className="space-y-6">
+  const content = (
+    <div className="space-y-6">
         {/* Cards de Estatísticas */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card className="bg-seguranca-graphite border-gray-600">
@@ -328,9 +315,25 @@ const Motoristas: React.FC = () => {
           onConfirm={handleConfirmDelete}
           isDeleting={deleteMutation.isPending}
         />
-      </div>
+    </div>
+  );
+
+  return embedded ? (
+    content
+  ) : (
+    <StandardLayout
+      title="Gestão de Motoristas"
+      subtitle="Gerencie os motoristas da frota de veículos"
+      actions={
+        <Button onClick={openNewModal} className="bg-seguranca-red text-white transition-colors hover:bg-seguranca-darkred">
+          <Plus className="mr-2 h-4 w-4" />
+          Novo Motorista
+        </Button>
+      }
+    >
+      {content}
     </StandardLayout>
   );
 };
 
-export default Motoristas; 
+export default Motoristas;

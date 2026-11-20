@@ -449,9 +449,25 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
             if (companyOpt.isEmpty()) {
                 if (privileged) {
+                    Optional<Company> fluxbus = companyRepository.findFirstBySiglaIgnoreCase("FLU")
+                            .or(() -> companyRepository.findAll().stream()
+                                    .filter(comp -> comp.getName() != null && comp.getName().toUpperCase().contains("FLUXBUS"))
+                                    .findFirst());
+                    if (fluxbus.isPresent()) {
+                        Company fb = fluxbus.get();
+                        return EmpresaResponse.builder()
+                                .id(fb.getId() != null ? fb.getId().toString() : null)
+                                .nome(fb.getName())
+                                .sigla(fb.getSigla())
+                                .temaCor("dark")
+                                .enabledFeatures(java.util.List.of(
+                                        "dashboard", "operacional", "manutencao", "financeiro", "rotas", "relatorios"
+                                ))
+                                .build();
+                    }
                     return EmpresaResponse.builder()
                             .id(null)
-                            .nome("FluxBus Global")
+                            .nome("FluxBus Transportes")
                             .temaCor("dark")
                             .enabledFeatures(java.util.List.of(
                                     "dashboard", "operacional", "manutencao", "financeiro", "rotas", "relatorios"

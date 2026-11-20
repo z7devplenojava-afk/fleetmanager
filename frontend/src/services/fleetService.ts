@@ -220,23 +220,43 @@ class FleetService {
   private vehiclesInFlight: Promise<Vehicle[]> | null = null;
   private readonly CACHE_TTL_MS = 60000; // 60 segundos de cache de alta performance na memória
 
+  private getCacheKey(): string {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const empresaRaw = localStorage.getItem('empresa');
+        if (empresaRaw) {
+          const emp = JSON.parse(empresaRaw);
+          if (emp?.id) return `fleet_vehicles_cache_${emp.id}`;
+        }
+        const userRaw = localStorage.getItem('user');
+        if (userRaw) {
+          const u = JSON.parse(userRaw);
+          if (u?.companyId) return `fleet_vehicles_cache_${u.companyId}`;
+        }
+      }
+    } catch (_) {}
+    return 'fleet_vehicles_cache_default';
+  }
+
   constructor() {
     this.getVehicles = this.getVehicles.bind(this);
     this.invalidateVehiclesCache = this.invalidateVehiclesCache.bind(this);
     this.getInitialCachedVehicles = this.getInitialCachedVehicles.bind(this);
     this.getInitialCachedVehiclesTimestamp = this.getInitialCachedVehiclesTimestamp.bind(this);
 
-    // Inicializar cache do localStorage apenas se houver dados reais salvos (nunca mock legado)
+    // Limpar cache legado global não isolado por empresa
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
-        const stored = localStorage.getItem('fleet_vehicles_cache');
+        localStorage.removeItem('fleet_vehicles_cache');
+        const key = this.getCacheKey();
+        const stored = localStorage.getItem(key);
         if (stored) {
           if (stored.includes('v-qre1a23')) {
-            // Limpa mock legado imediatamente
-            localStorage.removeItem('fleet_vehicles_cache');
+            localStorage.removeItem(key);
           } else {
             const parsed = JSON.parse(stored);
             if (Array.isArray(parsed) && parsed.length > 0) {
+              // Se tiver mais de 500 veículos ou for mock antigo, não injeta em tenant de demonstração
               this.vehiclesCache = { data: parsed, timestamp: Date.now() };
             }
           }
@@ -262,12 +282,13 @@ class FleetService {
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
         localStorage.removeItem('fleet_vehicles_cache');
+        localStorage.removeItem(this.getCacheKey());
       }
     } catch (_) {}
   }
 
   // Veículos
-  getVehicles = async (forceRefresh = false): Promise<Vehicle[]> => {
+  getVehicles = async (forceRefresh = false, throwOnError = false): Promise<Vehicle[]> => {
     if (forceRefresh) {
       this.invalidateVehiclesCache();
     }
@@ -293,12 +314,16 @@ class FleetService {
         this.vehiclesCache = { data: list, timestamp: Date.now() };
         try {
           if (typeof window !== 'undefined' && window.localStorage) {
-            localStorage.setItem('fleet_vehicles_cache', JSON.stringify(list));
+            localStorage.setItem(this.getCacheKey(), JSON.stringify(list));
+            localStorage.removeItem('fleet_vehicles_cache');
           }
         } catch (_) {}
         return list;
       } catch (error: any) {
         console.warn('⚠️ FleetService - Falha ao buscar veículos do servidor:', error?.message);
+        if (throwOnError) {
+          throw error;
+        }
         if (this?.vehiclesCache?.data) {
           return this.vehiclesCache.data;
         }

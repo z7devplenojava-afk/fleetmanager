@@ -194,16 +194,29 @@ export function getWsUrl(): string {
 
   // Primeiro tenta usar variável de ambiente
   if (import.meta.env.VITE_WS_URL) {
-    return import.meta.env.VITE_WS_URL;
+    const configuredUrl = import.meta.env.VITE_WS_URL.trim();
+
+    // O STOMP usa WebSocket nativo e não aceita caminhos relativos como `/ws`.
+    // Resolver caminhos relativos na origem atual também mantém o tráfego local
+    // atrás do proxy do Vite (inclusive quando a página está em HTTPS).
+    if (!/^wss?:\/\//i.test(configuredUrl)) {
+      const pageProtocol = typeof window !== 'undefined' ? window.location.protocol : 'http:';
+      const url = new URL(configuredUrl, typeof window !== 'undefined' ? window.location.origin : 'http://localhost');
+      url.protocol = pageProtocol === 'https:' ? 'wss:' : 'ws:';
+      return url.toString();
+    }
+
+    return configuredUrl;
   }
 
   // Senão, usa detecção automática
   const config = getCurrentEnvironmentConfig();
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 
-  // Se estiver em local, garante que usa o host correto detectado
+  // Em desenvolvimento local, usa o proxy da origem atual em vez de apontar
+  // diretamente para uma porta de backend que pode não estar exposta ao browser.
   if (detectEnvironment() === 'local') {
-    return `${protocol}//${getBackendHost()}:8083/ws`;
+    return `${protocol}//${window.location.host}/ws`;
   }
 
   // Para outros ambientes, usa a URL configurada mas ajusta o protocolo se necessário

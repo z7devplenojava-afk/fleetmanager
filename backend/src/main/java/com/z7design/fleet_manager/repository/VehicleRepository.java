@@ -37,6 +37,9 @@ public interface VehicleRepository extends JpaRepository<Vehicle, UUID> {
             "AND (CAST(:companyId AS uuid) IS NULL OR company_id = CAST(:companyId AS uuid)) LIMIT 1", nativeQuery = true)
     Optional<Vehicle> findByPlateRawScoped(@Param("plate") String plate, @Param("companyId") UUID companyId);
 
+    @Query(value = "SELECT * FROM vehicles WHERE UPPER(REPLACE(REPLACE(plate, '-', ''), ' ', '')) = UPPER(REPLACE(REPLACE(:plate, '-', ''), ' ', '')) LIMIT 1", nativeQuery = true)
+    Optional<Vehicle> findByPlateGlobal(@Param("plate") String plate);
+
     default Optional<Vehicle> findByPlateRaw(String plate) {
         return findByPlateRawScoped(plate, TenantContext.get());
     }

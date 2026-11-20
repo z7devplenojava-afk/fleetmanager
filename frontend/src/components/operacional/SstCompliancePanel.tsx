@@ -33,6 +33,11 @@ import {
   OpacityCoverage,
   ComplianceDossier,
 } from '@/services/sstComplianceService';
+import { clientService, Client } from '@/services/clientService';
+import { StockEpiDeliveryFormsTab } from '@/components/stock/StockEpiDeliveryFormsTab';
+import SSTTreinamentos from '@/pages/RH/SST/Treinamentos';
+import { SstVencimentosTab } from '@/components/sst/SstVencimentosTab';
+import { SstAgendamentosTab } from '@/components/sst/SstAgendamentosTab';
 import {
   Bell,
   CheckCircle2,
@@ -41,6 +46,14 @@ import {
   Gauge,
   Plus,
   Wind,
+  HardHat,
+  GraduationCap,
+  AlertTriangle,
+  Calendar,
+  Building2,
+  Search,
+  X,
+  Loader2,
 } from 'lucide-react';
 
 /**
@@ -60,6 +73,43 @@ const SstCompliancePanel: React.FC = () => {
   const [dossiers, setDossiers] = useState<ComplianceDossier[]>([]);
   const [dossierModalOpen, setDossierModalOpen] = useState(false);
   const [dossierForm, setDossierForm] = useState<ComplianceDossier>({});
+
+  // ===== Clientes para Dossiê =====
+  const [clients, setClients] = useState<Client[]>([]);
+  const [loadingClients, setLoadingClients] = useState(false);
+  const [clientSearchTerm, setClientSearchTerm] = useState('');
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+
+  // Carregar clientes cadastrados sob demanda
+  useEffect(() => {
+    if (dossierModalOpen && !dossierForm.id) {
+      if (clients.length === 0) {
+        setLoadingClients(true);
+        clientService.getAllClients()
+          .then((data) => setClients(data || []))
+          .catch((err) => console.error('Erro ao buscar clientes:', err))
+          .finally(() => setLoadingClients(false));
+      }
+    }
+  }, [dossierModalOpen, dossierForm.id, clients.length]);
+
+  // Clientes filtrados quando o usuário digita ao menos 3 caracteres
+  const filteredClients = useMemo(() => {
+    const term = clientSearchTerm.trim().toLowerCase();
+    if (term.length < 3) return [];
+    return clients.filter((c) => {
+      const name = (c.name || '').toLowerCase();
+      const cnpj = (c.cnpj || '').toLowerCase();
+      const email = (c.email || '').toLowerCase();
+      return name.includes(term) || cnpj.includes(term) || email.includes(term);
+    });
+  }, [clients, clientSearchTerm]);
+
+  const getClientName = useCallback((clientId?: string) => {
+    if (!clientId) return 'Cliente Geral';
+    const found = clients.find((c) => c.id === clientId);
+    return found ? found.name : clientId;
+  }, [clients]);
 
   const currentMonth = new Date().toISOString().slice(0, 7);
   const previousMonth = (() => {
@@ -113,13 +163,15 @@ const SstCompliancePanel: React.FC = () => {
   // ===== Dossiê =====
   const handleCreateDossier = async () => {
     if (!dossierForm.clientId) {
-      toast({ title: 'Atenção', description: 'Informe o ID do cliente.', variant: 'destructive' });
+      toast({ title: 'Atenção', description: 'Selecione o cliente para o dossiê.', variant: 'destructive' });
       return;
     }
     try {
       await dossierService.createOrGet(previousMonth, dossierForm.clientId);
       toast({ title: 'Dossiê pronto', description: `Referência ${previousMonth} (folha do mês anterior).` });
       setDossierModalOpen(false);
+      setSelectedClient(null);
+      setClientSearchTerm('');
       loadAll();
     } catch (e: any) {
       toast({
@@ -200,10 +252,26 @@ const SstCompliancePanel: React.FC = () => {
   ];
 
   return (
-    <Tabs defaultValue="fumaca" className="w-full">
-      <TabsList className="grid w-full grid-cols-2">
-        <TabsTrigger value="fumaca">Fumaça Preta (Ringelmann)</TabsTrigger>
-        <TabsTrigger value="dossie">Dossiê de Conformidade</TabsTrigger>
+    <Tabs defaultValue="fumaca" className="w-full space-y-4">
+      <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1 bg-slate-900 border border-slate-800 p-1 rounded-lg">
+        <TabsTrigger value="fumaca" className="text-xs flex items-center justify-center gap-1.5 data-[state=active]:bg-red-600 data-[state=active]:text-white">
+          <Wind className="h-3.5 w-3.5" /> Fumaça Preta
+        </TabsTrigger>
+        <TabsTrigger value="dossie" className="text-xs flex items-center justify-center gap-1.5 data-[state=active]:bg-red-600 data-[state=active]:text-white">
+          <FileCheck2 className="h-3.5 w-3.5" /> Dossiê
+        </TabsTrigger>
+        <TabsTrigger value="fichas-epi" className="text-xs flex items-center justify-center gap-1.5 data-[state=active]:bg-red-600 data-[state=active]:text-white">
+          <HardHat className="h-3.5 w-3.5" /> Fichas de EPIs
+        </TabsTrigger>
+        <TabsTrigger value="treinamentos" className="text-xs flex items-center justify-center gap-1.5 data-[state=active]:bg-red-600 data-[state=active]:text-white">
+          <GraduationCap className="h-3.5 w-3.5" /> Treinamentos
+        </TabsTrigger>
+        <TabsTrigger value="vencimentos" className="text-xs flex items-center justify-center gap-1.5 data-[state=active]:bg-red-600 data-[state=active]:text-white">
+          <AlertTriangle className="h-3.5 w-3.5 text-amber-400" /> A Vencer / Atrasados
+        </TabsTrigger>
+        <TabsTrigger value="agendamentos" className="text-xs flex items-center justify-center gap-1.5 data-[state=active]:bg-red-600 data-[state=active]:text-white">
+          <Calendar className="h-3.5 w-3.5" /> Agendamentos
+        </TabsTrigger>
       </TabsList>
 
       {/* ===== RF-04.3: FUMAÇA PRETA ===== */}
@@ -320,10 +388,16 @@ const SstCompliancePanel: React.FC = () => {
             <p className="text-sm text-muted-foreground">Nenhum dossiê criado.</p>
           ) : (
             dossiers.map((d) => (
-              <Card key={d.id}>
+              <Card key={d.id} className="bg-slate-900/80 border-slate-800">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm flex items-center justify-between">
-                    <span>{d.referenceMonth}</span>
+                    <div>
+                      <span className="font-bold text-white text-base">{d.referenceMonth}</span>
+                      <p className="text-xs text-sky-400 font-normal flex items-center gap-1 mt-0.5">
+                        <Building2 className="h-3.5 w-3.5" />
+                        {getClientName(d.clientId)}
+                      </p>
+                    </div>
                     <Badge variant={d.status === 'ATTACHED_TO_BM' || d.status === 'COMPLETE' ? 'default' : 'outline'}>
                       {d.status ? DOSSIER_STATUS_LABELS[d.status] : '—'}
                     </Badge>
@@ -365,6 +439,26 @@ const SstCompliancePanel: React.FC = () => {
             ))
           )}
         </div>
+      </TabsContent>
+
+      {/* ===== FICHAS DE EPI ===== */}
+      <TabsContent value="fichas-epi" className="space-y-4">
+        <StockEpiDeliveryFormsTab />
+      </TabsContent>
+
+      {/* ===== TREINAMENTOS ===== */}
+      <TabsContent value="treinamentos" className="space-y-4">
+        <SSTTreinamentos embedded />
+      </TabsContent>
+
+      {/* ===== A VENCER / ATRASADOS ===== */}
+      <TabsContent value="vencimentos" className="space-y-4">
+        <SstVencimentosTab />
+      </TabsContent>
+
+      {/* ===== AGENDAMENTOS ===== */}
+      <TabsContent value="agendamentos" className="space-y-4">
+        <SstAgendamentosTab />
       </TabsContent>
 
       {/* ===== Modal Laudo ===== */}
@@ -425,7 +519,13 @@ const SstCompliancePanel: React.FC = () => {
       </Dialog>
 
       {/* ===== Modal Dossiê ===== */}
-      <Dialog open={dossierModalOpen} onOpenChange={setDossierModalOpen}>
+      <Dialog open={dossierModalOpen} onOpenChange={(open) => {
+        setDossierModalOpen(open);
+        if (!open) {
+          setClientSearchTerm('');
+          setSelectedClient(null);
+        }
+      }}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
@@ -439,13 +539,114 @@ const SstCompliancePanel: React.FC = () => {
           </DialogHeader>
 
           {!dossierForm.id && (
-            <div className="space-y-1.5">
-              <Label>Cliente (ID) *</Label>
-              <Input
-                value={dossierForm.clientId ?? ''}
-                onChange={(e) => setDossierForm((f) => ({ ...f, clientId: e.target.value }))}
-                placeholder="UUID do cliente"
-              />
+            <div className="space-y-3 pt-2">
+              <Label className="text-sm font-semibold flex items-center gap-1.5 text-white">
+                <Building2 className="h-4 w-4 text-sky-400" />
+                Cliente *
+              </Label>
+
+              {/* Se o cliente já foi selecionado */}
+              {selectedClient ? (
+                <div className="p-3 bg-emerald-950/40 border border-emerald-600/50 rounded-lg flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="h-9 w-9 rounded-md bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0">
+                      <CheckCircle2 className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-white leading-tight">{selectedClient.name}</p>
+                      {selectedClient.cnpj && (
+                        <p className="text-xs text-slate-300 font-mono mt-0.5">CNPJ: {selectedClient.cnpj}</p>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedClient(null);
+                      setDossierForm((f) => ({ ...f, clientId: undefined }));
+                    }}
+                    className="text-xs text-slate-400 hover:text-red-400 h-8 px-2"
+                  >
+                    Trocar Cliente
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input
+                      placeholder="Digite os 3 primeiros caracteres do cliente..."
+                      value={clientSearchTerm}
+                      onChange={(e) => setClientSearchTerm(e.target.value)}
+                      className="pl-9 pr-8 bg-slate-950/60 border-slate-700 text-white placeholder:text-slate-500"
+                    />
+                    {clientSearchTerm && (
+                      <button
+                        type="button"
+                        onClick={() => setClientSearchTerm('')}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  {loadingClients ? (
+                    <div className="p-4 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin text-red-500" />
+                      <span>Carregando clientes cadastrados...</span>
+                    </div>
+                  ) : clientSearchTerm.trim().length < 3 ? (
+                    <div className="p-4 text-center rounded-md bg-slate-900/60 border border-slate-800 space-y-1">
+                      <p className="text-xs text-slate-300 font-medium">
+                        Digite pelo menos 3 caracteres na barra de pesquisa para exibir os clientes.
+                      </p>
+                      <p className="text-[11px] text-slate-500">
+                        {clients.length > 0 ? `${clients.length} cliente(s) cadastrado(s) no sistema.` : 'Buscando clientes...'}
+                      </p>
+                    </div>
+                  ) : filteredClients.length === 0 ? (
+                    <div className="p-4 text-center rounded-md bg-slate-900/60 border border-slate-800">
+                      <p className="text-xs text-amber-400 font-medium">Nenhum cliente encontrado</p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">Tente buscar por outro termo, razão social ou CNPJ.</p>
+                    </div>
+                  ) : (
+                    <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1 [scrollbar-gutter:stable]">
+                      {filteredClients.map((c) => (
+                        <div
+                          key={c.id}
+                          onClick={() => {
+                            setSelectedClient(c);
+                            setDossierForm((f) => ({ ...f, clientId: c.id }));
+                          }}
+                          className="p-2.5 rounded-md bg-slate-950/60 border border-slate-800 hover:border-red-500/50 hover:bg-slate-800/40 cursor-pointer transition-all flex items-center justify-between group"
+                        >
+                          <div>
+                            <p className="text-xs font-semibold text-white group-hover:text-red-400 transition-colors">
+                              {c.name}
+                            </p>
+                            {c.cnpj && (
+                              <p className="text-[11px] text-slate-400 font-mono mt-0.5">
+                                CNPJ: {c.cnpj}
+                              </p>
+                            )}
+                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="text-xs text-slate-300 group-hover:text-white h-7 px-2"
+                          >
+                            Selecionar
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

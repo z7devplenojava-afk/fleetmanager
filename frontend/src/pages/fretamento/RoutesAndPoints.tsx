@@ -1461,8 +1461,8 @@ const RoutesAndPoints: React.FC = () => {
 
     return (
         <StandardLayout
-            title="Gestão de Rotas"
-            subtitle="Gerencie suas rotas e informações"
+            title="Roteirização Operacional"
+            subtitle="Trace rotas por CEP, otimize o trajeto e organize os pontos de embarque dos passageiros."
         >
             <div className="p-0 space-y-0 h-full flex flex-col">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col">

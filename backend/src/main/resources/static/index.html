@@ -1,14 +1,79 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="dark">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      (function () {
+        try {
+          var root = document.documentElement;
+          var saved = localStorage.getItem('theme');
+          var resolved = 'dark';
+          if (saved === 'white' || saved === 'graphite' || saved === 'dark') {
+            resolved = saved;
+          } else if (saved === 'system') {
+            resolved = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'white';
+          } else {
+            localStorage.setItem('theme', 'dark');
+          }
+          root.classList.remove('dark', 'graphite', 'white');
+          root.classList.add(resolved);
+          if (resolved === 'graphite') {
+            root.classList.add('dark');
+          }
+        } catch (_) {}
+      })();
+    </script>
+    <script>
+      (function () {
+        function extractMessage(val) {
+          if (!val) return '';
+          if (typeof val === 'string') return val;
+          if (typeof val.message === 'string') return val.message;
+          try {
+            return String(val);
+          } catch (_) {
+            return '';
+          }
+        }
+        function isExtensionChannelError(msg) {
+          if (typeof msg !== 'string' || !msg) return false;
+          var lower = msg.toLowerCase();
+          return (
+            lower.indexOf('message channel closed before a response was received') !== -1 ||
+            lower.indexOf('asynchronous response by returning true') !== -1 ||
+            lower.indexOf('a listener indicated an asynchronous response') !== -1 ||
+            lower.indexOf('extension context invalidated') !== -1
+          );
+        }
+        function handleRejection(e) {
+          var r = e && e.reason;
+          var m = extractMessage(r) || extractMessage(e);
+          if (isExtensionChannelError(m)) {
+            if (e && typeof e.preventDefault === 'function') e.preventDefault();
+            if (e && typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+            return true;
+          }
+          return false;
+        }
+        window.addEventListener('unhandledrejection', handleRejection, true);
+        window.onunhandledrejection = handleRejection;
+        window.addEventListener('error', function (e) {
+          var m = extractMessage(e && e.message) || extractMessage(e && e.error);
+          if (isExtensionChannelError(m)) {
+            if (e && typeof e.preventDefault === 'function') e.preventDefault();
+            if (e && typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+            return true;
+          }
+        }, true);
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <title>FluxBus - Gestão de Fretamento e Turismo</title>
-    <meta name="description" content="FluxBus - Plataforma de Gestão de Fretamento e Turismo. Fretamentos, turismo, transporte de funcionários e gestão de frotas." />
-    <meta name="keywords" content="fluxbus, gestão de fretamento e turismo, transporte de passageiros, fretamento, turismo, gestão de frotas" />
+    <title>FluxBus - Sistema de Gestão de Fretamento e Viagens</title>
+    <meta name="description" content="FluxBus - Sistema de Gestão de Fretamento e Viagens. Fretamentos, turismo, transporte de funcionários, gestão de frotas e operações em uma só plataforma." />
+    <meta name="keywords" content="fluxbus, sistema de gestão de fretamento e viagens, transporte de passageiros, fretamento, turismo, gestão de frotas" />
     <meta name="author" content="FluxBus" />
     <meta name="robots" content="index, follow" />
     
@@ -18,8 +83,8 @@
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://fluxbus.com.br" />
-    <meta property="og:title" content="FluxBus - Transporte de Qualidade" />
-    <meta property="og:description" content="Empresa especializada em transporte de passageiros. Fretamentos, turismo, transporte de funcionários e mais." />
+    <meta property="og:title" content="FluxBus - Sistema de Gestão de Fretamento e Viagens" />
+    <meta property="og:description" content="Sistema de gestão de fretamento e viagens: fretamentos, turismo, transporte de funcionários, frotas e operações em uma só plataforma." />
     <meta property="og:image" content="https://fluxbus.com.br/fluxbus-logo.png" />
     <meta property="og:site_name" content="FluxBus" />
     <meta property="og:locale" content="pt_BR" />
@@ -27,8 +92,8 @@
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:url" content="https://fluxbus.com.br" />
-    <meta name="twitter:title" content="FluxBus - Transporte de Qualidade" />
-    <meta name="twitter:description" content="Empresa especializada em transporte de passageiros. Fretamentos, turismo, transporte de funcionários e mais." />
+    <meta name="twitter:title" content="FluxBus - Sistema de Gestão de Fretamento e Viagens" />
+    <meta name="twitter:description" content="Sistema de gestão de fretamento e viagens: fretamentos, turismo, transporte de funcionários, frotas e operações em uma só plataforma." />
     <meta name="twitter:image" content="https://fluxbus.com.br/fluxbus-logo.png" />
     <meta name="twitter:site" content="@fluxbus" />
     
@@ -54,7 +119,7 @@
       "name": "FluxBus",
       "url": "https://fluxbus.com.br",
       "logo": "https://fluxbus.com.br/fluxbus-logo.png",
-      "description": "Empresa especializada em transporte de passageiros",
+      "description": "Sistema de gestão de fretamento e viagens",
       "address": {
         "@type": "PostalAddress",
         "addressCountry": "BR"
@@ -65,21 +130,17 @@
       }
     }
     </script>
-    <script type="module" crossorigin src="/assets/index-CyYTq41j.js"></script>
-    <link rel="modulepreload" crossorigin href="/assets/lucide-DQ_NLSe-.js">
-    <link rel="modulepreload" crossorigin href="/assets/radix-ui-B9XXwXgZ.js">
-    <link rel="modulepreload" crossorigin href="/assets/pdf-lw-U2QtC.js">
-    <link rel="modulepreload" crossorigin href="/assets/utils-BZ7u1zvt.js">
-    <link rel="modulepreload" crossorigin href="/assets/query-DmLUjLE8.js">
-    <link rel="modulepreload" crossorigin href="/assets/animations-k9kyMGdU.js">
-    <link rel="modulepreload" crossorigin href="/assets/ui-other-vYs_7Mo7.js">
-    <link rel="modulepreload" crossorigin href="/assets/forms-BLYQgMb8.js">
-    <link rel="stylesheet" crossorigin href="/assets/index-BXv5WC68.css">
+    <script type="module" crossorigin src="/assets/index-CkYjU9jS.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/lucide-tF9SsuxS.js">
+    <link rel="modulepreload" crossorigin href="/assets/radix-ui-Cx3cC0u1.js">
+    <link rel="modulepreload" crossorigin href="/assets/pdf-CWpOFYAn.js">
+    <link rel="modulepreload" crossorigin href="/assets/utils-Bv7cGwHa.js">
+    <link rel="modulepreload" crossorigin href="/assets/query-DkNkJd92.js">
+    <link rel="modulepreload" crossorigin href="/assets/animations-DxCmtWMw.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-Dur16Mkb.css">
   <link rel="manifest" href="/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script></head>
 
   <body>
-    <div id="root"></div>
-    <!-- IMPORTANT: DO NOT REMOVE THIS SCRIPT TAG OR THIS VERY COMMENT! -->
-    <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
+    <div id="root"></div>
   </body>
 </html>

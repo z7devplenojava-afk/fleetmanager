@@ -53,8 +53,13 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { StandardLayout } from '@/components/StandardLayout';
-import Equipamentos from './Equipamentos';
+import { OperacionalFrotaTab } from '@/components/operacional/OperacionalFrotaTab';
+import { AgregadosOperacionalTab } from '@/components/operacional/AgregadosOperacionalTab';
 import ServiceRatingManagement from './transport/ServiceRatingManagement';
+import Motoristas from './Motoristas';
+import ControleOperacionalFrota from '@/components/operacional/ControleOperacionalFrota';
+import FretamentosHub from '@/components/operacional/FretamentosHub';
+import PlantaoSchedulesPanel from '@/components/operacional/PlantaoSchedulesPanel';
 
 import EscalaTrabalhoTable from '@/components/operacional/EscalaTrabalhoTable';
 import NotificacoesList from '@/components/operacional/NotificacoesList';
@@ -93,7 +98,6 @@ import { ActivityReport, CreateActivityReportDTO, ActivityReportFilters } from '
 import ActivityReportsTable from '@/components/operacional/ActivityReportsTable';
 import ActivityReportModal from '@/components/operacional/ActivityReportModal';
 import ActivityReportViewModal from '@/components/operacional/ActivityReportViewModal';
-import ShiftChangeTable from '@/components/operacional/ShiftChangeTable';
 import OrderOfServiceTable from '@/components/operacional/OrderOfServiceTable';
 import OrderOfServiceFormModal from '@/components/operacional/OrderOfServiceFormModal';
 import OrdemServicoViewModal from '@/components/ordemServico/OrdemServicoViewModal';
@@ -108,7 +112,8 @@ import OsHigienizacaoTab from '@/components/limpeza/OsHigienizacaoTab';
 const Operacional: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const initialTab = searchParams.get('tab') || 'dashboard';
+  const tabParam = searchParams.get('tab');
+  const initialTab = tabParam === 'equipamentos' ? 'frota' : (tabParam === 'controle-visitas' ? 'controle-operacional' : (tabParam || 'dashboard'));
   const [activeTab, setActiveTab] = useState(initialTab);
 
   const [escalas, setEscalas] = useState<Schedule[]>([]);
@@ -157,7 +162,8 @@ const Operacional: React.FC = () => {
   // Reage a mudanças no parâmetro de URL
   useEffect(() => {
     let tabFromUrl = searchParams.get('tab');
-    if (tabFromUrl === 'controle-visitas') tabFromUrl = 'escalas';
+    if (tabFromUrl === 'controle-visitas') tabFromUrl = 'controle-operacional';
+    if (tabFromUrl === 'equipamentos') tabFromUrl = 'frota';
     if (tabFromUrl && tabFromUrl !== activeTab) {
       setActiveTab(tabFromUrl);
     }
@@ -165,6 +171,8 @@ const Operacional: React.FC = () => {
 
   useEffect(() => {
     if (activeTab === 'escalas') {
+      loadEscalas();
+    } else if (activeTab === 'troca-plantao') {
       loadEscalas();
     } else if (activeTab === 'notificacoes') {
       loadNotificacoes();
@@ -768,10 +776,9 @@ const Operacional: React.FC = () => {
   };
 
 
-  const renderEquipamentosTab = () => (
+  const renderFrotaTab = () => (
     <div className="space-y-4">
-      {/* Componente Equipamentos */}
-      <Equipamentos />
+      <OperacionalFrotaTab />
     </div>
   );
 
@@ -823,28 +830,60 @@ const Operacional: React.FC = () => {
                         className="modern-tab flex flex-col items-center justify-center gap-2 px-4 md:px-3 py-4 md:py-4 text-slate-700 dark:text-slate-300 data-[state='active']:bg-gradient-to-br data-[state='active']:from-red-600 data-[state='active']:to-red-700 data-[state='active']:text-white data-[state='active']:shadow-lg data-[state='active']:shadow-red-500/50 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all duration-300 rounded-md min-w-[85px] md:min-w-0 min-h-[85px] md:min-h-[72px] flex-shrink-0"
                       >
                         <LayoutDashboard className="h-6 w-6 md:h-5 md:w-5 flex-shrink-0" />
-                        <span className="text-[11px] md:text-xs leading-tight text-center whitespace-nowrap">Dashboard</span>
+                        <span className="text-[11px] md:text-xs leading-tight text-center whitespace-nowrap">Visão Geral</span>
                       </TabsTrigger>
                     </TooltipTrigger>
                     <TooltipContent side="bottom" className="bg-seguranca-graphite text-white border-seguranca-red">
-                      <p className="font-semibold">Dashboard</p>
-                      <p className="text-xs text-gray-400">Visão geral operacional</p>
+                      <p className="font-semibold">Dashboard Geral</p>
+                      <p className="text-xs text-gray-400">Indicadores e informações gerais do módulo</p>
                     </TooltipContent>
                   </Tooltip>
 
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <TabsTrigger
-                        value="equipamentos"
+                        value="fretamentos"
+                        className="modern-tab flex min-h-[85px] min-w-[85px] flex-shrink-0 flex-col items-center justify-center gap-2 rounded-md px-4 py-4 text-slate-700 transition-all duration-300 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800/50 dark:hover:text-white data-[state='active']:bg-gradient-to-br data-[state='active']:from-sky-600 data-[state='active']:to-blue-700 data-[state='active']:text-white data-[state='active']:shadow-lg data-[state='active']:shadow-sky-500/30 md:min-h-[72px] md:min-w-0 md:px-3"
+                      >
+                        <Bus className="h-6 w-6 flex-shrink-0 md:h-5 md:w-5" />
+                        <span className="whitespace-nowrap text-center text-[11px] leading-tight md:text-xs">Fretamentos</span>
+                      </TabsTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="border-sky-500 bg-seguranca-graphite text-white">
+                      <p className="font-semibold">Fretamentos</p>
+                      <p className="text-xs text-gray-400">Turismo, passageiros e autorizações ANTT</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <TabsTrigger
+                        value="frota"
                         className="modern-tab flex flex-col items-center justify-center gap-2 px-4 md:px-3 py-4 md:py-4 text-slate-700 dark:text-slate-300 data-[state='active']:bg-gradient-to-br data-[state='active']:from-red-600 data-[state='active']:to-red-700 data-[state='active']:text-white data-[state='active']:shadow-lg data-[state='active']:shadow-red-500/50 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all duration-300 rounded-md min-w-[85px] md:min-w-0 min-h-[85px] md:min-h-[72px] flex-shrink-0"
                       >
-                        <PackageCheck className="h-6 w-6 md:h-5 md:w-5 flex-shrink-0" />
-                        <span className="text-[11px] md:text-xs leading-tight text-center whitespace-nowrap">Equipamentos</span>
+                        <Bus className="h-6 w-6 md:h-5 md:w-5 flex-shrink-0" />
+                        <span className="text-[11px] md:text-xs leading-tight text-center whitespace-nowrap">Frota</span>
                       </TabsTrigger>
                     </TooltipTrigger>
                     <TooltipContent side="bottom" className="bg-seguranca-graphite text-white border-seguranca-red">
-                      <p className="font-semibold">Equipamentos</p>
-                      <p className="text-xs text-gray-400">Gestão de armamento e EPIs</p>
+                      <p className="font-semibold">Frota</p>
+                      <p className="text-xs text-gray-400">Gestão integrada da frota de veículos</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <TabsTrigger
+                        value="agregados"
+                        className="modern-tab flex flex-col items-center justify-center gap-2 px-4 md:px-3 py-4 md:py-4 text-slate-700 dark:text-slate-300 data-[state='active']:bg-gradient-to-br data-[state='active']:from-orange-600 data-[state='active']:to-amber-600 data-[state='active']:text-white data-[state='active']:shadow-lg data-[state='active']:shadow-orange-500/50 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all duration-300 rounded-md min-w-[85px] md:min-w-0 min-h-[85px] md:min-h-[72px] flex-shrink-0"
+                      >
+                        <UserCheck className="h-6 w-6 md:h-5 md:w-5 flex-shrink-0" />
+                        <span className="text-[11px] md:text-xs leading-tight text-center whitespace-nowrap">Agregados</span>
+                      </TabsTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="bg-seguranca-graphite text-white border-orange-500">
+                      <p className="font-semibold">Gestão de Agregados</p>
+                      <p className="text-xs text-gray-400">Veículos de terceiros agregados, lucratividade e contratos</p>
                     </TooltipContent>
                   </Tooltip>
 
@@ -931,16 +970,32 @@ const Operacional: React.FC = () => {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <TabsTrigger
-                        value="controle-visitas"
+                        value="controle-operacional"
                         className="modern-tab flex flex-col items-center justify-center gap-2 px-4 md:px-3 py-4 md:py-4 text-slate-700 dark:text-slate-300 data-[state='active']:bg-gradient-to-br data-[state='active']:from-red-600 data-[state='active']:to-red-700 data-[state='active']:text-white data-[state='active']:shadow-lg data-[state='active']:shadow-red-500/50 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all duration-300 rounded-md min-w-[85px] md:min-w-0 min-h-[85px] md:min-h-[72px] flex-shrink-0"
                       >
                         <Calendar className="h-6 w-6 md:h-5 md:w-5 flex-shrink-0" />
-                        <span className="text-[11px] md:text-xs leading-tight text-center whitespace-nowrap">Controle de Escalas</span>
+                        <span className="text-[11px] md:text-xs leading-tight text-center whitespace-nowrap">Controle Operacional</span>
                       </TabsTrigger>
                     </TooltipTrigger>
                     <TooltipContent side="bottom" className="bg-seguranca-graphite text-white border-seguranca-red">
-                      <p className="font-semibold">Controle de Escalas de Motoristas</p>
-                      <p className="text-xs text-gray-400">Planejamento e gestão de escalas</p>
+                      <p className="font-semibold">Controle Operacional e Movimentação de Veículos</p>
+                      <p className="text-xs text-gray-400">Veículos por cliente, remanejamentos, manutenção e histórico</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <TabsTrigger
+                        value="motoristas"
+                        className="modern-tab flex flex-col items-center justify-center gap-2 px-4 py-4 text-slate-700 transition-all duration-300 rounded-md min-w-[85px] min-h-[85px] flex-shrink-0 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800/50 dark:hover:text-white data-[state='active']:bg-gradient-to-br data-[state='active']:from-red-600 data-[state='active']:to-red-700 data-[state='active']:text-white data-[state='active']:shadow-lg data-[state='active']:shadow-red-500/50 md:min-w-0 md:min-h-[72px] md:px-3 md:py-4"
+                      >
+                        <Users className="h-6 w-6 flex-shrink-0 md:h-5 md:w-5" />
+                        <span className="whitespace-nowrap text-center text-[11px] leading-tight md:text-xs">Motoristas</span>
+                      </TabsTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="border-seguranca-red bg-seguranca-graphite text-white">
+                      <p className="font-semibold">Motoristas</p>
+                      <p className="text-xs text-gray-400">Lista e cadastro de motoristas</p>
                     </TooltipContent>
                   </Tooltip>
 
@@ -1081,8 +1136,20 @@ const Operacional: React.FC = () => {
               <OperationalOverviewCards onSelectTab={setActiveTab} />
             </TabsContent>
 
+            <TabsContent value="fretamentos" className="mt-6">
+              <FretamentosHub />
+            </TabsContent>
+
+            <TabsContent value="frota" className="mt-6">
+              {renderFrotaTab()}
+            </TabsContent>
+
             <TabsContent value="equipamentos" className="mt-6">
-              {renderEquipamentosTab()}
+              {renderFrotaTab()}
+            </TabsContent>
+
+            <TabsContent value="agregados" className="mt-6">
+              <AgregadosOperacionalTab />
             </TabsContent>
 
 
@@ -1171,16 +1238,12 @@ const Operacional: React.FC = () => {
               />
             </TabsContent>
 
-            <TabsContent value="controle-visitas" className="mt-6">
-              <EscalaTrabalhoTable
-                escalas={escalas}
-                isLoading={isLoadingEscalas}
-                onRefresh={handleRefreshEscalas}
-                onEdit={handleEditEscala}
-                onDelete={handleDeleteEscala}
-                onView={handleViewEscala}
-                onCreate={handleCreateEscala}
-              />
+            <TabsContent value="controle-operacional" className="mt-6">
+              <ControleOperacionalFrota />
+            </TabsContent>
+
+            <TabsContent value="motoristas" className="mt-6">
+              <Motoristas embedded />
             </TabsContent>
 
             <TabsContent value="gestao-operacional" className="mt-6">
@@ -1188,7 +1251,14 @@ const Operacional: React.FC = () => {
             </TabsContent>
 
             <TabsContent value="troca-plantao" className="mt-6">
-              <ShiftChangeTable onRefresh={() => { }} />
+              <PlantaoSchedulesPanel
+                schedules={escalas}
+                isLoading={isLoadingEscalas}
+                onRefresh={handleRefreshEscalas}
+                onCreate={handleCreateEscala}
+                onEdit={handleEditEscala}
+                onDelete={handleDeleteEscala}
+              />
             </TabsContent>
 
             <TabsContent value="guia-transporte" className="mt-6">

@@ -137,15 +137,36 @@ export function saveStoredCompanyBranding(patch: {
  */
 export function resolveCompanyIconUrl(
   iconUrl?: string | null,
-  fallbackLogoUrl?: string | null
+  fallbackLogoUrl?: string | null,
+  isLightMode?: boolean,
+  companyName?: string | null
 ): string | null {
+  const isSilvestre = (companyName && companyName.toLowerCase().includes('silvestre')) ||
+    (typeof window !== 'undefined' && (
+      Boolean(localStorage.getItem('empresa')?.toLowerCase().includes('silvestre')) ||
+      localStorage.getItem('theme') === 'white'
+    ));
+
+  if (isLightMode && isSilvestre) {
+    return '/images/sao-silvestre-icon.png?v=clean3';
+  }
+
   const stored = getStoredCompanyBranding();
   const candidateIcon = iconUrl !== undefined ? iconUrl : stored.iconUrl;
   const resolvedIcon = resolveCompanyLogoUrl(candidateIcon);
-  if (resolvedIcon) return resolvedIcon;
+  if (resolvedIcon) {
+    if (isLightMode && (isSilvestre || resolvedIcon.toLowerCase().includes('silvestre'))) {
+      return '/images/sao-silvestre-icon.png?v=clean3';
+    }
+    return resolvedIcon;
+  }
 
   const candidateLogo = fallbackLogoUrl !== undefined ? fallbackLogoUrl : stored.logoUrl;
-  return resolveCompanyLogoUrl(candidateLogo);
+  const resolvedFallbackLogo = resolveCompanyLogoUrl(candidateLogo);
+  if (isLightMode && (isSilvestre || (resolvedFallbackLogo && resolvedFallbackLogo.toLowerCase().includes('silvestre')))) {
+    return '/images/sao-silvestre-icon.png?v=clean3';
+  }
+  return resolvedFallbackLogo;
 }
 
 /**

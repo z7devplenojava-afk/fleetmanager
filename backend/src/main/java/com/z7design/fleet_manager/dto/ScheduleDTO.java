@@ -13,6 +13,7 @@ public class ScheduleDTO {
     private UUID id;
     @NotNull(message = "Schedule date is required")
     private LocalDate scheduleDate;
+    private String scheduleRecurrence;
     @NotNull(message = "Shift is required")
     private Shift shift;
     @NotNull(message = "Location ID is required")

@@ -34,6 +34,7 @@ import { useToast } from '@/hooks/use-toast';
 import { PassengerLiveMap } from '@/components/passageiro/PassengerLiveMap';
 import { generateQrCodeSvgUri, generateQrCodeDataPayload } from '@/utils/qrCodeHelper';
 import fretamentoCheckinService, { FretamentoCheckinRecord } from '@/services/fretamentoCheckinService';
+import { passengerTrackingService, PassengerRouteTracking } from '@/services/passengerTrackingService';
 import { Html5Qrcode } from 'html5-qrcode';
 import api from '@/lib/axios';
 import { AccessibilityBar } from '@/components/accessibility/AccessibilityBar';
@@ -50,6 +51,9 @@ export const PassengerPortal: React.FC = () => {
     // Histórico de Embarques
     const [history, setHistory] = useState<FretamentoCheckinRecord[]>([]);
     const [loadingHistory, setLoadingHistory] = useState(false);
+    const [routeTracking, setRouteTracking] = useState<PassengerRouteTracking | null>(null);
+    const [trackingLoading, setTrackingLoading] = useState(false);
+    const [trackingUpdatedAt, setTrackingUpdatedAt] = useState<string | null>(null);
 
     // Estados de Troca de Senha no Perfil
     const [currentPassword, setCurrentPassword] = useState('');
@@ -103,7 +107,35 @@ export const PassengerPortal: React.FC = () => {
         : 'Transporte Público';
     const isPcd = Boolean(user?.isPcd || (user as any)?.disabilityType);
     const disabilityType = (user as any)?.disabilityType || (user as any)?.disabilityDescription;
-    const assignedRoute = isFretado ? 'Linha Executiva Industrial - Rota 01' : 'Linha Municipal / Transporte Público';
+    const assignedRoute = routeTracking?.routeName || (isFretado
+        ? trackingLoading ? 'Carregando sua rota...' : 'Rota não vinculada'
+        : 'Linha Municipal / Transporte Público');
+
+    useEffect(() => {
+        if (!isFretado) {
+            setRouteTracking(null);
+            setTrackingLoading(false);
+            return;
+        }
+        let active = true;
+        const refreshTracking = async () => {
+            setTrackingLoading(true);
+            try {
+                const data = await passengerTrackingService.getMyRoute(direction);
+                if (active) {
+                    setRouteTracking(data);
+                    setTrackingUpdatedAt(new Date().toISOString());
+                }
+            } catch (error) {
+                console.warn('Não foi possível atualizar o rastreamento da rota autorizada:', error);
+            } finally {
+                if (active) setTrackingLoading(false);
+            }
+        };
+        void refreshTracking();
+        const timer = window.setInterval(() => void refreshTracking(), 20000);
+        return () => { active = false; window.clearInterval(timer); };
+    }, [isFretado, direction, user?.id]);
 
     // Payload estável do QR Code do passageiro (memorizado para manter o foco constante da câmera do motorista)
     const qrPayload = useMemo(() => {
@@ -407,7 +439,7 @@ export const PassengerPortal: React.FC = () => {
                             </div>
                             <div className="border-t border-slate-800/80 pt-2">
                                 <p className="text-sm font-bold text-white">{assignedRoute}</p>
-                                <p className="text-xs text-slate-400 mt-0.5">Embarque: Ponto Principal (Parada 03)</p>
+                                <p className="text-xs text-slate-400 mt-0.5">Embarque: {routeTracking?.boardingPoint?.name || 'Ponto ainda não cadastrado'}</p>
                             </div>
                             <Button
                                 onClick={() => setActiveTab('map')}
@@ -535,7 +567,7 @@ export const PassengerPortal: React.FC = () => {
                 {/* ABA 4: MAPA EM TEMPO REAL (GOOGLE MAPS) */}
                 {activeTab === 'map' && (
                     <div className="space-y-4 animate-fadeIn">
-                        <PassengerLiveMap lineName={assignedRoute} />
+                        <PassengerLiveMap tracking={routeTracking} lineName={assignedRoute} isLoading={trackingLoading} isRefreshing={trackingLoading} lastRefreshAt={trackingUpdatedAt} />
                     </div>
                 )}
 
@@ -569,9 +601,11 @@ export const PassengerPortal: React.FC = () => {
                                         </span>
                                     </div>
                                     <p className="text-xs font-bold text-white">{item.lineName || assignedRoute}</p>
-                                    <p className="text-[11px] text-slate-400 flex items-center gap-1 truncate">
-                                        <MapPin className="h-3 w-3 text-emerald-400 flex-shrink-0" /> {item.address}
-                                    </p>
+                                    {item.latitude !== 0 || item.longitude !== 0 ? (
+                                        <a href={`https://www.google.com/maps?q=${item.latitude},${item.longitude}`} target="_blank" rel="noreferrer" className="text-[11px] text-slate-400 flex items-center gap-1 truncate hover:text-cyan-300">
+                                            <MapPin className="h-3 w-3 text-emerald-400 flex-shrink-0" /> {item.address || `${item.latitude.toFixed(5)}, ${item.longitude.toFixed(5)}`}
+                                        </a>
+                                    ) : <p className="text-[11px] text-slate-400 flex items-center gap-1"><MapPin className="h-3 w-3 text-slate-500"/>{item.address}</p>}
                                 </div>
                             ))
                         )}

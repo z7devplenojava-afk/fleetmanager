@@ -26,6 +26,8 @@ public class CreateScheduleDTO {
     @NotNull(message = "Schedule date is required")
     private LocalDate scheduleDate;
 
+    private String scheduleRecurrence;
+
     @NotNull(message = "Shift is required")
     private Shift shift;
 

@@ -167,9 +167,6 @@ const trafegoMenuItems = [
   { icon: Clock, text: 'Horários', to: '/saosilvestre/horarios', id: 'vss-horarios', permission: 'TRAFFIC_MANAGEMENT_READ' },
   { icon: Truck, text: 'Veículos', to: '/frota', id: 'vss-veiculos', permission: 'TRAFFIC_MANAGEMENT_READ' },
   { icon: UserCheck, text: 'Motoristas', to: '/motoristas', id: 'vss-motoristas', permission: 'TRAFFIC_MANAGEMENT_READ' },
-  { icon: Users, text: 'Passageiros', to: '/fretamento/passageiros', id: 'trafego-passageiros', permission: 'TRAFFIC_MANAGEMENT_READ' },
-  { icon: Bus, text: 'Escalas e Viagens', to: '/saosilvestre/escalas', id: 'vss-escalas', permission: 'TRAFFIC_MANAGEMENT_READ' },
-  { icon: Bus, text: 'Gestão de Viagens', to: '/fretamento/viagens', id: 'trafego-viagens', permission: 'TRAFFIC_MANAGEMENT_READ' },
   { icon: Clock, text: 'Gestão de Turnos', to: '/fretamento/turnos', id: 'trafego-turnos', permission: 'TRAFFIC_MANAGEMENT_READ' },
   { icon: ClipboardList, text: 'Atribuições de Transportes', to: '/fretamento/atribuicoes', id: 'trafego-atribuicoes', permission: 'TRAFFIC_MANAGEMENT_READ' },
   { icon: Activity, text: 'Parte Diária', to: '/operacional?tab=parte-diaria', id: 'vss-parte-diaria', permission: 'TRAFFIC_MANAGEMENT_READ' },
@@ -192,16 +189,19 @@ const fiscalMenuItems = [
 
 // Módulo Operacional - Correspondente às abas da página
 const operacionalMenuItems = [
+  { icon: BarChart3, text: 'Dashboard Geral', to: '/operacional-dashboard', id: 'operacional-dashboard' },
+  { icon: Bus, text: 'Fretamentos', to: '/operacional?tab=fretamentos', id: 'operacional-fretamentos' },
+  { icon: Route, text: 'Roteirização', to: '/fretamento/rotas', id: 'operacional-roteirizacao' },
   { icon: DollarSign, text: 'Despesas Operacionais', to: '/operacional/despesas', id: 'operacional-despesas' },
-  { icon: ClipboardList, text: 'Serviços', to: '/operacional?tab=servicos', id: 'operacional-servicos' },
-  { icon: Shield, text: 'Equipamentos', to: '/operacional?tab=equipamentos', id: 'operacional-equipamentos' },
-  { icon: Calendar, text: 'Controle de Escalas', to: '/operacional?tab=escalas', id: 'operacional-escalas' },
+  { icon: ClipboardList, text: 'Ordens de Serviço', to: '/operacional?tab=servicos', id: 'operacional-servicos' },
+  { icon: Bus, text: 'Frota e Veículos', to: '/operacional?tab=frota', id: 'operacional-equipamentos' },
+  { icon: UserCheck, text: 'Gestão de Agregados', to: '/operacional?tab=agregados', id: 'operacional-agregados' },
+  { icon: Bus, text: 'Controle Operacional de Veículos', to: '/operacional?tab=controle-operacional', id: 'controle-operacional-veiculos' },
   { icon: AlertTriangle, text: 'Notificações', to: '/operacional?tab=notificacoes', id: 'operacional-notificacoes' },
   { icon: Eye, text: 'Ocorrências', to: '/operacional?tab=ocorrencias', id: 'operacional-ocorrencias' },
   { icon: Activity, text: 'Registro de Atividade', to: '/operacional?tab=atividades', id: 'operacional-atividades' },
   { icon: Clock, text: 'Troca de Plantão', to: '/operacional?tab=troca-plantao', id: 'operacional-troca-plantao' },
   { icon: Activity, text: 'Parte Diária', to: '/operacional?tab=parte-diaria', id: 'operacional-parte-diaria', color: 'text-red-500' },
-  { icon: Route, text: 'Controle de Rondas', to: '/controle-rondas', id: 'controle-rondas' },
   { icon: FileText, text: 'Guia de Transporte', to: '/operacional?tab=guia-transporte', id: 'operacional-guia-transporte' },
   { icon: Calculator, text: 'Rateio de Serviços', to: '/operacional?tab=rateio-servicos', id: 'operacional-rateio-servicos' },
   { icon: ClipboardCheck, text: 'Gestão Operacional', to: '/operacional?tab=gestao-operacional', id: 'operacional-gestao' },
@@ -1844,8 +1844,12 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
 }) => {
   const location = useLocation();
   const { user, empresa, logout } = useAuth();
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
+  const isLightMode = !isDark || theme === 'white';
   const rawCompanyName = empresa?.nome || (user as any)?.company?.name || (user as any)?.companyName || '';
+  const isLegacyFallbackTarget =
+    rawCompanyName.toLowerCase().includes('silvestre') ||
+    Boolean(empresa?.nome?.toLowerCase().includes('silvestre'));
   const hasSelectedCompany = Boolean(
     (empresa?.id || (user as any)?.companyId || (user as any)?.company?.id) &&
     rawCompanyName &&
@@ -2374,12 +2378,14 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
             {collapsed && !isMobile ? (
               <img
                 src={
-                  hasSelectedCompany
-                    ? (resolveCompanyIconUrl(empresa?.iconUrl, empresa?.logoUrl) ||
-                       (empresa?.nome?.toLowerCase().includes('silvestre')
-                         ? '/images/sao-silvestre-icon.png?v=clean3'
-                         : '/fluxbus-icon.png'))
-                    : '/fluxbus-icon.png'
+                  (isLightMode && isLegacyFallbackTarget)
+                    ? '/images/sao-silvestre-icon.png?v=clean3'
+                    : (hasSelectedCompany
+                        ? (resolveCompanyIconUrl(empresa?.iconUrl, empresa?.logoUrl, isLightMode, rawCompanyName) ||
+                           (isLegacyFallbackTarget
+                             ? '/images/sao-silvestre-icon.png?v=clean3'
+                             : '/fluxbus-icon.png'))
+                        : '/fluxbus-icon.png')
                 }
                 alt="Ícone da Empresa"
                 className="h-9 w-9 object-contain drop-shadow-sm transition-transform hover:scale-105 mx-auto bg-transparent"
