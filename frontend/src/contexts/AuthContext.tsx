@@ -211,8 +211,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const savedEmpresa = localStorage.getItem('empresa');
         const parsed = savedEmpresa ? JSON.parse(savedEmpresa) : null;
         const base: EmpresaInfo = prev || parsed || {
-          id: detail?.companyId || 'default',
-          nome: 'VIAÇÃO SÃO SILVESTRE LTDA',
+          id: detail?.companyId || '19b92948-1acd-401f-935a-9fb376961e33',
+          nome: 'FluxBus Transportes',
         };
         return {
           ...base,
@@ -707,7 +707,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const comp = response.data.company;
           const cleanLogoUrl = (comp?.logoUrl && comp.logoUrl.includes('e9654118-53a8-4dd8-b57c-bc50997f081b')) ? null : (comp?.logoUrl || empresa?.logoUrl || null);
           const currentEmpresaNome = (empresa?.nome && empresa.nome !== 'FluxBus Global') ? empresa.nome : '';
-          const resolvedNome = newCompanyName || comp?.name || comp?.nome || currentEmpresaNome || 'Viação São Silvestre';
+          const resolvedNome = newCompanyName || comp?.name || comp?.nome || currentEmpresaNome || 'FluxBus Transportes';
 
           const empresaData: EmpresaInfo = {
             id: newCompanyId,

@@ -31,6 +31,8 @@ public interface DriverRepository extends JpaRepository<Driver, UUID> {
     @Query(value = "SELECT * FROM drivers WHERE company_id = :companyId AND REGEXP_REPLACE(COALESCE(cpf, ''), '[^0-9]', '', 'g') = :cpf LIMIT 1", nativeQuery = true)
     Optional<Driver> findByCleanCpfAndCompanyId(@Param("cpf") String cpf, @Param("companyId") UUID companyId);
 
+    List<Driver> findByCompanyId(UUID companyId);
+
     @Query("SELECT d FROM Driver d WHERE d.cnhExpiration IS NOT NULL AND (:companyId IS NULL OR d.companyId = :companyId)")
     List<Driver> findWithCnhExpirationByCompany(@Param("companyId") UUID companyId);
 }

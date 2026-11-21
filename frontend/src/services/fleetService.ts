@@ -258,8 +258,12 @@ class FleetService {
             const parsed = JSON.parse(stored);
             if (Array.isArray(parsed) && parsed.length > 0) {
               const empresaRaw = localStorage.getItem('empresa') || '';
-              const isFluxbus = empresaRaw.toUpperCase().includes('FLUXBUS') || empresaRaw.includes('19b92948');
-              // Se for FluxBus (tenant demo) e houver mais de 50 veículos em cache, houve contaminação de outra empresa
+              const userRaw = localStorage.getItem('user') || '';
+              const isFluxbus = empresaRaw.toUpperCase().includes('FLUXBUS') ||
+                                empresaRaw.includes('19b92948') ||
+                                userRaw.includes('19b92948') ||
+                                userRaw.includes('SUPER_ADMIN');
+              // Se for FluxBus (tenant demo) e houver mais de 20 veículos em cache, houve contaminação de outra empresa
               if (isFluxbus && parsed.length > 20) {
                 console.warn('🧹 Purgando cache contaminado de veículos de demonstração FluxBus...');
                 localStorage.removeItem(key);
@@ -329,13 +333,31 @@ class FleetService {
         
         // Isolamento estrito de demonstração para FluxBus (não vazar frota de outras empresas)
         const empresaRaw = typeof window !== 'undefined' ? localStorage.getItem('empresa') || '' : '';
-        const isFluxbus = empresaRaw.toUpperCase().includes('FLUXBUS') || empresaRaw.includes('19b92948-1acd-401f-935a-9fb376961e33');
+        const userRaw = typeof window !== 'undefined' ? localStorage.getItem('user') || '' : '';
+        let isFluxbus = false;
+        try {
+          const emp = empresaRaw ? JSON.parse(empresaRaw) : null;
+          const u = userRaw ? JSON.parse(userRaw) : null;
+          const empNome = (emp?.nome || emp?.name || '').toUpperCase();
+          const empId = String(emp?.id || '');
+          const uCompanyId = String(u?.companyId || '');
+          const isSuperAdmin = u?.role === 'SUPER_ADMIN' || (Array.isArray(u?.roles) && u.roles.some((r: any) => (typeof r === 'string' ? r : r?.name) === 'SUPER_ADMIN'));
+
+          isFluxbus = empNome.includes('FLUXBUS') ||
+                      empId === '19b92948-1acd-401f-935a-9fb376961e33' ||
+                      uCompanyId === '19b92948-1acd-401f-935a-9fb376961e33' ||
+                      (isSuperAdmin && (!empId || empId === 'none' || empNome.includes('FLUXBUS') || !empNome));
+        } catch (_) {}
+
         if (isFluxbus) {
           list = list.filter((v: any) => {
             const cId = v.companyId ? String(v.companyId) : '';
             if (cId) return cId === '19b92948-1acd-401f-935a-9fb376961e33';
             return v.plate?.toUpperCase().startsWith('FLX');
           });
+          if (list.length > 20) {
+            list = list.filter((v: any) => v.plate?.toUpperCase().startsWith('FLX'));
+          }
         }
 
         this.vehiclesCache = { data: list, timestamp: Date.now() };

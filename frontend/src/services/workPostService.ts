@@ -145,10 +145,10 @@ export const workPostService = {
   async getWorkPostsByClient(clientId: string): Promise<WorkPost[]> {
     try {
       const response = await api.get(`/api/work-posts/client/${clientId}/all`);
-      return response.data;
+      return Array.isArray(response.data) ? response.data : (response.data?.content || []);
     } catch (error) {
-      console.error('Erro ao buscar postos por cliente:', error);
-      throw new Error('Falha ao buscar postos por cliente');
+      console.warn('Aviso ao buscar postos por cliente:', error);
+      return [];
     }
   },
 

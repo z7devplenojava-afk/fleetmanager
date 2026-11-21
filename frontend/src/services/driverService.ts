@@ -15,10 +15,39 @@ export interface CreateDriverDTO {
   userId?: string;
 }
 
+const filterFluxbusDrivers = (drivers: Driver[]): Driver[] => {
+  if (!Array.isArray(drivers)) return [];
+  const empresaRaw = typeof window !== 'undefined' ? localStorage.getItem('empresa') || '' : '';
+  const userRaw = typeof window !== 'undefined' ? localStorage.getItem('user') || '' : '';
+  let isFluxbus = false;
+  try {
+    const emp = empresaRaw ? JSON.parse(empresaRaw) : null;
+    const u = userRaw ? JSON.parse(userRaw) : null;
+    const empNome = (emp?.nome || emp?.name || '').toUpperCase();
+    const empId = String(emp?.id || '');
+    const uCompanyId = String(u?.companyId || '');
+    const isSuperAdmin = u?.role === 'SUPER_ADMIN' || (Array.isArray(u?.roles) && u.roles.some((r: any) => (typeof r === 'string' ? r : r?.name) === 'SUPER_ADMIN'));
+
+    isFluxbus = empNome.includes('FLUXBUS') ||
+                empId === '19b92948-1acd-401f-935a-9fb376961e33' ||
+                uCompanyId === '19b92948-1acd-401f-935a-9fb376961e33' ||
+                (isSuperAdmin && (!empId || empId === 'none' || empNome.includes('FLUXBUS') || !empNome));
+  } catch (_) {}
+
+  if (!isFluxbus) return drivers;
+
+  return drivers.filter((d: any) => {
+    const cId = d.companyId ? String(d.companyId) : '';
+    if (cId) return cId === '19b92948-1acd-401f-935a-9fb376961e33';
+    return true;
+  });
+};
+
 const driverService = {
   async getDrivers(): Promise<Driver[]> {
     const response = await api.get('/api/drivers');
-    return response.data;
+    const data = Array.isArray(response.data) ? response.data : [];
+    return filterFluxbusDrivers(data);
   },
 
   async getDriver(id: string): Promise<Driver> {

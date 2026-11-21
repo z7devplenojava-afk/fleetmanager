@@ -20,6 +20,7 @@ public class DriverService {
     private final DriverRepository driverRepository;
     private final com.z7design.fleet_manager.repository.EmployeeRepository employeeRepository;
     private final com.z7design.fleet_manager.repository.UserRepository userRepository;
+    private final com.z7design.fleet_manager.service.UserCompanyResolver userCompanyResolver;
 
     @Transactional
     public void syncDriversFromEmployees() {
@@ -125,7 +126,14 @@ public class DriverService {
 
     @Transactional(readOnly = true)
     public List<DriverDTO> getAllDrivers() {
-        return driverRepository.findAll().stream()
+        UUID tenantId = TenantContext.get();
+        if (tenantId == null && userCompanyResolver != null) {
+            tenantId = userCompanyResolver.resolveCurrentCompanyId();
+        }
+        List<Driver> drivers = tenantId != null
+                ? driverRepository.findByCompanyId(tenantId)
+                : java.util.Collections.emptyList();
+        return drivers.stream()
                 .map(DriverDTO::fromEntity)
                 .collect(Collectors.toList());
     }

@@ -10,7 +10,37 @@ export interface Client {
   phone?: string;
   address?: string;
   status?: string;
+  companyId?: string;
 }
+
+const filterFluxbusClients = (clients: Client[]): Client[] => {
+  if (!Array.isArray(clients)) return [];
+  const empresaRaw = typeof window !== 'undefined' ? localStorage.getItem('empresa') || '' : '';
+  const userRaw = typeof window !== 'undefined' ? localStorage.getItem('user') || '' : '';
+  let isFluxbus = false;
+  try {
+    const emp = empresaRaw ? JSON.parse(empresaRaw) : null;
+    const u = userRaw ? JSON.parse(userRaw) : null;
+    const empNome = (emp?.nome || emp?.name || '').toUpperCase();
+    const empId = String(emp?.id || '');
+    const uCompanyId = String(u?.companyId || '');
+    const isSuperAdmin = u?.role === 'SUPER_ADMIN' || (Array.isArray(u?.roles) && u.roles.some((r: any) => (typeof r === 'string' ? r : r?.name) === 'SUPER_ADMIN'));
+
+    isFluxbus = empNome.includes('FLUXBUS') ||
+                empId === '19b92948-1acd-401f-935a-9fb376961e33' ||
+                uCompanyId === '19b92948-1acd-401f-935a-9fb376961e33' ||
+                (isSuperAdmin && (!empId || empId === 'none' || empNome.includes('FLUXBUS') || !empNome));
+  } catch (_) {}
+
+  if (!isFluxbus) return clients;
+
+  return clients.filter((c: any) => {
+    const cId = c.companyId ? String(c.companyId) : '';
+    if (cId) return cId === '19b92948-1acd-401f-935a-9fb376961e33';
+    const cName = (c.name || '').toUpperCase();
+    return cName.includes('FLUXBUS') || cName.includes('DEMO');
+  });
+};
 
 export const clientService = {
   // Listar clientes paginados (com filtros opcionais)
@@ -42,17 +72,18 @@ export const clientService = {
   // Buscar todos os clientes
   async getAllClients(): Promise<Client[]> {
     try {
+      let result: Client[] = [];
       try {
         const response = await api.get('/api/clients/all');
-        if (Array.isArray(response.data)) return response.data;
-        if (Array.isArray(response.data?.content)) return response.data.content;
+        if (Array.isArray(response.data)) result = response.data;
+        else if (Array.isArray(response.data?.content)) result = response.data.content;
       } catch (inner) {
         // Fallback para listagem padrão de clientes
         const fallback = await api.get('/api/clients?size=1000');
-        if (Array.isArray(fallback.data)) return fallback.data;
-        if (Array.isArray(fallback.data?.content)) return fallback.data.content;
+        if (Array.isArray(fallback.data)) result = fallback.data;
+        else if (Array.isArray(fallback.data?.content)) result = fallback.data.content;
       }
-      return [];
+      return filterFluxbusClients(result);
     } catch (error: any) {
       console.warn('⚠️ Não foi possível carregar lista de clientes:', error);
       return [];
@@ -63,7 +94,8 @@ export const clientService = {
   async getClientsForSelect(): Promise<Client[]> {
     try {
       const response = await api.get('/api/clients/select');
-      return response.data;
+      const list = Array.isArray(response.data) ? response.data : [];
+      return filterFluxbusClients(list);
     } catch (error: any) {
       if (isConnectionError(error)) {
         console.warn('⚠️ Backend não está disponível. Retornando array vazio para seleção de clientes.');

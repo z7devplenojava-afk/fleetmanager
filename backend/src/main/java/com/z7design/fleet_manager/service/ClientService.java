@@ -155,7 +155,13 @@ public class ClientService {
     }
     
     public Page<ClientDTO> getAllClients(Pageable pageable) {
-        Page<Client> clients = clientRepository.findAll(pageable);
+        UUID tenantId = com.z7design.fleet_manager.tenant.TenantContext.get();
+        if (tenantId == null && userCompanyResolver != null) {
+            tenantId = userCompanyResolver.resolveCurrentCompanyId();
+        }
+        Page<Client> clients = tenantId != null 
+                ? clientRepository.findByCompanyId(tenantId, pageable)
+                : Page.empty(pageable);
         return clients.map(client -> {
             ClientDTO clientDTO = new ClientDTO();
             BeanUtils.copyProperties(client, clientDTO);

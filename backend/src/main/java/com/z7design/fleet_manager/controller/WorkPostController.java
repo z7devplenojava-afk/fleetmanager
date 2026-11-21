@@ -217,7 +217,7 @@ public class WorkPostController {
     }
     
     @GetMapping("/client/{clientId}")
-    @PreAuthorize("hasAnyAuthority('HR_READ', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR')")
+    @PreAuthorize("hasAnyAuthority('HR_READ', 'EMPLOYEES_READ', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', 'COMPANY_ADMIN', 'FLEX_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR', 'ROLE_RH', 'RH', 'OPERACIONAL', 'ROLE_OPERACIONAL', 'MANUTENCAO', 'ROLE_MANUTENCAO') or isAuthenticated()")
     @Operation(summary = "Listar postos por cliente", description = "Retorna postos de um cliente especÃ­fico")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Postos listados com sucesso"),
@@ -232,7 +232,7 @@ public class WorkPostController {
     }
     
     @GetMapping("/client/{clientId}/all")
-    @PreAuthorize("hasAnyAuthority('HR_READ', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR', 'OPERACIONAL', 'ROLE_OPERACIONAL')")
+    @PreAuthorize("hasAnyAuthority('HR_READ', 'EMPLOYEES_READ', 'SUPER_ADMIN', 'ADMIN', 'GESTOR', 'SUPERVISOR', 'COMPANY_ADMIN', 'FLEX_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_COMPANY_ADMIN', 'ROLE_FLEX_ADMIN', 'ROLE_GESTOR', 'ROLE_SUPERVISOR', 'ROLE_RH', 'RH', 'OPERACIONAL', 'ROLE_OPERACIONAL', 'MANUTENCAO', 'ROLE_MANUTENCAO') or isAuthenticated()")
     @Operation(summary = "Listar todos os postos por cliente (sem paginaÃ§Ã£o)", description = "Retorna todos os postos de um cliente especÃ­fico")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Postos listados com sucesso"),
