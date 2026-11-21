@@ -1244,7 +1244,7 @@ export const ClientVehicleAllocationBoard: React.FC = () => {
                 </div>
               </div>
 
-              {/* Seleção do Veículo com Barra de Pesquisa (3 caracteres) */}
+              {/* Seleção do Veículo com Barra de Pesquisa */}
               <div className="min-w-0 space-y-1.5">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs font-bold text-slate-700 dark:text-slate-300">
@@ -1257,16 +1257,13 @@ export const ClientVehicleAllocationBoard: React.FC = () => {
                   onChange={(val) => setModalVehicleId(val)}
                   options={vehicleOptions}
                   placeholder="Selecione o veículo..."
-                  searchPlaceholder="Digite pelo menos 3 caracteres da placa ou modelo..."
+                  searchPlaceholder="Buscar por placa, frota ou modelo..."
                   emptyText="Nenhum veículo encontrado."
-                  minSearchLength={3}
-                  minSearchHint="Digite pelo menos 3 caracteres para buscar..."
-                  requireMinLengthToDisplay={true}
                   maxVisibleOptions={60}
                 />
               </div>
 
-              {/* Seleção do Motorista com Barra de Pesquisa (3 caracteres) */}
+              {/* Seleção do Motorista com Barra de Pesquisa */}
               <div className="min-w-0 space-y-1.5">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs font-bold text-slate-700 dark:text-slate-300">
@@ -1280,22 +1277,19 @@ export const ClientVehicleAllocationBoard: React.FC = () => {
                   onChange={(val) => setModalDriverName(val)}
                   options={driverOptions}
                   placeholder="Selecione o motorista (opcional)..."
-                  searchPlaceholder="Digite pelo menos 3 caracteres do nome ou CPF..."
+                  searchPlaceholder="Buscar por nome ou CPF..."
                   emptyText="Nenhum motorista encontrado."
-                  minSearchLength={3}
-                  minSearchHint="Digite pelo menos 3 caracteres para buscar..."
-                  requireMinLengthToDisplay={true}
                   maxVisibleOptions={70}
                 />
               </div>
 
-              {/* Campo: Obra / Setor de Trabalho com Barra de Pesquisa (3 caracteres) e Digitação Livre */}
+              {/* Campo: Obra / Setor de Trabalho com Barra de Pesquisa e Digitação Livre */}
               <div className="min-w-0 space-y-1.5 md:col-span-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs font-bold text-slate-700 dark:text-slate-300">
                     Obra / Setor de Trabalho *
                   </Label>
-                  <span className="text-[10px] text-slate-400">{obraOptions.length} opções · busca imediata</span>
+                  <span className="text-[10px] text-slate-400">{obraOptions.length} opções disponíveis</span>
                 </div>
                 <SearchableSelect
                   value={modalObraName}
@@ -1305,11 +1299,8 @@ export const ClientVehicleAllocationBoard: React.FC = () => {
                   allowCustomValue={true}
                   customValuePrefix="Definir obra/setor"
                   placeholder="Digite ou selecione a obra/setor..."
-                  searchPlaceholder="Digite pelo menos 3 caracteres da obra ou setor..."
+                  searchPlaceholder="Buscar ou digitar obra/setor..."
                   emptyText="Nenhuma obra encontrada. Pressione Enter para cadastrar com o texto digitado."
-                  minSearchLength={3}
-                  minSearchHint="Digite pelo menos 3 caracteres para pesquisar..."
-                  requireMinLengthToDisplay={true}
                   maxVisibleOptions={30}
                 />
 
