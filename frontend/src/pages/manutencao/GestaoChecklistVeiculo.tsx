@@ -48,7 +48,11 @@ import { useToast } from '@/hooks/use-toast';
 const CATEGORY_OPTIONS = Object.keys(CATEGORY_LABELS);
 const DEFAULT_CONFIG_ITEMS = defaultsToConfig();
 
-const GestaoChecklistVeiculo: React.FC = () => {
+interface GestaoChecklistVeiculoProps {
+    embedded?: boolean;
+}
+
+const GestaoChecklistVeiculo: React.FC<GestaoChecklistVeiculoProps> = ({ embedded = false }) => {
     const { toast } = useToast();
     // 'default' = template padrão global; caso contrário, id do veículo
     const [target, setTarget] = useState<'default' | string>('default');
@@ -239,22 +243,19 @@ const GestaoChecklistVeiculo: React.FC = () => {
         }
     };
 
-    return (
-        <StandardLayout title="Checklist por Veículo">
-            <div className="space-y-6">
+    const content = (
+        <div className="space-y-6">
+            {!embedded && (
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div>
-                        <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-                            <ClipboardCheck className="h-8 w-8 text-primary" />
-                            Checklist por Veículo
-                        </h1>
-                        <p className="text-muted-foreground">
+                        <p className="text-muted-foreground text-sm">
                             Configure os itens de vistoria do check-in/check-out por veículo, ou edite o template padrão global.
                         </p>
                     </div>
                 </div>
+            )}
 
-                <Card>
+            <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <LayoutTemplate className="h-5 w-5 text-primary" />
@@ -593,6 +594,16 @@ const GestaoChecklistVeiculo: React.FC = () => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+        </div>
+    );
+
+    if (embedded) {
+        return content;
+    }
+
+    return (
+        <StandardLayout title="Checklist por Veículo">
+            {content}
         </StandardLayout>
     );
 };

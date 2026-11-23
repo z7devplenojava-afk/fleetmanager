@@ -121,6 +121,7 @@ const GestaoPneus = lazy(() => import('@/pages/pneus/GestaoPneus'));
 const GestaoPortaria = lazyWithRetry(() => import('@/pages/manutencao/GestaoPortaria'), 'GestaoPortaria');
 const GestaoChecklistVeiculo = lazyWithRetry(() => import('@/pages/manutencao/GestaoChecklistVeiculo'), 'GestaoChecklistVeiculo');
 const GestaoChecklistCliente = lazyWithRetry(() => import('@/pages/manutencao/GestaoChecklistCliente'), 'GestaoChecklistCliente');
+const GestaoChecklistHub = lazyWithRetry(() => import('@/pages/manutencao/GestaoChecklistHub'), 'GestaoChecklistHub');
 const GestaoLimpezaVeiculos = lazy(() => import('@/pages/manutencao/GestaoLimpezaVeiculos'));
 const Garagens = lazy(() => import('@/pages/Garagens'));
 const Lavajato = lazy(() => import('@/pages/manutencao/Lavajato'));
@@ -999,17 +1000,24 @@ function App() {
                           </Suspense>
                         </ProtectedRoute>
                       } />
+                      <Route path="/manutencao/checklist-hub" element={
+                        <ProtectedRoute requiredPermissions={['EQUIPMENTS_READ']}>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <GestaoChecklistHub />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
                       <Route path="/manutencao/checklist-cliente" element={
                         <ProtectedRoute requiredPermissions={['EQUIPMENTS_READ']}>
                           <Suspense fallback={<LoadingSpinner />}>
-                            <GestaoChecklistCliente />
+                            <GestaoChecklistHub />
                           </Suspense>
                         </ProtectedRoute>
                       } />
                       <Route path="/manutencao/checklist-veiculo" element={
                         <ProtectedRoute requiredPermissions={['EQUIPMENTS_READ']}>
                           <Suspense fallback={<LoadingSpinner />}>
-                            <GestaoChecklistVeiculo />
+                            <GestaoChecklistHub />
                           </Suspense>
                         </ProtectedRoute>
                       } />

@@ -162,7 +162,7 @@ const manutencaoMenuItems = [
   { icon: Fuel, text: 'Abastecimento', to: '/abastecimento', id: 'abastecimento' },
   { icon: Car, text: 'Gestão de Pneus', to: '/pneus', id: 'pneus' },
   { icon: DoorOpen, text: 'Gestão de Portaria', to: '/manutencao/portaria', id: 'gestao-portaria' },
-  { icon: ClipboardCheck, text: 'Gestão Checklist por Cliente', to: '/manutencao/checklist-cliente', id: 'gestao-checklist-cliente' },
+  { icon: ClipboardCheck, text: 'Gestão de Checklists', to: '/manutencao/checklist-hub', id: 'gestao-checklist-cliente' },
   { icon: Sparkles, text: 'Gestão de Limpeza', to: '/manutencao/limpeza', id: 'gestao-limpeza' },
   { icon: Droplets, text: 'Lavajato', to: '/manutencao/lavajato', id: 'lavajato' },
   { icon: Award, text: 'Certificações CFME', to: '/manutencao/certificacoes-cfme', id: 'gestao-certificacoes-cfme' },

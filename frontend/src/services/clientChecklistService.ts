@@ -8,10 +8,12 @@ import type {
 
 class ClientChecklistService {
   // Templates
-  async getTemplates(clientId: string): Promise<ClientChecklistTemplate[]> {
-    const response = await api.get('/client-checklists/templates', {
-      params: { clientId },
-    });
+  async getTemplates(clientId?: string): Promise<ClientChecklistTemplate[]> {
+    const params: Record<string, string> = {};
+    if (clientId && clientId !== 'all') {
+      params.clientId = clientId;
+    }
+    const response = await api.get('/client-checklists/templates', { params });
     return response.data;
   }
 

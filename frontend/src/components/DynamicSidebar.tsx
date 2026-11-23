@@ -1682,8 +1682,8 @@ export function DynamicSidebar() {
     },
     {
       icon: ClipboardCheck,
-      text: 'Gestão Checklist por Cliente',
-      to: '/manutencao/checklist-cliente',
+      text: 'Gestão de Checklists',
+      to: '/manutencao/checklist-hub',
       id: 'gestao-checklist-cliente',
       requiredPermission: 'EQUIPMENTS_READ'
     },

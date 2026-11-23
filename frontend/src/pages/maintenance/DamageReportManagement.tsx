@@ -35,7 +35,11 @@ import { DamageReport, DamageReportFilter } from '@/services/damageReportService
 import DamageReportView from '@/components/maintenance/DamageReportView';
 import DamageReportForm from '@/components/maintenance/DamageReportForm';
 
-export default function DamageReportManagement() {
+interface DamageReportManagementProps {
+  embedded?: boolean;
+}
+
+export default function DamageReportManagement({ embedded = false }: DamageReportManagementProps) {
   const [reports, setReports] = useState<DamageReport[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -133,22 +137,39 @@ export default function DamageReportManagement() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Registro de Avarias</h1>
-          <p className="text-muted-foreground">Gerenciamento de danos e avarias veiculares</p>
+      {!embedded && (
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Registro de Avarias</h1>
+            <p className="text-muted-foreground">Gerenciamento de danos e avarias veiculares</p>
+          </div>
+          <div className="flex space-x-2">
+            <Button variant="outline" onClick={loadData}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Atualizar
+            </Button>
+            <Button onClick={() => setShowCreateModal(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nova Avaria
+            </Button>
+          </div>
         </div>
-        <div className="flex space-x-2">
-          <Button variant="outline" onClick={loadData}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Atualizar
-          </Button>
-          <Button onClick={() => setShowCreateModal(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nova Avaria
-          </Button>
+      )}
+      {embedded && (
+        <div className="flex justify-between items-center">
+          <p className="text-sm text-muted-foreground">Gerenciamento de danos e avarias veiculares</p>
+          <div className="flex space-x-2">
+            <Button variant="outline" size="sm" onClick={loadData}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Atualizar
+            </Button>
+            <Button size="sm" onClick={() => setShowCreateModal(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nova Avaria
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Stats Overview */}
       {stats && (

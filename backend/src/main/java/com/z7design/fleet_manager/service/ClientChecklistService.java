@@ -50,7 +50,13 @@ public class ClientChecklistService {
     // --- Templates ---
 
     public List<ClientChecklistTemplateDTO> findTemplatesByClientId(UUID clientId) {
-        return templateRepository.findByClientIdOrderByOrderIndexAscNameAsc(clientId).stream()
+        if (clientId != null) {
+            return templateRepository.findByClientIdOrderByOrderIndexAscNameAsc(clientId).stream()
+                    .map(this::templateToDTO)
+                    .toList();
+        }
+        UUID companyId = com.z7design.fleet_manager.tenant.TenantContext.get();
+        return templateRepository.findAllByCompanyId(companyId).stream()
                 .map(this::templateToDTO)
                 .toList();
     }

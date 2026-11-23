@@ -54,7 +54,11 @@ import type {
   ChecklistResponse,
 } from '@/types/clientChecklist';
 
-const GestaoChecklistCliente: React.FC = () => {
+interface GestaoChecklistClienteProps {
+  embedded?: boolean;
+}
+
+const GestaoChecklistCliente: React.FC<GestaoChecklistClienteProps> = ({ embedded = false }) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -95,11 +99,14 @@ const GestaoChecklistCliente: React.FC = () => {
     refetchOnWindowFocus: false,
   });
 
-  const clientIdForTemplates = formData.clientId || (activeTab === 'history' ? filters.clientId : '');
+  const clientIdForTemplates =
+    activeTab === 'templates' || activeTab === 'history'
+      ? (filters.clientId !== 'all' ? filters.clientId : '')
+      : (formData.clientId || '');
+
   const { data: templates = [] } = useQuery({
     queryKey: ['client-checklist-templates', clientIdForTemplates],
-    queryFn: () => clientChecklistService.getTemplates(clientIdForTemplates),
-    enabled: !!clientIdForTemplates && clientIdForTemplates !== 'all',
+    queryFn: () => clientChecklistService.getTemplates(clientIdForTemplates || undefined),
     staleTime: 60 * 1000,
     refetchOnWindowFocus: false,
   });
@@ -416,45 +423,42 @@ const GestaoChecklistCliente: React.FC = () => {
     }));
   };
 
-  return (
-    <StandardLayout title="Gestão Checklist por Cliente">
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-seguranca-lightgray flex items-center gap-2">
-            <ClipboardCheck className="h-8 w-8 text-seguranca-yellow" />
-            Gestão Checklist por Cliente
-          </h1>
-          <p className="text-gray-400">
+  const content = (
+    <div className="space-y-6">
+      {!embedded && (
+        <div className="flex flex-col gap-1">
+          <p className="text-muted-foreground text-sm">
             Modelos de checklist customizados por cliente. Preenchimento rápido com QR Code e câmera.
           </p>
         </div>
+      )}
 
-        <div className="flex items-center gap-2 overflow-x-auto pb-2">
-          <Button
-            variant={activeTab === 'new' ? 'default' : 'outline'}
-            onClick={() => setActiveTab('new')}
-            size="sm"
-            className={activeTab === 'new' ? 'bg-seguranca-yellow text-black hover:bg-seguranca-yellow/90' : ''}
-          >
-            <Plus className="mr-2 h-4 w-4" /> Novo registro
-          </Button>
-          <Button
-            variant={activeTab === 'templates' ? 'default' : 'outline'}
-            onClick={() => setActiveTab('templates')}
-            size="sm"
-            className={activeTab === 'templates' ? 'bg-seguranca-yellow text-black hover:bg-seguranca-yellow/90' : ''}
-          >
-            <FileText className="mr-2 h-4 w-4" /> Modelos
-          </Button>
-          <Button
-            variant={activeTab === 'history' ? 'default' : 'outline'}
-            onClick={() => setActiveTab('history')}
-            size="sm"
-            className={activeTab === 'history' ? 'bg-seguranca-yellow text-black hover:bg-seguranca-yellow/90' : ''}
-          >
-            <History className="mr-2 h-4 w-4" /> Histórico
-          </Button>
-        </div>
+      <div className="flex items-center gap-2 overflow-x-auto pb-2">
+        <Button
+          variant={activeTab === 'new' ? 'default' : 'outline'}
+          onClick={() => setActiveTab('new')}
+          size="sm"
+          className={activeTab === 'new' ? 'bg-seguranca-yellow text-black hover:bg-seguranca-yellow/90' : ''}
+        >
+          <Plus className="mr-2 h-4 w-4" /> Novo registro
+        </Button>
+        <Button
+          variant={activeTab === 'templates' ? 'default' : 'outline'}
+          onClick={() => setActiveTab('templates')}
+          size="sm"
+          className={activeTab === 'templates' ? 'bg-seguranca-yellow text-black hover:bg-seguranca-yellow/90' : ''}
+        >
+          <FileText className="mr-2 h-4 w-4" /> Modelos
+        </Button>
+        <Button
+          variant={activeTab === 'history' ? 'default' : 'outline'}
+          onClick={() => setActiveTab('history')}
+          size="sm"
+          className={activeTab === 'history' ? 'bg-seguranca-yellow text-black hover:bg-seguranca-yellow/90' : ''}
+        >
+          <History className="mr-2 h-4 w-4" /> Histórico
+        </Button>
+      </div>
 
         {activeTab === 'new' && (
           <Card className="bg-seguranca-graphite border-gray-600">
@@ -508,8 +512,9 @@ const GestaoChecklistCliente: React.FC = () => {
                 </Select>
               </div>
               <div className="mt-4 space-y-2">
-                {filters.clientId !== 'all' &&
-                  templates.map((t) => (
+                {templates
+                  .filter((t) => filters.clientId === 'all' || t.clientId === filters.clientId)
+                  .map((t) => (
                     <div
                       key={t.id}
                       className="flex items-center justify-between p-3 rounded-lg bg-seguranca-black border border-gray-700"
@@ -517,7 +522,7 @@ const GestaoChecklistCliente: React.FC = () => {
                       <div>
                         <p className="font-medium text-seguranca-lightgray">{t.name}</p>
                         <p className="text-sm text-gray-400">
-                          {t.clientName} {t.revision && `• Rev. ${t.revision}`} • {t.items.length} itens
+                          {t.clientName} {t.revision && `• Rev. ${t.revision}`} • {t.items?.length || 0} itens
                         </p>
                       </div>
                       <div className="flex gap-2">
@@ -544,11 +549,12 @@ const GestaoChecklistCliente: React.FC = () => {
                       </div>
                     </div>
                   ))}
-                {filters.clientId === 'all' && (
-                  <p className="text-gray-400 py-4">Selecione um cliente para ver os modelos.</p>
-                )}
-                {filters.clientId !== 'all' && templates.length === 0 && (
-                  <p className="text-gray-400 py-4">Nenhum modelo cadastrado para este cliente.</p>
+                {templates.filter((t) => filters.clientId === 'all' || t.clientId === filters.clientId).length === 0 && (
+                  <p className="text-gray-400 py-4">
+                    {filters.clientId === 'all'
+                      ? 'Nenhum modelo cadastrado no sistema.'
+                      : 'Nenhum modelo cadastrado para este cliente.'}
+                  </p>
                 )}
               </div>
             </CardContent>
@@ -1074,6 +1080,16 @@ const GestaoChecklistCliente: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
+  return (
+    <StandardLayout title="Gestão Checklist por Cliente">
+      {content}
     </StandardLayout>
   );
 };

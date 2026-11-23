@@ -28,9 +28,6 @@ public class ClientChecklistController {
     @GetMapping("/templates")
     public ResponseEntity<List<ClientChecklistTemplateDTO>> findTemplates(
             @RequestParam(name = "clientId", required = false) UUID clientId) {
-        if (clientId == null) {
-            return ResponseEntity.ok(List.of());
-        }
         return ResponseEntity.ok(service.findTemplatesByClientId(clientId));
     }
 
