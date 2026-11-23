@@ -97,7 +97,11 @@ const formatDisplayDate = (d?: string) => {
     return d;
 };
 
-const FleetWorkOrdersPage: React.FC = () => {
+interface FleetWorkOrdersPageProps {
+    embedded?: boolean;
+}
+
+const FleetWorkOrdersPage: React.FC<FleetWorkOrdersPageProps> = ({ embedded = false }) => {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const { toast } = useToast();
@@ -468,44 +472,50 @@ const FleetWorkOrdersPage: React.FC = () => {
         }
     };
 
-    return (
-        <StandardLayout title="Gestão de Ordem de Serviço">
-            <div className="space-y-6">
-                {/* Header Section */}
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                    <div className="text-center lg:text-left">
-                        <h1 className="text-2xl sm:text-3xl font-bold text-seguranca-lightgray flex items-center justify-center lg:justify-start gap-2">
-                            <ClipboardList className="h-7 w-7 sm:h-8 sm:w-8 text-seguranca-yellow" />
-                            Ordens de Serviço
-                        </h1>
-                        <p className="text-sm text-gray-400 mt-1">Controle de manutenção corretiva e preventiva.</p>
-                    </div>
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                        <Button
-                            variant="outline"
-                            onClick={handleRunAutoPreventiveSweep}
-                            disabled={isRunningAutoSweep}
-                            className="border-emerald-500/70 text-emerald-300 hover:bg-emerald-500/10 font-bold text-xs sm:text-sm h-10"
-                            title="Avalia toda a frota e abre OS Preventiva Modelo 2 automática para os veículos que atingiram os intervalos Urbano/Rodoviário ou 150.000 km do Alternador"
-                        >
-                            <CheckCircle2 className={`mr-2 h-4 w-4 ${isRunningAutoSweep ? 'animate-spin' : ''}`} />
-                            {isRunningAutoSweep ? 'Avaliando Frota...' : 'Gerar Preventivas (KM)'}
-                        </Button>
-                        <Button
-                            variant="outline"
-                            onClick={() => navigate('/manutencao/limpeza')}
-                            className="border-seguranca-yellow text-seguranca-yellow hover:bg-seguranca-yellow/10 font-bold text-xs sm:text-sm h-10"
-                        >
-                            <Sparkles className="mr-2 h-4 w-4" /> Solicitar Limpeza
-                        </Button>
-                        <Button
-                            onClick={() => { setSelectedOrder(undefined); setPrefillOrderValues(undefined); setIsFormOpen(true); }}
-                            className="bg-seguranca-red hover:bg-seguranca-darkred text-white font-bold text-xs sm:text-sm h-10"
-                        >
-                            <Plus className="mr-2 h-4 w-4" /> Nova O.S.
-                        </Button>
-                    </div>
+    const content = (
+        <div className="space-y-6">
+            {/* Header Section */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div className="text-center lg:text-left">
+                    {!embedded && (
+                        <>
+                            <h1 className="text-2xl sm:text-3xl font-bold text-seguranca-lightgray flex items-center justify-center lg:justify-start gap-2">
+                                <ClipboardList className="h-7 w-7 sm:h-8 sm:w-8 text-seguranca-yellow" />
+                                Ordens de Serviço
+                            </h1>
+                            <p className="text-sm text-gray-400 mt-1">Controle de manutenção corretiva e preventiva.</p>
+                        </>
+                    )}
+                    {embedded && (
+                        <p className="text-sm text-gray-400">Controle de manutenção corretiva e preventiva de veículos da frota.</p>
+                    )}
                 </div>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <Button
+                        variant="outline"
+                        onClick={handleRunAutoPreventiveSweep}
+                        disabled={isRunningAutoSweep}
+                        className="border-emerald-500/70 text-emerald-300 hover:bg-emerald-500/10 font-bold text-xs sm:text-sm h-10"
+                        title="Avalia toda a frota e abre OS Preventiva Modelo 2 automática para os veículos que atingiram os intervalos Urbano/Rodoviário ou 150.000 km do Alternador"
+                    >
+                        <CheckCircle2 className={`mr-2 h-4 w-4 ${isRunningAutoSweep ? 'animate-spin' : ''}`} />
+                        {isRunningAutoSweep ? 'Avaliando Frota...' : 'Gerar Preventivas (KM)'}
+                    </Button>
+                    <Button
+                        variant="outline"
+                        onClick={() => navigate('/manutencao/limpeza')}
+                        className="border-seguranca-yellow text-seguranca-yellow hover:bg-seguranca-yellow/10 font-bold text-xs sm:text-sm h-10"
+                    >
+                        <Sparkles className="mr-2 h-4 w-4" /> Solicitar Limpeza
+                    </Button>
+                    <Button
+                        onClick={() => { setSelectedOrder(undefined); setPrefillOrderValues(undefined); setIsFormOpen(true); }}
+                        className="bg-seguranca-red hover:bg-seguranca-darkred text-white font-bold text-xs sm:text-sm h-10"
+                    >
+                        <Plus className="mr-2 h-4 w-4" /> Nova O.S.
+                    </Button>
+                </div>
+            </div>
 
                 {/* Navegação entre Ordens de Serviço, Plano por Cliente, Controles Preventivos e Alertas de Vencimentos */}
                 <div className="flex flex-wrap gap-2">
@@ -1272,7 +1282,17 @@ const FleetWorkOrdersPage: React.FC = () => {
                     </div>
                 </DialogContent>
             </Dialog>
-        </StandardLayout >
+        </div>
+    );
+
+    if (embedded) {
+        return content;
+    }
+
+    return (
+        <StandardLayout title="Gestão de Ordem de Serviço">
+            {content}
+        </StandardLayout>
     );
 };
 

@@ -99,6 +99,7 @@ import ActivityReportsTable from '@/components/operacional/ActivityReportsTable'
 import ActivityReportModal from '@/components/operacional/ActivityReportModal';
 import ActivityReportViewModal from '@/components/operacional/ActivityReportViewModal';
 import OrderOfServiceTable from '@/components/operacional/OrderOfServiceTable';
+import FleetWorkOrdersPage from '@/pages/manutencao/FleetWorkOrdersPage';
 import OrderOfServiceFormModal from '@/components/operacional/OrderOfServiceFormModal';
 import OrdemServicoViewModal from '@/components/ordemServico/OrdemServicoViewModal';
 import OperationalDashboard from '@/components/operacional/OperationalDashboard';
@@ -1227,15 +1228,7 @@ const Operacional: React.FC = () => {
             </TabsContent>
 
             <TabsContent value="servicos" className="mt-6">
-              <OrderOfServiceTable
-                orders={ordersOfService}
-                isLoading={isLoadingOrdersOfService}
-                onRefresh={handleRefreshOrdersOfService}
-                onCreate={handleCreateOrderOfService}
-                onEdit={handleEditOrderOfService}
-                onDelete={handleDeleteOrderOfService}
-                onView={handleViewOrderOfService}
-              />
+              <FleetWorkOrdersPage embedded />
             </TabsContent>
 
             <TabsContent value="controle-operacional" className="mt-6">
