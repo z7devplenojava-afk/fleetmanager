@@ -129,7 +129,7 @@ export const EmployeeViewModal: React.FC<EmployeeViewModalProps> = ({
       <DialogContent className="max-w-5xl max-h-[92vh] overflow-hidden flex flex-col p-0 bg-transparent border-0 shadow-2xl">
         {/* DialogTitle oculto para satisfazer acessibilidade do Radix UI (leitores de tela) */}
         <DialogTitle className="sr-only">Visualizar Funcionário: {getDisplayName(employee)}</DialogTitle>
-        <div className="flex flex-col h-full bg-[#16181f] border border-gray-800 rounded-3xl overflow-hidden shadow-2xl">
+        <div className="flex flex-col h-full bg-white dark:bg-[#16181f] border border-slate-200 dark:border-gray-800 rounded-3xl overflow-hidden shadow-2xl transition-colors">
           
           {/* ── HEADER SUPERIOR (FIEL ÀS IMAGENS 3 E 4) ── */}
           <div className="px-6 pt-6 pb-4 flex items-start justify-between gap-4">
@@ -140,15 +140,15 @@ export const EmployeeViewModal: React.FC<EmployeeViewModalProps> = ({
               </div>
               
               <div className="min-w-0">
-                <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-wide truncate">
+                <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white uppercase tracking-wide truncate">
                   {getDisplayName(employee)}
                 </h2>
-                <div className="flex items-center gap-3 mt-1.5 flex-wrap text-xs text-gray-400">
+                <div className="flex items-center gap-3 mt-1.5 flex-wrap text-xs text-slate-500 dark:text-gray-400">
                   <span className="flex items-center gap-1 font-medium">
                     <Briefcase className="h-3.5 w-3.5 text-amber-400" />
                     Mat: {employee.registrationNumber || 'N/A'}
                   </span>
-                  <span className="flex items-center gap-1 font-bold text-white">
+                  <span className="flex items-center gap-1 font-bold text-slate-800 dark:text-white">
                     <Building className="h-3.5 w-3.5 text-amber-400" />
                     {companySigla}
                   </span>
@@ -184,43 +184,43 @@ export const EmployeeViewModal: React.FC<EmployeeViewModalProps> = ({
               {/* 1. Atestados Entregues */}
               <div 
                 onClick={() => setActiveTab('atestados')}
-                className="bg-[#1c202a] border border-gray-800/90 hover:border-sky-500/40 rounded-2xl p-4 transition-all cursor-pointer group shadow-sm"
+                className="bg-white dark:bg-[#1c202a] border border-slate-200 dark:border-gray-800/90 hover:border-sky-500/50 rounded-2xl p-4 transition-all cursor-pointer group shadow-sm hover:shadow-md"
               >
                 <div className="flex items-center justify-between">
-                  <div className="w-9 h-9 rounded-xl bg-sky-950/50 border border-sky-500/30 flex items-center justify-center text-sky-400">
+                  <div className="w-9 h-9 rounded-xl bg-sky-50 dark:bg-sky-950/50 border border-sky-200 dark:border-sky-500/30 flex items-center justify-center text-sky-600 dark:text-sky-400">
                     <Stethoscope className="h-4 w-4" />
                   </div>
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-sky-950/60 border border-sky-500/30 text-sky-300">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-500/30 text-sky-700 dark:text-sky-300">
                     {atestados.length === 0 ? 'Sem atestados' : `${atestados.length} entregue(s)`}
                   </span>
                 </div>
-                <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mt-3">
+                <p className="text-[10px] text-slate-500 dark:text-gray-400 uppercase font-bold tracking-wider mt-3">
                   ATESTADOS ENTREGUES
                 </p>
                 <div className="flex items-baseline justify-between mt-1">
-                  <span className="text-2xl font-black text-white">{atestados.length}</span>
-                  <span className="text-[11px] font-medium text-sky-400 group-hover:underline">
+                  <span className="text-2xl font-black text-slate-900 dark:text-white">{atestados.length}</span>
+                  <span className="text-[11px] font-medium text-sky-600 dark:text-sky-400 group-hover:underline">
                     Ver lista &gt;
                   </span>
                 </div>
               </div>
 
               {/* 2. Advertências Aplicadas */}
-              <div className="bg-[#1c202a] border border-gray-800/90 rounded-2xl p-4 shadow-sm">
+              <div className="bg-white dark:bg-[#1c202a] border border-slate-200 dark:border-gray-800/90 rounded-2xl p-4 shadow-sm">
                 <div className="flex items-center justify-between">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-950/50 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
                     <AlertTriangle className="h-4 w-4" />
                   </div>
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-950/60 border border-emerald-500/30 text-emerald-300">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-300">
                     Ficha limpa
                   </span>
                 </div>
-                <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mt-3">
+                <p className="text-[10px] text-slate-500 dark:text-gray-400 uppercase font-bold tracking-wider mt-3">
                   ADVERTÊNCIAS APLICADAS
                 </p>
                 <div className="flex items-baseline justify-between mt-1">
-                  <span className="text-2xl font-black text-white">0</span>
-                  <span className="text-[11px] font-medium text-gray-400 hover:text-white cursor-pointer">
+                  <span className="text-2xl font-black text-slate-900 dark:text-white">0</span>
+                  <span className="text-[11px] font-medium text-slate-500 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white cursor-pointer">
                     Disciplinar &gt;
                   </span>
                 </div>
@@ -229,24 +229,24 @@ export const EmployeeViewModal: React.FC<EmployeeViewModalProps> = ({
               {/* 3. Situação Funcional */}
               <div 
                 onClick={() => setActiveTab('dados')}
-                className="bg-[#1c202a] border border-gray-800/90 hover:border-emerald-500/40 rounded-2xl p-4 transition-all cursor-pointer group shadow-sm"
+                className="bg-white dark:bg-[#1c202a] border border-slate-200 dark:border-gray-800/90 hover:border-emerald-500/50 rounded-2xl p-4 transition-all cursor-pointer group shadow-sm hover:shadow-md"
               >
                 <div className="flex items-center justify-between">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-950/50 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
                     <UserCheck className="h-4 w-4" />
                   </div>
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-950/60 border border-emerald-500/30 text-emerald-300">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-300">
                     {statusInfo.kpiBadge}
                   </span>
                 </div>
-                <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mt-3">
+                <p className="text-[10px] text-slate-500 dark:text-gray-400 uppercase font-bold tracking-wider mt-3">
                   SITUAÇÃO FUNCIONAL
                 </p>
                 <div className="flex items-baseline justify-between mt-1">
-                  <span className="text-sm sm:text-base font-bold text-white truncate">
+                  <span className="text-sm sm:text-base font-bold text-slate-800 dark:text-white truncate">
                     {statusInfo.kpiText}
                   </span>
-                  <span className="text-[11px] font-medium text-gray-400 group-hover:text-white">
+                  <span className="text-[11px] font-medium text-slate-500 dark:text-gray-400 group-hover:text-slate-900 dark:group-hover:text-white">
                     Detalhes &gt;
                   </span>
                 </div>
@@ -255,24 +255,24 @@ export const EmployeeViewModal: React.FC<EmployeeViewModalProps> = ({
               {/* 4. Gestão de Férias */}
               <div 
                 onClick={() => setActiveTab('ferias')}
-                className="bg-[#1c202a] border border-gray-800/90 hover:border-amber-500/40 rounded-2xl p-4 transition-all cursor-pointer group shadow-sm"
+                className="bg-white dark:bg-[#1c202a] border border-slate-200 dark:border-gray-800/90 hover:border-amber-500/50 rounded-2xl p-4 transition-all cursor-pointer group shadow-sm hover:shadow-md"
               >
                 <div className="flex items-center justify-between">
-                  <div className="w-9 h-9 rounded-xl bg-amber-950/50 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                  <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-500/30 flex items-center justify-center text-amber-600 dark:text-amber-400">
                     <Palmtree className="h-4 w-4" />
                   </div>
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-950/60 border border-amber-500/30 text-amber-300">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-300">
                     CLT Art. 130
                   </span>
                 </div>
-                <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mt-3">
+                <p className="text-[10px] text-slate-500 dark:text-gray-400 uppercase font-bold tracking-wider mt-3">
                   GESTÃO DE FÉRIAS
                 </p>
                 <div className="flex items-baseline justify-between mt-1">
-                  <span className="text-sm sm:text-base font-bold text-amber-400 truncate">
+                  <span className="text-sm sm:text-base font-bold text-amber-600 dark:text-amber-400 truncate">
                     {saldoFerias ? `${saldoFerias.diasDireito - (saldoFerias.diasGozados || 0)} dias de saldo` : isVacation ? 'Em gozo de férias' : 'Período Ativo'}
                   </span>
-                  <span className="text-[11px] font-medium text-amber-400 group-hover:underline">
+                  <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400 group-hover:underline">
                     Ver &gt;
                   </span>
                 </div>
@@ -303,7 +303,7 @@ export const EmployeeViewModal: React.FC<EmployeeViewModalProps> = ({
                     className={`flex items-center gap-3 px-4 py-3 rounded-xl text-xs sm:text-sm font-semibold transition-all text-left ${
                       isSelected
                         ? 'bg-red-600 text-white shadow-md shadow-red-600/30'
-                        : 'text-gray-400 hover:text-white hover:bg-gray-800/60'
+                        : 'text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-gray-800/60'
                     }`}
                   >
                     {tab.icon}
@@ -321,71 +321,71 @@ export const EmployeeViewModal: React.FC<EmployeeViewModalProps> = ({
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   
                   {/* CARD 1: IDENTIFICAÇÃO (TOPO VERMELHO) */}
-                  <div className="bg-[#1c202a] border border-gray-800 rounded-2xl p-5 space-y-4 shadow-sm">
-                    <div className="flex items-center gap-2 pb-3 border-b border-gray-800 text-red-400 text-xs font-bold uppercase tracking-wider">
+                  <div className="bg-white dark:bg-[#1c202a] border border-slate-200 dark:border-gray-800 rounded-2xl p-5 space-y-4 shadow-sm">
+                    <div className="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-gray-800 text-red-600 dark:text-red-400 text-xs font-bold uppercase tracking-wider">
                       <User className="h-4 w-4" />
                       <span>IDENTIFICAÇÃO</span>
                     </div>
 
                     <div className="space-y-3.5">
                       <div>
-                        <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-0.5">CPF</p>
-                        <p className="text-sm sm:text-base font-bold text-white font-mono">{employee.cpf || employee.document || (employee as any).cpfNumber || '-'}</p>
+                        <p className="text-[10px] text-slate-500 dark:text-gray-400 uppercase font-bold tracking-wider mb-0.5">CPF</p>
+                        <p className="text-sm sm:text-base font-bold text-slate-800 dark:text-white font-mono">{employee.cpf || employee.document || (employee as any).cpfNumber || '-'}</p>
                       </div>
 
                       <div>
-                        <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-0.5">RG</p>
-                        <p className="text-sm sm:text-base font-bold text-white font-mono">{employee.rg || (employee as any).cinNumero || employee.carteiraIdentidade || (employee as any).rgNumero || '-'}</p>
+                        <p className="text-[10px] text-slate-500 dark:text-gray-400 uppercase font-bold tracking-wider mb-0.5">RG</p>
+                        <p className="text-sm sm:text-base font-bold text-slate-800 dark:text-white font-mono">{employee.rg || (employee as any).cinNumero || employee.carteiraIdentidade || (employee as any).rgNumero || '-'}</p>
                       </div>
 
                       <div>
-                        <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-0.5">DATA DE NASCIMENTO</p>
-                        <p className="text-sm sm:text-base font-bold text-white">{formatDate(employee.birthDate || (employee as any).dataNascimento)}</p>
+                        <p className="text-[10px] text-slate-500 dark:text-gray-400 uppercase font-bold tracking-wider mb-0.5">DATA DE NASCIMENTO</p>
+                        <p className="text-sm sm:text-base font-bold text-slate-800 dark:text-white">{formatDate(employee.birthDate || (employee as any).dataNascimento)}</p>
                       </div>
 
                       {employee.gender && (
                         <div>
-                          <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-0.5">GÊNERO</p>
-                          <p className="text-xs sm:text-sm font-semibold text-gray-300">{employee.gender}</p>
+                          <p className="text-[10px] text-slate-500 dark:text-gray-400 uppercase font-bold tracking-wider mb-0.5">GÊNERO</p>
+                          <p className="text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300">{employee.gender}</p>
                         </div>
                       )}
 
                       {employee.maritalStatus && (
                         <div>
-                          <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-0.5">ESTADO CIVIL</p>
-                          <p className="text-xs sm:text-sm font-semibold text-gray-300">{employee.maritalStatus}</p>
+                          <p className="text-[10px] text-slate-500 dark:text-gray-400 uppercase font-bold tracking-wider mb-0.5">ESTADO CIVIL</p>
+                          <p className="text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300">{employee.maritalStatus}</p>
                         </div>
                       )}
                     </div>
                   </div>
 
                   {/* CARD 2: CONTATO (TOPO AZUL) */}
-                  <div className="bg-[#1c202a] border border-gray-800 rounded-2xl p-5 space-y-4 shadow-sm">
-                    <div className="flex items-center gap-2 pb-3 border-b border-gray-800 text-sky-400 text-xs font-bold uppercase tracking-wider">
+                  <div className="bg-white dark:bg-[#1c202a] border border-slate-200 dark:border-gray-800 rounded-2xl p-5 space-y-4 shadow-sm">
+                    <div className="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-gray-800 text-sky-600 dark:text-sky-400 text-xs font-bold uppercase tracking-wider">
                       <Mail className="h-4 w-4" />
                       <span>CONTATO</span>
                     </div>
 
                     <div className="space-y-3.5">
                       <div>
-                        <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-0.5">E-MAIL</p>
-                        <p className="text-xs sm:text-sm font-medium text-gray-300 break-all">{employee.email || '-'}</p>
+                        <p className="text-[10px] text-slate-500 dark:text-gray-400 uppercase font-bold tracking-wider mb-0.5">E-MAIL</p>
+                        <p className="text-xs sm:text-sm font-medium text-slate-700 dark:text-gray-300 break-all">{employee.email || '-'}</p>
                       </div>
 
                       <div>
-                        <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-0.5">TELEFONE PRINCIPAL</p>
-                        <p className="text-sm sm:text-base font-bold text-white">{employee.phone || (employee as any).telefone || (employee as any).celular || '-'}</p>
+                        <p className="text-[10px] text-slate-500 dark:text-gray-400 uppercase font-bold tracking-wider mb-0.5">TELEFONE PRINCIPAL</p>
+                        <p className="text-sm sm:text-base font-bold text-slate-800 dark:text-white">{employee.phone || (employee as any).telefone || (employee as any).celular || '-'}</p>
                       </div>
 
                       <div>
-                        <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-0.5">TELEFONE CONTATO</p>
-                        <p className="text-sm sm:text-base font-bold text-white">{(employee as any).emergencyContactPhone || (employee as any).telefoneContato || employee.phone || (employee as any).telefone || '-'}</p>
+                        <p className="text-[10px] text-slate-500 dark:text-gray-400 uppercase font-bold tracking-wider mb-0.5">TELEFONE CONTATO</p>
+                        <p className="text-sm sm:text-base font-bold text-slate-800 dark:text-white">{(employee as any).emergencyContactPhone || (employee as any).telefoneContato || employee.phone || (employee as any).telefone || '-'}</p>
                       </div>
 
                       {employee.address && (
                         <div>
-                          <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-0.5">ENDEREÇO</p>
-                          <p className="text-xs font-medium text-gray-300 leading-snug">
+                          <p className="text-[10px] text-slate-500 dark:text-gray-400 uppercase font-bold tracking-wider mb-0.5">ENDEREÇO</p>
+                          <p className="text-xs font-medium text-slate-700 dark:text-gray-300 leading-snug">
                             {typeof employee.address === 'string'
                               ? employee.address
                               : [employee.address.street, employee.address.number, employee.address.neighborhood, employee.address.city, employee.address.state].filter(Boolean).join(', ')}
@@ -396,36 +396,36 @@ export const EmployeeViewModal: React.FC<EmployeeViewModalProps> = ({
                   </div>
 
                   {/* CARD 3: TRABALHO (TOPO AMARELO) */}
-                  <div className="bg-[#1c202a] border border-gray-800 rounded-2xl p-5 space-y-4 shadow-sm">
-                    <div className="flex items-center gap-2 pb-3 border-b border-gray-800 text-amber-400 text-xs font-bold uppercase tracking-wider">
+                  <div className="bg-white dark:bg-[#1c202a] border border-slate-200 dark:border-gray-800 rounded-2xl p-5 space-y-4 shadow-sm">
+                    <div className="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-gray-800 text-amber-600 dark:text-amber-400 text-xs font-bold uppercase tracking-wider">
                       <Briefcase className="h-4 w-4" />
                       <span>TRABALHO</span>
                     </div>
 
                     <div className="space-y-3.5">
                       <div>
-                        <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-0.5">CARGO / FUNÇÃO</p>
-                        <p className="text-sm sm:text-base font-bold text-white">{employee.position?.name || (employee as any).positionDescription || (employee as any).cargo || (employee as any).funcao || '-'}</p>
+                        <p className="text-[10px] text-slate-500 dark:text-gray-400 uppercase font-bold tracking-wider mb-0.5">CARGO / FUNÇÃO</p>
+                        <p className="text-sm sm:text-base font-bold text-slate-800 dark:text-white">{employee.position?.name || (employee as any).positionDescription || (employee as any).cargo || (employee as any).funcao || '-'}</p>
                       </div>
 
                       <div>
-                        <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-0.5">SETOR DE TRABALHO</p>
-                        <p className="text-xs sm:text-sm font-bold text-gray-200 uppercase leading-snug">{workSector}</p>
+                        <p className="text-[10px] text-slate-500 dark:text-gray-400 uppercase font-bold tracking-wider mb-0.5">SETOR DE TRABALHO</p>
+                        <p className="text-xs sm:text-sm font-bold text-slate-800 dark:text-gray-200 uppercase leading-snug">{workSector}</p>
                       </div>
 
                       <div>
-                        <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-0.5">POSTO DE TRABALHO</p>
-                        <p className="text-xs text-gray-300 uppercase leading-relaxed break-words">{workPostFull}</p>
+                        <p className="text-[10px] text-slate-500 dark:text-gray-400 uppercase font-bold tracking-wider mb-0.5">POSTO DE TRABALHO</p>
+                        <p className="text-xs font-medium text-slate-700 dark:text-gray-300 uppercase leading-relaxed break-words">{workPostFull}</p>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2 pt-1 border-t border-gray-800">
+                      <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100 dark:border-gray-800">
                         <div>
-                          <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-0.5">ESCALA</p>
-                          <p className="text-xs font-bold text-amber-400">{escala}</p>
+                          <p className="text-[10px] text-slate-500 dark:text-gray-400 uppercase font-bold tracking-wider mb-0.5">ESCALA</p>
+                          <p className="text-xs font-bold text-amber-600 dark:text-amber-400">{escala}</p>
                         </div>
                         <div>
-                          <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-0.5">HORÁRIO</p>
-                          <p className="text-xs font-bold text-gray-200">{horario}</p>
+                          <p className="text-[10px] text-slate-500 dark:text-gray-400 uppercase font-bold tracking-wider mb-0.5">HORÁRIO</p>
+                          <p className="text-xs font-bold text-slate-800 dark:text-gray-200">{horario}</p>
                         </div>
                       </div>
                     </div>
@@ -437,8 +437,8 @@ export const EmployeeViewModal: React.FC<EmployeeViewModalProps> = ({
               {activeTab === 'documentos' && (
                 <div className="space-y-4">
                   {/* Resumo Rápido de Documentos */}
-                  <div className="bg-[#1c202a] border border-gray-800 rounded-2xl p-5">
-                    <div className="flex items-center justify-between pb-3 border-b border-gray-800 mb-4">
+                  <div className="bg-white dark:bg-[#1c202a] border border-slate-200 dark:border-gray-800 rounded-2xl p-5 shadow-sm">
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-gray-800 mb-4">
                       <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-wide">
                         <FileCheck className="h-4 w-4" />
                         <span>Documentação Funcional Registrada</span>
@@ -449,35 +449,35 @@ export const EmployeeViewModal: React.FC<EmployeeViewModalProps> = ({
                     </div>
 
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5 text-xs">
-                      <div className="p-3 bg-gray-900/60 rounded-xl border border-gray-800">
-                        <span className="text-[10px] text-gray-500 uppercase font-bold">CTPS / Série</span>
-                        <p className="font-semibold text-white mt-0.5">{employee.ctps ? `${employee.ctps} / ${employee.ctpsSeries || '-'}` : '-'}</p>
+                      <div className="p-3 bg-slate-50 dark:bg-gray-900/60 rounded-xl border border-slate-200 dark:border-gray-800">
+                        <span className="text-[10px] text-slate-500 dark:text-gray-400 uppercase font-bold">CTPS / Série</span>
+                        <p className="font-semibold text-slate-900 dark:text-white mt-0.5">{employee.ctps ? `${employee.ctps} / ${employee.ctpsSeries || '-'}` : '-'}</p>
                       </div>
-                      <div className="p-3 bg-gray-900/60 rounded-xl border border-gray-800">
-                        <span className="text-[10px] text-gray-500 uppercase font-bold">PIS / PASEP</span>
-                        <p className="font-semibold text-white mt-0.5">{employee.pis || '-'}</p>
+                      <div className="p-3 bg-slate-50 dark:bg-gray-900/60 rounded-xl border border-slate-200 dark:border-gray-800">
+                        <span className="text-[10px] text-slate-500 dark:text-gray-400 uppercase font-bold">PIS / PASEP</span>
+                        <p className="font-semibold text-slate-900 dark:text-white mt-0.5">{employee.pis || '-'}</p>
                       </div>
-                      <div className="p-3 bg-gray-900/60 rounded-xl border border-gray-800">
-                        <span className="text-[10px] text-gray-500 uppercase font-bold">CNH / Validade</span>
+                      <div className="p-3 bg-slate-50 dark:bg-gray-900/60 rounded-xl border border-slate-200 dark:border-gray-800">
+                        <span className="text-[10px] text-slate-500 dark:text-gray-400 uppercase font-bold">CNH / Validade</span>
                         <p className="font-semibold text-sky-400 mt-0.5">{employee.cnhNumber ? `${employee.cnhNumber} (${employee.cnhCategory || '-'}) • ${formatDate(employee.cnhExpirationDate)}` : '-'}</p>
                       </div>
-                      <div className="p-3 bg-gray-900/60 rounded-xl border border-gray-800">
-                        <span className="text-[10px] text-gray-500 uppercase font-bold">Título de Eleitor</span>
-                        <p className="font-semibold text-white mt-0.5">{employee.tituloEleitor ? `${employee.tituloEleitor} (Z:${employee.tituloEleitorZona || '-'} / S:${employee.tituloEleitorSecao || '-'})` : '-'}</p>
+                      <div className="p-3 bg-slate-50 dark:bg-gray-900/60 rounded-xl border border-slate-200 dark:border-gray-800">
+                        <span className="text-[10px] text-slate-500 dark:text-gray-400 uppercase font-bold">Título de Eleitor</span>
+                        <p className="font-semibold text-slate-900 dark:text-white mt-0.5">{employee.tituloEleitor ? `${employee.tituloEleitor} (Z:${employee.tituloEleitorZona || '-'} / S:${employee.tituloEleitorSecao || '-'})` : '-'}</p>
                       </div>
-                      <div className="p-3 bg-gray-900/60 rounded-xl border border-gray-800">
-                        <span className="text-[10px] text-gray-500 uppercase font-bold">Certificado Militar</span>
-                        <p className="font-semibold text-white mt-0.5">{employee.certificadoMilitar || '-'}</p>
+                      <div className="p-3 bg-slate-50 dark:bg-gray-900/60 rounded-xl border border-slate-200 dark:border-gray-800">
+                        <span className="text-[10px] text-slate-500 dark:text-gray-400 uppercase font-bold">Certificado Militar</span>
+                        <p className="font-semibold text-slate-900 dark:text-white mt-0.5">{employee.certificadoMilitar || '-'}</p>
                       </div>
-                      <div className="p-3 bg-gray-900/60 rounded-xl border border-gray-800">
-                        <span className="text-[10px] text-gray-500 uppercase font-bold">CBO Oficial</span>
+                      <div className="p-3 bg-slate-50 dark:bg-gray-900/60 rounded-xl border border-slate-200 dark:border-gray-800">
+                        <span className="text-[10px] text-slate-500 dark:text-gray-400 uppercase font-bold">CBO Oficial</span>
                         <p className="font-semibold text-amber-400 mt-0.5">{employee.cbo || '-'}</p>
                       </div>
                     </div>
                   </div>
 
                   {/* Gerenciador de Arquivos & Anexos de Documentos */}
-                  <div className="bg-[#1c202a] border border-gray-800 rounded-2xl p-5">
+                  <div className="bg-white dark:bg-[#1c202a] border border-slate-200 dark:border-gray-800 rounded-2xl p-5 shadow-sm">
                     <EmployeeDocuments employeeId={employee.id} employeeName={employee.name} />
                   </div>
                 </div>
@@ -486,42 +486,42 @@ export const EmployeeViewModal: React.FC<EmployeeViewModalProps> = ({
               {/* ABA: PONTO & JORNADA */}
               {activeTab === 'ponto' && (
                 <div className="space-y-4">
-                  <div className="bg-[#1c202a] border border-gray-800 rounded-2xl p-5 space-y-4">
-                    <div className="flex items-center gap-2 pb-3 border-b border-gray-800 text-sky-400 font-bold text-xs uppercase tracking-wide">
+                  <div className="bg-white dark:bg-[#1c202a] border border-slate-200 dark:border-gray-800 rounded-2xl p-5 space-y-4 shadow-sm">
+                    <div className="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-gray-800 text-sky-600 dark:text-sky-400 font-bold text-xs uppercase tracking-wide">
                       <Clock className="h-4 w-4" />
                       <span>Jornada Operacional e Escala de Trabalho</span>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
-                      <div className="p-4 bg-gray-900/60 rounded-xl border border-gray-800">
-                        <span className="text-[10px] text-gray-500 uppercase font-bold">Escala Contratual</span>
+                      <div className="p-4 bg-slate-50 dark:bg-gray-900/60 rounded-xl border border-slate-200 dark:border-gray-800">
+                        <span className="text-[10px] text-slate-500 dark:text-gray-400 uppercase font-bold">Escala Contratual</span>
                         <p className="text-lg font-black text-amber-400 mt-1">{escala}</p>
                         <p className="text-[11px] text-gray-500 mt-0.5">Regime de revezamento</p>
                       </div>
-                      <div className="p-4 bg-gray-900/60 rounded-xl border border-gray-800">
-                        <span className="text-[10px] text-gray-500 uppercase font-bold">Horário de Trabalho</span>
-                        <p className="text-lg font-black text-white mt-1">{horario}</p>
+                      <div className="p-4 bg-slate-50 dark:bg-gray-900/60 rounded-xl border border-slate-200 dark:border-gray-800">
+                        <span className="text-[10px] text-slate-500 dark:text-gray-400 uppercase font-bold">Horário de Trabalho</span>
+                        <p className="text-lg font-black text-slate-900 dark:text-white mt-1">{horario}</p>
                         <p className="text-[11px] text-gray-500 mt-0.5">Turno cadastrado</p>
                       </div>
-                      <div className="p-4 bg-gray-900/60 rounded-xl border border-gray-800">
-                        <span className="text-[10px] text-gray-500 uppercase font-bold">Intervalo de Refeição</span>
-                        <p className="text-lg font-bold text-gray-200 mt-1">{employee.horarioTrabalhoIntervalo || '01:00h padrão'}</p>
+                      <div className="p-4 bg-slate-50 dark:bg-gray-900/60 rounded-xl border border-slate-200 dark:border-gray-800">
+                        <span className="text-[10px] text-slate-500 dark:text-gray-400 uppercase font-bold">Intervalo de Refeição</span>
+                        <p className="text-lg font-bold text-slate-800 dark:text-gray-200 mt-1">{employee.horarioTrabalhoIntervalo || '01:00h padrão'}</p>
                         <p className="text-[11px] text-gray-500 mt-0.5">Intervalo intrajornada</p>
                       </div>
-                      <div className="p-4 bg-gray-900/60 rounded-xl border border-gray-800">
-                        <span className="text-[10px] text-gray-500 uppercase font-bold">Folga Semanal</span>
-                        <p className="text-sm font-bold text-gray-200 mt-1">{employee.folgaSemanal || 'Conforme escala 12x36'}</p>
+                      <div className="p-4 bg-slate-50 dark:bg-gray-900/60 rounded-xl border border-slate-200 dark:border-gray-800">
+                        <span className="text-[10px] text-slate-500 dark:text-gray-400 uppercase font-bold">Folga Semanal</span>
+                        <p className="text-sm font-bold text-slate-800 dark:text-gray-200 mt-1">{employee.folgaSemanal || 'Conforme escala 12x36'}</p>
                       </div>
-                      <div className="p-4 bg-gray-900/60 rounded-xl border border-gray-800 sm:col-span-2">
-                        <span className="text-[10px] text-gray-500 uppercase font-bold">Posto de Trabalho Vinculado</span>
-                        <p className="text-xs font-semibold text-white mt-1 leading-relaxed uppercase">{workPostFull}</p>
+                      <div className="p-4 bg-slate-50 dark:bg-gray-900/60 rounded-xl border border-slate-200 dark:border-gray-800 sm:col-span-2">
+                        <span className="text-[10px] text-slate-500 dark:text-gray-400 uppercase font-bold">Posto de Trabalho Vinculado</span>
+                        <p className="text-xs font-semibold text-slate-900 dark:text-white mt-1 leading-relaxed uppercase">{workPostFull}</p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="bg-[#1c202a] border border-gray-800 rounded-2xl p-5 text-center py-8">
+                  <div className="bg-white dark:bg-[#1c202a] border border-slate-200 dark:border-gray-800 rounded-2xl p-5 text-center py-8 shadow-sm">
                     <CheckCircle2 className="h-8 w-8 text-emerald-400 mx-auto mb-2 opacity-80" />
-                    <p className="text-sm font-bold text-white">Espelho de Ponto em Dia</p>
+                    <p className="text-sm font-bold text-slate-800 dark:text-white">Espelho de Ponto em Dia</p>
                     <p className="text-xs text-gray-400 mt-1">Nenhuma divergência ou pendência de marcação para este funcionário no ciclo atual.</p>
                   </div>
                 </div>
@@ -529,8 +529,8 @@ export const EmployeeViewModal: React.FC<EmployeeViewModalProps> = ({
 
               {/* ABA: DEPENDENTES (INTEGRAÇÃO COM DEPENDENTES LIST) */}
               {activeTab === 'dependentes' && (
-                <div className="bg-[#1c202a] border border-gray-800 rounded-2xl p-5 space-y-4">
-                  <div className="flex items-center justify-between pb-3 border-b border-gray-800">
+                <div className="bg-white dark:bg-[#1c202a] border border-slate-200 dark:border-gray-800 rounded-2xl p-5 space-y-4 shadow-sm">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-gray-800">
                     <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wide">
                       <Users className="h-4 w-4" />
                       <span>Dependentes Cadastrados</span>
@@ -560,58 +560,58 @@ export const EmployeeViewModal: React.FC<EmployeeViewModalProps> = ({
               {activeTab === 'exames' && (
                 <div className="space-y-4">
                   {/* Saúde Ocupacional / ASO */}
-                  <div className="bg-[#1c202a] border border-gray-800 rounded-2xl p-5 space-y-4">
-                    <div className="flex items-center gap-2 pb-3 border-b border-gray-800 text-rose-400 font-bold text-xs uppercase tracking-wide">
+                  <div className="bg-white dark:bg-[#1c202a] border border-slate-200 dark:border-gray-800 rounded-2xl p-5 space-y-4 shadow-sm">
+                    <div className="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-gray-800 text-rose-600 dark:text-rose-400 font-bold text-xs uppercase tracking-wide">
                       <Heart className="h-4 w-4" />
                       <span>Saúde Ocupacional (ASO & Laudo Psicológico)</span>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="p-4 bg-gray-900/60 rounded-xl border border-gray-800 space-y-2">
+                      <div className="p-4 bg-slate-50 dark:bg-gray-900/60 rounded-xl border border-slate-200 dark:border-gray-800 space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-white uppercase">Exame ASO Periódico</span>
+                          <span className="text-xs font-bold text-slate-800 dark:text-white uppercase">Exame ASO Periódico</span>
                           <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[10px]">Apto</Badge>
                         </div>
                         <div className="text-xs text-gray-400 space-y-1 pt-1">
-                          <p>Último Exame: <strong className="text-white">{formatDate(employee.exameMedicoData)}</strong></p>
+                          <p>Último Exame: <strong className="text-slate-900 dark:text-white">{formatDate(employee.exameMedicoData)}</strong></p>
                           <p>Próximo Vencimento: <strong className="text-rose-400">{formatDate(employee.nextExameMedico)}</strong></p>
                         </div>
                       </div>
 
-                      <div className="p-4 bg-gray-900/60 rounded-xl border border-gray-800 space-y-2">
+                      <div className="p-4 bg-slate-50 dark:bg-gray-900/60 rounded-xl border border-slate-200 dark:border-gray-800 space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-white uppercase">Laudo Psicológico (Porte de Arma)</span>
+                          <span className="text-xs font-bold text-slate-800 dark:text-white uppercase">Laudo Psicológico (Porte de Arma)</span>
                           <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[10px]">
                             {employee.laudoPsicologicoStatus || 'Apto'}
                           </Badge>
                         </div>
                         <div className="text-xs text-gray-400 space-y-1 pt-1">
-                          <p>Data Realização: <strong className="text-white">{formatDate(employee.laudoPsicologicoData)}</strong></p>
-                          <p>Profissional: <strong className="text-white">{employee.laudoPsicologicoProfissional || 'Clínica Credenciada PF'}</strong></p>
+                          <p>Data Realização: <strong className="text-slate-900 dark:text-white">{formatDate(employee.laudoPsicologicoData)}</strong></p>
+                          <p>Profissional: <strong className="text-slate-900 dark:text-white">{employee.laudoPsicologicoProfissional || 'Clínica Credenciada PF'}</strong></p>
                         </div>
                       </div>
                     </div>
                   </div>
 
                   {/* Treinamentos e NRs */}
-                  <div className="bg-[#1c202a] border border-gray-800 rounded-2xl p-5 space-y-4">
-                    <div className="flex items-center gap-2 pb-3 border-b border-gray-800 text-amber-400 font-bold text-xs uppercase tracking-wide">
+                  <div className="bg-white dark:bg-[#1c202a] border border-slate-200 dark:border-gray-800 rounded-2xl p-5 space-y-4 shadow-sm">
+                    <div className="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-gray-800 text-amber-600 dark:text-amber-400 font-bold text-xs uppercase tracking-wide">
                       <Award className="h-4 w-4" />
                       <span>Treinamentos e Certificações Obrigatórias</span>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                      <div className="p-3 bg-gray-900/60 rounded-xl border border-gray-800">
-                        <p className="font-bold text-white">Reciclagem de Vigilante</p>
+                      <div className="p-3 bg-slate-50 dark:bg-gray-900/60 rounded-xl border border-slate-200 dark:border-gray-800">
+                        <p className="font-bold text-slate-800 dark:text-white">Reciclagem de Vigilante</p>
                         <p className="text-[11px] text-gray-400 mt-1">Carga Horária: 50h</p>
                         <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[10px] mt-2">Válido</Badge>
                       </div>
-                      <div className="p-3 bg-gray-900/60 rounded-xl border border-gray-800">
-                        <p className="font-bold text-white">NR-10 Segurança em Eletricidade</p>
+                      <div className="p-3 bg-slate-50 dark:bg-gray-900/60 rounded-xl border border-slate-200 dark:border-gray-800">
+                        <p className="font-bold text-slate-800 dark:text-white">NR-10 Segurança em Eletricidade</p>
                         <p className="text-[11px] text-gray-400 mt-1">Carga Horária: 40h</p>
                         <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[10px] mt-2">Concluído</Badge>
                       </div>
-                      <div className="p-3 bg-gray-900/60 rounded-xl border border-gray-800">
-                        <p className="font-bold text-white">Direção Defensiva Operacional</p>
+                      <div className="p-3 bg-slate-50 dark:bg-gray-900/60 rounded-xl border border-slate-200 dark:border-gray-800">
+                        <p className="font-bold text-slate-800 dark:text-white">Direção Defensiva Operacional</p>
                         <p className="text-[11px] text-gray-400 mt-1">Carga Horária: 20h</p>
                         <Badge className="bg-sky-500/10 text-sky-400 border-sky-500/30 text-[10px] mt-2">Concluído</Badge>
                       </div>
@@ -623,8 +623,8 @@ export const EmployeeViewModal: React.FC<EmployeeViewModalProps> = ({
               {/* ABA: FÉRIAS (CLT ART. 130) */}
               {activeTab === 'ferias' && (
                 <div className="space-y-4">
-                  <div className="bg-[#1c202a] border border-gray-800 rounded-2xl p-5 space-y-4">
-                    <div className="flex items-center justify-between pb-3 border-b border-gray-800">
+                  <div className="bg-white dark:bg-[#1c202a] border border-slate-200 dark:border-gray-800 rounded-2xl p-5 space-y-4 shadow-sm">
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-gray-800">
                       <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-wide">
                         <Palmtree className="h-4 w-4" />
                         <span>Gestão de Férias — CLT Art. 129 a 137</span>
@@ -635,24 +635,24 @@ export const EmployeeViewModal: React.FC<EmployeeViewModalProps> = ({
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                      <div className="p-4 bg-gray-900/60 rounded-xl border border-gray-800">
-                        <span className="text-[10px] text-gray-500 uppercase font-bold">Saldo Disponível</span>
+                      <div className="p-4 bg-slate-50 dark:bg-gray-900/60 rounded-xl border border-slate-200 dark:border-gray-800">
+                        <span className="text-[10px] text-slate-500 dark:text-gray-400 uppercase font-bold">Saldo Disponível</span>
                         <p className="text-2xl font-black text-amber-400 mt-1">
                           {saldoFerias ? saldoFerias.diasDireito - (saldoFerias.diasGozados || 0) : 30} dias
                         </p>
                         <p className="text-[11px] text-gray-500 mt-0.5">Direito integral CLT</p>
                       </div>
 
-                      <div className="p-4 bg-gray-900/60 rounded-xl border border-gray-800">
-                        <span className="text-[10px] text-gray-500 uppercase font-bold">Período Aquisitivo</span>
-                        <p className="text-sm font-bold text-white mt-1">
+                      <div className="p-4 bg-slate-50 dark:bg-gray-900/60 rounded-xl border border-slate-200 dark:border-gray-800">
+                        <span className="text-[10px] text-slate-500 dark:text-gray-400 uppercase font-bold">Período Aquisitivo</span>
+                        <p className="text-sm font-bold text-slate-800 dark:text-white mt-1">
                           {periodoAtivo ? `${formatDate(periodoAtivo.dataInicio)} a ${formatDate(periodoAtivo.dataFim)}` : `Admissão: ${formatDate(employee.hireDate)}`}
                         </p>
                         <p className="text-[11px] text-gray-500 mt-0.5">12 meses trabalhados</p>
                       </div>
 
-                      <div className="p-4 bg-gray-900/60 rounded-xl border border-gray-800">
-                        <span className="text-[10px] text-gray-500 uppercase font-bold">Limite de Concessão</span>
+                      <div className="p-4 bg-slate-50 dark:bg-gray-900/60 rounded-xl border border-slate-200 dark:border-gray-800">
+                        <span className="text-[10px] text-slate-500 dark:text-gray-400 uppercase font-bold">Limite de Concessão</span>
                         <p className="text-sm font-bold text-emerald-400 mt-1">
                           {periodoAtivo ? formatDate(periodoAtivo.limiteConcessao) : 'Dentro do prazo legal'}
                         </p>
@@ -661,7 +661,7 @@ export const EmployeeViewModal: React.FC<EmployeeViewModalProps> = ({
                     </div>
                   </div>
 
-                  <div className="bg-[#1c202a] border border-gray-800 rounded-2xl p-4 text-xs text-gray-400 flex items-start gap-3">
+                  <div className="bg-slate-50 dark:bg-[#1c202a] border border-slate-200 dark:border-gray-800 rounded-2xl p-4 text-xs text-slate-600 dark:text-gray-400 flex items-start gap-3 shadow-sm">
                     <AlertCircle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
                     <span>
                       O empregado adquire direito a férias após cada período de 12 meses de vigência do contrato de trabalho. A concessão das férias deverá ser informada por escrito com antecedência mínima de 30 dias.
@@ -672,8 +672,8 @@ export const EmployeeViewModal: React.FC<EmployeeViewModalProps> = ({
 
               {/* ABA: ATESTADOS (LISTA REAL CARREGADA DA API) */}
               {activeTab === 'atestados' && (
-                <div className="bg-[#1c202a] border border-gray-800 rounded-2xl p-5 space-y-4">
-                  <div className="flex items-center justify-between pb-3 border-b border-gray-800">
+                <div className="bg-white dark:bg-[#1c202a] border border-slate-200 dark:border-gray-800 rounded-2xl p-5 space-y-4 shadow-sm">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-gray-800">
                     <div className="flex items-center gap-2 text-sky-400 font-bold text-xs uppercase tracking-wide">
                       <Stethoscope className="h-4 w-4" />
                       <span>Histórico de Atestados e Afastamentos</span>
@@ -692,11 +692,11 @@ export const EmployeeViewModal: React.FC<EmployeeViewModalProps> = ({
                       {atestados.map((atestado) => (
                         <div 
                           key={atestado.id}
-                          className="p-3.5 bg-gray-900/70 border border-gray-800 rounded-xl flex items-center justify-between text-xs hover:border-gray-700 transition-colors"
+                          className="p-3.5 bg-slate-50 dark:bg-gray-900/70 border border-slate-200 dark:border-gray-800 rounded-xl flex items-center justify-between text-xs hover:border-slate-300 dark:hover:border-gray-700 transition-colors"
                         >
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
-                              <span className="font-bold text-white">{atestado.typeDescription || atestado.type}</span>
+                              <span className="font-bold text-slate-800 dark:text-white">{atestado.typeDescription || atestado.type}</span>
                               <Badge className={`text-[10px] ${
                                 atestado.status === 'APROVADO' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
                               }`}>
@@ -720,7 +720,7 @@ export const EmployeeViewModal: React.FC<EmployeeViewModalProps> = ({
                   ) : (
                     <div className="text-center py-8 text-gray-500 text-xs">
                       <CheckCircle2 className="h-8 w-8 text-emerald-400 mx-auto mb-2 opacity-80" />
-                      <p className="text-gray-300 font-bold text-sm">Nenhum atestado médico registrado</p>
+                      <p className="text-slate-800 dark:text-gray-300 font-bold text-sm">Nenhum atestado médico registrado</p>
                       <p className="text-gray-500 mt-1">Funcionário em plena atividade operacional, sem histórico de afastamento recente.</p>
                     </div>
                   )}
