@@ -7,6 +7,8 @@ import com.z7design.fleet_manager.model.Driver;
 import com.z7design.fleet_manager.repository.DriverRepository;
 import com.z7design.fleet_manager.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,11 +18,13 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class DriverService {
     private final DriverRepository driverRepository;
     private final com.z7design.fleet_manager.repository.EmployeeRepository employeeRepository;
     private final com.z7design.fleet_manager.repository.UserRepository userRepository;
     private final com.z7design.fleet_manager.service.UserCompanyResolver userCompanyResolver;
+    private final JdbcTemplate jdbcTemplate;
 
     @Transactional
     public void syncDriversFromEmployees() {
@@ -201,18 +205,14 @@ public class DriverService {
         driver.setStatus("INATIVO");
         driverRepository.save(driver);
     }
-
     @Transactional
     public void deleteDriver(UUID id) {
-        System.out.println("ðŸ—‘ï¸ DriverService.deleteDriver - Tentando excluir motorista ID: " + id);
+        log.info("Tentando excluir motorista ID: {}", id);
         Driver driver = driverRepository.findById(id)
-                .orElseThrow(() -> {
-                    System.out.println("âŒ Motorista nÃ£o encontrado com ID: " + id);
-                    return new ResourceNotFoundException("Motorista nÃ£o encontrado com ID: " + id);
-                });
-        System.out.println("âœ… Motorista encontrado: " + driver.getName() + " (CNH: " + driver.getLicenseNumber() + ")");
+                .orElseThrow(() -> new ResourceNotFoundException("Motorista não encontrado com ID: " + id));
+        cleanDriverReferences(id);
         driverRepository.delete(driver);
-        System.out.println("âœ… Motorista excluÃ­do com sucesso do banco de dados");
+        log.info("Motorista {} excluído com sucesso do banco de dados", id);
     }
 
     @Transactional
@@ -222,14 +222,37 @@ public class DriverService {
         for (UUID id : ids) {
             try {
                 if (driverRepository.existsById(id)) {
+                    cleanDriverReferences(id);
                     driverRepository.deleteById(id);
                     count++;
                 }
             } catch (Exception e) {
-                System.err.println("⚠️ Erro ao excluir motorista ID " + id + ": " + e.getMessage());
+                log.error("Erro ao excluir motorista ID {}: {}", id, e.getMessage());
             }
         }
-        System.out.println("✅ DriverService.deleteDriversBatch - Total excluído: " + count + " de " + ids.size());
+        log.info("Total excluído: {} de {}", count, ids.size());
         return count;
     }
-} 
+
+    private void cleanDriverReferences(UUID driverId) {
+        if (driverId == null || jdbcTemplate == null) return;
+        try {
+            jdbcTemplate.update("UPDATE vehicle_gate_checklists SET driver_id = NULL WHERE driver_id = ?", driverId);
+            jdbcTemplate.update("UPDATE client_checklist_records SET driver_id = NULL WHERE driver_id = ?", driverId);
+            jdbcTemplate.update("UPDATE fines SET driver_id = NULL WHERE driver_id = ?", driverId);
+            jdbcTemplate.update("UPDATE fuel_records SET driver_id = NULL WHERE driver_id = ?", driverId);
+            jdbcTemplate.update("UPDATE driver_shifts SET driver_id = NULL WHERE driver_id = ?", driverId);
+            jdbcTemplate.update("UPDATE route_executions SET driver_id = NULL WHERE driver_id = ?", driverId);
+            jdbcTemplate.update("UPDATE vehicle_cleaning_orders SET driver_id = NULL WHERE driver_id = ?", driverId);
+            jdbcTemplate.update("UPDATE lavajato_services SET driver_id = NULL WHERE driver_id = ?", driverId);
+            jdbcTemplate.update("UPDATE arla_records SET driver_id = NULL WHERE driver_id = ?", driverId);
+            jdbcTemplate.update("UPDATE transport_mobilizations SET driver_id = NULL WHERE driver_id = ?", driverId);
+            jdbcTemplate.update("UPDATE trips SET driver_id = NULL WHERE driver_id = ?", driverId);
+            jdbcTemplate.update("UPDATE trip_events SET driver_id = NULL WHERE driver_id = ?", driverId);
+            jdbcTemplate.update("UPDATE parte_diaria SET driver_id = NULL WHERE driver_id = ?", driverId);
+            jdbcTemplate.update("UPDATE escalas_operacionais SET driver_id = NULL WHERE driver_id = ?", driverId);
+        } catch (Exception e) {
+            log.warn("Aviso ao desvincular referências do motorista {}: {}", driverId, e.getMessage());
+        }
+    }
+}
