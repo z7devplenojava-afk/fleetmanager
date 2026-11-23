@@ -162,10 +162,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             log.warn("JWT inválido para request {} {}: {}", request.getMethod(), request.getRequestURI(), e.getMessage());
             respondUnauthorized(response, "TOKEN_INVALID", "Token de acesso inválido.");
             return;
+        } catch (org.springframework.security.core.userdetails.UsernameNotFoundException e) {
+            // Usuário do token antigo não existe mais ou foi renomeado: retorna 401 para deslogar/renovar
+            log.warn("Usuário associado ao JWT não encontrado para request {} {}: {}", request.getMethod(), request.getRequestURI(), e.getMessage());
+            respondUnauthorized(response, "USER_NOT_FOUND", "Usuário não encontrado. Faça login novamente.");
+            return;
         } catch (Exception e) {
             if (e.getCause() instanceof ExpiredJwtException || (e.getMessage() != null && e.getMessage().toLowerCase().contains("expired"))) {
                 log.warn("JWT expirado (encapsulado) para request {} {}: {}", request.getMethod(), request.getRequestURI(), e.getMessage());
                 respondUnauthorized(response, "TOKEN_EXPIRED", "Token de acesso expirado. Faça login novamente.");
+                return;
+            }
+            if (e.getCause() instanceof org.springframework.security.core.userdetails.UsernameNotFoundException) {
+                log.warn("Usuário associado ao JWT não encontrado (encapsulado) para request {} {}: {}", request.getMethod(), request.getRequestURI(), e.getMessage());
+                respondUnauthorized(response, "USER_NOT_FOUND", "Usuário não encontrado. Faça login novamente.");
                 return;
             }
             log.error("Erro inesperado ao processar JWT para {} {}: {}",
