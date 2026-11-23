@@ -145,8 +145,8 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/uploads/companies/logo", "/api/uploads/companies/logos").authenticated()
                                                 .requestMatchers("/api/uploads/companies/banner-upload", "/api/uploads/companies/banners").authenticated()
                                                 .requestMatchers("/api/uploads/**").authenticated() // Demais operações de upload requerem autenticação
-                                                // Endpoints de Atestados Médicos e CID-10
-                                                .requestMatchers("/api/cid10/**", "/api/medical-certificates/**").authenticated()
+                                                // Endpoints de Atestados Médicos, CID-10 e Médicos
+                                                .requestMatchers("/api/cid10/**", "/api/medical-certificates/**", "/api/doctors/**").authenticated()
                                                 // Endpoints HR - requerem permissões específicas
                                                 .requestMatchers("/api/hr/**")
                                                 .hasAnyAuthority("EMPLOYEES_READ", "EMPLOYEES_WRITE",

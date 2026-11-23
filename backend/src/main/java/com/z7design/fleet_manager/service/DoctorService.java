@@ -38,14 +38,25 @@ public class DoctorService {
 
     @Transactional
     public Doctor create(Doctor doctor) {
-        // Verificar se jÃ¡ existe mÃ©dico com mesmo CRM
-        Optional<Doctor> existing = doctorRepository.findByCrmNumberAndCrmState(
-            doctor.getCrmNumber(), 
-            doctor.getCrmState()
-        );
+        String crmNumber = doctor.getCrmNumber() != null ? doctor.getCrmNumber().trim() : "";
+        String crmState = doctor.getCrmState() != null ? doctor.getCrmState().trim().toUpperCase() : "";
+        String name = doctor.getName() != null ? doctor.getName().trim() : "";
+
+        doctor.setCrmNumber(crmNumber);
+        doctor.setCrmState(crmState);
+        doctor.setName(name);
+
+        // Verificar se já existe médico com mesmo CRM
+        Optional<Doctor> existing = doctorRepository.findByCrmNumberAndCrmState(crmNumber, crmState);
         if (existing.isPresent()) {
-            throw new RuntimeException("JÃ¡ existe um mÃ©dico cadastrado com CRM " + 
-                doctor.getCrmNumber() + "/" + doctor.getCrmState());
+            Doctor d = existing.get();
+            if (Boolean.FALSE.equals(d.getActive())) {
+                d.setActive(true);
+                d.setName(name);
+                return doctorRepository.save(d);
+            }
+            throw new RuntimeException("Já existe um médico cadastrado com CRM " + 
+                crmNumber + "/" + crmState + " (" + d.getName() + ")");
         }
         return doctorRepository.save(doctor);
     }

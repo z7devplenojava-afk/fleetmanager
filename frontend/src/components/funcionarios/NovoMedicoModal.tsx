@@ -73,7 +73,17 @@ const NovoMedicoModal: React.FC<NovoMedicoModalProps> = ({ open, onClose, onMedi
       onClose();
       setForm({ name: '', crmNumber: '', crmState: '', active: true });
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || 'Erro ao cadastrar médico. Tente novamente.';
+      const status = err.response?.status;
+      let errorMessage = err.response?.data?.message || err.response?.data?.error;
+      if (!errorMessage && typeof err.response?.data === 'string') {
+        errorMessage = err.response.data;
+      }
+      if (!errorMessage && status === 403) {
+        errorMessage = 'Acesso não autorizado para cadastrar médicos.';
+      }
+      if (!errorMessage) {
+        errorMessage = err.message || 'Erro ao cadastrar médico. Tente novamente.';
+      }
       setError(errorMessage);
       toast({
         title: "Erro",
@@ -93,7 +103,7 @@ const NovoMedicoModal: React.FC<NovoMedicoModalProps> = ({ open, onClose, onMedi
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg w-full max-h-[95vh] overflow-y-auto p-0 mx-4 sm:mx-0">
+      <DialogContent className="max-w-lg w-full max-h-[95vh] overflow-y-auto p-0 mx-4 sm:mx-0 z-[10060]">
         <DialogHeader className="bg-gradient-to-r from-seguranca-red to-seguranca-yellow p-4 sm:p-6 text-white sticky top-0 z-10">
           <DialogTitle className="flex items-center gap-2 sm:gap-3 text-lg sm:text-xl font-bold">
             <div className="p-1.5 sm:p-2 bg-white/20 rounded-lg">

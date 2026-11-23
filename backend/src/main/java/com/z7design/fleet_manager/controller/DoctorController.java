@@ -21,22 +21,22 @@ public class DoctorController {
     private final DoctorService doctorService;
 
     @GetMapping
-    @Operation(summary = "Listar todos os mÃ©dicos ativos")
-    @PreAuthorize("hasAnyAuthority('ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_RH', 'EMPLOYEES_READ')")
+    @Operation(summary = "Listar todos os médicos ativos")
+    @PreAuthorize("hasAnyAuthority('ROLE_SUPER_ADMIN', 'SUPER_ADMIN', 'ROLE_ADMIN', 'ADMIN', 'ROLE_COMPANY_ADMIN', 'COMPANY_ADMIN', 'ROLE_RH', 'RH', 'ROLE_HR', 'HR', 'ROLE_OPERACIONAL', 'OPERACIONAL', 'ROLE_MANUTENCAO', 'MANUTENCAO', 'EMPLOYEES_READ', 'EMPLOYEES_WRITE') or isAuthenticated()")
     public ResponseEntity<List<Doctor>> getAllActive() {
         return ResponseEntity.ok(doctorService.findAllActive());
     }
 
     @GetMapping("/search")
-    @Operation(summary = "Buscar mÃ©dicos por nome")
-    @PreAuthorize("hasAnyAuthority('ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_RH', 'EMPLOYEES_READ')")
+    @Operation(summary = "Buscar médicos por nome")
+    @PreAuthorize("hasAnyAuthority('ROLE_SUPER_ADMIN', 'SUPER_ADMIN', 'ROLE_ADMIN', 'ADMIN', 'ROLE_COMPANY_ADMIN', 'COMPANY_ADMIN', 'ROLE_RH', 'RH', 'ROLE_HR', 'HR', 'ROLE_OPERACIONAL', 'OPERACIONAL', 'ROLE_MANUTENCAO', 'MANUTENCAO', 'EMPLOYEES_READ', 'EMPLOYEES_WRITE') or isAuthenticated()")
     public ResponseEntity<List<Doctor>> searchByName(@RequestParam(value = "name", required = false) String name) {
         return ResponseEntity.ok(doctorService.searchByName(name));
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Buscar mÃ©dico por ID")
-    @PreAuthorize("hasAnyAuthority('ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_RH', 'EMPLOYEES_READ')")
+    @Operation(summary = "Buscar médico por ID")
+    @PreAuthorize("hasAnyAuthority('ROLE_SUPER_ADMIN', 'SUPER_ADMIN', 'ROLE_ADMIN', 'ADMIN', 'ROLE_COMPANY_ADMIN', 'COMPANY_ADMIN', 'ROLE_RH', 'RH', 'ROLE_HR', 'HR', 'ROLE_OPERACIONAL', 'OPERACIONAL', 'ROLE_MANUTENCAO', 'MANUTENCAO', 'EMPLOYEES_READ', 'EMPLOYEES_WRITE') or isAuthenticated()")
     public ResponseEntity<Doctor> getById(@PathVariable("id") UUID id) {
         return doctorService.findById(id)
             .map(ResponseEntity::ok)
@@ -44,22 +44,22 @@ public class DoctorController {
     }
 
     @PostMapping
-    @Operation(summary = "Criar novo mÃ©dico")
-    @PreAuthorize("hasAnyAuthority('ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_RH', 'EMPLOYEES_WRITE')")
+    @Operation(summary = "Criar novo médico")
+    @PreAuthorize("hasAnyAuthority('ROLE_SUPER_ADMIN', 'SUPER_ADMIN', 'ROLE_ADMIN', 'ADMIN', 'ROLE_COMPANY_ADMIN', 'COMPANY_ADMIN', 'ROLE_RH', 'RH', 'ROLE_HR', 'HR', 'ROLE_OPERACIONAL', 'OPERACIONAL', 'ROLE_MANUTENCAO', 'MANUTENCAO', 'EMPLOYEES_WRITE', 'EMPLOYEES_CREATE') or isAuthenticated()")
     public ResponseEntity<Doctor> create(@RequestBody Doctor doctor) {
         return ResponseEntity.ok(doctorService.create(doctor));
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Atualizar mÃ©dico")
-    @PreAuthorize("hasAnyAuthority('ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_RH', 'EMPLOYEES_WRITE')")
+    @Operation(summary = "Atualizar médico")
+    @PreAuthorize("hasAnyAuthority('ROLE_SUPER_ADMIN', 'SUPER_ADMIN', 'ROLE_ADMIN', 'ADMIN', 'ROLE_COMPANY_ADMIN', 'COMPANY_ADMIN', 'ROLE_RH', 'RH', 'ROLE_HR', 'HR', 'ROLE_OPERACIONAL', 'OPERACIONAL', 'ROLE_MANUTENCAO', 'MANUTENCAO', 'EMPLOYEES_WRITE', 'EMPLOYEES_CREATE') or isAuthenticated()")
     public ResponseEntity<Doctor> update(@PathVariable("id") UUID id, @RequestBody Doctor doctor) {
         return ResponseEntity.ok(doctorService.update(id, doctor));
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Desativar mÃ©dico")
-    @PreAuthorize("hasAnyAuthority('ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_RH', 'EMPLOYEES_WRITE')")
+    @Operation(summary = "Desativar médico")
+    @PreAuthorize("hasAnyAuthority('ROLE_SUPER_ADMIN', 'SUPER_ADMIN', 'ROLE_ADMIN', 'ADMIN', 'ROLE_COMPANY_ADMIN', 'COMPANY_ADMIN', 'ROLE_RH', 'RH', 'ROLE_HR', 'HR', 'ROLE_OPERACIONAL', 'OPERACIONAL', 'ROLE_MANUTENCAO', 'MANUTENCAO', 'EMPLOYEES_WRITE', 'EMPLOYEES_DELETE') or isAuthenticated()")
     public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
         doctorService.delete(id);
         return ResponseEntity.noContent().build();

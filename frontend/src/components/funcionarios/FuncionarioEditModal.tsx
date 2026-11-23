@@ -15,6 +15,7 @@ import { User } from '@/types/user';
 import { Employee } from '@/types/employee';
 import { Search, User as UserIcon, Building, Briefcase, Plus, FileText } from 'lucide-react';
 import NovoCargoModal from '@/components/funcionarios/NovoCargoModal';
+import NovoMedicoModal from '@/components/funcionarios/NovoMedicoModal';
 import { useToast } from '@/hooks/use-toast';
 import workPostService, { WorkPost } from '@/services/workPostService';
 import departmentService, { Department } from '@/services/departmentService';
@@ -154,8 +155,9 @@ const FuncionarioEditModal: React.FC<FuncionarioEditModalProps> = ({
   const [showDoctorDropdown, setShowDoctorDropdown] = useState(false);
   const [loadingDoctors, setLoadingDoctors] = useState(false);
   
-  // Estados para modal de novo cargo
+  // Estados para modal de novo cargo e novo médico
   const [novoCargoModalOpen, setNovoCargoModalOpen] = useState(false);
+  const [novoMedicoModalOpen, setNovoMedicoModalOpen] = useState(false);
 
   // Carregar dados para os selects quando o modal abrir
   useEffect(() => {
@@ -940,6 +942,22 @@ const FuncionarioEditModal: React.FC<FuncionarioEditModalProps> = ({
     setPositions(prev => [...prev, cargo]);
     // Selecionar automaticamente o novo cargo
     setForm(prev => ({ ...prev, position: { id: cargo.id } }));
+  };
+
+  const handleMedicoCreated = (medico: Doctor) => {
+    setDoctors(prev => [...prev, medico]);
+    setSelectedDoctor(medico);
+    setDoctorSearchTerm(`${medico.name} - CRM ${medico.crmNumber}/${medico.crmState}`);
+    setForm(prev => ({ 
+      ...prev, 
+      exameMedicoDoctor: { id: medico.id } 
+    } as any));
+    setShowDoctorDropdown(false);
+    toast({
+      title: "Sucesso!",
+      description: "Médico cadastrado e selecionado com sucesso.",
+      variant: "default"
+    });
   };
 
   // Não renderizar se não houver funcionário e a modal estiver fechada
@@ -2212,7 +2230,22 @@ const FuncionarioEditModal: React.FC<FuncionarioEditModalProps> = ({
                 </Select>
               </div>
               <div className="md:col-span-2">
-                <Label className="text-sm font-medium text-gray-200">Nome do Médico</Label>
+                <div className="flex items-center justify-between mb-1">
+                  <Label className="text-sm font-medium text-gray-200">Nome do Médico</Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setNovoMedicoModalOpen(true);
+                      setShowDoctorDropdown(false);
+                    }}
+                    className="h-6 px-2 text-xs text-seguranca-yellow hover:text-seguranca-yellow hover:bg-seguranca-yellow/10 flex items-center gap-1 font-semibold"
+                  >
+                    <Plus className="h-3 w-3" />
+                    <span>Novo Médico</span>
+                  </Button>
+                </div>
                 <div className="relative">
                   <Input 
                     value={doctorSearchTerm} 
@@ -2232,35 +2265,58 @@ const FuncionarioEditModal: React.FC<FuncionarioEditModalProps> = ({
                       }
                     }}
                     onBlur={() => {
-                      setTimeout(() => setShowDoctorDropdown(false), 200);
+                      setTimeout(() => setShowDoctorDropdown(false), 250);
                     }}
-                    placeholder="Digite para buscar médico..."
+                    placeholder="Digite para buscar médico ou clique em Novo Médico..."
                     className="text-xs sm:text-sm h-9 sm:h-10"
                   />
                   {showDoctorDropdown && (
-                    <div className="absolute z-50 w-full mt-1 bg-seguranca-graphite border border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto">
+                    <div 
+                      className="absolute z-50 w-full mt-1 bg-seguranca-graphite border border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto"
+                      onMouseDown={(e) => e.preventDefault()}
+                    >
                       {loadingDoctors ? (
-                        <div className="p-2 text-sm text-gray-400">Carregando...</div>
-                      ) : doctors.length > 0 ? (
-                        doctors.map((doctor) => (
-                          <div
-                            key={doctor.id}
-                            className="p-2 hover:bg-gray-700 cursor-pointer text-seguranca-lightgray text-xs sm:text-sm"
-                            onClick={() => {
-                              setSelectedDoctor(doctor);
-                              setDoctorSearchTerm(`${doctor.name} - CRM ${doctor.crmNumber}/${doctor.crmState}`);
-                              setForm(prev => ({ 
-                                ...prev, 
-                                exameMedicoDoctor: { id: doctor.id } 
-                              } as any));
-                              setShowDoctorDropdown(false);
-                            }}
-                          >
-                            {doctor.name} - CRM {doctor.crmNumber}/{doctor.crmState}
-                          </div>
-                        ))
+                        <div className="p-2 text-sm text-gray-400">Carregando médicos...</div>
                       ) : (
-                        <div className="p-2 text-sm text-gray-400">Nenhum médico encontrado</div>
+                        <>
+                          {doctors.length > 0 ? (
+                            doctors.map((doctor) => (
+                              <div
+                                key={doctor.id}
+                                className="p-2 hover:bg-gray-700 cursor-pointer text-seguranca-lightgray text-xs sm:text-sm transition-colors"
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  setSelectedDoctor(doctor);
+                                  setDoctorSearchTerm(`${doctor.name} - CRM ${doctor.crmNumber}/${doctor.crmState}`);
+                                  setForm(prev => ({ 
+                                    ...prev, 
+                                    exameMedicoDoctor: { id: doctor.id } 
+                                  } as any));
+                                  setShowDoctorDropdown(false);
+                                }}
+                              >
+                                {doctor.name} - CRM {doctor.crmNumber}/{doctor.crmState}
+                              </div>
+                            ))
+                          ) : (
+                            <div className="p-2 text-sm text-gray-400">Nenhum médico encontrado com esse termo</div>
+                          )}
+                          <div className="p-2 border-t border-gray-700 bg-seguranca-graphite sticky bottom-0">
+                            <button
+                              type="button"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setNovoMedicoModalOpen(true);
+                                setShowDoctorDropdown(false);
+                              }}
+                              className="w-full text-left p-2 text-xs sm:text-sm text-seguranca-yellow hover:bg-gray-700 rounded border border-seguranca-yellow/30 flex items-center gap-2 font-medium transition-colors"
+                            >
+                              <Plus className="h-4 w-4 shrink-0" />
+                              <span>+ Cadastrar novo médico</span>
+                            </button>
+                          </div>
+                        </>
                       )}
                     </div>
                   )}
@@ -2406,6 +2462,13 @@ const FuncionarioEditModal: React.FC<FuncionarioEditModalProps> = ({
          open={novoCargoModalOpen}
          onClose={() => setNovoCargoModalOpen(false)}
          onCargoCreated={handleCargoCreated}
+       />
+
+       {/* Modal de Novo Médico */}
+       <NovoMedicoModal
+         open={novoMedicoModalOpen}
+         onClose={() => setNovoMedicoModalOpen(false)}
+         onMedicoCreated={handleMedicoCreated}
        />
      </Dialog>
    );

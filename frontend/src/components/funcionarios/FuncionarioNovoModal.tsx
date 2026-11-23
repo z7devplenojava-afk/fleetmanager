@@ -3375,7 +3375,22 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
                 </Select>
               </div>
               <div className="md:col-span-2">
-                <Label className="text-sm font-medium text-gray-200">Nome do Médico</Label>
+                <div className="flex items-center justify-between mb-1">
+                  <Label className="text-sm font-medium text-gray-200">Nome do Médico</Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setNovoMedicoModalOpen(true);
+                      setShowDoctorDropdown(false);
+                    }}
+                    className="h-6 px-2 text-xs text-seguranca-yellow hover:text-seguranca-yellow hover:bg-seguranca-yellow/10 flex items-center gap-1 font-semibold"
+                  >
+                    <Plus className="h-3 w-3" />
+                    <span>Novo Médico</span>
+                  </Button>
+                </div>
                 <div className="relative">
                   <Input 
                     value={doctorSearchTerm} 
@@ -3395,51 +3410,58 @@ const FuncionarioNovoModal: React.FC<FuncionarioNovoModalProps> = ({ open, onClo
                       }
                     }}
                     onBlur={() => {
-                      // Delay para permitir clique no dropdown
-                      setTimeout(() => setShowDoctorDropdown(false), 200);
+                      setTimeout(() => setShowDoctorDropdown(false), 250);
                     }}
-                    placeholder="Digite para buscar médico..."
+                    placeholder="Digite para buscar médico ou clique em Novo Médico..."
                     className="text-xs sm:text-sm h-9 sm:h-10"
                   />
                   {showDoctorDropdown && (
-                    <div className="absolute z-50 w-full mt-1 bg-seguranca-graphite border border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto">
+                    <div 
+                      className="absolute z-50 w-full mt-1 bg-seguranca-graphite border border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto"
+                      onMouseDown={(e) => e.preventDefault()}
+                    >
                       {loadingDoctors ? (
-                        <div className="p-2 text-sm text-gray-400">Carregando...</div>
-                      ) : doctors.length > 0 ? (
-                        doctors.map((doctor) => (
-                          <div
-                            key={doctor.id}
-                            className="p-2 hover:bg-gray-700 cursor-pointer text-seguranca-lightgray text-xs sm:text-sm"
-                            onClick={() => {
-                              setSelectedDoctor(doctor);
-                              setDoctorSearchTerm(`${doctor.name} - CRM ${doctor.crmNumber}/${doctor.crmState}`);
-                              setForm(prev => ({ 
-                                ...prev, 
-                                exameMedicoDoctor: { id: doctor.id } 
-                              }));
-                              setShowDoctorDropdown(false);
-                            }}
-                          >
-                            {doctor.name} - CRM {doctor.crmNumber}/{doctor.crmState}
-                          </div>
-                        ))
+                        <div className="p-2 text-sm text-gray-400">Carregando médicos...</div>
                       ) : (
-                        <div className="p-2 space-y-2">
-                          <div className="text-sm text-gray-400 mb-2">Nenhum médico encontrado</div>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setNovoMedicoModalOpen(true);
-                              setShowDoctorDropdown(false);
-                            }}
-                            className="w-full text-left p-2 text-sm text-seguranca-yellow hover:bg-gray-700 rounded border border-seguranca-yellow/30 flex items-center gap-2"
-                          >
-                            <Plus className="h-4 w-4" />
-                            <span>Cadastrar novo médico</span>
-                          </button>
-                        </div>
+                        <>
+                          {doctors.length > 0 ? (
+                            doctors.map((doctor) => (
+                              <div
+                                key={doctor.id}
+                                className="p-2 hover:bg-gray-700 cursor-pointer text-seguranca-lightgray text-xs sm:text-sm transition-colors"
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  setSelectedDoctor(doctor);
+                                  setDoctorSearchTerm(`${doctor.name} - CRM ${doctor.crmNumber}/${doctor.crmState}`);
+                                  setForm(prev => ({ 
+                                    ...prev, 
+                                    exameMedicoDoctor: { id: doctor.id } 
+                                  }));
+                                  setShowDoctorDropdown(false);
+                                }}
+                              >
+                                {doctor.name} - CRM {doctor.crmNumber}/{doctor.crmState}
+                              </div>
+                            ))
+                          ) : (
+                            <div className="p-2 text-sm text-gray-400">Nenhum médico encontrado com esse termo</div>
+                          )}
+                          <div className="p-2 border-t border-gray-700 bg-seguranca-graphite sticky bottom-0">
+                            <button
+                              type="button"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setNovoMedicoModalOpen(true);
+                                setShowDoctorDropdown(false);
+                              }}
+                              className="w-full text-left p-2 text-xs sm:text-sm text-seguranca-yellow hover:bg-gray-700 rounded border border-seguranca-yellow/30 flex items-center gap-2 font-medium transition-colors"
+                            >
+                              <Plus className="h-4 w-4 shrink-0" />
+                              <span>+ Cadastrar novo médico</span>
+                            </button>
+                          </div>
+                        </>
                       )}
                     </div>
                   )}
