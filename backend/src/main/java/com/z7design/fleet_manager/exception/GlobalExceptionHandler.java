@@ -190,7 +190,7 @@ public class GlobalExceptionHandler {
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.BAD_REQUEST.value())
                 .error("INVALID_ARGUMENT")
-                .message(ex.getMessage() + " (" + ex.getClass().getSimpleName() + ")")
+                .message(ex.getMessage())
                 .path(request.getDescription(false).replace("uri=", ""))
                 .build();
 

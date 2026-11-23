@@ -27,6 +27,7 @@ import { userService, UpdateUserRequest } from '@/services/userService';
 import { companyService } from '@/services/companyService';
 import { employeeService, Employee } from '@/services/employeeService';
 import { useToast } from '@/hooks/use-toast';
+import { extractApiErrorMessage } from '@/utils/apiError';
 import { permissionService } from '@/services/permissionService';
 import { PermissionDTO } from '@/types/user';
 import { useAuth } from '@/contexts/AuthContext';
@@ -482,7 +483,7 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
     } catch (error: any) {
       toast({
         title: 'Erro!',
-        description: error.response?.data?.error || error.response?.data?.message || 'Erro ao atualizar usuário.',
+        description: extractApiErrorMessage(error, 'Erro ao atualizar usuário.'),
         variant: 'destructive',
       });
     } finally {

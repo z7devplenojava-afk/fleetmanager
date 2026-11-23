@@ -356,40 +356,40 @@ public class UserService {
 
         // ValidaÃ§Ãµes bÃ¡sicas
         if (!StringUtils.hasText(request.getName())) {
-            throw new IllegalArgumentException("Nome nÃ£o pode ser nulo ou vazio");
+            throw new IllegalArgumentException("Nome não pode ser nulo ou vazio");
         }
 
         if (!StringUtils.hasText(request.getEmail())) {
-            throw new IllegalArgumentException("Email nÃ£o pode ser nulo ou vazio");
+            throw new IllegalArgumentException("Email não pode ser nulo ou vazio");
         }
 
         if (!StringUtils.hasText(request.getUsername())) {
-            throw new IllegalArgumentException("Nome de usuÃ¡rio nÃ£o pode ser nulo ou vazio");
+            throw new IllegalArgumentException("Nome de usuário não pode ser nulo ou vazio");
         }
 
         if (!StringUtils.hasText(request.getPassword())) {
-            throw new IllegalArgumentException("Senha nÃ£o pode ser nula ou vazia");
+            throw new IllegalArgumentException("Senha não pode ser nula ou vazia");
         }
 
         if (request.getRoles() == null || request.getRoles().isEmpty()) {
-            throw new IllegalArgumentException("Pelo menos uma funÃ§Ã£o deve ser selecionada");
+            throw new IllegalArgumentException("Pelo menos uma função deve ser selecionada");
         }
 
         assertCanCreateUser(request);
 
-        // Verificar se username jÃ¡ existe
+        // Verificar se username já existe
         if (userRepository.findByUsername(request.getUsername()).isPresent()) {
-            throw new IllegalArgumentException("Nome de usuÃ¡rio jÃ¡ estÃ¡ em uso");
+            throw new IllegalArgumentException("Nome de usuário já está em uso");
         }
 
-        // Verificar se email jÃ¡ existe
+        // Verificar se email já existe
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
-            throw new IllegalArgumentException("Email jÃ¡ estÃ¡ em uso");
+            throw new IllegalArgumentException("Email já está em uso");
         }
 
         // Validar formato do email
         if (!request.getEmail().matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
-            throw new IllegalArgumentException("Formato de email invÃ¡lido");
+            throw new IllegalArgumentException("Formato de email inválido");
         }
 
         // Validar forÃ§a da senha
@@ -477,23 +477,23 @@ public class UserService {
     public User create(User user) {
         // ValidaÃ§Ãµes bÃ¡sicas
         if (!StringUtils.hasText(user.getName())) {
-            throw new IllegalArgumentException("Nome nÃ£o pode ser nulo ou vazio");
+            throw new IllegalArgumentException("Nome não pode ser nulo ou vazio");
         }
 
         if (!StringUtils.hasText(user.getEmail())) {
-            throw new IllegalArgumentException("Email nÃ£o pode ser nulo ou vazio");
+            throw new IllegalArgumentException("Email não pode ser nulo ou vazio");
         }
 
         if (!StringUtils.hasText(user.getUsername())) {
-            throw new IllegalArgumentException("Nome de usuÃ¡rio nÃ£o pode ser nulo ou vazio");
+            throw new IllegalArgumentException("Nome de usuário não pode ser nulo ou vazio");
         }
 
         if (!StringUtils.hasText(user.getPassword())) {
-            throw new IllegalArgumentException("Senha nÃ£o pode ser nula ou vazia");
+            throw new IllegalArgumentException("Senha não pode ser nula ou vazia");
         }
 
         if (user.getRoles() == null || user.getRoles().isEmpty()) {
-            throw new IllegalArgumentException("FunÃ§Ã£o nÃ£o pode ser nula");
+            throw new IllegalArgumentException("Função não pode ser nula");
         }
 
         // Buscar roles existentes pelo name (flexível)
@@ -504,19 +504,19 @@ public class UserService {
         }
         user.setRoles(new java.util.HashSet<>(rolesFromDb));
 
-        // Verificar se username jÃ¡ existe
+        // Verificar se username já existe
         if (userRepository.findByUsername(user.getUsername()).isPresent()) {
-            throw new IllegalArgumentException("Nome de usuÃ¡rio jÃ¡ estÃ¡ em uso");
+            throw new IllegalArgumentException("Nome de usuário já está em uso");
         }
 
-        // Verificar se email jÃ¡ existe
+        // Verificar se email já existe
         if (userRepository.findByEmail(user.getEmail()).isPresent()) {
-            throw new IllegalArgumentException("Email jÃ¡ estÃ¡ em uso");
+            throw new IllegalArgumentException("Email já está em uso");
         }
 
         // Validar formato do email
         if (!user.getEmail().matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
-            throw new IllegalArgumentException("Formato de email invÃ¡lido");
+            throw new IllegalArgumentException("Formato de email inválido");
         }
 
         // Validar forÃ§a da senha
@@ -595,37 +595,37 @@ public class UserService {
         assertCanUpdateUser(existingUser, request);
 
         if (!StringUtils.hasText(request.getName())) {
-            throw new IllegalArgumentException("Nome nÃ£o pode ser vazio");
+            throw new IllegalArgumentException("Nome não pode ser vazio");
         }
 
         if (!StringUtils.hasText(request.getEmail())) {
-            throw new IllegalArgumentException("Email nÃ£o pode ser vazio");
+            throw new IllegalArgumentException("Email não pode ser vazio");
         }
 
         if (!StringUtils.hasText(request.getUsername())) {
-            throw new IllegalArgumentException("Username nÃ£o pode ser vazio");
+            throw new IllegalArgumentException("Username não pode ser vazio");
         }
 
-        // Validar username Ãºnico (se estiver sendo alterado)
+        // Validar username único (se estiver sendo alterado)
         String existingUsername = existingUser.getUsername();
         String newUsername = request.getUsername();
         if (existingUsername == null || newUsername == null || !existingUsername.equals(newUsername)) {
             if (newUsername != null) {
                 Optional<User> userWithUsername = userRepository.findByUsername(newUsername);
                 if (userWithUsername.isPresent() && !userWithUsername.get().getId().equals(id)) {
-                    throw new IllegalArgumentException("Nome de usuÃ¡rio jÃ¡ estÃ¡ em uso");
+                    throw new IllegalArgumentException("Nome de usuário já está em uso");
                 }
             }
         }
 
-        // Validar email Ãºnico (se estiver sendo alterado)
+        // Validar email único (se estiver sendo alterado)
         String existingEmail = existingUser.getEmail();
         String newEmail = request.getEmail();
         if (existingEmail == null || newEmail == null || !existingEmail.equals(newEmail)) {
             if (newEmail != null) {
                 Optional<User> userWithEmail = userRepository.findByEmail(newEmail);
                 if (userWithEmail.isPresent() && !userWithEmail.get().getId().equals(id)) {
-                    throw new IllegalArgumentException("Email jÃ¡ estÃ¡ em uso");
+                    throw new IllegalArgumentException("Email já está em uso");
                 }
             }
         }
