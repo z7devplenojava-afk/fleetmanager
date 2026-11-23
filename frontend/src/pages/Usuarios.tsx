@@ -99,7 +99,7 @@ const Usuarios: React.FC = () => {
       const usersData = await userService.getAllUsers();
       const normalizedUsers = (usersData || []).map((u) => ({
         ...u,
-        isOnline: u.isOnline || (currentUser && String(u.id) === String(currentUser.id)) || false,
+        isOnline: Boolean(u.isOnline),
       }));
       setUsers(normalizedUsers);
     } catch (error: any) {
@@ -201,7 +201,7 @@ const Usuarios: React.FC = () => {
 
     // Filtro por tab online
     if (activeTab === 'online') {
-      filtered = filtered.filter((user) => Boolean(user.isOnline) || (currentUser && String(user.id) === String(currentUser.id)));
+      filtered = filtered.filter((user) => Boolean(user.isOnline));
     }
 
     // Filtro por busca
@@ -407,7 +407,7 @@ const Usuarios: React.FC = () => {
   };
 
   const roles = Array.from(new Set(users.flatMap(user => extractRoleNames(user.roles))));
-  const onlineCount = users.filter(user => Boolean(user.isOnline) || (currentUser && String(user.id) === String(currentUser.id))).length;
+  const onlineCount = users.filter(user => Boolean(user.isOnline)).length;
 
   useWebSocket({
     token: localStorage.getItem('token') || '',

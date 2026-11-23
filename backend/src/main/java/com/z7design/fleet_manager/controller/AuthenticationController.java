@@ -107,6 +107,17 @@ public class AuthenticationController {
                                 "message", errorMessage,
                                 "code", "NO_COMPANY_LINKED"));
             }
+
+            // Tratamento específico para usuário não cadastrado no sistema (solicitar cadastro ao RH)
+            if (e instanceof org.springframework.security.core.userdetails.UsernameNotFoundException ||
+                    (errorMessage != null && (errorMessage.toLowerCase().contains("usuário não encontrado") || errorMessage.toLowerCase().contains("usuario nao encontrado")))) {
+                log.warn("⚠️ Usuário/identificador não cadastrado: {}. Orientando a procurar o RH.", username);
+                return ResponseEntity.status(org.springframework.http.HttpStatus.NOT_FOUND)
+                        .body(Map.of(
+                                "error", "Not Found",
+                                "message", "Usuário não cadastrado no sistema. Por favor, solicite o seu cadastro ao setor de Recursos Humanos (RH).",
+                                "code", "USER_NOT_REGISTERED"));
+            }
             // ExceÃ§Ãµes de autenticaÃ§Ã£o devem retornar 401, nÃ£o 500
             log.warn("âŒ Tentativa de login falhou para usuÃ¡rio {}: {}", username, e.getMessage());
 

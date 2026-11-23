@@ -137,6 +137,18 @@ const Login = () => {
         return;
       }
 
+      // Usuário não cadastrado no sistema: orientar a solicitar cadastro ao RH
+      if (errorCode === 'USER_NOT_REGISTERED' || err?.response?.status === 404) {
+        const notFoundMsg = err?.response?.data?.message || 'Usuário não cadastrado no sistema. Por favor, solicite o seu cadastro ao setor de Recursos Humanos (RH).';
+        toast({
+          title: 'Cadastro Não Encontrado',
+          description: notFoundMsg,
+          variant: 'destructive',
+        });
+        setError(notFoundMsg);
+        return;
+      }
+
       // Usuário bloqueado pelo Administrador: mensagem específica orientando procurar o Admin do sistema
       const blockMessage = err?.response?.data?.message;
       const isBlocked = err?.response?.data?.code === 'USER_BLOCKED' || (blockMessage && blockMessage.toLowerCase().includes('bloqueado'));

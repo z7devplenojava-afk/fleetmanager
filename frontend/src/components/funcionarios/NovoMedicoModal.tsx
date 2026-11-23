@@ -8,8 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { doctorService } from '@/services/doctorService';
 import { Doctor } from '@/types/doctor';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  UserPlus, Loader2, CheckCircle, AlertCircle, 
+import {
+  UserPlus, Loader2, CheckCircle, AlertCircle,
   User, FileText, Sparkles, Stethoscope, Star
 } from 'lucide-react';
 
@@ -37,7 +37,7 @@ const NovoMedicoModal: React.FC<NovoMedicoModalProps> = ({ open, onClose, onMedi
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!form.name.trim()) {
       setError('Nome do médico é obrigatório.');
       return;
@@ -55,7 +55,7 @@ const NovoMedicoModal: React.FC<NovoMedicoModalProps> = ({ open, onClose, onMedi
 
     setLoading(true);
     setError(null);
-    
+
     try {
       const newMedico = await doctorService.create({
         name: form.name.trim(),
@@ -63,12 +63,12 @@ const NovoMedicoModal: React.FC<NovoMedicoModalProps> = ({ open, onClose, onMedi
         crmState: form.crmState.trim().toUpperCase(),
         active: true
       });
-      
+
       toast({
         title: "Sucesso",
         description: "Médico cadastrado com sucesso!",
       });
-      
+
       onMedicoCreated(newMedico);
       onClose();
       setForm({ name: '', crmNumber: '', crmState: '', active: true });

@@ -548,17 +548,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       });
 
+      // Propagar erros tratados especificamente pelo formulário de Login
+      const respCode = error?.response?.data?.code;
+      if (respCode === 'NO_COMPANY_LINKED' || respCode === 'FIRST_ACCESS_REQUIRED' || respCode === 'USER_NOT_REGISTERED' || respCode === 'USER_BLOCKED' || error?.response?.status === 404) {
+        throw error;
+      }
+
       // Mensagem de erro mais específica
       let errorMessage = 'Verifique suas credenciais e tente novamente.';
 
       if (error?.response?.status === 401) {
         errorMessage = error?.response?.data?.message || 'Usuário ou senha incorretos.';
       } else if (error?.response?.status === 403) {
-        // Se for o erro específico de falta de empresa, não mostrar o toast genérico e propagar o erro original
-        if (error?.response?.data?.code === 'NO_COMPANY_LINKED') {
-          throw error;
-        }
-        errorMessage = 'Acesso negado. Verifique suas permissões.';
+        errorMessage = error?.response?.data?.message || 'Acesso negado. Verifique suas permissões.';
       } else if (error?.response?.status === 500) {
         errorMessage = 'Erro interno do servidor. Tente novamente mais tarde.';
       } else if (error?.response?.status === 522 || (error as any)?.is522Error) {
@@ -741,12 +743,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const setFirstAccessCompleted = (completed: boolean) => {
     if (!user) return;
-    const updatedUser = { 
-      ...user, 
+    const updatedUser = {
+      ...user,
       firstAccessCompleted: completed,
       requirePasswordChange: !completed,
       requiresPasswordChange: !completed,
-      pendingFirstAccess: !completed 
+      pendingFirstAccess: !completed
     };
     setUser(updatedUser);
     localStorage.setItem('user', JSON.stringify(updatedUser));

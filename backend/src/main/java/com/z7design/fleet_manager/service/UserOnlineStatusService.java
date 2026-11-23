@@ -22,8 +22,8 @@ public class UserOnlineStatusService {
     // sessÃµes)
     private final Map<UUID, Set<String>> onlineUsers = new ConcurrentHashMap<>();
 
-    /** Janela de inatividade (ms) para considerar usuário online via atividade REST */
-    private static final long REST_ACTIVITY_WINDOW_MS = 5 * 60 * 1000L;
+    /** Janela de inatividade (ms) para considerar usuário online via atividade REST (reduzida para 90s para refletir o encerramento rápido de sessões sem tráfego) */
+    private static final long REST_ACTIVITY_WINDOW_MS = 90 * 1000L;
 
     // Mapa de userId -> timestamp da última requisição REST autenticada (heartbeat)
     private final Map<UUID, Long> restActivity = new ConcurrentHashMap<>();
