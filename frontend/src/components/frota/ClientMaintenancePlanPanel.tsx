@@ -502,6 +502,18 @@ export const ClientMaintenancePlanPanel: React.FC<ClientMaintenancePlanPanelProp
         toast({ title: 'Cliente de E-mail Aberto', description: 'Mensagem pronta para envio!' });
     };
 
+    // Copiar Link do Portal do Cliente
+    const handleSharePortalLink = () => {
+        const link = `${window.location.origin}/portal-cliente?tab=preventivas&periodo=${selectedPeriod}${shareTargetGroup?.client?.id ? `&clienteId=${shareTargetGroup.client.id}` : (activeClient ? `&clienteId=${activeClient.id}` : '')}`;
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(link);
+            toast({
+                title: 'Link copiado!',
+                description: 'O link do portal do cliente foi copiado para a área de transferência.',
+            });
+        }
+    };
+
     return (
         <div className="space-y-6">
             {/* Header de Filtros do Plano de Manutenção por Cliente */}
