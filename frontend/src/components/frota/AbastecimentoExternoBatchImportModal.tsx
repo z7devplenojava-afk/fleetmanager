@@ -157,6 +157,8 @@ function normalizeIsoDate(raw: any): string {
   if (isoMatch) return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
   const brMatch = str.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
   if (brMatch) return `${brMatch[3]}-${brMatch[2]}-${brMatch[1]}`;
+  const compactMatch = str.match(/^(\d{4})(\d{2})(\d{2})/);
+  if (compactMatch) return `${compactMatch[1]}-${compactMatch[2]}-${compactMatch[3]}`;
   return '';
 }
 
@@ -262,12 +264,12 @@ function extractPlateAndKmFromText(
       }
     }
 
-    // Busca por número de frota / prefixo (ex: FROTA: 1020, PREFIXO: 1020, CARRO: 1020, #1020)
+    // Busca por número de frota / prefixo (ex: FROTA: 1020, PREFIXO: 1020, CARRO: 1020, #1020, ou simplesmente "1020" se tiver delimitadores)
     if (!matchedVehicleId) {
       for (const v of veiculosList) {
         const pfx = String(v.fleetNumber || (v as any).prefixo || '').trim();
         if (pfx.length >= 2) {
-          const pfxRegex = new RegExp(`(?:PREFIXO|FROTA|CARRO|VE[ÍI]C(?:ULO)?|AUTO|#)\\s*[:=-]?\\s*\\b0*${pfx}\\b`, 'i');
+          const pfxRegex = new RegExp(`(?:PREFIXO|FROTA|CARRO|VE[ÍI]C(?:ULO)?|AUTO|V|#|N[ºO]|NR)\\s*[:=-]?\\s*\\b0*${pfx}\\b`, 'i');
           if (pfxRegex.test(upper)) {
             matchedVehicleId = v.id;
             const vp = (v.plate || (v as any).placa || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
@@ -596,39 +598,67 @@ const AbastecimentoExternoBatchImportModal: React.FC<AbastecimentoExternoBatchIm
     return found?.id || '';
   };
 
-  // Parser local de XML (NF-e / NFC-e) resiliente a namespaces SEFAZ
+  // Parser local de XML (NF-e / NFC-e / CF-e) resiliente a namespaces SEFAZ e tags variantes
   const parseXmlFile = async (file: File): Promise<Partial<BatchInvoiceRow> | null> => {
     try {
       const xmlText = await file.text();
       const parser = new DOMParser();
       const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
-      if (xmlDoc.querySelector('parsererror')) return null;
+      const hasParserError = Boolean(xmlDoc.querySelector('parsererror'));
 
+      // Função robusta com fallback em regex para contornar problemas de namespace do DOMParser
       const getTag = (parent: Document | Element | null, tag: string): string => {
-        if (!parent) return '';
-        const byNs = parent.getElementsByTagName(tag)?.[0]?.textContent;
-        if (byNs !== undefined && byNs !== null) return byNs.trim();
-        const byQuery = parent.querySelector(tag)?.textContent;
-        return (byQuery || '').trim();
+        if (!hasParserError && parent) {
+          const byNs = parent.getElementsByTagName(tag)?.[0]?.textContent;
+          if (byNs !== undefined && byNs !== null && byNs.trim() !== '') return byNs.trim();
+          const byQuery = parent.querySelector(tag)?.textContent;
+          if (byQuery !== undefined && byQuery !== null && byQuery.trim() !== '') return byQuery.trim();
+        }
+        // Fallback direto via regex no texto original do XML
+        const regex = new RegExp(`<(?:${tag}|[a-zA-Z0-9_-]+:${tag})[^>]*>([\\s\\S]*?)<\\/(?:${tag}|[a-zA-Z0-9_-]+:${tag})>`, 'i');
+        const match = xmlText.match(regex);
+        return match ? match[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim() : '';
       };
 
-      const ideNode = xmlDoc.getElementsByTagName('ide')?.[0] || xmlDoc;
-      const emitNode = xmlDoc.getElementsByTagName('emit')?.[0] || xmlDoc;
-      const enderEmitNode = emitNode.getElementsByTagName?.('enderEmit')?.[0] || emitNode;
-      const icmsTotNode = xmlDoc.getElementsByTagName('ICMSTot')?.[0] || xmlDoc;
-      const infAdicNode = xmlDoc.getElementsByTagName('infAdic')?.[0] || xmlDoc;
+      const ideNode = hasParserError ? null : (xmlDoc.getElementsByTagName('ide')?.[0] || xmlDoc);
+      const emitNode = hasParserError ? null : (xmlDoc.getElementsByTagName('emit')?.[0] || xmlDoc);
+      const enderEmitNode = emitNode?.getElementsByTagName?.('enderEmit')?.[0] || emitNode;
+      const icmsTotNode = hasParserError ? null : (xmlDoc.getElementsByTagName('ICMSTot')?.[0] || xmlDoc);
+      const infAdicNode = hasParserError ? null : (xmlDoc.getElementsByTagName('infAdic')?.[0] || xmlDoc);
 
-      const infNFeEl = xmlDoc.getElementsByTagName('infNFe')?.[0] || xmlDoc.querySelector('infNFe');
+      const infNFeEl = hasParserError ? null : (xmlDoc.getElementsByTagName('infNFe')?.[0] || xmlDoc.querySelector('infNFe'));
+      const chNFeMatch = xmlText.match(/<chNFe>([\s\S]*?)<\/chNFe>/i) ||
+        xmlText.match(/<chCFe>([\s\S]*?)<\/chCFe>/i) ||
+        xmlText.match(/Id="NFe(\d{44})"/i) ||
+        xmlText.match(/Id="CFe(\d{44})"/i) ||
+        xmlText.match(/\b(\d{44})\b/);
+
       const chNFe =
         getTag(xmlDoc, 'chNFe') ||
-        infNFeEl?.getAttribute('Id')?.replace(/^NFe/i, '') ||
-        '';
+        getTag(xmlDoc, 'chCFe') ||
+        infNFeEl?.getAttribute('Id')?.replace(/^(?:NFe|CFe)/i, '') ||
+        (chNFeMatch ? chNFeMatch[1].trim() : '');
+
       const keyMeta = extractFromAccessKey(chNFe);
 
-      const nNF = getTag(ideNode, 'nNF') || keyMeta.nfNumber || '';
+      const nNF =
+        getTag(ideNode, 'nNF') ||
+        getTag(ideNode, 'nCFe') ||
+        getTag(ideNode, 'nDoc') ||
+        keyMeta.nfNumber ||
+        '';
+
       const serie = getTag(ideNode, 'serie') || '1';
-      const dhEmi = getTag(ideNode, 'dhEmi') || getTag(ideNode, 'dEmi') || '';
-      const issueDate = normalizeIsoDate(dhEmi) || (keyMeta.yearMonth ? `${keyMeta.yearMonth}-01` : '');
+
+      const dhEmi =
+        getTag(ideNode, 'dhEmi') ||
+        getTag(ideNode, 'dEmi') ||
+        getTag(xmlDoc, 'dhRecbto') ||
+        '';
+
+      const issueDate =
+        normalizeIsoDate(dhEmi) ||
+        (keyMeta.yearMonth ? `${keyMeta.yearMonth}-01` : '');
 
       const emitNome = sanitizeSupplierName(getTag(emitNode, 'xNome'));
       const emitFant = sanitizeSupplierName(getTag(emitNode, 'xFant'));
@@ -644,7 +674,7 @@ const AbastecimentoExternoBatchImportModal: React.FC<AbastecimentoExternoBatchIm
       const cep = getTag(enderEmitNode, 'CEP');
       const fone = getTag(enderEmitNode, 'fone');
 
-      const vNF = parseFloat(getTag(icmsTotNode, 'vNF') || '0');
+      const vNF = parseFloat(getTag(icmsTotNode, 'vNF') || getTag(xmlDoc, 'vCFe') || '0');
       const vProdTotal = parseFloat(getTag(icmsTotNode, 'vProd') || '0');
       const infCpl = getTag(infAdicNode, 'infCpl');
       const infAdFisco = getTag(infAdicNode, 'infAdFisco');
@@ -653,7 +683,7 @@ const AbastecimentoExternoBatchImportModal: React.FC<AbastecimentoExternoBatchIm
       let explicitPlate = '';
       let explicitKm = 0;
       const obsContrTexts: string[] = [];
-      const obsContrNodes = Array.from(xmlDoc.getElementsByTagName('obsContr'));
+      const obsContrNodes = hasParserError ? [] : Array.from(xmlDoc.getElementsByTagName('obsContr'));
       obsContrNodes.forEach((obs) => {
         const xCampo = (obs.getAttribute('xCampo') || '').toUpperCase();
         const xTexto = getTag(obs, 'xTexto') || obs.textContent?.trim() || '';
@@ -667,7 +697,7 @@ const AbastecimentoExternoBatchImportModal: React.FC<AbastecimentoExternoBatchIm
         }
       });
 
-      const veicProdNodes = Array.from(xmlDoc.getElementsByTagName('veicProd'));
+      const veicProdNodes = hasParserError ? [] : Array.from(xmlDoc.getElementsByTagName('veicProd'));
       if (veicProdNodes.length > 0) {
         const pTag = getTag(veicProdNodes[0], 'placa');
         if (pTag) {
@@ -678,27 +708,46 @@ const AbastecimentoExternoBatchImportModal: React.FC<AbastecimentoExternoBatchIm
         if (chassiTag) obsContrTexts.push(`CHASSI: ${chassiTag}`);
       }
 
-      const detNodes = Array.from(xmlDoc.getElementsByTagName('det'));
+      const detNodes = hasParserError ? [] : Array.from(xmlDoc.getElementsByTagName('det'));
       let totalLiters = 0;
       let totalProdVal = 0;
       let weightedUnitPrice = 0;
       let detectedFuel: 'DIESEL' | 'GASOLINE' | 'ETHANOL' | 'FLEX' = 'DIESEL';
       const itemDescriptions: string[] = [];
 
-      detNodes.forEach((det, idx) => {
-        const xProd = getTag(det, 'xProd');
-        const infAdProd = getTag(det, 'infAdProd');
-        const qCom = parseFloat(getTag(det, 'qCom') || '0');
-        const vUnCom = parseFloat(getTag(det, 'vUnCom') || '0');
-        const vProd = parseFloat(getTag(det, 'vProd') || '0');
-        if (xProd) itemDescriptions.push(xProd);
-        if (infAdProd) itemDescriptions.push(infAdProd);
-        if (idx === 0 && xProd) {
-          detectedFuel = detectFuelTypeFromDescription(xProd);
+      if (detNodes.length > 0) {
+        detNodes.forEach((det, idx) => {
+          const xProd = getTag(det, 'xProd');
+          const infAdProd = getTag(det, 'infAdProd');
+          const qCom = parseFloat(getTag(det, 'qCom') || '0');
+          const vUnCom = parseFloat(getTag(det, 'vUnCom') || '0');
+          const vProd = parseFloat(getTag(det, 'vProd') || '0');
+          if (xProd) itemDescriptions.push(xProd);
+          if (infAdProd) itemDescriptions.push(infAdProd);
+          if (idx === 0 && xProd) {
+            detectedFuel = detectFuelTypeFromDescription(xProd);
+          }
+          totalLiters += qCom > 0 ? qCom : 0;
+          totalProdVal += vProd > 0 ? vProd : qCom * vUnCom;
+        });
+      } else {
+        // Fallback regex para itens quando o DOMParser falhar ou em CFe
+        const prodRegex = /<xProd[^>]*>([\s\S]*?)<\/xProd>/gi;
+        let pMatch;
+        while ((pMatch = prodRegex.exec(xmlText)) !== null) {
+          const pName = pMatch[1].trim();
+          itemDescriptions.push(pName);
+          if (itemDescriptions.length === 1) {
+            detectedFuel = detectFuelTypeFromDescription(pName);
+          }
         }
-        totalLiters += qCom > 0 ? qCom : 0;
-        totalProdVal += vProd > 0 ? vProd : qCom * vUnCom;
-      });
+        const qRegex = /<qCom[^>]*>([\s\S]*?)<\/qCom>/gi;
+        let qMatch;
+        while ((qMatch = qRegex.exec(xmlText)) !== null) {
+          const q = parseFloat(qMatch[1].trim() || '0');
+          if (q > 0) totalLiters += q;
+        }
+      }
 
       const finalTotal = vNF > 0 ? vNF : totalProdVal > 0 ? totalProdVal : vProdTotal;
       if (totalLiters > 0 && finalTotal > 0) {
@@ -991,13 +1040,19 @@ const AbastecimentoExternoBatchImportModal: React.FC<AbastecimentoExternoBatchIm
     }
 
     // Propaga fornecedor e mês predominante para linhas que vieram sem data ou sem razão social/CNPJ no PDF
-    const finalizedNewRows = newRows.map((r) => ({
-      ...r,
-      issueDate: r.issueDate || `${predominantMonth}-01`,
-      supplierName: r.supplierName || firstSupplierName || '',
-      supplierTradeName: r.supplierTradeName || firstSupplierTrade || firstSupplierName || '',
-      supplierCnpj: r.supplierCnpj || firstSupplierCnpj || '',
-    }));
+    const finalizedNewRows = newRows.map((r) => {
+      const keyMeta = extractFromAccessKey(r.accessKey);
+      const fallbackNf = r.invoiceNumber || keyMeta.nfNumber || '';
+      const fallbackDate = r.issueDate || (keyMeta.yearMonth ? `${keyMeta.yearMonth}-01` : (predominantMonth ? `${predominantMonth}-01` : ''));
+      return {
+        ...r,
+        invoiceNumber: fallbackNf,
+        issueDate: fallbackDate,
+        supplierName: r.supplierName || firstSupplierName || '',
+        supplierTradeName: r.supplierTradeName || firstSupplierTrade || firstSupplierName || '',
+        supplierCnpj: r.supplierCnpj || firstSupplierCnpj || '',
+      };
+    });
 
     if (firstSupplierName && !sanitizeSupplierName(batchSupplierName)) {
       setBatchSupplierName(firstSupplierName);
