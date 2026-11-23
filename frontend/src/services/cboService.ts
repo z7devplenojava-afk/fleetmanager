@@ -91,6 +91,30 @@ class CBOService {
 
     // Motoristas e Operação de Transporte
     {
+      codigo: '3423-05',
+      titulo: 'Chefe de serviço de transporte rodoviário (passageiros e cargas)',
+      sinonimo: 'Encarregado de transportes, Encarregado de transporte, Encarregado de frota, Encarregado de tráfego, Supervisor de frota, Supervisor de transportes, Supervisor de tráfego, Chefe de tráfego, Líder de tráfego, Líder de transporte, Coordenador de transporte, Coordenador de frota, Encarregado operacional',
+      descricao: 'Supervisiona e planeja operações de transporte rodoviário e fretamento, coordena escalas de motoristas e veículos, monitora o cumprimento de itinerários, vistorias e atendimento aos clientes.'
+    },
+    {
+      codigo: '1414-10',
+      titulo: 'Gerente de operações de transportes',
+      sinonimo: 'Gerente de transportes, Gerente de transporte, Gerente de logística, Gerente de frota, Gestor de frota, Gestor de transportes, Diretor operacional',
+      descricao: 'Dirige e planeja as operações de transporte e logística da empresa, gerenciando contratos, indicadores operacionais, custos e equipes.'
+    },
+    {
+      codigo: '3421-10',
+      titulo: 'Analista de transporte / frota',
+      sinonimo: 'Analista de transportes, Analista de frota, Analista de logística, Assistente de transporte, Assistente de transportes, Assistente de frota, Auxiliar de tráfego, Auxiliar de transporte, Auxiliar de transportes',
+      descricao: 'Analisa indicadores operacionais da frota, consumo de combustível, telemetria, roteirização e custos logísticos.'
+    },
+    {
+      codigo: '3423-10',
+      titulo: 'Inspetor de serviços de transportes rodoviários / Despachante',
+      sinonimo: 'Despachante de tráfego, Despachante de transporte, Despachante de transportes, Controlador de tráfego, Operador de CCO, Fiscal de tráfego, Escalante, Monitor de frota',
+      descricao: 'Coordena escalas diárias de motoristas e veículos, monitora viagens em tempo real no CCO, atua na liberação de viagens e atendimento a contingências operacionais.'
+    },
+    {
       codigo: '7824-10',
       titulo: 'Motorista de ônibus rodoviário',
       sinonimo: 'Motorista, Motorista rodoviário, Motorista de viagem, Motorista de fretamento',
@@ -110,14 +134,14 @@ class CBOService {
     },
     {
       codigo: '7823-10',
-      titulo: 'Motorista de furgão ou veículo similar',
-      sinonimo: 'Motorista de van, Motorista de micro-ônibus, Motorista de utilitário, Motorista executivo',
-      descricao: 'Conduz vans, micro-ônibus e utilitários no transporte de passageiros, equipes ou cargas leves, realizando checklist diário e conservação do veículo.'
+      titulo: 'Motorista de furgão ou van / Manobrista',
+      sinonimo: 'Motorista de van, Motorista de micro-ônibus, Motorista de utilitário, Manobrista de ônibus, Manobrista de frota, Manobrista de garagem, Manobrista',
+      descricao: 'Conduz vans, micro-ônibus e veículos utilitários ou realiza manobras e posicionamento de ônibus e veículos pesados nas garagens e pátios da empresa.'
     },
     {
       codigo: '7823-20',
       titulo: 'Motorista operacional de guincho',
-      sinonimo: 'Operador de guincho, Socorrista de frota',
+      sinonimo: 'Operador de guincho, Socorrista de frota, Motorista socorrista',
       descricao: 'Opera veículo de socorro e reboque para atendimento emergencial e remoção de veículos avariados da frota.'
     },
     {
@@ -133,28 +157,10 @@ class CBOService {
       descricao: 'Realiza cobrança de tarifas, controle de embarque de passageiros e auxílio ao motorista durante a operação do transporte coletivo.'
     },
     {
-      codigo: '3423-10',
-      titulo: 'Despachante de transportes',
-      sinonimo: 'Despachante de tráfego, Escalante, Controlador de tráfego, CCO',
-      descricao: 'Coordena escalas de motoristas e veículos, monitora viagens em tempo real e atua na liberação e controle operacional de tráfego.'
-    },
-    {
-      codigo: '3423-05',
-      titulo: 'Encarregado de tráfego',
-      sinonimo: 'Chefe de tráfego, Supervisor de tráfego, Encarregado operacional',
-      descricao: 'Supervisiona equipes de motoristas e fiscais, planeja escalas operacionais, acompanha cumprimento de viagens e atendimento aos clientes.'
-    },
-    {
-      codigo: '1414-10',
-      titulo: 'Gerente de operações de transportes',
-      sinonimo: 'Gestor de tráfego, Gestor operacional, Gerente de tráfego',
-      descricao: 'Dirige e planeja as operações de transporte e logística da empresa, gerenciando contratos, indicadores operacionais, custos e equipes.'
-    },
-    {
-      codigo: '3421-10',
-      titulo: 'Analista de transporte / frota',
-      sinonimo: 'Analista de frota, Analista de logística',
-      descricao: 'Analisa indicadores operacionais da frota, consumo de combustível, telemetria, roteirização e custos logísticos.'
+      codigo: '3331-10',
+      titulo: 'Instrutor de motoristas / Instrutor de trânsito',
+      sinonimo: 'Instrutor de motoristas, Instrutor de tráfego, Instrutor de treinamento, Instrutor de direção defensiva',
+      descricao: 'Ministra treinamentos de direção defensiva, direção econômica e normas operacionais para motoristas de ônibus e veículos pesados.'
     },
 
     // Lavagem, Limpeza e Conservação
@@ -300,29 +306,72 @@ class CBOService {
     const normalize = (s: string) =>
       s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
     const queryNorm = normalize(query);
+    if (!queryNorm) return [];
+
+    const stopWords = new Set(['de', 'da', 'do', 'das', 'dos', 'em', 'para', 'com', 'por', 'sem', 'ou', 'ao', 'aos', 'e', 'a', 'o']);
+    const stemWord = (w: string) => {
+      let s = w;
+      if (s.endsWith('es') && s.length > 5) s = s.slice(0, -2);
+      else if (s.endsWith('s') && s.length > 4) s = s.slice(0, -1);
+      return s;
+    };
+
+    const queryWords = queryNorm
+      .split(/[^a-z0-9]+/)
+      .filter(w => w.length >= 2 && !stopWords.has(w));
+    const stemmedQueryWords = queryWords.map(stemWord);
+    const digitsOnlyQuery = queryNorm.replace(/\D/g, '');
 
     for (const cbo of this.COMMON_CBOS) {
       const codigoNorm = normalize(cbo.codigo);
+      const codigoDigits = codigoNorm.replace(/\D/g, '');
       const tituloNorm = normalize(cbo.titulo);
       const sinonimoNorm = cbo.sinonimo ? normalize(cbo.sinonimo) : '';
+      const descricaoNorm = cbo.descricao ? normalize(cbo.descricao) : '';
       const synonymsList = sinonimoNorm.split(',').map(s => s.trim());
 
       const exactSynonym = synonymsList.some(s => s === queryNorm);
       const startsSynonym = synonymsList.some(s => s.startsWith(queryNorm));
-      const codigoMatch = codigoNorm.includes(queryNorm);
-      const tituloMatch = tituloNorm.includes(queryNorm);
-      const sinonimoMatch = sinonimoNorm.includes(queryNorm);
+      const codeExact = codigoNorm === queryNorm || (digitsOnlyQuery.length >= 4 && codigoDigits === digitsOnlyQuery);
+      const codeStarts = digitsOnlyQuery.length >= 2 && codigoDigits.startsWith(digitsOnlyQuery);
 
-      if (codigoMatch || tituloMatch || sinonimoMatch) {
-        const score =
-          tituloNorm === queryNorm ? 100 :
-          exactSynonym ? 95 :
-          tituloNorm.startsWith(queryNorm) ? 85 :
-          startsSynonym ? 80 :
-          tituloMatch ? 70 :
-          sinonimoMatch ? 60 :
-          codigoMatch ? 50 : 0;
+      const fullText = `${tituloNorm} ${sinonimoNorm} ${descricaoNorm}`;
 
+      let score = 0;
+      if (tituloNorm === queryNorm || codeExact) {
+        score = 100;
+      } else if (exactSynonym) {
+        score = 95;
+      } else if (tituloNorm.startsWith(queryNorm) || codeStarts) {
+        score = 88;
+      } else if (startsSynonym) {
+        score = 84;
+      } else if (tituloNorm.includes(queryNorm)) {
+        score = 80;
+      } else if (sinonimoNorm.includes(queryNorm)) {
+        score = 75;
+      } else if (queryWords.length > 0) {
+        let matchedCount = 0;
+        let inTitleOrSynonymCount = 0;
+        for (let i = 0; i < queryWords.length; i++) {
+          const w = queryWords[i];
+          const st = stemmedQueryWords[i];
+          const inTitleOrSyn = tituloNorm.includes(w) || tituloNorm.includes(st) || sinonimoNorm.includes(w) || sinonimoNorm.includes(st);
+          const inFull = inTitleOrSyn || fullText.includes(w) || fullText.includes(st);
+
+          if (inFull) matchedCount++;
+          if (inTitleOrSyn) inTitleOrSynCount++;
+        }
+
+        const ratio = matchedCount / queryWords.length;
+        if (ratio === 1) {
+          score = inTitleOrSynonymCount === queryWords.length ? 90 : 78;
+        } else if (ratio >= 0.5) {
+          score = Math.round(50 + ratio * 20);
+        }
+      }
+
+      if (score > 0) {
         results.push({ ...cbo, score });
       }
     }

@@ -111,51 +111,15 @@ const NovoCargoModal: React.FC<NovoCargoModalProps> = ({ open, onClose, onCargoC
   // Buscar CBOs ao digitar o código ou título
   useEffect(() => {
     const searchCBOs = async () => {
-      if (cboSearchTerm.trim().length === 0) {
+      const searchTerm = cboSearchTerm.trim();
+      if (searchTerm.length === 0) {
         setFilteredCBOs([]);
         return;
       }
 
       setLoadingCBO(true);
       try {
-        const searchTerm = cboSearchTerm.trim();
-        console.log('🔍 Buscando CBO:', searchTerm);
-        
-        // Primeiro, buscar nos cargos do banco de dados
-        let results: CBOItem[] = [];
-        
-        // Buscar cargos que tenham CBO correspondente
-        try {
-          const positions = await positionService.searchPositions(searchTerm);
-          const cboFromPositions = positions
-            .filter(p => p.cbo && (
-              p.cbo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-              p.name.toLowerCase().includes(searchTerm.toLowerCase())
-            ))
-            .map(p => ({
-              codigo: p.cbo!,
-              titulo: p.name,
-              sinonimo: p.description
-            }));
-          
-          if (cboFromPositions.length > 0) {
-            console.log('✅ CBOs encontrados no banco de dados:', cboFromPositions.length);
-            results = cboFromPositions;
-          }
-        } catch (error) {
-          console.warn('⚠️ Erro ao buscar CBOs no banco:', error);
-        }
-        
-        // Se não encontrou no banco, buscar na API externa (pulando base local primeiro)
-        if (results.length === 0) {
-          console.log('🌐 CBO não encontrado no banco, buscando na API externa...');
-          const apiResults = await cboService.searchCBO(searchTerm, true); // skipLocal = true
-          if (apiResults.length > 0) {
-            results = apiResults;
-          }
-        }
-        
-        console.log('📋 Total de resultados encontrados:', results.length);
+        const results = await cboService.searchCBO(searchTerm);
         setFilteredCBOs(results);
       } catch (error) {
         console.error('❌ Erro ao buscar CBOs:', error);
@@ -165,11 +129,7 @@ const NovoCargoModal: React.FC<NovoCargoModalProps> = ({ open, onClose, onCargoC
       }
     };
 
-    // Debounce para evitar muitas requisições
-    const timeoutId = setTimeout(() => {
-      searchCBOs();
-    }, 500); // Delay maior para CBO pois pode fazer requisições externas
-
+    const timeoutId = setTimeout(searchCBOs, 200);
     return () => clearTimeout(timeoutId);
   }, [cboSearchTerm]);
 
@@ -396,11 +356,18 @@ const NovoCargoModal: React.FC<NovoCargoModalProps> = ({ open, onClose, onCargoC
                   
                   {/* Dropdown de cargos */}
                   {showPositionDropdown && filteredPositions.length > 0 && (
-                    <div className="absolute z-50 w-full mt-1 bg-seguranca-graphite border border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                    <div 
+                      className="absolute z-50 w-full mt-1 bg-seguranca-graphite border border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+                      onMouseDown={(e) => e.preventDefault()}
+                    >
                       {filteredPositions.map((position) => (
                         <div
                           key={position.id}
                           className="px-3 py-2 hover:bg-gray-700 cursor-pointer border-b border-gray-600 last:border-b-0"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            handlePositionSelect(position);
+                          }}
                           onClick={() => handlePositionSelect(position)}
                         >
                           <div className="flex flex-col">
@@ -493,11 +460,18 @@ const NovoCargoModal: React.FC<NovoCargoModalProps> = ({ open, onClose, onCargoC
                   
                   {/* Dropdown de CBOs */}
                   {showCboDropdown && filteredCBOs.length > 0 && (
-                    <div className="absolute z-50 w-full mt-1 bg-seguranca-graphite border border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                    <div 
+                      className="absolute z-50 w-full mt-1 bg-seguranca-graphite border border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+                      onMouseDown={(e) => e.preventDefault()}
+                    >
                       {filteredCBOs.map((cbo, index) => (
                         <div
                           key={`${cbo.codigo}-${index}`}
                           className="px-3 py-2 hover:bg-gray-700 cursor-pointer border-b border-gray-600 last:border-b-0"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            handleCboSelect(cbo);
+                          }}
                           onClick={() => handleCboSelect(cbo)}
                         >
                           <div className="flex flex-col">
