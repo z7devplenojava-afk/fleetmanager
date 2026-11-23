@@ -56,8 +56,8 @@ const Login = () => {
   }, []);
 
   useEffect(() => {
-    // Se o usuário tentar acessar /login enquanto autenticado:
-    if (user && !loading) {
+    // Se o usuário tentar acessar /login enquanto autenticado e NÃO estiver submetendo login:
+    if (user && !loading && !isSubmitting.current) {
       const isSuperAdmin = (user.role ?? '').toUpperCase().includes('SUPER_ADMIN');
       const isPendingCredentials = !isSuperAdmin && (
         !user.firstAccessCompleted || 
@@ -67,10 +67,15 @@ const Login = () => {
       );
 
       if (isPendingCredentials) {
-        // SEGURANÇA CRÍTICA: Se o usuário estava no fluxo de primeiro acesso / troca de senha
-        // e clicou em "Voltar" no navegador retornando para /login, a sessão provisória DEVE
-        // ser imediatamente abortada. O sistema NUNCA pode logar ou redirecionar para o dashboard
-        // até que o usuário confirme e conclua todas as credenciais!
+        // Redireciona para o fluxo pendente em vez de deslogar sumariamente
+        if (user.requiresLgpdConsent) {
+          navigate('/lgpd-consent', { replace: true });
+          return;
+        }
+        if (user.requiresPasswordChange || !user.firstAccessCompleted) {
+          navigate('/first-access/change-password', { replace: true });
+          return;
+        }
         logout();
         return;
       }
