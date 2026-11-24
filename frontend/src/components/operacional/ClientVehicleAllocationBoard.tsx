@@ -409,7 +409,7 @@ export const ClientVehicleAllocationBoard: React.FC = () => {
     if (pendingVehicle) return;
     const oldClientName =
       (vehicle as any).clientName || vehicle.projectName || (vehicle as any).workPostName || 'Sem cliente / garagem';
-    const oldDriver = vehicle.assignedDriver || latestDriverByVehicle.get(vehicle.id) || '';
+    const oldDriver = vehicle.assignedDriver || (vehicle as any).driverName || '';
     const oldObra = vehicle.projectName || (vehicle as any).workPostName || vehicle.location || '';
 
     const movingClient = normalize(oldClientName) !== normalize(column.name);
@@ -563,7 +563,7 @@ export const ClientVehicleAllocationBoard: React.FC = () => {
 
     const allClientVehicles = clientColumns.find((item) => item.id === column.id)?.vehicles || column.vehicles;
     const driverAlreadyAtClient = allClientVehicles.some((vehicle) =>
-      normalize(vehicle.assignedDriver || latestDriverByVehicle.get(vehicle.id)) === normalize(payload.driverName)
+      normalize(vehicle.assignedDriver || (vehicle as any).driverName) === normalize(payload.driverName)
     );
     if (driverAlreadyAtClient) {
       notifyAllocationConflict('Motorista já está alocado ao cliente', `${payload.driverName} já está atribuído a ${column.name}.`);
@@ -573,7 +573,7 @@ export const ClientVehicleAllocationBoard: React.FC = () => {
     // Soltar no quadro do cliente atribui a um veículo sem motorista; quando
     // não há um destino inequívoco, abre o modal já com o motorista escolhido.
     const unassignedVehicles = column.vehicles.filter((vehicle) =>
-      !normalize(vehicle.assignedDriver || latestDriverByVehicle.get(vehicle.id))
+      !normalize(vehicle.assignedDriver || (vehicle as any).driverName)
     );
     if (unassignedVehicles.length === 1) {
       void persistAllocation(unassignedVehicles[0], column, payload.driverName);
@@ -605,14 +605,14 @@ export const ClientVehicleAllocationBoard: React.FC = () => {
     }
 
     if (payload?.kind !== 'driver') return;
-    const targetDriverName = vehicle.assignedDriver || latestDriverByVehicle.get(vehicle.id) || '';
+    const targetDriverName = vehicle.assignedDriver || (vehicle as any).driverName || '';
     if (normalize(targetDriverName) === normalize(payload.driverName)) {
       notifyAllocationConflict('Motorista já está alocado ao cliente', `${payload.driverName} já está atribuído ao veículo ${vehicle.plate} em ${column.name}.`);
       return;
     }
 
     const driverAlreadyAtClient = allClientVehicles.some((item) =>
-      normalize(item.assignedDriver || latestDriverByVehicle.get(item.id)) === normalize(payload.driverName)
+      normalize(item.assignedDriver || (item as any).driverName) === normalize(payload.driverName)
     );
     if (driverAlreadyAtClient) {
       notifyAllocationConflict('Motorista já está alocado ao cliente', `${payload.driverName} já está atribuído a ${column.name}.`);
