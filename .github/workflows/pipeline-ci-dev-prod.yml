@@ -133,7 +133,27 @@ jobs:
         run: |
           git clone --depth 1 https://github.com/AstraOnlineWeb/AstraCalls.git .astracalls-src
 
+      - name: "🔧 AstraCalls: retry no go mod download"
+        # proxy.golang.org as vezes responde "stream error ... INTERNAL_ERROR" (HTTP/2).
+        # Desliga HTTP/2 no cliente Go e tenta varias vezes antes de desistir.
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('.astracalls-src/Dockerfile')
+          s = p.read_text()
+          old = 'RUN go mod download'
+          new = ("RUN GODEBUG=http2client=0 GOPROXY=https://proxy.golang.org,direct "
+                 "sh -c 'for i in 1 2 3 4 5; do go mod download && exit 0 || sleep 10; done; exit 1'")
+          if old in s:
+              p.write_text(s.replace(old, new))
+              print('Dockerfile patched')
+          else:
+              print('Padrao RUN go mod download nao encontrado; seguindo sem patch')
+          PY
+
       - name: "🐳 Build & Push AstraCalls :ci"
+        # Se falhar, mantem a ultima imagem :ci boa e nao bloqueia o deploy do FleetManager.
+        continue-on-error: true
         uses: docker/build-push-action@v5
         with:
           context: ./.astracalls-src
