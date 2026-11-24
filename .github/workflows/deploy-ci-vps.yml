@@ -222,11 +222,18 @@ jobs:
             docker compose -f docker-compose.ci.yml ps
 
       - name: "🧹 Purpar cache Cloudflare do CI (sw.js)"
-        if: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
+        # "secrets" nao e permitido em "if" de step: usar env e validar dentro do run.
         continue-on-error: true
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ZONE: ${{ secrets.CLOUDFLARE_ZONE_ID }}
         run: |
-          TOKEN="${{ secrets.CLOUDFLARE_API_TOKEN }}"
-          ZONE="${{ secrets.CLOUDFLARE_ZONE_ID }}"
+          TOKEN="$CF_TOKEN"
+          if [ -z "$TOKEN" ]; then
+            echo "⚠️ CLOUDFLARE_API_TOKEN nao configurado; purge ignorado"
+            exit 0
+          fi
+          ZONE="$CF_ZONE"
           if [ -z "$ZONE" ]; then
             ZONE=$(curl -sS -H "Authorization: Bearer $TOKEN" \
               "https://api.cloudflare.com/client/v4/zones?name=fluxbus.com.br&status=active" \
