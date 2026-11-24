@@ -473,8 +473,9 @@ const FleetWorkOrdersPage: React.FC<FleetWorkOrdersPageProps> = ({ embedded = fa
     };
 
     const content = (
-        <div className="space-y-6">
-            {/* Header Section */}
+        <>
+            <div className="space-y-6">
+                {/* Header Section */}
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div className="text-center lg:text-left">
                     {!embedded && (
@@ -1282,7 +1283,7 @@ const FleetWorkOrdersPage: React.FC<FleetWorkOrdersPageProps> = ({ embedded = fa
                     </div>
                 </DialogContent>
             </Dialog>
-        </div>
+        </>
     );
 
     if (embedded) {
