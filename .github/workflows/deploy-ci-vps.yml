@@ -221,6 +221,28 @@ jobs:
             echo "📊 Status dos containers:"
             docker compose -f docker-compose.ci.yml ps
 
+      - name: "🧹 Purpar cache Cloudflare do CI (sw.js)"
+        if: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
+        continue-on-error: true
+        run: |
+          TOKEN="${{ secrets.CLOUDFLARE_API_TOKEN }}"
+          ZONE="${{ secrets.CLOUDFLARE_ZONE_ID }}"
+          if [ -z "$ZONE" ]; then
+            ZONE=$(curl -sS -H "Authorization: Bearer $TOKEN" \
+              "https://api.cloudflare.com/client/v4/zones?name=fluxbus.com.br&status=active" \
+              | jq -r '.result[0].id // empty')
+          fi
+          if [ -z "$ZONE" ]; then
+            echo "⚠️ Zona Cloudflare não encontrada; purge ignorado"
+            exit 0
+          fi
+          curl -sS -X POST \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://api.cloudflare.com/client/v4/zones/$ZONE/purge_cache" \
+            --data '{"files":["https://ci.fluxbus.com.br/sw.js","https://ci.fluxbus.com.br/registerSW.js","https://ci.fluxbus.com.br/manifest.webmanifest"]}'
+          echo "✅ Cache do Service Worker purgado"
+
   health-check:
     name: 🏥 Health Check do CI
     needs: deploy
