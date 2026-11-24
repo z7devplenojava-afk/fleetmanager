@@ -424,7 +424,8 @@ const GestaoChecklistCliente: React.FC<GestaoChecklistClienteProps> = ({ embedde
   };
 
   const content = (
-    <div className="space-y-6">
+    <>
+      <div className="space-y-6">
       {!embedded && (
         <div className="flex flex-col gap-1">
           <p className="text-muted-foreground text-sm">
@@ -1080,7 +1081,7 @@ const GestaoChecklistCliente: React.FC<GestaoChecklistClienteProps> = ({ embedde
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 
   if (embedded) {
