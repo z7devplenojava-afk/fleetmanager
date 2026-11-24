@@ -5,9 +5,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
-import org.hibernate.annotations.Filter;
-import org.hibernate.annotations.FilterDef;
-import org.hibernate.annotations.ParamDef;
 import org.hibernate.boot.MetadataSources;
 import org.hibernate.boot.registry.BootstrapServiceRegistry;
 import org.hibernate.boot.registry.BootstrapServiceRegistryBuilder;
@@ -66,8 +63,6 @@ class TenantIntegratorHibernateTest {
 
     @Entity
     @Table(name = "tenant_test_entities")
-    @FilterDef(name = "tenantFilter", parameters = @ParamDef(name = "companyId", type = UUID.class))
-    @Filter(name = "tenantFilter", condition = "company_id = :companyId")
     public static class TestEntity {
 
         @Id

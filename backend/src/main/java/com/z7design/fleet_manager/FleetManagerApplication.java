@@ -7,11 +7,13 @@ import java.util.TimeZone;
 import jakarta.annotation.PostConstruct;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import com.z7design.fleet_manager.config.JwtConfig;
 
 @SpringBootApplication
+@EntityScan("com.z7design.fleet_manager.model")
 @EnableConfigurationProperties(JwtConfig.class)
 @EnableScheduling
 public class FleetManagerApplication {

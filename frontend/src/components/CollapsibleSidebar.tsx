@@ -1849,11 +1849,12 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
   const isLegacyFallbackTarget =
     rawCompanyName.toLowerCase().includes('silvestre') ||
     Boolean(empresa?.nome?.toLowerCase().includes('silvestre'));
+  const isFluxBus = !rawCompanyName || rawCompanyName.toLowerCase().includes('fluxbus') || rawCompanyName === 'FluxBus';
   const hasSelectedCompany = Boolean(
     (empresa?.id || (user as any)?.companyId || (user as any)?.company?.id) &&
     rawCompanyName &&
     rawCompanyName !== 'Sem Empresa' &&
-    rawCompanyName !== 'FluxBus'
+    !isFluxBus
   );
   const { forceScrollToTop } = useScrollPreservation();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);

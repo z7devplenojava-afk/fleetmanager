@@ -128,13 +128,14 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   }, [empresa, user]);
 
   const rawCompanyName = empresa?.nome || (user as any)?.company?.name || (user as any)?.companyName || '';
+  const isFluxBus = !rawCompanyName || rawCompanyName.toLowerCase().includes('fluxbus') || rawCompanyName === 'FluxBus';
   const hasSelectedCompany = Boolean(
     (empresa?.id || (user as any)?.companyId || (user as any)?.company?.id) &&
     rawCompanyName &&
     rawCompanyName !== 'Sem Empresa' &&
-    rawCompanyName !== 'FluxBus'
+    !isFluxBus
   );
-  const companyName = hasSelectedCompany ? rawCompanyName : '';
+  const companyName = rawCompanyName;
 
   return (
     <div className="flex min-h-screen bg-background text-foreground transition-colors duration-300 relative">

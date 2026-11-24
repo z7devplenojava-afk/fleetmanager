@@ -28,8 +28,22 @@ export function resolveCompanyLogoUrl(logoUrl?: string | null): string | null {
   const trimmed = logoUrl.trim();
 
   // Ignorar logos órfãs conhecidas que não existem no disco do servidor
-  if (trimmed.includes('e9654118-53a8-4dd8-b57c-bc50997f081b')) {
+  if (
+    trimmed.includes('e9654118-53a8-4dd8-b57c-bc50997f081b') ||
+    trimmed.includes('6cf8a835-a090-432b-b957-ea5eb8adcf04') ||
+    trimmed.includes('0466bcdd-bc9f-4ba0-a5ef-3a5b145c08d0')
+  ) {
     return null;
+  }
+
+  // Redirecionar logos legadas com fundo preto sólido (JPEG) do FluxBus para o asset oficial transparente
+  if (trimmed.includes('3d89ef9d-7e6f-4c76-8925-016dc70faa10') || trimmed.includes('6d3509eb-6055-4df9-85c9-bcf311f55038')) {
+    const isWhiteTheme = typeof window !== 'undefined' && (
+      localStorage.getItem('theme') === 'white' || 
+      localStorage.getItem('fluxbus_theme') === 'white' ||
+      !document.documentElement.classList.contains('dark')
+    );
+    return isWhiteTheme ? '/fluxbus-logo-light.png' : '/fluxbus-logo.png';
   }
 
   // Ignorar caminhos que terminam em rota sem nome de arquivo (ex: /companies/logo ou /companies/logos)
@@ -141,6 +155,11 @@ export function resolveCompanyIconUrl(
   isLightMode?: boolean,
   companyName?: string | null
 ): string | null {
+  const isFluxBus = !companyName || companyName.toLowerCase().includes('fluxbus') || companyName === 'FluxBus';
+  if (isFluxBus) {
+    return '/fluxbus-icon.png';
+  }
+
   const isSilvestre = (companyName && companyName.toLowerCase().includes('silvestre')) ||
     (typeof window !== 'undefined' && (
       Boolean(localStorage.getItem('empresa')?.toLowerCase().includes('silvestre')) ||
@@ -175,6 +194,15 @@ export function resolveCompanyIconUrl(
 export function resolveCompanyBannerUrl(bannerUrl?: string | null): string | null {
   if (!bannerUrl || !bannerUrl.trim()) return null;
   const trimmed = bannerUrl.trim();
+
+  // Ignorar banners órfãos conhecidos que não existem no disco do servidor
+  if (
+    trimmed.includes('6cf8a835-a090-432b-b957-ea5eb8adcf04') ||
+    trimmed.includes('0466bcdd-bc9f-4ba0-a5ef-3a5b145c08d0') ||
+    trimmed.includes('e9654118-53a8-4dd8-b57c-bc50997f081b')
+  ) {
+    return null;
+  }
 
   if (isInvalidImageTarget(trimmed, ['banner', 'banners', 'banner-upload', 'upload', 'uploads'])) {
     return null;

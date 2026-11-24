@@ -13,30 +13,33 @@ import { getFluxbusLogoSrc } from '@/lib/brandAssets';
 
 const Header: React.FC = () => {
   const { profile, empresa, user } = useAuth();
-  const { isDark } = useTheme();
+  const { theme, isDark } = useTheme();
   const username = profile?.full_name || profile?.username || 'Usuário';
   const [logoError, setLogoError] = React.useState(false);
 
   const rawCompanyName = empresa?.nome || (user as any)?.company?.name || (user as any)?.companyName || '';
   const isSilvestre = rawCompanyName?.toLowerCase().includes('silvestre');
+  const isFluxBus = !rawCompanyName || rawCompanyName.toLowerCase().includes('fluxbus') || rawCompanyName === 'FluxBus';
   const isLight = !isDark || theme === 'white';
 
   const hasSelectedCompany = Boolean(
     (empresa?.id || (user as any)?.companyId || (user as any)?.company?.id) &&
     rawCompanyName &&
     rawCompanyName !== 'Sem Empresa' &&
-    rawCompanyName !== 'FluxBus'
+    !isFluxBus
   );
 
   // Monta URL completa da logo da empresa (se relativa)
-  // No tema Claro/Branco, usa a logo light sem fundo preto se for a São Silvestre
-  const resolvedLogo = (hasSelectedCompany && isSilvestre && isLight)
-    ? '/images/sao-silvestre-logo-light.png?v=clean3'
-    : ((hasSelectedCompany && empresa?.logoUrl)
-      ? resolveCompanyLogoUrl(empresa.logoUrl)
-      : (hasSelectedCompany && isSilvestre
-        ? '/images/sao-silvestre-logo.png?v=clean3'
-        : null));
+  // No tema Claro/Branco, usa a logo light sem fundo preto se for a São Silvestre ou FluxBus
+  const resolvedLogo = isFluxBus
+    ? (isLight ? '/fluxbus-logo-light.png' : '/fluxbus-logo.png')
+    : ((hasSelectedCompany && isSilvestre && isLight)
+      ? '/images/sao-silvestre-logo-light.png?v=clean3'
+      : ((hasSelectedCompany && empresa?.logoUrl)
+        ? resolveCompanyLogoUrl(empresa.logoUrl)
+        : (hasSelectedCompany && isSilvestre
+          ? '/images/sao-silvestre-logo.png?v=clean3'
+          : null)));
   const logoSrc = (!logoError && resolvedLogo) ? resolvedLogo : null;
 
   return (

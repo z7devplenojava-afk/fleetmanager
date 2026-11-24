@@ -12,8 +12,8 @@ interface LogoProps {
   forceDefault?: boolean;
 }
 
-import { resolveCompanyLogoUrl, getStoredCompanyBranding } from '@/utils/logoUtils';
-import { getFluxbusLogoSrc } from '@/lib/brandAssets';
+import { resolveCompanyLogoUrl, resolveCompanyIconUrl, getStoredCompanyBranding } from '@/utils/logoUtils';
+import { getFluxbusLogoSrc, FLUXBUS_LOGO_LIGHT, FLUXBUS_LOGO_DARK } from '@/lib/brandAssets';
 export { resolveCompanyLogoUrl };
 
 const Logo: React.FC<LogoProps> = ({
@@ -42,28 +42,63 @@ const Logo: React.FC<LogoProps> = ({
     xl: 'max-w-[240px] sm:max-w-[300px]'
   };
 
-  // Determinar fonte da imagem (Logomarca da Empresa) sem mutação de estado global
-  const storedBranding = getStoredCompanyBranding(empresa?.id || (user as any)?.companyId);
-  const rawCompanyLogo = !forceDefault
-    ? propSrc ||
-      empresa?.logoUrl ||
-      storedBranding.logoUrl ||
-      (user as any)?.company?.logoUrl ||
-      (user as any)?.empresa?.logoUrl ||
-      (user as any)?.companyLogo ||
-      (user as any)?.companyLogoUrl ||
-      empresa?.iconUrl ||
-      storedBranding.iconUrl ||
-      (user as any)?.company?.iconUrl
-    : null;
-
-  const resolvedLogoUrl = resolveCompanyLogoUrl(rawCompanyLogo);
   const companyName =
     propAlt ||
     empresa?.nome ||
     (user as any)?.company?.name ||
     (user as any)?.companyName ||
-    null;
+    '';
+
+  const isLightMode = !isDark || theme === 'white';
+
+  const isFluxBus =
+    forceDefault ||
+    !companyName ||
+    companyName === 'FluxBus' ||
+    companyName === 'Sem Empresa' ||
+    companyName.toLowerCase().includes('fluxbus') ||
+    empresa?.nome?.toLowerCase().includes('fluxbus');
+
+  // Caso 1: Marca FluxBus oficial (SaaS e tenant próprio)
+  // Utiliza os assets vetorizados e transparentes oficiais
+  if (isFluxBus) {
+    if (!showText) {
+      return (
+        <div className={`flex items-center select-none ${className}`}>
+          <img
+            src="/fluxbus-icon.png"
+            alt="FluxBus Icon"
+            className={`${heightClasses[size]} w-auto object-contain drop-shadow-md hover:scale-[1.05] transition-all duration-300`}
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div className={`flex items-center select-none ${className}`}>
+        <img
+          src={isLightMode ? FLUXBUS_LOGO_LIGHT : FLUXBUS_LOGO_DARK}
+          alt="FluxBus - Transporte Corporativo e Fretamento"
+          className={`${heightClasses[size]} w-auto ${maxWidthClasses[size]} object-contain drop-shadow-md hover:scale-[1.03] transition-all duration-300`}
+        />
+      </div>
+    );
+  }
+
+  // Determinar fonte da imagem (Logomarca de Empresa Terceira / Cliente)
+  const storedBranding = getStoredCompanyBranding(empresa?.id || (user as any)?.companyId);
+  const rawCompanyLogo = propSrc ||
+    empresa?.logoUrl ||
+    storedBranding.logoUrl ||
+    (user as any)?.company?.logoUrl ||
+    (user as any)?.empresa?.logoUrl ||
+    (user as any)?.companyLogo ||
+    (user as any)?.companyLogoUrl ||
+    empresa?.iconUrl ||
+    storedBranding.iconUrl ||
+    (user as any)?.company?.iconUrl;
+
+  const resolvedLogoUrl = resolveCompanyLogoUrl(rawCompanyLogo);
 
   const companySigla =
     empresa?.sigla ||
@@ -75,24 +110,21 @@ const Logo: React.FC<LogoProps> = ({
     setImgError(false);
   }, [resolvedLogoUrl]);
 
-  // Prioridade 1: Se for no modo Claro / Branco e for a São Silvestre, SEMPRE usar a versão light sem fundo preto!
-  const isLegacyFallbackTarget =
-    companyName?.toLowerCase().includes('silvestre') ||
+  // Prioridade para parceiros legados como São Silvestre no modo Claro
+  const isSilvestre =
+    companyName.toLowerCase().includes('silvestre') ||
     empresa?.nome?.toLowerCase().includes('silvestre');
 
-  const isLightMode = !isDark || theme === 'white';
-
-  const activeLogoUrl = (isLightMode && isLegacyFallbackTarget)
-    ? '/images/sao-silvestre-logo-light.png?v=clean3'
+  const activeLogoUrl = (isLightMode && isSilvestre)
+    ? (showText ? '/images/sao-silvestre-logo-light.png?v=clean3' : '/images/sao-silvestre-icon.png?v=clean3')
     : (resolvedLogoUrl
-        ? `${resolvedLogoUrl}${resolvedLogoUrl.includes('?') ? '&' : '?'}v=clean3`
-        : isLegacyFallbackTarget
-          ? '/images/sao-silvestre-logo.png?v=clean3'
-          : null);
+      ? `${resolvedLogoUrl}${resolvedLogoUrl.includes('?') ? '&' : '?'}v=clean3`
+      : isSilvestre
+        ? (showText ? '/images/sao-silvestre-logo.png?v=clean3' : '/images/sao-silvestre-icon.png?v=clean3')
+        : null);
 
-  // Se houver logo de empresa configurada e não deu erro de carregamento:
-  // Regra: O nome da empresa só aparece quando NÃO tiver a logo
-  if (!forceDefault && activeLogoUrl && !imgError) {
+  // Se houver logo configurada para a empresa terceira:
+  if (activeLogoUrl && !imgError) {
     return (
       <div className={`flex items-center select-none ${className}`}>
         <img
@@ -106,7 +138,7 @@ const Logo: React.FC<LogoProps> = ({
   }
 
   // Se o usuário tem empresa vinculada válida, mas não tem logo cadastrada (ou falhou ao carregar):
-  if (!forceDefault && companyName && companyName !== 'FluxBus' && companyName !== 'Sem Empresa') {
+  if (companyName && companyName !== 'Sem Empresa') {
     return (
       <div className={`flex items-center gap-2 select-none ${className}`}>
         <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-seguranca-red to-red-700 flex items-center justify-center text-white font-bold text-xs shadow-md shadow-red-950/40 flex-shrink-0 border border-red-500/30">
@@ -126,8 +158,7 @@ const Logo: React.FC<LogoProps> = ({
     );
   }
 
-  // Fallback padrão do sistema FluxBus quando não tiver empresa definida:
-  // Se showText for falso (ex: Topbar junto ao texto "FluxBus v2.0"), exibe o ícone oficial
+  // Fallback padrão
   if (!showText) {
     return (
       <div className={`flex items-center select-none ${className}`}>
@@ -140,11 +171,10 @@ const Logo: React.FC<LogoProps> = ({
     );
   }
 
-  // Se showText for verdadeiro (ex: Sidebar expandida, Login, telas públicas), exibe a logo completa horizontal transparente
   return (
     <div className={`flex items-center select-none ${className}`}>
       <img
-        src={getFluxbusLogoSrc(isDark)}
+        src={isLightMode ? FLUXBUS_LOGO_LIGHT : FLUXBUS_LOGO_DARK}
         alt="FluxBus - Transporte Corporativo e Fretamento"
         className={`${heightClasses[size]} w-auto max-w-[200px] object-contain drop-shadow-md hover:scale-[1.03] transition-all duration-300`}
       />

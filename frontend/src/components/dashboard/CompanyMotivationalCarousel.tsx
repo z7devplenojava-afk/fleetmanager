@@ -109,7 +109,8 @@ export const CompanyMotivationalCarousel: React.FC<CompanyMotivationalCarouselPr
       {/* Container da Imagem com Altura Proporcional */}
       <div className="relative w-full h-44 sm:h-56 md:h-64 lg:h-72 bg-zinc-950 flex items-center justify-center overflow-hidden">
         {banners.map((url, idx) => {
-          const bannerSrc = resolveCompanyBannerUrl(url) || url;
+          const bannerSrc = resolveCompanyBannerUrl(url);
+          if (!bannerSrc) return null;
           const isActive = idx === currentIndex;
           return (
             <div
