@@ -27,6 +27,8 @@ interface DueComponentsAlertModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   alerts: FleetComponentControlRow[];
+  /** Indica se existem veículos cadastrados na empresa (evita alertas sem frota). */
+  hasVehicles?: boolean;
   thresholdKm?: number;
   onOpenWorkOrder: (row: FleetComponentControlRow) => void;
   onOpenMultipleWorkOrders?: (rows: FleetComponentControlRow[]) => void;
@@ -49,6 +51,7 @@ export const DueComponentsAlertModal: React.FC<DueComponentsAlertModalProps> = (
   open,
   onOpenChange,
   alerts,
+  hasVehicles = true,
   thresholdKm = 3000,
   onOpenWorkOrder,
   onOpenMultipleWorkOrders,
@@ -146,23 +149,27 @@ export const DueComponentsAlertModal: React.FC<DueComponentsAlertModalProps> = (
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl w-[96vw] max-h-[90vh] overflow-y-auto bg-seguranca-graphite border-amber-500/50 text-white p-4 sm:p-6 shadow-2xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2.5 text-lg sm:text-xl font-bold text-white">
+      <DialogContent className="max-w-4xl w-[96vw] max-h-[92dvh] overflow-y-auto bg-seguranca-graphite border-amber-500/50 text-white p-3.5 sm:p-6 shadow-2xl">
+        <DialogHeader className="pr-8 sm:pr-0">
+          <DialogTitle className="flex items-center gap-2.5 text-base sm:text-xl font-bold text-white pr-2">
             <div className="p-2 rounded-xl bg-red-500/20 border border-red-500/40 text-red-400 shrink-0">
               <Bell className="h-5 w-5" />
             </div>
-            <span>{title || 'Alertas de Vencimento — Controles Preventivos de Frota'}</span>
+            <span className="leading-tight">{title || 'Alertas de Vencimento — Controles Preventivos de Frota'}</span>
           </DialogTitle>
-          <DialogDescription className="text-gray-300 text-xs sm:text-sm">
-            {description || (
+          <DialogDescription className="text-gray-300 text-xs sm:text-sm mt-1">
+            {description || (alerts.length === 0 ? (
+              hasVehicles
+                ? 'Não há componentes com vencimento próximo ou vencido no momento.'
+                : 'Nenhum veículo cadastrado. Cadastre veículos na frota para gerar alertas de vencimento.'
+            ) : (
               <>
                 Existem <strong>{totalOverdue} serviço(s) vencido(s)</strong> e{' '}
                 <strong>{totalDueSoon} próximo(s) do vencimento</strong> agrupados por{' '}
                 <strong>{vehicleGroups.length} veículo(s)</strong>. Selecione os itens e crie uma
                 Ordem de Serviço (OS) unificada para executar todos de uma vez.
               </>
-            )}
+            ))}
           </DialogDescription>
         </DialogHeader>
 
@@ -171,7 +178,16 @@ export const DueComponentsAlertModal: React.FC<DueComponentsAlertModalProps> = (
           {vehicleGroups.length === 0 ? (
             <div className="text-center py-12 text-gray-400">
               <CheckCheck className="h-10 w-10 mx-auto text-emerald-400 mb-2 opacity-80" />
-              <p className="text-sm font-semibold">Nenhum componente com vencimento próximo ou vencido.</p>
+              <p className="text-sm font-semibold">
+                {hasVehicles
+                  ? 'Nenhum componente com vencimento próximo ou vencido.'
+                  : 'Nenhum veículo cadastrado na frota.'}
+              </p>
+              {!hasVehicles && (
+                <p className="text-xs mt-1 text-gray-500">
+                  Cadastre um veículo para acompanhar os controles preventivos.
+                </p>
+              )}
             </div>
           ) : (
             vehicleGroups.map((group) => {
@@ -220,13 +236,13 @@ export const DueComponentsAlertModal: React.FC<DueComponentsAlertModalProps> = (
                     </div>
 
                     {/* Botões do Veículo: Marcar/Desmarcar e Criar OS Unificada */}
-                    <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                    <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-2 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-0 border-gray-800">
                       <Button
                         type="button"
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
                         onClick={() => toggleAllForVehicle(group, !allSelected)}
-                        className="text-[11px] h-8 px-2 text-gray-300 hover:text-white hover:bg-slate-800"
+                        className="text-xs h-9 px-3 border-gray-700 bg-slate-900/60 text-gray-300 hover:text-white hover:bg-slate-800 rounded-xl"
                         title={allSelected ? 'Desmarcar todos os itens' : 'Marcar todos os itens'}
                       >
                         {allSelected ? 'Desmarcar Todos' : 'Marcar Todos'}
@@ -237,7 +253,7 @@ export const DueComponentsAlertModal: React.FC<DueComponentsAlertModalProps> = (
                         size="sm"
                         onClick={() => handleOpenUnifiedOs(group)}
                         disabled={!hasSelected}
-                        className="bg-seguranca-red hover:bg-seguranca-darkred text-white text-xs font-bold h-9 shadow-md shadow-red-950/40 gap-1.5 transition-all"
+                        className="bg-seguranca-red hover:bg-seguranca-darkred text-white text-xs font-bold h-9 px-4 rounded-xl shadow-md shadow-red-950/40 gap-1.5 transition-all"
                       >
                         <Wrench className="h-4 w-4" />
                         <span>

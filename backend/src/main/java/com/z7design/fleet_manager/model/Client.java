@@ -22,7 +22,7 @@ import java.util.UUID;
     @UniqueConstraint(name = "uk_clients_cnpj_company", columnNames = { "cnpj", "company_id" })
 })
 @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
-@Filter(name = "tenantFilter", condition = "(company_id = :companyId OR company_id IS NULL)")
+@Filter(name = "tenantFilter", condition = "company_id = :companyId")
 public class Client implements TenantAware {
 
     @Id

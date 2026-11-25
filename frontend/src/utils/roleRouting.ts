@@ -198,7 +198,10 @@ export const getDashboardRouteForRole = (
     case 'ASSISTENTE_FINANCEIRO':
       return '/financeiro';
 
+    case 'ALMOXARIFE':
     case 'ALMOXARIFADO':
+    case 'AUXILIAR_DE_ALMOXARIFADO':
+    case 'AUXILIAR_ALMOXARIFADO':
     case 'ESTOQUE':
       return '/estoque-simplificado';
 

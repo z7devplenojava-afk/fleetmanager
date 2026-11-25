@@ -140,6 +140,9 @@ export const FleetComponentControlsPanel: React.FC<FleetComponentControlsPanelPr
     queryFn: fleetService.getVehicles,
   });
 
+  // Sem veículos cadastrados não existe frota para gerar alertas de vencimento.
+  const hasVehicles = vehicles.length > 0;
+
   const { data: scheduleMatrix = [] } = useQuery({
     queryKey: ['preventive-schedule-matrix'],
     queryFn: () => fleetWorkOrderService.getPreventiveSchedule(),
@@ -156,6 +159,7 @@ export const FleetComponentControlsPanel: React.FC<FleetComponentControlsPanelPr
   useEffect(() => {
     if (
       showAutoAlertModalOnMount &&
+      hasVehicles &&
       !hasTriggeredAutoModal &&
       dashboard?.expiringAlerts &&
       dashboard.expiringAlerts.length > 0
@@ -163,7 +167,7 @@ export const FleetComponentControlsPanel: React.FC<FleetComponentControlsPanelPr
       setAlertModalOpen(true);
       setHasTriggeredAutoModal(true);
     }
-  }, [showAutoAlertModalOnMount, hasTriggeredAutoModal, dashboard?.expiringAlerts]);
+  }, [showAutoAlertModalOnMount, hasVehicles, hasTriggeredAutoModal, dashboard?.expiringAlerts]);
 
   const manualMutation = useMutation({
     mutationFn: (payload: Partial<FleetComponentControlRow>) =>
@@ -260,7 +264,7 @@ export const FleetComponentControlsPanel: React.FC<FleetComponentControlsPanelPr
     onCreateWorkOrder(buildWorkOrderPrefillFromComponentRow(row));
   };
 
-  const expiringCount = dashboard?.expiringAlerts?.length || 0;
+  const expiringCount = hasVehicles ? dashboard?.expiringAlerts?.length || 0 : 0;
 
   return (
     <div className="space-y-4">
@@ -300,8 +304,10 @@ export const FleetComponentControlsPanel: React.FC<FleetComponentControlsPanelPr
           </Card>
 
           <Card
-            onClick={() => setAlertModalOpen(true)}
-            className="bg-seguranca-graphite border-amber-500/40 cursor-pointer hover:border-amber-400 transition-colors"
+            onClick={hasVehicles ? () => setAlertModalOpen(true) : undefined}
+            className={`bg-seguranca-graphite border-amber-500/40 transition-colors ${
+              hasVehicles ? 'cursor-pointer hover:border-amber-400' : 'opacity-50 cursor-not-allowed'
+            }`}
           >
             <CardHeader className="pb-1 pt-3 px-3">
               <CardTitle className="text-[10px] font-semibold text-amber-300 uppercase flex items-center gap-1">
@@ -310,7 +316,9 @@ export const FleetComponentControlsPanel: React.FC<FleetComponentControlsPanelPr
             </CardHeader>
             <CardContent className="pb-3 px-3">
               <div className="text-2xl font-bold font-mono text-white">{expiringCount}</div>
-              <span className="text-[10px] text-amber-300 underline">Abrir modal de vencimentos</span>
+              <span className="text-[10px] text-amber-300 underline">
+                {hasVehicles ? 'Abrir modal de vencimentos' : 'Sem veículos cadastrados'}
+              </span>
             </CardContent>
           </Card>
         </div>
@@ -956,7 +964,8 @@ export const FleetComponentControlsPanel: React.FC<FleetComponentControlsPanelPr
       <DueComponentsAlertModal
         open={alertModalOpen}
         onOpenChange={setAlertModalOpen}
-        alerts={dashboard?.expiringAlerts || []}
+        alerts={hasVehicles ? dashboard?.expiringAlerts || [] : []}
+        hasVehicles={hasVehicles}
         thresholdKm={dashboard?.config?.alertThresholdKm}
         onOpenWorkOrder={triggerOsForRow}
         onOpenMultipleWorkOrders={(rows) =>

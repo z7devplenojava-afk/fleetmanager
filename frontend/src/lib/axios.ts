@@ -102,6 +102,19 @@ api.interceptors.request.use(
       }
     } catch (_) { }
 
+    // Um segmento "undefined"/"null"/"NaN" na URL significa que algum componente
+    // disparou a requisição antes de ter o ID do registro. Bloqueia localmente
+    // para não gerar 400/500 no backend e registra o stack para localizar o chamador.
+    if (/\/(?:undefined|null|NaN)(?:\/|$|\?)/.test(config.url || '')) {
+      console.warn(
+        '[axios] Requisição bloqueada: ID inválido na URL:',
+        config.url,
+        '\nStack do chamador:',
+        new Error().stack,
+      );
+      return Promise.reject(new Error(`Requisição bloqueada: ID inválido em ${config.url}`));
+    }
+
     if (isHttpDebugMode()) {
       console.log('🔗 Axios Request:', config.method?.toUpperCase(), config.url);
       console.log('🔗 Base URL:', config.baseURL);

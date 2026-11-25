@@ -113,7 +113,6 @@ export default function DamageReportForm({ report, onSave, onCancel }: DamageRep
     try {
       setLoading(true);
       
-      // Calculate total cost
       const totalCost = formData.estimatedCosts.labor + formData.estimatedCosts.parts + formData.estimatedCosts.materials;
       
       const reportData = {
@@ -141,11 +140,9 @@ export default function DamageReportForm({ report, onSave, onCancel }: DamageRep
       };
 
       if (report) {
-        // Update existing report
         const updatedReport = await damageReportService.updateReport(report.id, reportData);
         onSave(updatedReport);
       } else {
-        // Create new report
         const newReport = await damageReportService.createReport(reportData);
         onSave(newReport);
       }
@@ -208,731 +205,704 @@ export default function DamageReportForm({ report, onSave, onCancel }: DamageRep
     calculateTotalCost();
   }, [formData.estimatedCosts.labor, formData.estimatedCosts.parts, formData.estimatedCosts.materials, damageAreas]);
 
-  const getSeverityLabel = (severity: string) => damageReportService.getSeverityLabel(severity);
-  const getSeverityColor = (severity: string) => damageReportService.getSeverityColor(severity);
-  const getReportTypeLabel = (type: string) => damageReportService.getReportTypeLabel(type);
-  const getAreaLabel = (area: string) => damageReportService.getAreaLabel(area);
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-gray-100">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between pb-4 border-b border-[#232b3b]">
         <div>
-          <h3 className="text-lg font-semibold">
+          <h3 className="text-lg font-bold text-white">
             {report ? 'Editar Relatório de Avaria' : 'Novo Relatório de Avaria'}
           </h3>
-          <p className="text-sm text-muted-foreground">
-            {report ? 'Edite as informações da avaria' : 'Registre uma nova avaria veicular'}
+          <p className="text-xs text-gray-400 mt-0.5">
+            {report ? 'Atualize as informações técnicas da avaria' : 'Registre os detalhes da avaria veicular'}
           </p>
         </div>
         <div className="flex space-x-2">
-          <Button variant="outline" onClick={onCancel}>
-            <X className="h-4 w-4 mr-2" />
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={onCancel}
+            className="bg-[#1a202c] border-[#2d3748] text-gray-200 hover:text-white hover:bg-[#252f40]"
+          >
+            <X className="h-4 w-4 mr-1.5" />
             Cancelar
           </Button>
-          <Button onClick={handleSave} disabled={loading}>
-            <Save className="h-4 w-4 mr-2" />
+          <Button 
+            size="sm"
+            onClick={handleSave} 
+            disabled={loading}
+            className="bg-seguranca-red hover:bg-seguranca-red/90 text-white font-medium shadow"
+          >
+            <Save className="h-4 w-4 mr-1.5" />
             {loading ? 'Salvando...' : 'Salvar'}
           </Button>
         </div>
       </div>
 
-      {/* Main Form */}
+      {/* Main Form Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="basic">Dados Básicos</TabsTrigger>
-          <TabsTrigger value="location">Localização</TabsTrigger>
-          <TabsTrigger value="damage">Danos</TabsTrigger>
-          <TabsTrigger value="responsible">Responsáveis</TabsTrigger>
-          <TabsTrigger value="insurance">Seguro</TabsTrigger>
-          <TabsTrigger value="costs">Custos</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-1 bg-[#0e121a] p-1.5 border border-[#222b3d] rounded-xl">
+          <TabsTrigger 
+            value="basic"
+            className="text-xs sm:text-sm font-medium py-2 rounded-lg text-gray-400 hover:text-white data-[state=active]:bg-seguranca-red data-[state=active]:text-white transition-all"
+          >
+            Dados Básicos
+          </TabsTrigger>
+          <TabsTrigger 
+            value="location"
+            className="text-xs sm:text-sm font-medium py-2 rounded-lg text-gray-400 hover:text-white data-[state=active]:bg-seguranca-red data-[state=active]:text-white transition-all"
+          >
+            Localização
+          </TabsTrigger>
+          <TabsTrigger 
+            value="damage"
+            className="text-xs sm:text-sm font-medium py-2 rounded-lg text-gray-400 hover:text-white data-[state=active]:bg-seguranca-red data-[state=active]:text-white transition-all"
+          >
+            Danos ({damageAreas.length})
+          </TabsTrigger>
+          <TabsTrigger 
+            value="responsible"
+            className="text-xs sm:text-sm font-medium py-2 rounded-lg text-gray-400 hover:text-white data-[state=active]:bg-seguranca-red data-[state=active]:text-white transition-all"
+          >
+            Responsáveis
+          </TabsTrigger>
+          <TabsTrigger 
+            value="insurance"
+            className="text-xs sm:text-sm font-medium py-2 rounded-lg text-gray-400 hover:text-white data-[state=active]:bg-seguranca-red data-[state=active]:text-white transition-all"
+          >
+            Seguro
+          </TabsTrigger>
+          <TabsTrigger 
+            value="costs"
+            className="text-xs sm:text-sm font-medium py-2 rounded-lg text-gray-400 hover:text-white data-[state=active]:bg-seguranca-red data-[state=active]:text-white transition-all"
+          >
+            Custos
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="basic" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Informações Gerais</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Placa do Veículo</Label>
-                  <Input
-                    value={formData.vehiclePlate}
-                    onChange={(e) => setFormData(prev => ({ ...prev, vehiclePlate: e.target.value }))}
-                    placeholder="ABC-1234"
-                  />
-                </div>
-                <div>
-                  <Label>Modelo do Veículo</Label>
-                  <Input
-                    value={formData.vehicleModel}
-                    onChange={(e) => setFormData(prev => ({ ...prev, vehicleModel: e.target.value }))}
-                    placeholder="Mercedes-Benz Sprinter 2022"
-                  />
-                </div>
-                <div>
-                  <Label>Data e Hora</Label>
-                  <Input
-                    type="datetime-local"
-                    value={formData.reportDate}
-                    onChange={(e) => setFormData(prev => ({ ...prev, reportDate: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <Label>Reportado por</Label>
-                  <Input
-                    value={formData.reportedBy}
-                    onChange={(e) => setFormData(prev => ({ ...prev, reportedBy: e.target.value }))}
-                    placeholder="Nome do responsável"
-                  />
-                </div>
-                <div>
-                  <Label>Cargo do Responsável</Label>
-                  <Select
-                    value={formData.reporterRole}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, reporterRole: value as any }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="DRIVER">Motorista</SelectItem>
-                      <SelectItem value="MECHANIC">Mecânico</SelectItem>
-                      <SelectItem value="SUPERVISOR">Supervisor</SelectItem>
-                      <SelectItem value="ADMIN">Administrador</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Tipo de Avaria</Label>
-                  <Select
-                    value={formData.reportType}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, reportType: value as any }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ACCIDENT">Acidente</SelectItem>
-                      <SelectItem value="VANDALISM">Vandalismo</SelectItem>
-                      <SelectItem value="WEAR">Desgaste</SelectItem>
-                      <SelectItem value="MALFUNCTION">Falha Mecânica</SelectItem>
-                      <SelectItem value="OTHER">Outro</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Severidade</Label>
-                  <Select
-                    value={formData.severity}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, severity: value as any }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="LOW">Baixo</SelectItem>
-                      <SelectItem value="MEDIUM">Médio</SelectItem>
-                      <SelectItem value="HIGH">Alto</SelectItem>
-                      <SelectItem value="CRITICAL">Crítico</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
+        {/* Tab 1: Dados Básicos */}
+        <TabsContent value="basic" className="space-y-4 mt-4">
+          <div className="bg-[#181d2a] border border-[#262f40] rounded-xl p-5 shadow-sm space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label>Título da Avaria</Label>
+                <Label className="text-xs font-semibold uppercase text-gray-400">Placa do Veículo *</Label>
                 <Input
-                  value={formData.description.title}
-                  onChange={(e) => setFormData(prev => ({ 
-                    ...prev, 
-                    description: { ...prev.description, title: e.target.value }
-                  }))}
-                  placeholder="Breve descrição da avaria"
+                  value={formData.vehiclePlate}
+                  onChange={(e) => setFormData(prev => ({ ...prev, vehiclePlate: e.target.value.toUpperCase() }))}
+                  placeholder="ABC-1234"
+                  className="bg-[#10141e] border-[#222b3d] text-white font-mono mt-1"
                 />
               </div>
-
               <div>
-                <Label>Descrição Detalhada</Label>
-                <Textarea
-                  value={formData.description.details}
-                  onChange={(e) => setFormData(prev => ({ 
-                    ...prev, 
-                    description: { ...prev.description, details: e.target.value }
-                  }))}
-                  placeholder="Descreva detalhadamente o que aconteceu..."
-                  rows={4}
+                <Label className="text-xs font-semibold uppercase text-gray-400">Modelo do Veículo</Label>
+                <Input
+                  value={formData.vehicleModel}
+                  onChange={(e) => setFormData(prev => ({ ...prev, vehicleModel: e.target.value }))}
+                  placeholder="Ex: Mercedes-Benz Sprinter 2022"
+                  className="bg-[#10141e] border-[#222b3d] text-white mt-1"
                 />
               </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Causa Provável</Label>
-                  <Textarea
-                    value={formData.description.cause}
-                    onChange={(e) => setFormData(prev => ({ 
-                      ...prev, 
-                      description: { ...prev.description, cause: e.target.value }
-                    }))}
-                    placeholder="Causa provável da avaria..."
-                    rows={2}
-                  />
-                </div>
-                <div>
-                  <Label>Ação Imediata</Label>
-                  <Textarea
-                    value={formData.description.immediateAction}
-                    onChange={(e) => setFormData(prev => ({ 
-                      ...prev, 
-                      description: { ...prev.description, immediateAction: e.target.value }
-                    }))}
-                    placeholder="Ações tomadas imediatamente..."
-                    rows={2}
-                  />
-                </div>
+              <div>
+                <Label className="text-xs font-semibold uppercase text-gray-400">Data e Hora do Ocorrido</Label>
+                <Input
+                  type="datetime-local"
+                  value={formData.reportDate}
+                  onChange={(e) => setFormData(prev => ({ ...prev, reportDate: e.target.value }))}
+                  className="bg-[#10141e] border-[#222b3d] text-white mt-1"
+                />
               </div>
-            </CardContent>
-          </Card>
+              <div>
+                <Label className="text-xs font-semibold uppercase text-gray-400">Reportado Por</Label>
+                <Input
+                  value={formData.reportedBy}
+                  onChange={(e) => setFormData(prev => ({ ...prev, reportedBy: e.target.value }))}
+                  placeholder="Nome do operador / relator"
+                  className="bg-[#10141e] border-[#222b3d] text-white mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-semibold uppercase text-gray-400">Função do Relator</Label>
+                <Select
+                  value={formData.reporterRole}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, reporterRole: value as any }))}
+                >
+                  <SelectTrigger className="bg-[#10141e] border-[#222b3d] text-white mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#131722] border-[#222b3d] text-white">
+                    <SelectItem value="DRIVER">Motorista</SelectItem>
+                    <SelectItem value="MECHANIC">Mecânico</SelectItem>
+                    <SelectItem value="SUPERVISOR">Supervisor</SelectItem>
+                    <SelectItem value="ADMIN">Administrador</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs font-semibold uppercase text-gray-400">Tipo de Avaria</Label>
+                <Select
+                  value={formData.reportType}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, reportType: value as any }))}
+                >
+                  <SelectTrigger className="bg-[#10141e] border-[#222b3d] text-white mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#131722] border-[#222b3d] text-white">
+                    <SelectItem value="ACCIDENT">Acidente / Colisão</SelectItem>
+                    <SelectItem value="VANDALISM">Vandalismo</SelectItem>
+                    <SelectItem value="WEAR">Desgaste Excessivo</SelectItem>
+                    <SelectItem value="MALFUNCTION">Falha Mecânica</SelectItem>
+                    <SelectItem value="OTHER">Outro</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs font-semibold uppercase text-gray-400">Severidade</Label>
+                <Select
+                  value={formData.severity}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, severity: value as any }))}
+                >
+                  <SelectTrigger className="bg-[#10141e] border-[#222b3d] text-white mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#131722] border-[#222b3d] text-white">
+                    <SelectItem value="LOW">Baixo (Leve)</SelectItem>
+                    <SelectItem value="MEDIUM">Médio (Moderado)</SelectItem>
+                    <SelectItem value="HIGH">Alto (Grave)</SelectItem>
+                    <SelectItem value="CRITICAL">Crítico (Inoperante)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs font-semibold uppercase text-gray-400">Título Breve da Avaria *</Label>
+              <Input
+                value={formData.description.title}
+                onChange={(e) => setFormData(prev => ({ 
+                  ...prev, 
+                  description: { ...prev.description, title: e.target.value }
+                }))}
+                placeholder="Ex: Colisão traseira em semáforo"
+                className="bg-[#10141e] border-[#222b3d] text-white mt-1"
+              />
+            </div>
+
+            <div>
+              <Label className="text-xs font-semibold uppercase text-gray-400">Descrição Detalhada</Label>
+              <Textarea
+                value={formData.description.details}
+                onChange={(e) => setFormData(prev => ({ 
+                  ...prev, 
+                  description: { ...prev.description, details: e.target.value }
+                }))}
+                placeholder="Descreva detalhadamente o evento, danos visíveis e circunstâncias..."
+                rows={3}
+                className="bg-[#10141e] border-[#222b3d] text-white mt-1"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs font-semibold uppercase text-gray-400">Causa Provável</Label>
+                <Textarea
+                  value={formData.description.cause}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    description: { ...prev.description, cause: e.target.value }
+                  }))}
+                  placeholder="Causa provável observada..."
+                  rows={2}
+                  className="bg-[#10141e] border-[#222b3d] text-white mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-semibold uppercase text-gray-400">Ação Imediata Tomada</Label>
+                <Textarea
+                  value={formData.description.immediateAction}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    description: { ...prev.description, immediateAction: e.target.value }
+                  }))}
+                  placeholder="Ações operacionais tomadas de imediato..."
+                  rows={2}
+                  className="bg-[#10141e] border-[#222b3d] text-white mt-1"
+                />
+              </div>
+            </div>
+          </div>
         </TabsContent>
 
-        <TabsContent value="location" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MapPin className="h-5 w-5" />
-                Localização do Ocorrência
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label>Endereço Completo</Label>
-                <Textarea
-                  value={formData.location.address}
-                  onChange={(e) => setFormData(prev => ({ 
-                    ...prev, 
-                    location: { ...prev.location, address: e.target.value }
-                  }))}
-                  placeholder="Endereço onde ocorreu a avaria..."
-                  rows={3}
-                />
-              </div>
+        {/* Tab 2: Localização */}
+        <TabsContent value="location" className="space-y-4 mt-4">
+          <div className="bg-[#181d2a] border border-[#262f40] rounded-xl p-5 shadow-sm space-y-4">
+            <div>
+              <Label className="text-xs font-semibold uppercase text-gray-400">Endereço Completo do Ocorrido</Label>
+              <Textarea
+                value={formData.location.address}
+                onChange={(e) => setFormData(prev => ({ 
+                  ...prev, 
+                  location: { ...prev.location, address: e.target.value }
+                }))}
+                placeholder="Ex: Av. Paulista, 1000 - Bela Vista, São Paulo - SP"
+                rows={2}
+                className="bg-[#10141e] border-[#222b3d] text-white mt-1"
+              />
+            </div>
 
-              <div>
-                <Label>Hodômetro (km)</Label>
-                <Input
-                  type="number"
-                  value={formData.location.odometer}
-                  onChange={(e) => setFormData(prev => ({ 
-                    ...prev, 
-                    location: { ...prev.location, odometer: parseInt(e.target.value) || 0 }
-                  }))}
-                  placeholder="45000"
-                />
-              </div>
+            <div>
+              <Label className="text-xs font-semibold uppercase text-gray-400">Hodômetro Atual (km)</Label>
+              <Input
+                type="number"
+                value={formData.location.odometer}
+                onChange={(e) => setFormData(prev => ({ 
+                  ...prev, 
+                  location: { ...prev.location, odometer: parseInt(e.target.value) || 0 }
+                }))}
+                placeholder="Ex: 125400"
+                className="bg-[#10141e] border-[#222b3d] text-white font-mono mt-1"
+              />
+            </div>
 
-              <div>
-                <Label>Fotos do Local</Label>
-                <div className="space-y-4">
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
-                    <div className="text-center">
-                      <Camera className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                      <div className="flex text-sm text-gray-600">
-                        <label className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500">
-                          <span>Carregar fotos</span>
-                          <input
-                            type="file"
-                            className="sr-only"
-                            accept="image/*"
-                            multiple
-                            onChange={handleImageUpload}
-                          />
-                        </label>
-                        <p className="pl-1">ou arrastar e soltar</p>
-                      </div>
-                      <p className="text-xs text-gray-500">PNG, JPG, GIF até 10MB</p>
-                    </div>
-                  </div>
-
-                  {uploadedImages.length > 0 && (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {uploadedImages.map((file, index) => (
-                        <div key={index} className="relative group">
-                          <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
-                            <img
-                              src={URL.createObjectURL(file)}
-                              alt={file.name}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                          <button
-                            onClick={() => removeImage(index)}
-                            className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                          <div className="mt-1 text-xs text-gray-600 truncate">{file.name}</div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+            <div>
+              <Label className="text-xs font-semibold uppercase text-gray-400">Fotos do Local e Avaria</Label>
+              <div className="mt-1 border-2 border-dashed border-[#262f40] hover:border-gray-500 rounded-xl p-6 text-center transition-colors">
+                <Camera className="h-10 w-10 mx-auto text-gray-400 mb-2" />
+                <div className="text-sm text-gray-300">
+                  <label className="cursor-pointer font-semibold text-seguranca-red hover:underline">
+                    <span>Clique para selecionar fotos</span>
+                    <input
+                      type="file"
+                      className="sr-only"
+                      accept="image/*"
+                      multiple
+                      onChange={handleImageUpload}
+                    />
+                  </label>
+                  <span className="text-gray-400"> ou arraste os arquivos aqui</span>
                 </div>
+                <p className="text-xs text-gray-500 mt-1">Formatos suportados: PNG, JPG, WEBP</p>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
 
-        <TabsContent value="damage" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5" />
-                  Áreas Danificadas
-                </CardTitle>
-                <Button onClick={addDamageArea}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Adicionar Área
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {damageAreas.map((area, index) => (
-                  <Card key={area.id}>
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between mb-4">
-                        <h4 className="font-medium">Área {index + 1}</h4>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeDamageArea(area.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <Label>Área do Veículo</Label>
-                          <Select
-                            value={area.area}
-                            onValueChange={(value) => updateDamageArea(area.id, { area: value as any })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="FRONT">Frente</SelectItem>
-                              <SelectItem value="REAR">Traseira</SelectItem>
-                              <SelectItem value="LEFT_SIDE">Lado Esquerdo</SelectItem>
-                              <SelectItem value="RIGHT_SIDE">Lado Direito</SelectItem>
-                              <SelectItem value="ROOF">Teto</SelectItem>
-                              <SelectItem value="UNDERCARRIAGE">Chassi</SelectItem>
-                              <SelectItem value="INTERIOR">Interior</SelectItem>
-                              <SelectItem value="ENGINE">Motor</SelectItem>
-                              <SelectItem value="TRANSMISSION">Transmissão</SelectItem>
-                              <SelectItem value="BRAKES">Freios</SelectItem>
-                              <SelectItem value="SUSPENSION">Suspensão</SelectItem>
-                              <SelectItem value="ELECTRICAL">Elétrico</SelectItem>
-                              <SelectItem value="TIRES">Pneus</SelectItem>
-                              <SelectItem value="GLASS">Vidros</SelectItem>
-                              <SelectItem value="LIGHTS">Luzes</SelectItem>
-                              <SelectItem value="MIRRORS">Espelhos</SelectItem>
-                              <SelectItem value="OTHER">Outro</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div>
-                          <Label>Severidade do Dano</Label>
-                          <Select
-                            value={area.severity}
-                            onValueChange={(value) => updateDamageArea(area.id, { severity: value as any })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="MINOR">Leve</SelectItem>
-                              <SelectItem value="MODERATE">Moderado</SelectItem>
-                              <SelectItem value="MAJOR">Grave</SelectItem>
-                              <SelectItem value="SEVERE">Severo</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div>
-                          <Label>Método de Reparo</Label>
-                          <Select
-                            value={area.repairMethod}
-                            onValueChange={(value) => updateDamageArea(area.id, { repairMethod: value as any })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="REPAIR">Reparar</SelectItem>
-                              <SelectItem value="REPLACE">Substituir</SelectItem>
-                              <SelectItem value="REFURBISH">Recondicionar</SelectItem>
-                              <SelectItem value="PAINT">Pintar</SelectItem>
-                              <SelectItem value="ADJUST">Ajustar</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div>
-                          <Label>Custo Estimado (R$)</Label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={area.estimatedRepairCost}
-                            onChange={(e) => updateDamageArea(area.id, { estimatedRepairCost: parseFloat(e.target.value) || 0 })}
-                            placeholder="0.00"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="mt-4">
-                        <Label>Descrição do Dano</Label>
-                        <Textarea
-                          value={area.description}
-                          onChange={(e) => updateDamageArea(area.id, { description: e.target.value })}
-                          placeholder="Descreva o dano nesta área..."
-                          rows={2}
+              {uploadedImages.length > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+                  {uploadedImages.map((file, index) => (
+                    <div key={index} className="relative group rounded-xl overflow-hidden border border-[#222b3d] bg-[#10141e]">
+                      <div className="aspect-square">
+                        <img
+                          src={URL.createObjectURL(file)}
+                          alt={file.name}
+                          className="w-full h-full object-cover"
                         />
                       </div>
-
-                      <div className="flex items-center space-x-4 mt-4">
-                        <div className="flex items-center space-x-2">
-                          <Switch
-                            checked={area.requiresReplacement}
-                            onCheckedChange={(checked) => updateDamageArea(area.id, { requiresReplacement: checked })}
-                          />
-                          <Label>Requer Substituição</Label>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-
-                {damageAreas.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <AlertTriangle className="h-12 w-12 mx-auto mb-4" />
-                    <p>Nenhuma área danificada adicionada</p>
-                    <p className="text-sm">Clique em "Adicionar Área" para registrar os danos</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="responsible" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5" />
-                Responsáveis
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>ID do Motorista</Label>
-                  <Input
-                    value={formData.responsible.driverId}
-                    onChange={(e) => setFormData(prev => ({ 
-                      ...prev, 
-                      responsible: { ...prev.responsible, driverId: e.target.value }
-                    }))}
-                    placeholder="driver-001"
-                  />
-                </div>
-                <div>
-                  <Label>Nome do Motorista</Label>
-                  <Input
-                    value={formData.responsible.driverName}
-                    onChange={(e) => setFormData(prev => ({ 
-                      ...prev, 
-                      responsible: { ...prev.responsible, driverName: e.target.value }
-                    }))}
-                    placeholder="Nome do motorista"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Switch
-                  checked={formData.responsible.thirdPartyInvolved}
-                  onCheckedChange={(checked) => setFormData(prev => ({ 
-                    ...prev, 
-                    responsible: { ...prev.responsible, thirdPartyInvolved: checked }
-                  }))}
-                />
-                <Label>Terceiros Envolvidos</Label>
-              </div>
-
-              {formData.responsible.thirdPartyInvolved && (
-                <div className="space-y-4 border-t pt-4">
-                  <h4 className="font-medium">Informações do Terceiro</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label>Nome</Label>
-                      <Input
-                        value={formData.responsible.thirdPartyInfo?.name || ''}
-                        onChange={(e) => setFormData(prev => ({ 
-                          ...prev, 
-                          responsible: { 
-                            ...prev.responsible, 
-                            thirdPartyInfo: { ...prev.responsible.thirdPartyInfo, name: e.target.value }
-                          }
-                        }))}
-                        placeholder="Nome do terceiro"
-                      />
+                      <button
+                        onClick={() => removeImage(index)}
+                        className="absolute top-1.5 right-1.5 bg-red-600 text-white rounded-full p-1 shadow hover:bg-red-500"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                      <div className="p-1.5 text-xs text-gray-300 truncate font-mono">{file.name}</div>
                     </div>
-                    <div>
-                      <Label>Contato</Label>
-                      <Input
-                        value={formData.responsible.thirdPartyInfo?.contact || ''}
-                        onChange={(e) => setFormData(prev => ({ 
-                          ...prev, 
-                          responsible: { 
-                            ...prev.responsible, 
-                            thirdPartyInfo: { ...prev.responsible.thirdPartyInfo, contact: e.target.value }
-                          }
-                        }))}
-                        placeholder="Telefone ou email"
-                      />
-                    </div>
-                    <div>
-                      <Label>Seguradora</Label>
-                      <Input
-                        value={formData.responsible.thirdPartyInfo?.insurance || ''}
-                        onChange={(e) => setFormData(prev => ({ 
-                          ...prev, 
-                          responsible: { 
-                            ...prev.responsible, 
-                            thirdPartyInfo: { ...prev.responsible.thirdPartyInfo, insurance: e.target.value }
-                          }
-                        }))}
-                        placeholder="Nome da seguradora"
-                      />
-                    </div>
-                    <div>
-                      <Label>Veículo</Label>
-                      <Input
-                        value={formData.responsible.thirdPartyInfo?.vehicle || ''}
-                        onChange={(e) => setFormData(prev => ({ 
-                          ...prev, 
-                          responsible: { 
-                            ...prev.responsible, 
-                            thirdPartyInfo: { ...prev.responsible.thirdPartyInfo, vehicle: e.target.value }
-                          }
-                        }))}
-                        placeholder="Modelo do veículo"
-                      />
-                    </div>
-                    <div>
-                      <Label>Placa</Label>
-                      <Input
-                        value={formData.responsible.thirdPartyInfo?.licensePlate || ''}
-                        onChange={(e) => setFormData(prev => ({ 
-                          ...prev, 
-                          responsible: { 
-                            ...prev.responsible, 
-                            thirdPartyInfo: { ...prev.responsible.thirdPartyInfo, licensePlate: e.target.value }
-                          }
-                        }))}
-                        placeholder="Placa do veículo"
-                      />
-                    </div>
-                  </div>
+                  ))}
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </TabsContent>
 
-        <TabsContent value="insurance" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5" />
-                Informações de Seguro
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  checked={formData.insurance.claimFiled}
-                  onCheckedChange={(checked) => setFormData(prev => ({ 
-                    ...prev, 
-                    insurance: { ...prev.insurance, claimFiled: checked }
-                  }))}
-                />
-                <Label>Reivindicação Aberta</Label>
+        {/* Tab 3: Danos */}
+        <TabsContent value="damage" className="space-y-4 mt-4">
+          <div className="bg-[#181d2a] border border-[#262f40] rounded-xl p-5 shadow-sm space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-[#232b3b]">
+              <div>
+                <h4 className="text-base font-bold text-white">Áreas Atingidas</h4>
+                <p className="text-xs text-gray-400">Adicione e quantifique as áreas com avarias no veículo</p>
               </div>
+              <Button size="sm" onClick={addDamageArea} className="bg-seguranca-red hover:bg-seguranca-red/90 text-white">
+                <Plus className="h-4 w-4 mr-1.5" />
+                Adicionar Área
+              </Button>
+            </div>
 
-              {formData.insurance.claimFiled && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-3">
+              {damageAreas.map((area, index) => (
+                <div key={area.id} className="p-4 bg-[#10141e] border border-[#222b3d] rounded-xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-white text-sm">Área {index + 1}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeDamageArea(area.id)}
+                      className="text-gray-400 hover:text-red-400 hover:bg-red-950/20"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                     <div>
-                      <Label>Número da Reivindicação</Label>
-                      <Input
-                        value={formData.insurance.claimNumber}
-                        onChange={(e) => setFormData(prev => ({ 
-                          ...prev, 
-                          insurance: { ...prev.insurance, claimNumber: e.target.value }
-                        }))}
-                        placeholder="CLAIM-2024-001"
-                      />
-                    </div>
-                    <div>
-                      <Label>Status da Reivindicação</Label>
+                      <Label className="text-xs text-gray-400">Área do Veículo</Label>
                       <Select
-                        value={formData.insurance.claimStatus}
-                        onValueChange={(value) => setFormData(prev => ({ 
-                          ...prev, 
-                          insurance: { ...prev.insurance, claimStatus: value as any }
-                        }))}
+                        value={area.area}
+                        onValueChange={(value) => updateDamageArea(area.id, { area: value as any })}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="bg-[#181d2a] border-[#262f40] text-white mt-1">
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="PENDING">Pendente</SelectItem>
-                          <SelectItem value="PROCESSING">Em Processamento</SelectItem>
-                          <SelectItem value="APPROVED">Aprovada</SelectItem>
-                          <SelectItem value="REJECTED">Rejeitada</SelectItem>
+                        <SelectContent className="bg-[#131722] border-[#222b3d] text-white">
+                          <SelectItem value="FRONT">Frente</SelectItem>
+                          <SelectItem value="REAR">Traseira</SelectItem>
+                          <SelectItem value="LEFT_SIDE">Lateral Esquerda</SelectItem>
+                          <SelectItem value="RIGHT_SIDE">Lateral Direita</SelectItem>
+                          <SelectItem value="ROOF">Teto</SelectItem>
+                          <SelectItem value="UNDERCARRIAGE">Chassi</SelectItem>
+                          <SelectItem value="INTERIOR">Interior</SelectItem>
+                          <SelectItem value="ENGINE">Motor</SelectItem>
+                          <SelectItem value="GLASS">Vidros</SelectItem>
+                          <SelectItem value="TIRES">Pneus</SelectItem>
+                          <SelectItem value="OTHER">Outro</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
+
                     <div>
-                      <Label>Seguradora</Label>
-                      <Input
-                        value={formData.insurance.insuranceCompany}
-                        onChange={(e) => setFormData(prev => ({ 
-                          ...prev, 
-                          insurance: { ...prev.insurance, insuranceCompany: e.target.value }
-                        }))}
-                        placeholder="Nome da seguradora"
-                      />
+                      <Label className="text-xs text-gray-400">Severidade</Label>
+                      <Select
+                        value={area.severity}
+                        onValueChange={(value) => updateDamageArea(area.id, { severity: value as any })}
+                      >
+                        <SelectTrigger className="bg-[#181d2a] border-[#262f40] text-white mt-1">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#131722] border-[#222b3d] text-white">
+                          <SelectItem value="MINOR">Leve</SelectItem>
+                          <SelectItem value="MODERATE">Moderado</SelectItem>
+                          <SelectItem value="MAJOR">Grave</SelectItem>
+                          <SelectItem value="SEVERE">Severo</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
+
                     <div>
-                      <Label>Número da Apólice</Label>
-                      <Input
-                        value={formData.insurance.policyNumber}
-                        onChange={(e) => setFormData(prev => ({ 
-                          ...prev, 
-                          insurance: { ...prev.insurance, policyNumber: e.target.value }
-                        }))}
-                        placeholder="POL-001234567"
-                      />
+                      <Label className="text-xs text-gray-400">Método de Reparo</Label>
+                      <Select
+                        value={area.repairMethod}
+                        onValueChange={(value) => updateDamageArea(area.id, { repairMethod: value as any })}
+                      >
+                        <SelectTrigger className="bg-[#181d2a] border-[#262f40] text-white mt-1">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#131722] border-[#222b3d] text-white">
+                          <SelectItem value="REPAIR">Reparar (Funilaria)</SelectItem>
+                          <SelectItem value="REPLACE">Substituir Peça</SelectItem>
+                          <SelectItem value="PAINT">Pintura</SelectItem>
+                          <SelectItem value="ADJUST">Ajuste Mecânico</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
+
                     <div>
-                      <Label>Valor da Franquia (R$)</Label>
+                      <Label className="text-xs text-gray-400">Custo Estimado (R$)</Label>
                       <Input
                         type="number"
                         step="0.01"
-                        value={formData.insurance.deductible}
-                        onChange={(e) => setFormData(prev => ({ 
-                          ...prev, 
-                          insurance: { ...prev.insurance, deductible: parseFloat(e.target.value) || 0 }
-                        }))}
-                        placeholder="500.00"
-                      />
-                    </div>
-                    <div>
-                      <Label>Cobertura Máxima (R$)</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={formData.insurance.coverageAmount}
-                        onChange={(e) => setFormData(prev => ({ 
-                          ...prev, 
-                          insurance: { ...prev.insurance, coverageAmount: parseFloat(e.target.value) || 0 }
-                        }))}
-                        placeholder="10000.00"
+                        value={area.estimatedRepairCost}
+                        onChange={(e) => updateDamageArea(area.id, { estimatedRepairCost: parseFloat(e.target.value) || 0 })}
+                        className="bg-[#181d2a] border-[#262f40] text-white font-mono mt-1"
                       />
                     </div>
                   </div>
+
+                  <div>
+                    <Label className="text-xs text-gray-400">Descrição do Dano</Label>
+                    <Textarea
+                      value={area.description}
+                      onChange={(e) => updateDamageArea(area.id, { description: e.target.value })}
+                      placeholder="Detalhes do amassado, risco ou quebra..."
+                      rows={2}
+                      className="bg-[#181d2a] border-[#262f40] text-white mt-1"
+                    />
+                  </div>
+
+                  <div className="flex items-center space-x-2 pt-1">
+                    <Switch
+                      checked={area.requiresReplacement}
+                      onCheckedChange={(checked) => updateDamageArea(area.id, { requiresReplacement: checked })}
+                    />
+                    <Label className="text-xs text-gray-300">Requer substituição completa de componentes</Label>
+                  </div>
+                </div>
+              ))}
+
+              {damageAreas.length === 0 && (
+                <div className="text-center py-8 text-gray-400 text-sm">
+                  Nenhuma área adicionada. Clique em "Adicionar Área" acima para registrar as partes danificadas.
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </TabsContent>
 
-        <TabsContent value="costs" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <DollarSign className="h-5 w-5" />
-                Estimativa de Custos
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Tab 4: Responsáveis */}
+        <TabsContent value="responsible" className="space-y-4 mt-4">
+          <div className="bg-[#181d2a] border border-[#262f40] rounded-xl p-5 shadow-sm space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs font-semibold uppercase text-gray-400">ID / Matrícula do Motorista</Label>
+                <Input
+                  value={formData.responsible.driverId}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    responsible: { ...prev.responsible, driverId: e.target.value }
+                  }))}
+                  placeholder="Ex: 0000001206"
+                  className="bg-[#10141e] border-[#222b3d] text-white font-mono mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-semibold uppercase text-gray-400">Nome do Motorista</Label>
+                <Input
+                  value={formData.responsible.driverName}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    responsible: { ...prev.responsible, driverName: e.target.value }
+                  }))}
+                  placeholder="Nome completo do motorista"
+                  className="bg-[#10141e] border-[#222b3d] text-white mt-1"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2 pt-2">
+              <Switch
+                checked={formData.responsible.thirdPartyInvolved}
+                onCheckedChange={(checked) => setFormData(prev => ({ 
+                  ...prev, 
+                  responsible: { ...prev.responsible, thirdPartyInvolved: checked }
+                }))}
+              />
+              <Label className="text-sm font-semibold text-white">Houve envolvimento de terceiros?</Label>
+            </div>
+
+            {formData.responsible.thirdPartyInvolved && (
+              <div className="p-4 bg-[#10141e] border border-[#222b3d] rounded-xl space-y-3 mt-2">
+                <h5 className="font-bold text-white text-sm">Dados do Terceiro</h5>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                  <div>
+                    <Label className="text-xs text-gray-400">Nome</Label>
+                    <Input
+                      value={formData.responsible.thirdPartyInfo?.name || ''}
+                      onChange={(e) => setFormData(prev => ({ 
+                        ...prev, 
+                        responsible: { 
+                          ...prev.responsible, 
+                          thirdPartyInfo: { ...prev.responsible.thirdPartyInfo, name: e.target.value }
+                        }
+                      }))}
+                      placeholder="Nome do terceiro"
+                      className="bg-[#181d2a] border-[#262f40] text-white mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-400">Telefone / Contato</Label>
+                    <Input
+                      value={formData.responsible.thirdPartyInfo?.contact || ''}
+                      onChange={(e) => setFormData(prev => ({ 
+                        ...prev, 
+                        responsible: { 
+                          ...prev.responsible, 
+                          thirdPartyInfo: { ...prev.responsible.thirdPartyInfo, contact: e.target.value }
+                        }
+                      }))}
+                      placeholder="(11) 98765-4321"
+                      className="bg-[#181d2a] border-[#262f40] text-white mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-400">Seguradora</Label>
+                    <Input
+                      value={formData.responsible.thirdPartyInfo?.insurance || ''}
+                      onChange={(e) => setFormData(prev => ({ 
+                        ...prev, 
+                        responsible: { 
+                          ...prev.responsible, 
+                          thirdPartyInfo: { ...prev.responsible.thirdPartyInfo, insurance: e.target.value }
+                        }
+                      }))}
+                      placeholder="Ex: Porto Seguro"
+                      className="bg-[#181d2a] border-[#262f40] text-white mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-400">Veículo</Label>
+                    <Input
+                      value={formData.responsible.thirdPartyInfo?.vehicle || ''}
+                      onChange={(e) => setFormData(prev => ({ 
+                        ...prev, 
+                        responsible: { 
+                          ...prev.responsible, 
+                          thirdPartyInfo: { ...prev.responsible.thirdPartyInfo, vehicle: e.target.value }
+                        }
+                      }))}
+                      placeholder="Ex: Gol 1.6"
+                      className="bg-[#181d2a] border-[#262f40] text-white mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-400">Placa</Label>
+                    <Input
+                      value={formData.responsible.thirdPartyInfo?.licensePlate || ''}
+                      onChange={(e) => setFormData(prev => ({ 
+                        ...prev, 
+                        responsible: { 
+                          ...prev.responsible, 
+                          thirdPartyInfo: { ...prev.responsible.thirdPartyInfo, licensePlate: e.target.value.toUpperCase() }
+                        }
+                      }))}
+                      placeholder="ABC1D23"
+                      className="bg-[#181d2a] border-[#262f40] text-white font-mono mt-1"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        {/* Tab 5: Seguro */}
+        <TabsContent value="insurance" className="space-y-4 mt-4">
+          <div className="bg-[#181d2a] border border-[#262f40] rounded-xl p-5 shadow-sm space-y-4">
+            <div className="flex items-center space-x-2">
+              <Switch
+                checked={formData.insurance.claimFiled}
+                onCheckedChange={(checked) => setFormData(prev => ({ 
+                  ...prev, 
+                  insurance: { ...prev.insurance, claimFiled: checked }
+                }))}
+              />
+              <Label className="text-sm font-semibold text-white">Acionar Sinistro na Seguradora?</Label>
+            </div>
+
+            {formData.insurance.claimFiled && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5 bg-[#10141e] p-4 rounded-xl border border-[#222b3d]">
                 <div>
-                  <Label>Mão de Obra (R$)</Label>
+                  <Label className="text-xs text-gray-400">Número do Sinistro</Label>
                   <Input
-                    type="number"
-                    step="0.01"
-                    value={formData.estimatedCosts.labor}
+                    value={formData.insurance.claimNumber}
                     onChange={(e) => setFormData(prev => ({ 
                       ...prev, 
-                      estimatedCosts: { ...prev.estimatedCosts, labor: parseFloat(e.target.value) || 0 }
+                      insurance: { ...prev.insurance, claimNumber: e.target.value }
                     }))}
-                    placeholder="0.00"
+                    placeholder="CLAIM-2024-001"
+                    className="bg-[#181d2a] border-[#262f40] text-white mt-1"
                   />
                 </div>
                 <div>
-                  <Label>Peças (R$)</Label>
+                  <Label className="text-xs text-gray-400">Seguradora</Label>
                   <Input
-                    type="number"
-                    step="0.01"
-                    value={formData.estimatedCosts.parts}
+                    value={formData.insurance.insuranceCompany}
                     onChange={(e) => setFormData(prev => ({ 
                       ...prev, 
-                      estimatedCosts: { ...prev.estimatedCosts, parts: parseFloat(e.target.value) || 0 }
+                      insurance: { ...prev.insurance, insuranceCompany: e.target.value }
                     }))}
-                    placeholder="0.00"
+                    placeholder="Nome da seguradora"
+                    className="bg-[#181d2a] border-[#262f40] text-white mt-1"
                   />
                 </div>
                 <div>
-                  <Label>Materiais (R$)</Label>
+                  <Label className="text-xs text-gray-400">Número da Apólice</Label>
+                  <Input
+                    value={formData.insurance.policyNumber}
+                    onChange={(e) => setFormData(prev => ({ 
+                      ...prev, 
+                      insurance: { ...prev.insurance, policyNumber: e.target.value }
+                    }))}
+                    placeholder="POL-123456"
+                    className="bg-[#181d2a] border-[#262f40] text-white font-mono mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-400">Franquia (R$)</Label>
                   <Input
                     type="number"
                     step="0.01"
-                    value={formData.estimatedCosts.materials}
+                    value={formData.insurance.deductible}
                     onChange={(e) => setFormData(prev => ({ 
                       ...prev, 
-                      estimatedCosts: { ...prev.estimatedCosts, materials: parseFloat(e.target.value) || 0 }
+                      insurance: { ...prev.insurance, deductible: parseFloat(e.target.value) || 0 }
                     }))}
-                    placeholder="0.00"
+                    className="bg-[#181d2a] border-[#262f40] text-white font-mono mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-400">Cobertura Máxima (R$)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={formData.insurance.coverageAmount}
+                    onChange={(e) => setFormData(prev => ({ 
+                      ...prev, 
+                      insurance: { ...prev.insurance, coverageAmount: parseFloat(e.target.value) || 0 }
+                    }))}
+                    className="bg-[#181d2a] border-[#262f40] text-white font-mono mt-1"
                   />
                 </div>
               </div>
+            )}
+          </div>
+        </TabsContent>
 
-              <div className="border-t pt-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-lg font-medium">Custo Total Estimado:</span>
-                  <span className="text-2xl font-bold text-green-600">
-                    R$ {formData.estimatedCosts.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </span>
-                </div>
+        {/* Tab 6: Custos */}
+        <TabsContent value="costs" className="space-y-4 mt-4">
+          <div className="bg-[#181d2a] border border-[#262f40] rounded-xl p-5 shadow-sm space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label className="text-xs font-semibold uppercase text-gray-400">Mão de Obra (R$)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={formData.estimatedCosts.labor}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    estimatedCosts: { ...prev.estimatedCosts, labor: parseFloat(e.target.value) || 0 }
+                  }))}
+                  className="bg-[#10141e] border-[#222b3d] text-white font-mono mt-1"
+                />
               </div>
+              <div>
+                <Label className="text-xs font-semibold uppercase text-gray-400">Peças (R$)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={formData.estimatedCosts.parts}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    estimatedCosts: { ...prev.estimatedCosts, parts: parseFloat(e.target.value) || 0 }
+                  }))}
+                  className="bg-[#10141e] border-[#222b3d] text-white font-mono mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-semibold uppercase text-gray-400">Materiais (R$)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={formData.estimatedCosts.materials}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    estimatedCosts: { ...prev.estimatedCosts, materials: parseFloat(e.target.value) || 0 }
+                  }))}
+                  className="bg-[#10141e] border-[#222b3d] text-white font-mono mt-1"
+                />
+              </div>
+            </div>
 
-              {formData.estimatedCosts.total > 1000 && (
-                <Alert>
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>
-                    Este valor requer aprovação do gestor antes de iniciar os reparos.
-                  </AlertDescription>
-                </Alert>
-              )}
-            </CardContent>
-          </Card>
+            <div className="p-4 bg-[#10141e] border border-[#222b3d] rounded-xl flex items-center justify-between">
+              <span className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Custo Total Estimado:</span>
+              <span className="text-2xl font-bold font-mono text-emerald-400">
+                R$ {formData.estimatedCosts.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

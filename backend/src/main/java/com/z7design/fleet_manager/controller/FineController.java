@@ -82,6 +82,15 @@ public class FineController {
         fineService.deleteFine(id);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/batch-delete")
+    public ResponseEntity<Map<String, Object>> deleteFinesBatch(@RequestBody List<UUID> ids) {
+        int deleted = fineService.deleteFinesBatch(ids);
+        return ResponseEntity.ok(Map.of(
+            "message", deleted + " multa(s) excluída(s) com sucesso.",
+            "count", deleted
+        ));
+    }
     
     @GetMapping("/drivers")
     public ResponseEntity<List<Driver>> getDrivers() {

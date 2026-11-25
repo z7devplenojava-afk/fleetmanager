@@ -27,6 +27,21 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    // Auto-recuperação de chunks dinâmicos obsoletos do Vite (ex: erro 504 de re-otimização ou chunk hash modificado)
+    if (error && typeof error.message === 'string' &&
+        (error.message.includes('Failed to fetch dynamically imported module') ||
+         error.message.includes('Importing a module script failed') ||
+         error.message.includes('error loading dynamically imported module'))) {
+      const lastReload = sessionStorage.getItem('chunk_reload_ts');
+      const now = Date.now();
+      if (!lastReload || now - parseInt(lastReload, 10) > 10000) {
+        sessionStorage.setItem('chunk_reload_ts', now.toString());
+        console.warn('🔄 Módulo dinâmico desatualizado detectado pelo Vite. Recarregando página...');
+        window.location.reload();
+        return;
+      }
+    }
+
     // Mesmo filtro aqui para não poluir o console com esse tipo específico
     if (error && typeof error.message === 'string' &&
         error.message.includes('A component suspended while responding to synchronous input')) {

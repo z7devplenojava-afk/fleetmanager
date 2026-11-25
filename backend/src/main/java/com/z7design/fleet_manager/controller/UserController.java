@@ -39,6 +39,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import com.z7design.fleet_manager.model.Company;
 import com.z7design.fleet_manager.repository.CompanyRepository;
+import com.z7design.fleet_manager.security.TenantSecurityValidator;
 
 @RestController
 @RequestMapping("/api/users")
@@ -56,6 +57,7 @@ public class UserController {
     private final CompanyRepository companyRepository;
     private final com.z7design.fleet_manager.repository.ClientRepository clientRepository;
     private final com.z7design.fleet_manager.service.UserCompanyResolver userCompanyResolver;
+    private final TenantSecurityValidator tenantSecurityValidator;
 
     @GetMapping
     @PreAuthorize("isAuthenticated()")
@@ -410,6 +412,8 @@ public class UserController {
                         .body(Map.of("error", "UsuÃ¡rio nÃ£o encontrado"));
             }
 
+            tenantSecurityValidator.validateTenantAccess(user.getCompanyId());
+
             // Colaborador sÃ³ pode ver seu prÃ³prio perfil
             if (isColaborador && !auth.getName().equals(user.getUsername())) {
                 log.warn("Acesso negado: colaborador {} tentou acessar usuÃ¡rio {}", auth.getName(),
@@ -444,6 +448,7 @@ public class UserController {
 
         User user = userService.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+        tenantSecurityValidator.validateTenantAccess(user.getCompanyId());
 
         return ResponseEntity.ok(convertToDTO(user));
     }
@@ -454,6 +459,7 @@ public class UserController {
     public ResponseEntity<UserListResponseDTO> getUserByEmail(@PathVariable("email") String email) {
         User user = userService.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+        tenantSecurityValidator.validateTenantAccess(user.getCompanyId());
 
         return ResponseEntity.ok(convertToDTO(user));
     }
@@ -492,6 +498,7 @@ public class UserController {
         User user = userRepository.findByCpfNative(cleanCpf)
                 .or(() -> userService.findByEmployeeCpf(cleanCpf))
                 .orElseThrow(() -> new RuntimeException("Usuário não encontrado para o CPF informado"));
+        tenantSecurityValidator.validateTenantAccess(user.getCompanyId());
 
         return ResponseEntity.ok(convertToDTO(user));
     }

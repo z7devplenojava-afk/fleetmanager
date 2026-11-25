@@ -160,7 +160,7 @@ const DriverDashboard: React.FC = () => {
             }
             const drivers = await driverService.getDrivers();
             const match = drivers.find(
-                (d) => d.name.trim().toLowerCase() === user.name.trim().toLowerCase()
+                (d) => (d?.name || '').trim().toLowerCase() === user.name.trim().toLowerCase()
             );
             if (!match) {
                 setDriverMatched(false);

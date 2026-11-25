@@ -190,7 +190,150 @@ const MotoristasTable: React.FC<MotoristasTableProps> = ({
         </div>
       )}
 
-      <div className="bg-seguranca-black border border-gray-600 rounded-lg overflow-x-auto">
+      {/* Visualização Mobile em Cards */}
+      <div className="block md:hidden space-y-3">
+        {isLoading ? (
+          <div className="p-8 text-center text-gray-400 bg-seguranca-graphite border border-gray-700 rounded-xl">
+            <div className="flex items-center justify-center gap-2">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-seguranca-yellow"></div>
+              <span>Carregando motoristas...</span>
+            </div>
+          </div>
+        ) : drivers.length === 0 ? (
+          <div className="p-8 text-center text-gray-400 bg-seguranca-graphite border border-gray-700 rounded-xl">
+            Nenhum motorista encontrado
+          </div>
+        ) : (
+          drivers.map((driver) => {
+            const isSelected = selectedIds.includes(driver.id);
+            const isEmployeeOnly = driver.source === 'EMPLOYEE';
+            const isAtivo = driver.status?.toUpperCase() === 'ATIVO' || driver.status?.toUpperCase() === 'ACTIVE';
+
+            return (
+              <div
+                key={`mobile-driver-${driver.id}`}
+                className={`bg-seguranca-black border rounded-xl p-3.5 space-y-3 shadow-md transition-all cursor-pointer ${isSelected ? 'border-seguranca-yellow/70 bg-seguranca-yellow/5' : 'border-gray-700/80 hover:border-seguranca-yellow/50'
+                  }`}
+                onClick={() => onView ? onView(driver) : (onEdit && !isEmployeeOnly ? onEdit(driver) : undefined)}
+              >
+                {/* Header: Checkbox + Avatar + Nome + Badge Status */}
+                <div className="flex items-center justify-between gap-2 border-b border-gray-800 pb-2.5">
+                  <div className="flex items-center gap-2.5 min-w-0" onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={isSelected}
+                      disabled={isEmployeeOnly}
+                      onCheckedChange={() => toggleSelectOne(driver.id)}
+                      aria-label={`Selecionar ${driver.name}`}
+                      className={`border-gray-400 data-[state=checked]:bg-seguranca-yellow data-[state=checked]:border-seguranca-yellow data-[state=checked]:text-black ${isEmployeeOnly ? 'opacity-30 cursor-not-allowed' : ''
+                        }`}
+                    />
+                    <div className="w-8 h-8 bg-seguranca-yellow/20 rounded-full flex items-center justify-center shrink-0">
+                      <span className="text-seguranca-yellow font-semibold text-xs">
+                        {driver.name?.charAt(0)?.toUpperCase() || '?'}
+                      </span>
+                    </div>
+                    <span className="font-semibold text-white text-sm truncate">
+                      {driver.name || 'Nome não informado'}
+                    </span>
+                  </div>
+
+                  <Badge
+                    variant={getStatusVariant(driver.status)}
+                    className={`font-bold text-[10px] shrink-0 ${isAtivo
+                      ? 'bg-green-900/30 text-green-400 border-green-700/40'
+                      : 'bg-red-900/30 text-red-400 border-red-700/40'
+                      }`}
+                  >
+                    {isAtivo ? <UserCheck className="mr-1 h-3 w-3" /> : <UserX className="mr-1 h-3 w-3" />}
+                    {getStatusText(driver.status)}
+                  </Badge>
+                </div>
+
+                {/* Detalhes da CNH e Vínculo */}
+                <div className="grid grid-cols-2 gap-2 text-xs bg-seguranca-graphite/40 p-2.5 rounded-lg border border-gray-800">
+                  <div>
+                    <span className="text-[10px] text-gray-400 block uppercase tracking-wider">CNH</span>
+                    <span className="font-mono font-bold text-blue-400 text-sm">
+                      {driver.licenseNumber || '—'}
+                    </span>
+                    {driver.licenseCategory && (
+                      <span className="text-[10px] text-gray-300 ml-1.5 font-bold">
+                        (Cat. {driver.licenseCategory})
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-gray-400 block uppercase tracking-wider">Tipo de Vínculo</span>
+                    {driver.source === 'EMPLOYEE' ? (
+                      <Badge variant="outline" className="text-[10px] border-blue-500/50 text-blue-400 bg-blue-500/10 font-medium mt-0.5">
+                        <BriefcaseBusiness className="mr-1 h-3 w-3" />
+                        Funcionário
+                      </Badge>
+                    ) : (
+                      <span className="text-gray-300 text-xs mt-0.5 block">Motorista Terceiro</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Ações Mobile Táteis */}
+                <div className="flex items-center justify-end gap-2 pt-1 border-t border-gray-800/80" onClick={(e) => e.stopPropagation()}>
+                  {onView && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onView(driver);
+                      }}
+                      className="h-9 px-3 text-xs border-blue-500/60 text-blue-400 hover:bg-blue-500/10 active:scale-95"
+                    >
+                      <Eye className="mr-1.5 h-3.5 w-3.5" />
+                      Visualizar
+                    </Button>
+                  )}
+                  {driver.source !== 'EMPLOYEE' && onEdit && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onEdit(driver);
+                      }}
+                      className="h-9 px-3 text-xs border-yellow-500/60 text-yellow-400 hover:bg-yellow-500/10 active:scale-95"
+                    >
+                      <Edit3 className="mr-1.5 h-3.5 w-3.5" />
+                      Editar
+                    </Button>
+                  )}
+                  {driver.source !== 'EMPLOYEE' && onDelete && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onDelete(driver);
+                      }}
+                      className="h-9 w-9 p-0 border-red-500/60 text-red-400 hover:bg-red-500/10 active:scale-95"
+                      title="Excluir"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Tabela Desktop */}
+      <div className="hidden md:block bg-seguranca-black border border-gray-600 rounded-lg overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow className="bg-seguranca-graphite hover:bg-seguranca-graphite">
@@ -240,11 +383,10 @@ const MotoristasTable: React.FC<MotoristasTableProps> = ({
                 return (
                   <TableRow
                     key={driver.id}
-                    className={`border-gray-600 transition-colors ${
-                      isSelected
-                        ? 'bg-red-950/20 hover:bg-red-950/30'
-                        : 'hover:bg-seguranca-graphite/50'
-                    }`}
+                    className={`border-gray-600 transition-colors ${isSelected
+                      ? 'bg-red-950/20 hover:bg-red-950/30'
+                      : 'hover:bg-seguranca-graphite/50'
+                      }`}
                   >
                     <TableCell className="w-12 text-center" onClick={(e) => e.stopPropagation()}>
                       <Checkbox
@@ -252,9 +394,8 @@ const MotoristasTable: React.FC<MotoristasTableProps> = ({
                         disabled={isEmployeeOnly}
                         onCheckedChange={() => toggleSelectOne(driver.id)}
                         aria-label={`Selecionar ${driver.name}`}
-                        className={`border-gray-400 data-[state=checked]:bg-seguranca-yellow data-[state=checked]:border-seguranca-yellow data-[state=checked]:text-black ${
-                          isEmployeeOnly ? 'opacity-30 cursor-not-allowed' : ''
-                        }`}
+                        className={`border-gray-400 data-[state=checked]:bg-seguranca-yellow data-[state=checked]:border-seguranca-yellow data-[state=checked]:text-black ${isEmployeeOnly ? 'opacity-30 cursor-not-allowed' : ''
+                          }`}
                       />
                     </TableCell>
                     <TableCell className="text-seguranca-lightgray">
@@ -286,8 +427,8 @@ const MotoristasTable: React.FC<MotoristasTableProps> = ({
                       <Badge
                         variant={getStatusVariant(driver.status)}
                         className={`font-medium ${driver.status?.toUpperCase() === 'ATIVO' || driver.status?.toUpperCase() === 'ACTIVE'
-                            ? 'bg-green-900/20 text-green-400 border-green-700/30'
-                            : 'bg-red-900/20 text-red-400 border-red-700/30'
+                          ? 'bg-green-900/20 text-green-400 border-green-700/30'
+                          : 'bg-red-900/20 text-red-400 border-red-700/30'
                           }`}
                       >
                         {driver.status?.toUpperCase() === 'ATIVO' || driver.status?.toUpperCase() === 'ACTIVE' ? (

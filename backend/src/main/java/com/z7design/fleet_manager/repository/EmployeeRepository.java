@@ -66,7 +66,7 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID>, JpaSp
                         + "LEFT JOIN companies c ON e.company_id = c.id "
                         + "LEFT JOIN work_posts wp ON e.work_post_id = wp.id "
                         + "LEFT JOIN departments d ON e.department_id = d.id "
-                        + "WHERE (e.company_id = :companyId OR e.company_id IS NULL)", nativeQuery = true)
+                        + "WHERE e.company_id = :companyId", nativeQuery = true)
         List<Object[]> findBasicDataByCompanyId(@Param("companyId") UUID companyId);
 
         @Query(value = "SELECT e.id, e.name, e.document, e.birth_date, e.registration_number, e.hire_date, e.termination_date, e.status, e.notes, e.address, e.phone, e.email, e.cnh_number, e.ctps, e.cbo, e.pis, e.salario, e.created_at, e.updated_at, p.name as position_name, u.name as unit_name, c.sigla as company_sigla, e.user_id, wp.name as work_post_name, d.name as department_name, e.cin_numero, e.telefone_contato, e.horario_trabalho, e.marital_status, e.sexo "
@@ -82,7 +82,7 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID>, JpaSp
                 if (companyId != null) {
                         return findBasicDataByCompanyId(companyId);
                 }
-                return findBasicDataGlobal();
+                return java.util.Collections.emptyList();
         }
 
         default List<Object[]> findBasicData() {
@@ -105,7 +105,7 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID>, JpaSp
                         + "   OR UPPER(COALESCE(e.email, '')) LIKE UPPER(CONCAT('%', :searchTerm, '%')) "
                         + "   OR UPPER(COALESCE(e.registration_number, '')) LIKE UPPER(CONCAT('%', :searchTerm, '%')) "
                         + ") "
-                        + "AND (e.company_id = :companyId OR e.company_id IS NULL)", nativeQuery = true)
+                        + "AND e.company_id = :companyId", nativeQuery = true)
         List<Object[]> findBasicDataBySearchTermAndCompanyId(@Param("searchTerm") String searchTerm,
                         @Param("companyId") UUID companyId);
 
@@ -130,7 +130,7 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID>, JpaSp
                 if (companyId != null) {
                         return findBasicDataBySearchTermAndCompanyId(searchTerm, companyId);
                 }
-                return findBasicDataBySearchTermGlobal(searchTerm);
+                return java.util.Collections.emptyList();
         }
 
         default List<Object[]> findBasicDataBySearchTerm(String searchTerm) {

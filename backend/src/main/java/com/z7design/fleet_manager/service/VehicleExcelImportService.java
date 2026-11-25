@@ -6,6 +6,7 @@ import com.z7design.fleet_manager.model.Vehicle.FuelType;
 import com.z7design.fleet_manager.model.Vehicle.VehicleStatus;
 import com.z7design.fleet_manager.model.Vehicle.VehicleType;
 import com.z7design.fleet_manager.repository.VehicleRepository;
+import com.z7design.fleet_manager.security.TenantSecurityValidator;
 import com.z7design.fleet_manager.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,6 +41,7 @@ public class VehicleExcelImportService {
     private final VehicleRepository vehicleRepository;
     private final PlatformTransactionManager transactionManager;
     private final UserCompanyResolver userCompanyResolver;
+    private final TenantSecurityValidator tenantSecurityValidator;
 
     private static final Pattern YEAR_PATTERN = Pattern.compile("(19\\d{2}|20\\d{2})");
 
@@ -53,9 +55,9 @@ public class VehicleExcelImportService {
         }
 
         ImportResultDto result = ImportResultDto.empty();
-        UUID currentCompanyId = targetCompanyId != null
-                ? targetCompanyId
-                : userCompanyResolver.resolveCurrentCompanyId();
+        // Usuários comuns SEMPRE gravam na empresa do JWT; somente SUPER_ADMIN pode
+        // informar uma empresa diferente.
+        UUID currentCompanyId = tenantSecurityValidator.getEffectiveCompanyId(targetCompanyId);
         String originalFilename = file.getOriginalFilename() != null ? file.getOriginalFilename() : "planilha.xlsx";
         log.info("Iniciando importação otimizada de veículos a partir de: {} (CompanyId: {})",
                 originalFilename, currentCompanyId);
@@ -266,6 +268,15 @@ public class VehicleExcelImportService {
         if (lastRowNum < 0)
             return;
 
+        // Layout da WG Turismo: seções repetidas com colunas B..I
+        // (FROTA, PLACA, ANO, CAP., MARCA, MODELO, RENAVAM, CHASSIS) e a categoria na coluna A.
+        if (isWgFleetSheet(sheet)) {
+            log.info("Aba '{}' identificada como layout WG Turismo (seções por categoria).", sheetName);
+            processWgFleetSheet(sheet, result, existingMap, processedPlatesInFile, toInsert, toUpdate,
+                    currentCompanyId);
+            return;
+        }
+
         // Verificar se a aba possui seções empilhadas de categorias (como na planilha
         // VSS)
         boolean hasCategorySections = false;
@@ -390,6 +401,182 @@ public class VehicleExcelImportService {
                 result.getErrors().add(String.format("Aba '%s', Linha %d: %s", sheetName, r + 1, e.getMessage()));
             }
         }
+    }
+
+    /** Detecta a planilha da WG: colunas B..I com FROTA/PLACA/ANO/CAP./MARCA/MODELO/RENAVAM/CHASSIS. */
+    private boolean isWgFleetSheet(Sheet sheet) {
+        int last = Math.min(sheet.getFirstRowNum() + 80, sheet.getLastRowNum());
+        for (int r = sheet.getFirstRowNum(); r <= last; r++) {
+            Row row = sheet.getRow(r);
+            if (row == null)
+                continue;
+            String b = normalizeText(getCellValueAsString(row.getCell(1)));
+            String c = normalizeText(getCellValueAsString(row.getCell(2)));
+            String d = normalizeText(getCellValueAsString(row.getCell(3)));
+            String h = normalizeText(getCellValueAsString(row.getCell(7)));
+            String i = normalizeText(getCellValueAsString(row.getCell(8)));
+            if (b.equals("frota") && c.equals("placa") && d.equals("ano")
+                    && h.contains("renavam") && i.contains("chassi")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isWgHeaderRow(Row row) {
+        String b = normalizeText(getCellValueAsString(row.getCell(1)));
+        String c = normalizeText(getCellValueAsString(row.getCell(2)));
+        return (b.equals("frota") && c.equals("placa")) || c.equals("placa");
+    }
+
+    private VehicleType parseWgCategory(String label) {
+        String n = normalizeText(label);
+        if (n.contains("apoio"))
+            return VehicleType.CAR_UTILITY;
+        if (n.contains("micro") || n.contains("minibus"))
+            return VehicleType.MINIBUS;
+        if (n.contains("rodoviario"))
+            return VehicleType.BUS_ROAD;
+        if (n.equals("van") || n.contains("van"))
+            return VehicleType.VAN;
+        return null;
+    }
+
+    private boolean isWgMotorcycle(String model, String brand) {
+        String text = normalizeText((model == null ? "" : model) + " " + (brand == null ? "" : brand));
+        return text.contains("pcx") || text.contains("cg ") || text.contains("biz")
+                || text.contains("fan") || text.contains("moto");
+    }
+
+    private Integer parseWgCapacity(String raw) {
+        String digits = raw == null ? "" : raw.replaceAll("\\D", "");
+        if (digits.isBlank())
+            return 44;
+        try {
+            int value = Integer.parseInt(digits);
+            // Algumas linhas da planilha WG têm o ano na coluna CAP. (2021/2024/2025).
+            if (value > 200) {
+                log.warn("Capacidade invalida '{}' na planilha WG; usando 44.", raw);
+                return 44;
+            }
+            return value;
+        } catch (NumberFormatException e) {
+            return 44;
+        }
+    }
+
+    /**
+     * Importa o formato da WG Turismo: várias seções (APOIO, VAN, MINIBUS,
+     * MICRO-ÔNIBUS, ÔNIBUS RODOVIÁRIO) empilhadas na mesma aba, com cabeçalho repetido.
+     */
+    private void processWgFleetSheet(Sheet sheet, ImportResultDto result,
+            Map<String, Vehicle> existingMap, Set<String> processedPlatesInFile,
+            List<Vehicle> toInsert, List<Vehicle> toUpdate, UUID currentCompanyId) {
+        VehicleType currentType = null;
+        int processed = 0;
+
+        for (int r = sheet.getFirstRowNum(); r <= sheet.getLastRowNum(); r++) {
+            Row row = sheet.getRow(r);
+            if (row == null || isRowEmpty(row))
+                continue;
+
+            String colA = getCellValueAsString(row.getCell(0)).trim();
+            String normA = normalizeText(colA);
+            VehicleType sectionType = parseWgCategory(normA);
+            if (sectionType != null) {
+                currentType = sectionType;
+                continue;
+            }
+            if (isWgHeaderRow(row) || normA.contains("cnpj") || normA.contains("relacao"))
+                continue;
+
+            String rawPlate = getCellValueAsString(row.getCell(2)).trim();
+            if (rawPlate.isBlank())
+                continue;
+
+            String finalPlate = cleanPlate(rawPlate);
+            if (finalPlate.isBlank() || finalPlate.length() < 5 || finalPlate.length() > 10
+                    || isHeaderWord(finalPlate)) {
+                result.setSkipped(result.getSkipped() + 1);
+                continue;
+            }
+            if (processedPlatesInFile.contains(finalPlate)) {
+                result.setSkipped(result.getSkipped() + 1);
+                continue;
+            }
+            processedPlatesInFile.add(finalPlate);
+            processed++;
+
+            String fleetNumber = truncateString(getCellValueAsString(row.getCell(1)).trim(), 50);
+            Integer year = parseYear(getCellValueAsString(row.getCell(3)));
+            if (year == null)
+                year = LocalDate.now().getYear();
+            String brand = truncateString(getCellValueAsString(row.getCell(5)).trim(), 50);
+            if (brand.isBlank())
+                brand = "Outros";
+            String model = truncateString(getCellValueAsString(row.getCell(6)).trim(), 50);
+            if (model.isBlank())
+                model = "Modelo Não Especificado";
+            String renavam = parseAndValidateRenavam(getCellValueAsString(row.getCell(7)).replaceAll("\\D", ""));
+            String chassis = parseAndValidateChassis(getCellValueAsString(row.getCell(8)).trim());
+            Integer capacity = parseWgCapacity(getCellValueAsString(row.getCell(4)));
+
+            VehicleType type = currentType != null ? currentType : VehicleType.BUS_ROAD;
+            if (type == VehicleType.CAR_UTILITY && isWgMotorcycle(model, brand)) {
+                type = VehicleType.MOTORCYCLE;
+            }
+
+            Vehicle vehicle = existingMap.get(finalPlate);
+            if (vehicle == null) {
+                try {
+                    Optional<Vehicle> opt = vehicleRepository.findByPlateRawScoped(finalPlate, currentCompanyId);
+                    if (opt.isPresent()) {
+                        vehicle = opt.get();
+                        existingMap.put(finalPlate, vehicle);
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+
+            if (vehicle != null) {
+                vehicle.setFleetNumber(fleetNumber);
+                vehicle.setYear(year);
+                vehicle.setBrand(brand);
+                vehicle.setModel(model);
+                vehicle.setCapacity(capacity);
+                vehicle.setVehicleType(type);
+                if (renavam != null)
+                    vehicle.setRenavan(truncateString(renavam, 50));
+                if (chassis != null)
+                    vehicle.setChassisNumber(truncateString(chassis, 50));
+                if (vehicle.getStatus() == null)
+                    vehicle.setStatus(VehicleStatus.ACTIVE);
+                if (vehicle.getCompanyId() == null && currentCompanyId != null)
+                    vehicle.setCompanyId(currentCompanyId);
+                toUpdate.add(vehicle);
+                continue;
+            }
+
+            Vehicle novo = new Vehicle();
+            novo.setPlate(finalPlate);
+            novo.setFleetNumber(fleetNumber);
+            novo.setYear(year);
+            novo.setBrand(brand);
+            novo.setModel(model);
+            novo.setCapacity(capacity);
+            novo.setVehicleType(type);
+            novo.setRenavan(truncateString(renavam, 50));
+            novo.setChassisNumber(truncateString(chassis, 50));
+            novo.setColor("Branco");
+            novo.setStatus(VehicleStatus.ACTIVE);
+            novo.setFuelType(FuelType.DIESEL);
+            novo.setCurrentMileage(0);
+            novo.setBodyBuilder(truncateString(model, 100));
+            if (currentCompanyId != null)
+                novo.setCompanyId(currentCompanyId);
+            toInsert.add(novo);
+        }
+        log.info("Planilha WG: {} veículos processados na aba '{}'.", processed, sheet.getSheetName());
     }
 
     private String detectCategory(String normA, String normB) {

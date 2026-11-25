@@ -19,6 +19,7 @@ import java.util.UUID;
 @Table(name = "boardings")
 @NoArgsConstructor
 @AllArgsConstructor
+@org.hibernate.annotations.Filter(name = "tenantFilter", condition = "company_id = :companyId")
 @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
 public class Boarding {
 

@@ -648,38 +648,38 @@ const InteractiveDashboard: React.FC = () => {
           </div>
         </Card>
 
-        <TabsList className="grid w-fill grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4 bg-accent/20 border border-border/50 rounded-2xl p-2 h-auto">
+        <TabsList className="flex items-center gap-2 overflow-x-auto no-scrollbar p-1.5 sm:p-2 bg-accent/20 border border-border/50 rounded-2xl h-auto w-full flex-nowrap">
           <TabsTrigger
             value="overview"
-            className="flex-1 justify-center whitespace-nowrap text-muted-foreground data-[state='active']:bg-primary data-[state='active']:text-primary-foreground text-xs sm:text-sm font-bold rounded-xl py-3 sm:py-3 transition-all active:scale-95 shadow-sm"
+            className="shrink-0 justify-center whitespace-nowrap text-muted-foreground data-[state='active']:bg-primary data-[state='active']:text-primary-foreground text-xs sm:text-sm font-bold rounded-xl py-2.5 px-3.5 sm:px-4 transition-all active:scale-95 shadow-sm min-h-[42px]"
           >
             <BarChart3 className="h-4 w-4 mr-2" />
             Visão Geral
           </TabsTrigger>
           <TabsTrigger
             value="overview360"
-            className="flex-1 justify-center whitespace-nowrap text-muted-foreground data-[state='active']:bg-gradient-to-r data-[state='active']:from-orange-500 data-[state='active']:to-seguranca-yellow data-[state='active']:text-black text-xs sm:text-sm font-black rounded-xl py-3 sm:py-3 transition-all active:scale-95 shadow-sm"
+            className="shrink-0 justify-center whitespace-nowrap text-muted-foreground data-[state='active']:bg-gradient-to-r data-[state='active']:from-orange-500 data-[state='active']:to-seguranca-yellow data-[state='active']:text-black text-xs sm:text-sm font-black rounded-xl py-2.5 px-3.5 sm:px-4 transition-all active:scale-95 shadow-sm min-h-[42px]"
           >
             <Sparkles className="h-4 w-4 mr-2" />
             Empresa 360°
           </TabsTrigger>
           <TabsTrigger
             value="modules"
-            className="flex-1 justify-center whitespace-nowrap text-muted-foreground data-[state='active']:bg-primary data-[state='active']:text-primary-foreground text-xs sm:text-sm font-bold rounded-xl py-3 sm:py-3 transition-all active:scale-95 shadow-sm"
+            className="shrink-0 justify-center whitespace-nowrap text-muted-foreground data-[state='active']:bg-primary data-[state='active']:text-primary-foreground text-xs sm:text-sm font-bold rounded-xl py-2.5 px-3.5 sm:px-4 transition-all active:scale-95 shadow-sm min-h-[42px]"
           >
             <Package className="h-4 w-4 mr-2" />
             Módulos
           </TabsTrigger>
           <TabsTrigger
             value="profile"
-            className="flex-1 justify-center whitespace-nowrap text-muted-foreground data-[state='active']:bg-primary data-[state='active']:text-primary-foreground text-xs sm:text-sm font-bold rounded-xl py-3 sm:py-3 transition-all active:scale-95 shadow-sm"
+            className="shrink-0 justify-center whitespace-nowrap text-muted-foreground data-[state='active']:bg-primary data-[state='active']:text-primary-foreground text-xs sm:text-sm font-bold rounded-xl py-2.5 px-3.5 sm:px-4 transition-all active:scale-95 shadow-sm min-h-[42px]"
           >
             <User className="h-4 w-4 mr-2" />
             Perfil
           </TabsTrigger>
           <TabsTrigger
             value="activity"
-            className="flex-1 justify-center whitespace-nowrap text-muted-foreground data-[state='active']:bg-primary data-[state='active']:text-primary-foreground text-xs sm:text-sm font-bold rounded-xl py-3 sm:py-3 transition-all active:scale-95 shadow-sm"
+            className="shrink-0 justify-center whitespace-nowrap text-muted-foreground data-[state='active']:bg-primary data-[state='active']:text-primary-foreground text-xs sm:text-sm font-bold rounded-xl py-2.5 px-3.5 sm:px-4 transition-all active:scale-95 shadow-sm min-h-[42px]"
           >
             <Activity className="h-4 w-4 mr-2" />
             Atividade

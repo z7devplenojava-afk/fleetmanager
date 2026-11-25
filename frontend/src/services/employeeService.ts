@@ -428,7 +428,7 @@ export const employeeService = {
   /**
    * Importar funcionários de planilha Excel
    */
-  async importEmployeesFromExcel(file: File): Promise<{
+  async importEmployeesFromExcel(file: File, companyId?: string): Promise<{
     success: boolean;
     created: number;
     updated: number;
@@ -439,10 +439,18 @@ export const employeeService = {
     try {
       const formData = new FormData();
       formData.append('file', file);
+      if (companyId) {
+        formData.append('companyId', companyId);
+      }
 
-      const response = await api.post('/api/employees/import/excel', formData, {
+      const url = companyId 
+        ? `/api/employees/import/excel?companyId=${encodeURIComponent(companyId)}`
+        : '/api/employees/import/excel';
+
+      const response = await api.post(url, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
+          ...(companyId ? { 'X-Company-Id': companyId } : {}),
         },
         timeout: 300000, // 5 minutos
       });

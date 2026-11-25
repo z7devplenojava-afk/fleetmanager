@@ -367,7 +367,7 @@ const GestaoChecklistVeiculo: React.FC<GestaoChecklistVeiculoProps> = ({ embedde
                                                     type="button"
                                                     variant="ghost"
                                                     size="sm"
-                                                    className="h-7 w-7 p-0"
+                                                    className="h-9 w-9 md:h-7 md:w-7 p-0 active:scale-95"
                                                     onClick={() => handleMove(index, -1)}
                                                     disabled={index === 0 || isSaving}
                                                     title="Mover para cima"
@@ -378,7 +378,7 @@ const GestaoChecklistVeiculo: React.FC<GestaoChecklistVeiculoProps> = ({ embedde
                                                     type="button"
                                                     variant="ghost"
                                                     size="sm"
-                                                    className="h-7 w-7 p-0"
+                                                    className="h-9 w-9 md:h-7 md:w-7 p-0 active:scale-95"
                                                     onClick={() => handleMove(index, 1)}
                                                     disabled={index === items.length - 1 || isSaving}
                                                     title="Mover para baixo"
@@ -419,23 +419,25 @@ const GestaoChecklistVeiculo: React.FC<GestaoChecklistVeiculoProps> = ({ embedde
                                             </div>
 
                                             <div className="flex items-center gap-4 md:gap-2 justify-between md:justify-start">
-                                                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                                <label className="flex items-center gap-2 text-sm cursor-pointer min-h-[36px] py-1">
                                                     <Checkbox
                                                         checked={!!item.required}
                                                         onCheckedChange={(checked) =>
                                                             handleUpdateItem(index, { required: !!checked })
                                                         }
                                                         disabled={isSaving}
+                                                        className="h-5 w-5"
                                                     />
-                                                    Obrigatório
+                                                    <span>Obrigatório</span>
                                                 </label>
                                                 <Button
                                                     type="button"
                                                     variant="ghost"
                                                     size="sm"
-                                                    className="text-red-500 hover:text-red-400 hover:bg-red-500/10"
+                                                    className="h-9 w-9 md:h-8 md:w-8 p-0 text-red-500 hover:text-red-400 hover:bg-red-500/10 active:scale-90"
                                                     onClick={() => handleRemoveItem(index)}
                                                     disabled={isSaving}
+                                                    title="Excluir item"
                                                 >
                                                     <Trash2 className="h-4 w-4" />
                                                 </Button>

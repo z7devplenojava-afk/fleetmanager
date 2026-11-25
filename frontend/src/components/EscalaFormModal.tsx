@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   Select,
   SelectContent,
@@ -277,13 +278,16 @@ interface ValidationErrors {
   vehicleId?: string;
 }
 
-// Cache em memória para abertura instantânea do formulário sem travar nas 5.422 placas
-let cachedUsuarios: { id: string; name: string; role?: string }[] | null = null;
-let cachedClientes: { id: string; name: string }[] | null = null;
-let cachedPostos: { id: string; name: string; postCode: string; clientId?: string }[] | null = null;
-let cachedRotas: { id: string; name: string; code?: string }[] | null = null;
-let cachedViagens: { id: string; name: string; tripType: string; legs: number; clientId?: string; clientName?: string }[] | null = null;
+// Cache em memória para abertura instantânea do formulário sem travar nas 5.422 placas.
+// O cache é invalidado quando a empresa logada muda, para não vazar cadastros de outro tenant.
+type CachedListItem = { id: string; name: string; role?: string; companyId?: string; clientId?: string };
+let cachedUsuarios: CachedListItem[] | null = null;
+let cachedClientes: CachedListItem[] | null = null;
+let cachedPostos: CachedListItem[] | null = null;
+let cachedRotas: CachedListItem[] | null = null;
+let cachedViagens: CachedListItem[] | null = null;
 let cachedVeiculos: Vehicle[] | null = null;
+let cachedCompanyId: string | null = null;
 
 const EscalaFormModal: React.FC<EscalaFormModalProps> = ({
   open,
@@ -318,13 +322,23 @@ const EscalaFormModal: React.FC<EscalaFormModalProps> = ({
   const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [allSchedules, setAllSchedules] = useState<Schedule[]>(existingSchedules || []);
 
-  const [usuarios, setUsuarios] = useState<{ id: string; name: string; role?: string }[]>(cachedUsuarios || []);
-  const [clientes, setClientes] = useState<{ id: string; name: string }[]>(cachedClientes || []);
-  const [postosTrabalho, setPostosTrabalho] = useState<{ id: string; name: string; postCode: string; clientId?: string }[]>(cachedPostos || []);
-  const [rotas, setRotas] = useState<{ id: string; name: string; code?: string }[]>(cachedRotas || []);
-  const [viagens, setViagens] = useState<{ id: string; name: string; tripType: string; legs: number; clientId?: string; clientName?: string }[]>(cachedViagens || []);
+  const [usuarios, setUsuarios] = useState<CachedListItem[]>(cachedUsuarios || []);
+  const [clientes, setClientes] = useState<CachedListItem[]>(cachedClientes || []);
+  const [postosTrabalho, setPostosTrabalho] = useState<CachedListItem[]>(cachedPostos || []);
+  const [rotas, setRotas] = useState<CachedListItem[]>(cachedRotas || []);
+  const [viagens, setViagens] = useState<CachedListItem[]>(cachedViagens || []);
   const [veiculos, setVeiculos] = useState<Vehicle[]>(cachedVeiculos || []);
   const [isLoadingLists, setIsLoadingLists] = useState(false);
+
+  const { user, empresa } = useAuth();
+  const currentCompanyId = String(user?.companyId || empresa?.id || '');
+  const belongsToCurrentCompany = (item: any): boolean => {
+    if (!currentCompanyId || currentCompanyId === 'none') return true;
+    const ids = [item?.companyId, item?.company?.id, item?.empresa?.id]
+      .map(v => (v == null ? '' : String(v)));
+    if (ids.every(v => !v)) return true; // catálogo sem vínculo explícito
+    return ids.includes(currentCompanyId);
+  };
 
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -353,6 +367,16 @@ const EscalaFormModal: React.FC<EscalaFormModalProps> = ({
 
     let isMounted = true;
     const loadAllParallel = async () => {
+      // Cache em memória é por empresa: trocar de tenant descarta os cadastros anteriores.
+      if (cachedCompanyId !== currentCompanyId) {
+        cachedUsuarios = null;
+        cachedClientes = null;
+        cachedPostos = null;
+        cachedRotas = null;
+        cachedViagens = null;
+        cachedVeiculos = null;
+        cachedCompanyId = currentCompanyId;
+      }
       if (!cachedUsuarios || !cachedVeiculos || !cachedRotas) {
         setIsLoadingLists(true);
       }
@@ -362,16 +386,21 @@ const EscalaFormModal: React.FC<EscalaFormModalProps> = ({
           const { employeeService } = await import('@/services/employeeService');
           const employees: any = await employeeService.getAllEmployees();
           const list = Array.isArray(employees) ? employees : employees?.content || [];
-          return list.map((e: any) => ({
-            id: String(e.id),
-            name: e.name || e.nome || 'Funcionário sem nome',
-            role: e.positionName || e.position?.name || e.cargo || '',
-          }));
+          return list
+            .map((e: any) => ({
+              id: String(e.id),
+              name: e.name || e.nome || 'Funcionário sem nome',
+              role: e.positionName || e.position?.name || e.cargo || '',
+              companyId: e.companyId || e.company?.id,
+            }))
+            .filter(belongsToCurrentCompany);
         })(),
         (async () => {
           const { clientService } = await import('@/services/clientService');
           const clients = await clientService.getAllClients();
-          return (clients || []).map((c: any) => ({ id: String(c.id), name: c.name }));
+          return (clients || [])
+            .map((c: any) => ({ id: String(c.id), name: c.name, companyId: c.companyId || c.company?.id }))
+            .filter(belongsToCurrentCompany);
         })(),
         (async () => {
           const { workPostService } = await import('@/services/workPostService');
@@ -386,15 +415,18 @@ const EscalaFormModal: React.FC<EscalaFormModalProps> = ({
         (async () => {
           const { routeService } = await import('@/services/routeService');
           const routes = await routeService.findAllRoutes();
-          return (routes || []).map((r: any) => ({
-            id: String(r.id),
-            name: r.name,
-            code: r.code || '',
-          }));
+          return (routes || [])
+            .map((r: any) => ({
+              id: String(r.id),
+              name: r.name,
+              code: r.code || '',
+              companyId: r.companyId || r.company?.id,
+            }))
+            .filter(belongsToCurrentCompany);
         })(),
         (async () => {
           const vehicles = await fleetService.getVehicles();
-          return vehicles || [];
+          return (vehicles || []).filter(belongsToCurrentCompany);
         })(),
         (async () => {
           const { travelTripService } = await import('@/services/travelTripService');
@@ -409,6 +441,7 @@ const EscalaFormModal: React.FC<EscalaFormModalProps> = ({
             legs: t.legs || 1,
             clientId: t.client?.id ? String(t.client.id) : t.clientId ? String(t.clientId) : undefined,
             clientName: t.client?.name || '',
+            companyId: t.companyId || t.company?.id,
           }));
         })(),
         (async () => {
@@ -418,17 +451,25 @@ const EscalaFormModal: React.FC<EscalaFormModalProps> = ({
 
       if (!isMounted) return;
 
+      const listClientes = cliRes.status === 'fulfilled' ? cliRes.value : [];
+      const companyClientIds = new Set(listClientes.map(c => String(c.id)));
+
       if (empRes.status === 'fulfilled') {
         cachedUsuarios = empRes.value;
         setUsuarios(empRes.value);
       }
       if (cliRes.status === 'fulfilled') {
-        cachedClientes = cliRes.value;
-        setClientes(cliRes.value);
+        cachedClientes = listClientes;
+        setClientes(listClientes);
       }
       if (wpRes.status === 'fulfilled') {
-        cachedPostos = wpRes.value;
-        setPostosTrabalho(wpRes.value);
+        // work_posts não tem company_id: filtra pelo cliente vinculado da empresa.
+        const posts = wpRes.value.filter((wp: any) => {
+          if (wp.companyId) return belongsToCurrentCompany(wp);
+          return !wp.clientId || companyClientIds.has(String(wp.clientId));
+        });
+        cachedPostos = posts;
+        setPostosTrabalho(posts);
       }
       if (rtRes.status === 'fulfilled') {
         cachedRotas = rtRes.value;
@@ -439,11 +480,15 @@ const EscalaFormModal: React.FC<EscalaFormModalProps> = ({
         setVeiculos(vehRes.value);
       }
       if (tripRes.status === 'fulfilled') {
-        cachedViagens = tripRes.value;
-        setViagens(tripRes.value);
+        const trips = tripRes.value.filter((t: any) => {
+          if (t.companyId) return belongsToCurrentCompany(t);
+          return !t.clientId || companyClientIds.has(String(t.clientId));
+        });
+        cachedViagens = trips;
+        setViagens(trips);
       }
       if (schedRes.status === 'fulfilled' && Array.isArray(schedRes.value)) {
-        setAllSchedules(schedRes.value);
+        setAllSchedules(schedRes.value.filter(belongsToCurrentCompany));
       }
 
       setIsLoadingLists(false);
@@ -453,7 +498,7 @@ const EscalaFormModal: React.FC<EscalaFormModalProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [open]);
+  }, [open, currentCompanyId]);
 
   // Opções memoizadas para SearchableSelect (incluindo o valor atual da escala em edição para nunca ficar em branco!)
   const employeeOptions = useMemo<SearchableOption[]>(() => {

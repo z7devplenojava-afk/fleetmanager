@@ -20,6 +20,7 @@ import java.util.UUID;
 @Table(name = "contract_templates")
 @Data
 @EqualsAndHashCode(of = "id")
+@org.hibernate.annotations.Filter(name = "tenantFilter", condition = "company_id = :companyId")
 public class ContractTemplate {
 
     @Id

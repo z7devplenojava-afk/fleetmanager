@@ -5,6 +5,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import com.z7design.fleet_manager.service.FileStorageService;
+import com.z7design.fleet_manager.security.TenantSecurityValidator;
+import com.z7design.fleet_manager.tenant.TenantContext;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.HandlerInterceptor;
 import jakarta.servlet.http.HttpServletRequest;
@@ -13,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.nio.file.Paths;
 import java.nio.file.Files;
+import java.util.UUID;
 
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
@@ -22,6 +25,9 @@ public class WebConfig implements WebMvcConfigurer {
     // Usar a mesma propriedade que FileUploadController
     @org.springframework.beans.factory.annotation.Value("${app.upload.dir:uploads}")
     private String uploadDir;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private TenantSecurityValidator tenantSecurityValidator;
     
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
@@ -114,6 +120,45 @@ public class WebConfig implements WebMvcConfigurer {
                     response.setHeader("Access-Control-Allow-Origin", "*");
                     response.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
                     response.setHeader("Access-Control-Allow-Headers", "*");
+                }
+                return true;
+            }
+        });
+
+        // Bloqueio global: parâmetros de empresa vindos da requisição só são aceitos
+        // de SUPER_ADMIN (ou quando coincidem com o tenant do JWT).
+        registry.addInterceptor(new HandlerInterceptor() {
+            @Override
+            public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+                UUID tenantId = TenantContext.get();
+                if (tenantId == null || tenantSecurityValidator.isSuperAdmin()) {
+                    return true;
+                }
+                java.util.Enumeration<String> names = request.getParameterNames();
+                while (names.hasMoreElements()) {
+                    String name = names.nextElement();
+                    String normalized = name.toLowerCase().replace("_", "");
+                    if (!normalized.equals("companyid") && !normalized.equals("empresaid")
+                            && !normalized.equals("targetcompanyid") && !normalized.equals("company")) {
+                        continue;
+                    }
+                    String raw = request.getParameter(name);
+                    if (raw == null || raw.isBlank()) {
+                        continue;
+                    }
+                    try {
+                        UUID requested = UUID.fromString(raw.trim());
+                        if (!tenantId.equals(requested)) {
+                            log.warn("Acesso cross-tenant bloqueado: {} tentou companyId={} (tenant={})",
+                                    request.getRequestURI(), requested, tenantId);
+                            response.sendError(HttpServletResponse.SC_FORBIDDEN,
+                                    "Acesso negado: você não pode acessar dados de outra empresa.");
+                            return false;
+                        }
+                    } catch (IllegalArgumentException e) {
+                        response.sendError(HttpServletResponse.SC_BAD_REQUEST, "companyId inválido.");
+                        return false;
+                    }
                 }
                 return true;
             }

@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { 
   AlertTriangle, 
   Plus, 
@@ -28,10 +29,11 @@ import {
   Wrench,
   Shield,
   Download,
-  RefreshCw
+  RefreshCw,
+  Settings
 } from 'lucide-react';
 import damageReportService from '@/services/damageReportService';
-import { DamageReport, DamageReportFilter } from '@/services/damageReportService';
+import type { DamageReport, DamageReportFilter } from '@/services/damageReportService';
 import DamageReportView from '@/components/maintenance/DamageReportView';
 import DamageReportForm from '@/components/maintenance/DamageReportForm';
 
@@ -298,89 +300,99 @@ export default function DamageReportManagement({ embedded = false }: DamageRepor
           </Card>
 
           {/* Reports Table */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Relatórios de Avaria</CardTitle>
+          <Card className="bg-seguranca-black border-gray-700/80 shadow-md">
+            <CardHeader className="pb-3 border-b border-gray-800">
+              <CardTitle className="text-seguranca-lightgray text-lg font-bold flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-red-500" />
+                Relatórios de Avaria
+              </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-4">
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b">
-                      <th className="text-left p-2">Data</th>
-                      <th className="text-left p-2">Veículo</th>
-                      <th className="text-left p-2">Título</th>
-                      <th className="text-left p-2">Tipo</th>
-                      <th className="text-left p-2">Severidade</th>
-                      <th className="text-left p-2">Status</th>
-                      <th className="text-left p-2">Custo</th>
-                      <th className="text-left p-2">Reportado por</th>
-                      <th className="text-center p-2">Ações</th>
+                    <tr className="border-b border-gray-700 bg-seguranca-graphite/40 text-gray-400 text-xs font-semibold uppercase tracking-wider">
+                      <th className="text-left p-3">Data</th>
+                      <th className="text-left p-3">Veículo</th>
+                      <th className="text-left p-3">Título</th>
+                      <th className="text-left p-3">Tipo</th>
+                      <th className="text-left p-3">Severidade</th>
+                      <th className="text-left p-3">Status</th>
+                      <th className="text-left p-3">Custo</th>
+                      <th className="text-left p-3">Reportado por</th>
+                      <th className="text-center p-3">Ações</th>
                     </tr>
                   </thead>
                   <tbody>
                     {reports.map((report) => (
-                      <tr key={report.id} className="border-b hover:bg-gray-50">
-                        <td className="p-2">
+                      <tr 
+                        key={report.id} 
+                        className="border-b border-gray-800/80 transition-colors hover:bg-[#1e2433] text-gray-200 group"
+                      >
+                        <td className="p-3">
                           <div className="text-sm">
-                            <div>{new Date(report.reportDate).toLocaleDateString('pt-BR')}</div>
-                            <div className="text-muted-foreground">
+                            <div className="font-medium text-gray-200">{new Date(report.reportDate).toLocaleDateString('pt-BR')}</div>
+                            <div className="text-xs text-gray-400">
                               {new Date(report.reportDate).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                             </div>
                           </div>
                         </td>
-                        <td className="p-2">
-                          <div className="flex items-center gap-2">
-                            <Car className="h-4 w-4" />
+                        <td className="p-3">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-lg bg-seguranca-red/20 border border-seguranca-red/40 flex items-center justify-center shrink-0">
+                              <Car className="h-4 w-4 text-seguranca-red" />
+                            </div>
                             <div>
-                              <div className="font-medium">{report.vehiclePlate}</div>
-                              <div className="text-sm text-muted-foreground">{report.vehicleModel}</div>
+                              <div className="font-mono font-bold text-seguranca-yellow text-sm tracking-wide">{report.vehiclePlate}</div>
+                              <div className="text-xs text-gray-400">{report.vehicleModel}</div>
                             </div>
                           </div>
                         </td>
-                        <td className="p-2">
+                        <td className="p-3">
                           <div className="max-w-xs">
-                            <div className="font-medium truncate">{report.description.title}</div>
-                            <div className="text-sm text-muted-foreground truncate">
-                              {report.description.details.substring(0, 50)}...
+                            <div className="font-semibold text-white group-hover:text-white truncate text-sm">{report.description.title}</div>
+                            <div className="text-xs text-gray-400 truncate mt-0.5">
+                              {report.description.details.substring(0, 55)}...
                             </div>
                           </div>
                         </td>
-                        <td className="p-2">
-                          <Badge variant="outline" className="text-xs">
+                        <td className="p-3">
+                          <Badge variant="outline" className="text-xs border-gray-600 text-gray-300 bg-gray-800/50">
                             {getReportTypeLabel(report.reportType)}
                           </Badge>
                         </td>
-                        <td className="p-2">
+                        <td className="p-3">
                           <Badge className={getSeverityColor(report.severity)}>
                             {getSeverityLabel(report.severity)}
                           </Badge>
                         </td>
-                        <td className="p-2">
+                        <td className="p-3">
                           <Badge className={getStatusColor(report.status)}>
                             {getStatusLabel(report.status)}
                           </Badge>
                         </td>
-                        <td className="p-2">
-                          <div className="text-sm font-medium">
+                        <td className="p-3">
+                          <div className="text-sm font-mono font-bold text-seguranca-yellow">
                             R$ {report.estimatedCosts.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                           </div>
                         </td>
-                        <td className="p-2">
+                        <td className="p-3">
                           <div className="flex items-center gap-2">
-                            <User className="h-4 w-4" />
+                            <User className="h-4 w-4 text-blue-400 shrink-0" />
                             <div>
-                              <div className="text-sm">{report.reportedBy}</div>
-                              <div className="text-xs text-muted-foreground">{report.reporterRole}</div>
+                              <div className="text-sm text-gray-200">{report.reportedBy}</div>
+                              <div className="text-xs text-gray-400">{report.reporterRole}</div>
                             </div>
                           </div>
                         </td>
-                        <td className="p-2">
-                          <div className="flex items-center justify-center space-x-2">
+                        <td className="p-3">
+                          <div className="flex items-center justify-center space-x-1.5">
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => handleViewReport(report)}
+                              className="h-8 w-8 p-0 text-gray-400 hover:text-blue-400 hover:bg-blue-950/40 rounded-lg"
+                              title="Visualizar Avaria"
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
@@ -388,6 +400,8 @@ export default function DamageReportManagement({ embedded = false }: DamageRepor
                               variant="ghost"
                               size="sm"
                               onClick={() => handleEditReport(report)}
+                              className="h-8 w-8 p-0 text-gray-400 hover:text-green-400 hover:bg-green-950/40 rounded-lg"
+                              title="Editar Avaria"
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
@@ -395,6 +409,8 @@ export default function DamageReportManagement({ embedded = false }: DamageRepor
                               variant="ghost"
                               size="sm"
                               onClick={() => handleDeleteReport(report.id)}
+                              className="h-8 w-8 p-0 text-gray-400 hover:text-red-400 hover:bg-red-950/40 rounded-lg"
+                              title="Excluir Avaria"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -533,9 +549,18 @@ export default function DamageReportManagement({ embedded = false }: DamageRepor
       </Tabs>
 
       {/* View Modal */}
-      {showViewModal && selectedReport && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+      <Dialog 
+        open={showViewModal && !!selectedReport} 
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowViewModal(false);
+            setSelectedReport(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-6xl w-[96vw] max-h-[92vh] overflow-y-auto bg-[#131722] border-[#232b3b] text-gray-100 p-4 sm:p-6 shadow-2xl rounded-2xl">
+          <DialogTitle className="sr-only">Visualizar Relatório de Avaria</DialogTitle>
+          {selectedReport && (
             <DamageReportView
               reportId={selectedReport.id}
               onEdit={handleEditReport}
@@ -545,25 +570,34 @@ export default function DamageReportManagement({ embedded = false }: DamageRepor
                 setSelectedReport(null);
               }}
             />
-          </div>
-        </div>
-      )}
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Create/Edit Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DamageReportForm
-              report={selectedReport}
-              onSave={handleSaveReport}
-              onCancel={() => {
-                setShowCreateModal(false);
-                setSelectedReport(null);
-              }}
-            />
-          </div>
-        </div>
-      )}
+      <Dialog 
+        open={showCreateModal} 
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowCreateModal(false);
+            setSelectedReport(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-4xl w-[96vw] max-h-[92vh] overflow-y-auto bg-[#131722] border-[#232b3b] text-gray-100 p-4 sm:p-6 shadow-2xl rounded-2xl">
+          <DialogTitle className="sr-only">
+            {selectedReport ? 'Editar Relatório de Avaria' : 'Novo Relatório de Avaria'}
+          </DialogTitle>
+          <DamageReportForm
+            report={selectedReport}
+            onSave={handleSaveReport}
+            onCancel={() => {
+              setShowCreateModal(false);
+              setSelectedReport(null);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

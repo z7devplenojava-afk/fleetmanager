@@ -4,6 +4,7 @@ import com.z7design.fleet_manager.dto.EmployeeDTO;
 import com.z7design.fleet_manager.dto.SimpleEmployeeDTO;
 import com.z7design.fleet_manager.model.Employee;
 import com.z7design.fleet_manager.repository.EmployeeRepository;
+import com.z7design.fleet_manager.security.TenantSecurityValidator;
 import com.z7design.fleet_manager.service.EmployeeService;
 import com.z7design.fleet_manager.service.EmployeeRecordPdfService;
 import com.z7design.fleet_manager.exception.ResourceNotFoundException;
@@ -42,6 +43,7 @@ public class EmployeeController {
     private final EmployeeRecordPdfService employeeRecordPdfService;
     private final EmployeeExcelImportService employeeExcelImportService;
     private final com.z7design.fleet_manager.service.EmployeePdfImportService employeePdfImportService;
+    private final TenantSecurityValidator tenantSecurityValidator;
 
     @PostMapping(value = "/import-pdf", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Importar Ficha de Registro em PDF", description = "Importa um ou múltiplos funcionários e dados da empresa a partir de PDF da Ficha de Registro de Empregado")
@@ -311,20 +313,21 @@ public class EmployeeController {
             System.out.println("ðŸ” EmployeeController.getAll - Usando query nativa para evitar problemas de relacionamentos");
             System.out.println("ðŸ” EmployeeController.getAll - searchTerm: " + searchTerm);
             
-            // Se houver searchTerm, usar busca por nome ou documento
+            // Isolamento por tenant: usuários comuns SEMPRE enxergam apenas os funcionários
+            // da própria empresa. O fallback global existia para SUPER_ADMIN e acabava
+            // vazando todas as empresas quando a empresa do usuário não tinha funcionários.
             List<Object[]> data;
             try {
-                if (searchTerm != null && !searchTerm.trim().isEmpty()) {
-                    System.out.println(" EmployeeController.getAll - Buscando por termo: " + searchTerm);
-                    data = employeeService.findBasicDataBySearchTerm(searchTerm.trim());
-                    if (data == null || data.isEmpty()) {
-                        data = employeeRepository.findBasicDataBySearchTermGlobal(searchTerm.trim());
-                    }
+                boolean global = tenantSecurityValidator.isSuperAdmin();
+                boolean hasTerm = searchTerm != null && !searchTerm.trim().isEmpty();
+                if (global) {
+                    data = hasTerm
+                            ? employeeRepository.findBasicDataBySearchTermGlobal(searchTerm.trim())
+                            : employeeRepository.findBasicDataGlobal();
                 } else {
-                    data = employeeService.findBasicData();
-                    if (data == null || data.isEmpty()) {
-                        data = employeeRepository.findBasicDataGlobal();
-                    }
+                    data = hasTerm
+                            ? employeeService.findBasicDataBySearchTerm(searchTerm.trim())
+                            : employeeService.findBasicData();
                 }
                 System.out.println(" Encontrados " + (data != null ? data.size() : 0) + " funcionarios no banco");
             } catch (Exception queryEx) {
@@ -888,8 +891,11 @@ public class EmployeeController {
      */
     @PostMapping("/import/excel")
     @Operation(summary = "Importar funcionÃ¡rios do Excel", description = "Importa funcionÃ¡rios de uma planilha Excel. A planilha deve conter uma coluna 'CNPJ Empresa' e os dados dos funcionÃ¡rios.")
-    @PreAuthorize("hasAnyAuthority('RH_FUNCIONARIOS_CREATE', 'SUPER_ADMIN', 'ROLE_SUPER_ADMIN')")
-    public ResponseEntity<Map<String, Object>> importEmployeesFromExcel(@RequestParam("file") MultipartFile file) {
+    @PreAuthorize("hasAnyAuthority('RH_FUNCIONARIOS_CREATE', 'SUPER_ADMIN', 'ROLE_SUPER_ADMIN', 'COMPANY_ADMIN', 'ROLE_COMPANY_ADMIN', 'ADMIN', 'ROLE_ADMIN', 'EMPLOYEES_WRITE', 'EMPLOYEES_CREATE', 'HR', 'ROLE_HR')")
+    public ResponseEntity<Map<String, Object>> importEmployeesFromExcel(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "companyId", required = false) UUID companyId,
+            @RequestHeader(value = "X-Company-Id", required = false) String xCompanyId) {
         try {
             System.out.println("ðŸ“¥ EmployeeController.importEmployeesFromExcel - Arquivo recebido: " + file.getOriginalFilename());
             
@@ -901,7 +907,16 @@ public class EmployeeController {
             }
             
             // Processar importaÃ§Ã£o
-            EmployeeExcelImportService.ImportResult result = employeeExcelImportService.importEmployees(file);
+            // Resolver targetCompanyId se fornecido via header ou param
+            UUID targetCompanyId = companyId;
+            if (targetCompanyId == null && xCompanyId != null && !xCompanyId.trim().isEmpty()) {
+                try {
+                    targetCompanyId = UUID.fromString(xCompanyId.trim());
+                } catch (Exception ignored) {}
+            }
+            
+            // Processar importação
+            EmployeeExcelImportService.ImportResult result = employeeExcelImportService.importEmployees(file, targetCompanyId);
             
             Map<String, Object> response = new HashMap<>();
             response.put("success", result.isSuccess());

@@ -616,7 +616,85 @@ const GestaoChecklistCliente: React.FC<GestaoChecklistClienteProps> = ({ embedde
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
+              {/* Visualização Mobile em Cards */}
+              <div className="block md:hidden p-3 space-y-3">
+                {recordsLoading ? (
+                  <div className="p-8 text-center">
+                    <Loader2 className="h-7 w-7 animate-spin mx-auto text-seguranca-yellow mb-2" />
+                    <span className="text-xs text-gray-400">Carregando vistorias...</span>
+                  </div>
+                ) : records.length === 0 ? (
+                  <div className="p-8 text-center text-gray-400 text-sm">
+                    Nenhum registro encontrado.
+                  </div>
+                ) : (
+                  records.map((r) => (
+                    <div
+                      key={`mobile-checklist-record-${r.id}`}
+                      className="bg-seguranca-black border border-gray-700/80 rounded-xl p-3.5 space-y-2.5 shadow-md"
+                    >
+                      {/* Header: Placa + Data/Hora */}
+                      <div className="flex items-center justify-between border-b border-gray-800 pb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-white text-sm">
+                            {r.vehiclePlate || 'Sem Placa'}
+                          </span>
+                          {r.templateName && (
+                            <span className="text-[10px] text-gray-400 truncate max-w-[150px]">
+                              ({r.templateName})
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[11px] text-gray-400">
+                          {new Date(r.occurredAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}
+                        </span>
+                      </div>
+
+                      {/* Informações: Cliente, Motorista, KM */}
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <span className="text-[10px] text-gray-400 block uppercase">Cliente</span>
+                          <span className="font-medium text-gray-200 truncate block">
+                            {r.clientName || '—'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-gray-400 block uppercase">Motorista</span>
+                          <span className="text-gray-200 truncate block">
+                            {r.driverName || '—'}
+                          </span>
+                        </div>
+                        <div className="col-span-2 flex items-center justify-between bg-seguranca-graphite/40 px-2.5 py-1.5 rounded-lg border border-gray-800">
+                          <span className="text-gray-400 text-[11px]">KM Registrado:</span>
+                          <span className="font-mono font-bold text-seguranca-yellow text-xs">
+                            {r.kmReading != null ? `${r.kmReading.toLocaleString('pt-BR')} km` : '—'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Ações */}
+                      <div className="flex justify-end pt-1 border-t border-gray-800">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 text-xs text-red-500 hover:text-red-400 hover:bg-red-500/10 active:scale-90"
+                          onClick={() => {
+                            if (globalThis.confirm('Excluir este registro?')) {
+                              deleteRecordMutation.mutate(r.id);
+                            }
+                          }}
+                        >
+                          <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                          Excluir
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Tabela Desktop */}
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-sm text-left">
                   <thead className="bg-seguranca-black/50 text-gray-400 uppercase text-xs">
                     <tr>

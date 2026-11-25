@@ -89,10 +89,27 @@ const normalizeRoleText = (text: string) =>
 
 const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order, initialVehicleId, initialValues }) => {
     const { toast } = useToast();
-    const { user } = useAuth();
+    const { user, empresa } = useAuth();
     const queryClient = useQueryClient();
     const isEdit = !!order?.id;
     const isDriverUser = user?.role === 'MOTORISTA' || Boolean((user as any)?.roles?.some((r: any) => typeof r === 'string' ? r.includes('MOTORISTA') : r?.name?.includes('MOTORISTA')));
+
+    // Isolamento por tenant: todos os combos da OS devem mostrar apenas registros
+    // da empresa do usuário logado (ex.: WG para o wagner.silva).
+    const currentCompanyId = String(user?.companyId || empresa?.id || '');
+    const belongsToCurrentCompany = React.useCallback((item: any): boolean => {
+        if (!currentCompanyId || currentCompanyId === 'none') return true;
+        const ids = [
+            item?.companyId,
+            item?.company?.id,
+            item?.empresa?.id,
+            item?.fkCompanyId,
+            item?.client?.companyId,
+        ].map(v => (v == null ? '' : String(v)));
+        // Registros sem vínculo explícito (catálogos globais) não são ocultados.
+        if (ids.every(v => !v)) return true;
+        return ids.includes(currentCompanyId);
+    }, [currentCompanyId]);
 
     // Aba padrão: Motorista usa sempre modo simplificado; oficina/gestor inicia no Formulário Completo
     const [isExpressMode, setIsExpressMode] = useState(isDriverUser);
@@ -289,71 +306,105 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
 
         const vehicles = React.useMemo<Vehicle[]>(() => {
             if (!vehiclesRaw) return [];
-            if (Array.isArray(vehiclesRaw)) return vehiclesRaw;
-            if (Array.isArray((vehiclesRaw as any).content)) return (vehiclesRaw as any).content;
+            if (Array.isArray(vehiclesRaw)) return vehiclesRaw.filter(belongsToCurrentCompany);
+            if (Array.isArray((vehiclesRaw as any).content)) return (vehiclesRaw as any).content.filter(belongsToCurrentCompany);
             return [];
-        }, [vehiclesRaw]);
+        }, [vehiclesRaw, belongsToCurrentCompany]);
 
         // Clientes, Obras/Postos, Setores, Requerentes (PRD §6, §20, §21, §22)
-        const { data: clients = [] } = useQuery({
+        const { data: clientsRaw = [] } = useQuery({
             queryKey: ['clients-for-select'],
             queryFn: () => clientService.getClientsForSelect(),
             staleTime: 60_000,
             refetchOnWindowFocus: false,
             enabled: isOpen,
         });
-        const { data: allWorkPosts = [] } = useQuery<WorkPost[]>({
+        const clients = React.useMemo(() =>
+            (Array.isArray(clientsRaw) ? clientsRaw : []).filter(belongsToCurrentCompany),
+            [clientsRaw, belongsToCurrentCompany]);
+
+        const { data: allWorkPostsRaw = [] } = useQuery<WorkPost[]>({
             queryKey: ['work-posts-all'],
             queryFn: () => workPostService.getAllWorkPosts(),
             staleTime: 60_000,
             refetchOnWindowFocus: false,
             enabled: isOpen,
         });
-        const { data: departments = [] } = useQuery({
+        // work_posts não tem company_id próprio: o tenant vem do cliente vinculado.
+        const allWorkPosts = React.useMemo(() => {
+            const companyClientIds = new Set(clients.map((c: any) => String(c.id)));
+            return allWorkPostsRaw.filter((wp: any) => {
+                if (wp?.companyId || wp?.company?.id) return belongsToCurrentCompany(wp);
+                const clientId = wp?.clientId || wp?.client?.id;
+                if (!clientId) return true;
+                return companyClientIds.has(String(clientId));
+            });
+        }, [allWorkPostsRaw, clients, belongsToCurrentCompany]);
+        const { data: departmentsRaw = [] } = useQuery({
             queryKey: ['departments-active'],
             queryFn: () => departmentService.getAll(),
             staleTime: 60_000,
             refetchOnWindowFocus: false,
             enabled: isOpen,
         });
-        const { data: employees = [] } = useQuery({
+        const departments = React.useMemo(() =>
+            (Array.isArray(departmentsRaw) ? departmentsRaw : []).filter(belongsToCurrentCompany),
+            [departmentsRaw, belongsToCurrentCompany]);
+
+        const { data: employeesRaw = [] } = useQuery({
             queryKey: ['employees'],
             queryFn: () => employeeService.getAllEmployees(),
             staleTime: 60_000,
             refetchOnWindowFocus: false,
             enabled: isOpen,
         });
-        const { data: garagesForOS = [] } = useQuery<Garage[]>({
+        const employees = React.useMemo(() =>
+            (Array.isArray(employeesRaw) ? employeesRaw : []).filter(belongsToCurrentCompany),
+            [employeesRaw, belongsToCurrentCompany]);
+
+        const { data: garagesForOSRaw = [] } = useQuery<Garage[]>({
             queryKey: ['garages-for-os'],
             queryFn: () => garageService.list(),
             staleTime: 60_000,
             refetchOnWindowFocus: false,
             enabled: isOpen,
         });
+        const garagesForOS = React.useMemo(() =>
+            garagesForOSRaw.filter(belongsToCurrentCompany),
+            [garagesForOSRaw, belongsToCurrentCompany]);
 
         // Itens do Almoxarifado / Estoque
-        const { data: stockItems = [] } = useQuery<StockItem[]>({
+        const { data: stockItemsRaw = [] } = useQuery<StockItem[]>({
             queryKey: ['stock-items-for-work-order'],
             queryFn: () => stockService.getAllItems(),
             staleTime: 30_000,
             enabled: isOpen,
         });
+        const stockItems = React.useMemo(() =>
+            stockItemsRaw.filter(belongsToCurrentCompany),
+            [stockItemsRaw, belongsToCurrentCompany]);
 
         // Catálogo de Serviços de Manutenção
-        const { data: servicesCatalog = [] } = useQuery<any[]>({
+        const { data: servicesCatalogRaw = [] } = useQuery<any[]>({
             queryKey: ['fleet-work-order-services-catalog'],
             queryFn: () => fleetWorkOrderService.getServicesCatalog(),
             staleTime: 30_000,
             enabled: isOpen,
         });
+        const servicesCatalog = React.useMemo(() =>
+            servicesCatalogRaw.filter(belongsToCurrentCompany),
+            [servicesCatalogRaw, belongsToCurrentCompany]);
 
         // Fornecedores / Prestadores de Serviço Ativos
-        const { data: suppliers = [], refetch: refetchSuppliers, isLoading: isLoadingSuppliers } = useQuery<Supplier[]>({
+        const { data: suppliersRaw = [], refetch: refetchSuppliers, isLoading: isLoadingSuppliers } = useQuery<Supplier[]>({
             queryKey: ['suppliers-active-for-service'],
             queryFn: () => contasAPagarService.getFornecedoresAtivos(),
             staleTime: 60_000,
             enabled: isOpen,
         });
+        const suppliers = React.useMemo(() =>
+            suppliersRaw.filter(belongsToCurrentCompany),
+            [suppliersRaw, belongsToCurrentCompany]);
 
         const aggregatedSupplierOptions = React.useMemo<SearchableOption[]>(() => suppliers
             .filter((supplier) => supplier.isActive !== false)

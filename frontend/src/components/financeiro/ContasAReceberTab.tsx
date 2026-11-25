@@ -227,17 +227,17 @@ const ContasAReceberTab: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2 text-white">
-            <DollarSign className="text-green-500" />
+          <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2 text-white">
+            <DollarSign className="text-green-500 h-7 w-7" />
             Contas a Receber
           </h1>
-          <p className="text-gray-300 mt-1">
+          <p className="text-gray-300 text-xs sm:text-sm mt-1">
             Gerencie o controle de contas a receber da empresa
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto">
           <Button
             variant="outline"
             onClick={async () => {
@@ -260,25 +260,25 @@ const ContasAReceberTab: React.FC = () => {
                 setLoading(false);
               }
             }}
-            className="flex items-center gap-2 border-blue-600 text-blue-400 hover:bg-blue-950/50"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 border-blue-600 text-blue-400 hover:bg-blue-950/50 text-xs h-9"
           >
-            <RefreshCw size={16} />
-            Sincronizar Medições e Fretamentos
+            <RefreshCw size={14} />
+            <span className="truncate">Sincronizar Medições</span>
           </Button>
           <Button
             variant="outline"
             onClick={() => setShowDashboard(!showDashboard)}
-            className="flex items-center gap-2 border-gray-600 text-white hover:bg-seguranca-black"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 border-gray-600 text-white hover:bg-seguranca-black text-xs h-9"
           >
-            <BarChart3 size={16} />
-            {showDashboard ? 'Ocultar Gráficos' : 'Mostrar Gráficos'}
+            <BarChart3 size={14} />
+            <span>{showDashboard ? 'Ocultar' : 'Gráficos'}</span>
           </Button>
           <Button
             onClick={handleCreateConta}
-            className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-xs h-9"
           >
-            <Plus size={16} />
-            Nova Conta a Receber
+            <Plus size={14} />
+            <span>Nova Conta</span>
           </Button>
         </div>
       </div>

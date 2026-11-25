@@ -18,6 +18,7 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@org.hibernate.annotations.Filter(name = "tenantFilter", condition = "company_id = :companyId")
 public class BillingEvent {
 
     @Id

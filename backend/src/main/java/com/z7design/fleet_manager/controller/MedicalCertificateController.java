@@ -48,7 +48,7 @@ public class MedicalCertificateController {
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('HR_READ', 'EMPLOYEES_READ', 'SUPER_ADMIN', 'ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_RH')")
     @Operation(summary = "Busca atestado por ID")
-    public ResponseEntity<MedicalCertificateResponseDTO> getById(@PathVariable UUID id) {
+    public ResponseEntity<MedicalCertificateResponseDTO> getById(@PathVariable("id") UUID id) {
         return certificateService.findById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -57,7 +57,7 @@ public class MedicalCertificateController {
     @GetMapping("/employee/{employeeId}")
     @PreAuthorize("hasAnyAuthority('HR_READ', 'EMPLOYEES_READ', 'SUPER_ADMIN', 'ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_RH')")
     @Operation(summary = "Lista atestados de um funcionário")
-    public ResponseEntity<List<MedicalCertificateResponseDTO>> getByEmployee(@PathVariable UUID employeeId) {
+    public ResponseEntity<List<MedicalCertificateResponseDTO>> getByEmployee(@PathVariable("employeeId") UUID employeeId) {
         return ResponseEntity.ok(certificateService.findByEmployeeId(employeeId));
     }
 
@@ -76,7 +76,7 @@ public class MedicalCertificateController {
     @PreAuthorize("hasAnyAuthority('HR_WRITE', 'EMPLOYEES_WRITE', 'SUPER_ADMIN', 'ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_RH')")
     @Operation(summary = "Atualiza atestado médico existente")
     public ResponseEntity<MedicalCertificateResponseDTO> update(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @Valid @RequestBody MedicalCertificateRequestDTO dto,
             Authentication authentication) {
         String username = authentication != null ? authentication.getName() : "Sistema";
@@ -86,7 +86,7 @@ public class MedicalCertificateController {
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('HR_DELETE', 'EMPLOYEES_DELETE', 'SUPER_ADMIN', 'ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_RH')")
     @Operation(summary = "Exclui um atestado médico")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
         certificateService.delete(id);
         return ResponseEntity.noContent().build();
     }

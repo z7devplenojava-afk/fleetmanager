@@ -439,8 +439,8 @@ const ManutencaoDashboard: React.FC = () => {
 
     return (
         <StandardLayout title="Gestão de Manutenção" subtitle="Controle e agendamento de manutenções e ordens de serviço da frota">
-            {/* PRD Módulo 6: alternância entre Ordens de Serviço, Painel TCO e Despesas com Manutenção */}
-            <div className="flex flex-wrap gap-2 mb-4">
+            {/* PRD Módulo 6: alternância entre Ordens de Serviço, Painel TCO e Despesas com Manutenção com rolagem horizontal moderna no mobile */}
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2 mb-4 flex-nowrap">
                 <Button
                     variant={view === 'os' ? 'default' : 'outline'}
                     onClick={() => {
@@ -448,7 +448,7 @@ const ManutencaoDashboard: React.FC = () => {
                         setSearchParams({});
                     }}
                     size="sm"
-                    className="h-9"
+                    className="h-9 px-3 shrink-0 whitespace-nowrap rounded-xl font-semibold select-none"
                 >
                     <ClipboardList className="h-4 w-4 mr-2" />
                     Ordens de Serviço
@@ -460,7 +460,7 @@ const ManutencaoDashboard: React.FC = () => {
                         setSearchParams({ tab: 'componentes' });
                     }}
                     size="sm"
-                    className={`h-9 ${view === 'componentes' ? 'bg-seguranca-yellow hover:bg-amber-400 text-black font-semibold' : 'border-seguranca-yellow/40 text-seguranca-yellow hover:bg-seguranca-yellow/10'}`}
+                    className={`h-9 px-3 shrink-0 whitespace-nowrap rounded-xl font-semibold select-none ${view === 'componentes' ? 'bg-seguranca-yellow hover:bg-amber-400 text-black font-semibold' : 'border-seguranca-yellow/40 text-seguranca-yellow hover:bg-seguranca-yellow/10'}`}
                 >
                     <Wrench className="h-4 w-4 mr-2" />
                     Controles Preventivos
@@ -472,7 +472,7 @@ const ManutencaoDashboard: React.FC = () => {
                         setSearchParams({ tab: 'plano-cliente' });
                     }}
                     size="sm"
-                    className={`h-9 ${view === 'plano-cliente' ? 'bg-amber-500 hover:bg-amber-600 text-black font-semibold shadow-md' : 'border-amber-400/40 text-amber-300 hover:bg-amber-400/10'}`}
+                    className={`h-9 px-3 shrink-0 whitespace-nowrap rounded-xl font-semibold select-none ${view === 'plano-cliente' ? 'bg-amber-500 hover:bg-amber-600 text-black font-semibold shadow-md' : 'border-amber-400/40 text-amber-300 hover:bg-amber-400/10'}`}
                 >
                     <Folder className="h-4 w-4 mr-2 text-amber-400" />
                     Plano de Manutenção por Cliente
@@ -484,7 +484,7 @@ const ManutencaoDashboard: React.FC = () => {
                         setSearchParams({ tab: 'alertas' });
                     }}
                     size="sm"
-                    className={`h-9 ${view === 'alertas' ? 'bg-red-600 hover:bg-red-700 text-white font-semibold' : 'border-red-500/40 text-red-300 hover:bg-red-500/10'}`}
+                    className={`h-9 px-3 shrink-0 whitespace-nowrap rounded-xl font-semibold select-none ${view === 'alertas' ? 'bg-red-600 hover:bg-red-700 text-white font-semibold' : 'border-red-500/40 text-red-300 hover:bg-red-500/10'}`}
                 >
                     <Bell className="h-4 w-4 mr-2" />
                     Alertas de Vencimentos
@@ -501,7 +501,7 @@ const ManutencaoDashboard: React.FC = () => {
                         setSearchParams({ tab: 'tco' });
                     }}
                     size="sm"
-                    className="h-9"
+                    className="h-9 px-3 shrink-0 whitespace-nowrap rounded-xl font-semibold select-none"
                 >
                     <Gauge className="h-4 w-4 mr-2" />
                     Painel TCO (Substituição)
@@ -510,7 +510,7 @@ const ManutencaoDashboard: React.FC = () => {
                     variant="outline"
                     onClick={() => navigate('/manutencao/laudos')}
                     size="sm"
-                    className="h-9 border-blue-500/40 text-blue-300 hover:bg-blue-500/10"
+                    className="h-9 px-3 shrink-0 whitespace-nowrap rounded-xl font-semibold select-none border-blue-500/40 text-blue-300 hover:bg-blue-500/10"
                 >
                     <FileCheck className="h-4 w-4 mr-2 text-blue-400" />
                     Laudos de Inspeção
@@ -522,7 +522,7 @@ const ManutencaoDashboard: React.FC = () => {
                         setSearchParams({ tab: 'despesas' });
                     }}
                     size="sm"
-                    className={`h-9 ${view === 'despesas' ? 'bg-amber-500 hover:bg-amber-600 text-black font-semibold' : 'border-amber-500/40 text-amber-300 hover:bg-amber-500/10'}`}
+                    className={`h-9 px-3 shrink-0 whitespace-nowrap rounded-xl font-semibold select-none ${view === 'despesas' ? 'bg-amber-500 hover:bg-amber-600 text-black font-semibold' : 'border-amber-500/40 text-amber-300 hover:bg-amber-500/10'}`}
                 >
                     <DollarSign className="h-4 w-4 mr-2" />
                     Despesas com Manutenção
@@ -609,36 +609,36 @@ const ManutencaoDashboard: React.FC = () => {
                         </Card>
                     </div>
 
-                    <div className="flex flex-wrap gap-2 w-full md:w-auto">
+                    <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full md:w-auto">
                         <Button
                             variant="outline"
-                            className="flex-1 md:flex-none border-gray-600 text-gray-400 hover:bg-gray-700"
+                            className="h-10 border-gray-600 text-gray-300 hover:bg-gray-700 rounded-xl text-xs sm:text-sm font-medium"
                             onClick={() => refetchOrders()}
                         >
-                            <RefreshCw size={18} className={`mr-2 ${recordsLoading ? 'animate-spin' : ''}`} />
+                            <RefreshCw size={16} className={`mr-1.5 ${recordsLoading ? 'animate-spin' : ''}`} />
                             Atualizar
                         </Button>
                         <Button
                             variant="outline"
                             onClick={() => navigate('/manutencao/limpeza')}
-                            className="flex-1 md:flex-none border-seguranca-yellow text-seguranca-yellow hover:bg-seguranca-yellow/10 font-semibold"
+                            className="h-10 border-seguranca-yellow/60 text-seguranca-yellow hover:bg-seguranca-yellow/10 font-semibold rounded-xl text-xs sm:text-sm"
                         >
-                            <Sparkles size={18} className="mr-2" />
-                            Solicitar Limpeza
+                            <Sparkles size={16} className="mr-1.5" />
+                            Limpeza
                         </Button>
                         <Button
                             variant="outline"
                             onClick={() => navigate('/manutencao/laudos')}
-                            className="flex-1 md:flex-none border-blue-500/60 text-blue-400 hover:bg-blue-950/40 font-semibold"
+                            className="h-10 border-blue-500/60 text-blue-400 hover:bg-blue-950/40 font-semibold rounded-xl text-xs sm:text-sm"
                         >
-                            <FileCheck size={18} className="mr-2 text-blue-400" />
-                            Laudos de Inspeção
+                            <FileCheck size={16} className="mr-1.5 text-blue-400" />
+                            Laudos
                         </Button>
                         <Button
                             onClick={() => { setSelectedOrder(undefined); setIsFormModalOpen(true); }}
-                            className="flex-1 md:flex-none bg-seguranca-red hover:bg-seguranca-darkred font-bold text-white shadow-lg shadow-red-900/20"
+                            className="col-span-2 sm:col-span-1 h-10 bg-seguranca-red hover:bg-seguranca-darkred font-bold text-white shadow-lg shadow-red-900/30 rounded-xl text-xs sm:text-sm"
                         >
-                            <Plus size={18} className="mr-2" />
+                            <Plus size={18} className="mr-1.5" />
                             Nova Manutenção
                         </Button>
                     </div>

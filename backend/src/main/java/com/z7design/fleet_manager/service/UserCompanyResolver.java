@@ -2,6 +2,7 @@ package com.z7design.fleet_manager.service;
 
 import com.z7design.fleet_manager.model.Company;
 import com.z7design.fleet_manager.model.Employee;
+import com.z7design.fleet_manager.model.Role;
 import com.z7design.fleet_manager.model.User;
 import com.z7design.fleet_manager.repository.CompanyRepository;
 import com.z7design.fleet_manager.repository.EmployeeRepository;
@@ -75,6 +76,17 @@ public class UserCompanyResolver {
         return Optional.empty();
     }
 
+    /** Apenas papéis globais podem acessar empresas arbitrárias. */
+    public boolean isGlobalAdmin(User user) {
+        if (user == null || user.getRoles() == null) return false;
+        return user.getRoles().stream()
+                .filter(java.util.Objects::nonNull)
+                .map(Role::getName)
+                .filter(java.util.Objects::nonNull)
+                .map(n -> n.replaceFirst("^ROLE_", "").toUpperCase())
+                .anyMatch(n -> n.equals("SUPER_ADMIN") || n.equals("FLEX_ADMIN"));
+    }
+
     /**
      * Verifica se o usuário possui papel administrativo/privilegiado (SUPER_ADMIN, ADMIN, etc.).
      * Usuários privilegiados não dependem de cadastro em Employee nem de vínculo obrigatório com empresa.
@@ -82,25 +94,20 @@ public class UserCompanyResolver {
     public boolean isPrivilegedUser(User user) {
         if (user == null) return false;
         String username = user.getUsername();
-        if (username != null && ("jose.ramos".equalsIgnoreCase(username) || "admin".equalsIgnoreCase(username) || username.toLowerCase().startsWith("admin."))) {
+        if (username != null && ("jose.ramos".equalsIgnoreCase(username) || "superadmin".equalsIgnoreCase(username))) {
             return true;
         }
         if (user.getRoles() != null && user.getRoles().stream()
                 .anyMatch(r -> r != null && r.getName() != null && (
                         "SUPER_ADMIN".equalsIgnoreCase(r.getName()) ||
                         "ROLE_SUPER_ADMIN".equalsIgnoreCase(r.getName()) ||
-                        "ADMIN".equalsIgnoreCase(r.getName()) ||
-                        "ROLE_ADMIN".equalsIgnoreCase(r.getName()) ||
                         "FLEX_ADMIN".equalsIgnoreCase(r.getName()) ||
-                        "ROLE_FLEX_ADMIN".equalsIgnoreCase(r.getName()) ||
-                        "TI_SUPORTE".equalsIgnoreCase(r.getName()) ||
-                        "ROLE_TI_SUPORTE".equalsIgnoreCase(r.getName())
+                        "ROLE_FLEX_ADMIN".equalsIgnoreCase(r.getName())
                 ))) {
             return true;
         }
         if (user.getGroups() != null && user.getGroups().stream()
                 .anyMatch(g -> g != null && g.getGroupName() != null && (
-                        g.getGroupName().name().toUpperCase().contains("ADMIN") ||
                         g.getGroupName().name().toUpperCase().contains("SUPER")
                 ))) {
             return true;
@@ -198,7 +205,7 @@ public class UserCompanyResolver {
         }
 
         // Usuário privilegiado tem acesso a qualquer empresa existente
-        if (isPrivilegedUser(user)) {
+        if (isGlobalAdmin(user)) {
             return comp;
         }
 
@@ -228,7 +235,7 @@ public class UserCompanyResolver {
     public java.util.List<Company> resolveUserCompanies(User user) {
         if (user == null) return java.util.Collections.emptyList();
 
-        if (isPrivilegedUser(user)) {
+        if (isGlobalAdmin(user)) {
             try {
                 return companyRepository.findAll();
             } catch (Exception e) {

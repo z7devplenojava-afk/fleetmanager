@@ -387,7 +387,18 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     }
 
     private boolean isSuperAdmin(User user) {
-        return userCompanyResolver.isPrivilegedUser(user);
+        // Apenas papéis globais podem escolher a empresa no login.
+        // COMPANY_ADMIN/ADMIN são administradores da própria empresa e devem
+        // respeitar o vínculo ( requisito de isolamento multi-tenant ).
+        if (user == null || user.getRoles() == null) {
+            return false;
+        }
+        return user.getRoles().stream()
+                .filter(java.util.Objects::nonNull)
+                .map(Role::getName)
+                .filter(java.util.Objects::nonNull)
+                .map(n -> n.replaceFirst("^ROLE_", "").toUpperCase())
+                .anyMatch(n -> n.equals("SUPER_ADMIN") || n.equals("FLEX_ADMIN"));
     }
 
     private void validateUserCompanyAccess(User user, UUID requestedCompanyId) {

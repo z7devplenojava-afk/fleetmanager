@@ -79,11 +79,7 @@ public class VehicleService {
         Vehicle vehicle = vehicleRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Veículo não encontrado com ID: " + id));
         if (vehicle.getCompanyId() != null) {
-            try {
-                tenantSecurityValidator.validateTenantAccess(vehicle.getCompanyId());
-            } catch (Exception e) {
-                log.warn("Permitindo visualização compartilhada de veículo {} para o usuário atual", id);
-            }
+            tenantSecurityValidator.validateTenantAccess(vehicle.getCompanyId());
         }
         return VehicleDTO.fromEntity(vehicle);
     }
@@ -95,12 +91,11 @@ public class VehicleService {
         Optional<Vehicle> vehicle = Optional.empty();
         if (tenantId != null) {
             vehicle = vehicleRepository.findByPlateAndCompanyId(plate, tenantId);
-        }
-        if (vehicle.isEmpty()) {
+        } else if (tenantSecurityValidator.isSuperAdmin()) {
             vehicle = vehicleRepository.findByPlate(plate);
-        }
-        if (vehicle.isEmpty()) {
-            vehicle = vehicleRepository.findByPlateRaw(plate);
+            if (vehicle.isEmpty()) {
+                vehicle = vehicleRepository.findByPlateRaw(plate);
+            }
         }
         return vehicle.map(VehicleDTO::fromEntity);
     }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,10 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Building2, Mail, Phone, MapPin, User, Hash, 
-  FileText, Save, X, Smartphone, Home, CreditCard 
+  FileText, Save, X, Smartphone, Home, CreditCard, Loader2 
 } from 'lucide-react';
 import { Client, ClientFormData, ClientStatus } from '@/types/client';
 import { clientService } from '@/services/clientService';
+import { lookupCep } from '@/services/cepService';
 import { useToast } from '@/hooks/use-toast';
 
 // Funções de máscara
@@ -77,6 +78,9 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('dados-basicos');
+  const [isLoadingCep, setIsLoadingCep] = useState(false);
+  const lastCepRef = useRef<string>('');
+  const cepRequestRef = useRef(0);
   const [formData, setFormData] = useState<ClientFormData>({
     name: '',
     cnpj: '',
@@ -95,6 +99,11 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
   });
 
   useEffect(() => {
+    // Invalida buscas de CEP em andamento e libera o CEP anterior ao reabrir.
+    cepRequestRef.current += 1;
+    lastCepRef.current = '';
+    setIsLoadingCep(false);
+
     if (client) {
       setFormData({
         name: client.name,
@@ -149,6 +158,73 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
       ...prev,
       [field]: formattedValue
     }));
+  };
+
+  /** Preenche endereço, cidade e UF automaticamente quando o CEP é digitado. */
+  const handleZipCodeChange = async (value: string) => {
+    const formatted = formatZipCode(value);
+    const digits = formatted.replace(/\D/g, '');
+
+    setFormData(prev => ({ ...prev, zipCode: formatted }));
+
+    if (digits.length !== 8) {
+      lastCepRef.current = '';
+      return;
+    }
+    // Evita consultas repetidas para o mesmo CEP.
+    if (digits === lastCepRef.current) {
+      return;
+    }
+
+    lastCepRef.current = digits;
+    const requestId = ++cepRequestRef.current;
+    setIsLoadingCep(true);
+
+    try {
+      const address = await lookupCep(digits);
+      // Descarta respostas antigas se o usuário alterou o CEP durante a busca.
+      if (requestId !== cepRequestRef.current || digits !== lastCepRef.current) {
+        return;
+      }
+
+      if (!address) {
+        toast({
+          title: "CEP não encontrado",
+          description: "Preencha o endereço manualmente.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const street = [address.street, address.complement]
+        .filter(Boolean)
+        .join(' - ');
+      const fullAddress = [street, address.neighborhood].filter(Boolean).join(', ');
+
+      setFormData(prev => ({
+        ...prev,
+        address: fullAddress || prev.address,
+        city: address.city || prev.city,
+        state: address.state || prev.state,
+      }));
+
+      toast({
+        title: "📍 Endereço preenchido",
+        description: `Dados do CEP ${formatted} carregados.`,
+      });
+    } catch {
+      if (requestId === cepRequestRef.current) {
+        toast({
+          title: "Não foi possível consultar o CEP",
+          description: "Preencha o endereço manualmente.",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      if (requestId === cepRequestRef.current) {
+        setIsLoadingCep(false);
+      }
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -454,15 +530,28 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
                     <Label htmlFor="zipCode" className="text-seguranca-lightgray flex items-center gap-2">
                       <Hash className="h-4 w-4" />
                       CEP
+                      {isLoadingCep && (
+                        <span className="text-xs text-seguranca-yellow flex items-center gap-1">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          Buscando...
+                        </span>
+                      )}
                     </Label>
-                    <Input
-                      id="zipCode"
-                      value={formData.zipCode}
-                      onChange={(e) => handleInputChange('zipCode', formatZipCode(e.target.value))}
-                      placeholder="00000-000"
-                      maxLength={9}
-                      className="border-gray-600 bg-seguranca-black/70 text-seguranca-lightgray placeholder:text-gray-500 focus:border-seguranca-yellow focus:ring-seguranca-yellow/20 font-mono h-11"
-                    />
+                    <div className="relative">
+                      <Input
+                        id="zipCode"
+                        value={formData.zipCode}
+                        onChange={(e) => handleZipCodeChange(e.target.value)}
+                        placeholder="00000-000"
+                        maxLength={9}
+                        inputMode="numeric"
+                        autoComplete="postal-code"
+                        className="border-gray-600 bg-seguranca-black/70 text-seguranca-lightgray placeholder:text-gray-500 focus:border-seguranca-yellow focus:ring-seguranca-yellow/20 font-mono h-11 pr-10"
+                      />
+                      {isLoadingCep && (
+                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-seguranca-yellow" />
+                      )}
+                    </div>
                   </div>
                 </div>
               </TabsContent>

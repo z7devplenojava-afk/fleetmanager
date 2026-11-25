@@ -35,7 +35,7 @@ export const ROLE_CATEGORIES: RoleCategory[] = [
   {
     id: 'almoxarifado',
     name: 'Almoxarifado & Estoque',
-    roles: ['ALMOXARIFADO', 'GESTOR_TRAFEGO', 'GESTOR_DE_TRAFEGO'],
+    roles: ['ALMOXARIFE', 'AUXILIAR_DE_ALMOXARIFADO'],
   },
   {
     id: 'manutencao',
@@ -102,6 +102,8 @@ export const USER_ROLE_LIST: UserRole[] = [
   'COMPRAS',
 
   // Estoque & Almoxarifado
+  'ALMOXARIFE',
+  'AUXILIAR_DE_ALMOXARIFADO',
   'ALMOXARIFADO',
 
   // Manutenção & Oficina
@@ -909,6 +911,7 @@ export const generatePermissions = (role: UserRole): UserPermissions => {
         REPORTS_EXPORT: role === 'GESTOR_COMERCIAL',
       };
 
+    case 'ALMOXARIFE':
     case 'ALMOXARIFADO':
       return {
         ...basePermissions,
@@ -923,6 +926,27 @@ export const generatePermissions = (role: UserRole): UserPermissions => {
         STOCK_CREATE: true,
         STOCK_DELETE: true,
         STOCK_MANAGE: true,
+        CONTRACTS_READ: true,
+        CONTRACTS_WRITE: true,
+        EQUIPMENTS_READ: true,
+        REPORTS_READ: true,
+        REPORTS_GENERATE: true,
+      };
+
+    case 'AUXILIAR_DE_ALMOXARIFADO':
+    case 'AUXILIAR_ALMOXARIFADO':
+      return {
+        ...basePermissions,
+        DASHBOARD_READ: true,
+        PROFILE_READ: true,
+        PROFILE_WRITE: true,
+        MESSAGES_READ: true,
+        MESSAGES_WRITE: true,
+        STOCK_READ: true,
+        STOCK_WRITE: true,
+        STOCK_CREATE: true,
+        STOCK_DELETE: false,
+        STOCK_MANAGE: false,
         EQUIPMENTS_READ: true,
         REPORTS_READ: true,
       };
@@ -1533,7 +1557,10 @@ export const getRoleDisplayName = (role: UserRole): string => {
     ENCARREGADO_DE_MANUTENCAO: 'Encarregado de Manutenção',
     ANALISTA_DE_FROTA: 'Analista de Frota',
     ANALISTA_FROTA: 'Analista de Frota',
-    ALMOXARIFADO: 'Almoxarifado',
+    ALMOXARIFE: 'Almoxarife (Gestão de Estoque e Compras)',
+    ALMOXARIFADO: 'Almoxarife (Gestão de Estoque e Compras)',
+    AUXILIAR_DE_ALMOXARIFADO: 'Auxiliar de Almoxarifado (Gestão de Estoque)',
+    AUXILIAR_ALMOXARIFADO: 'Auxiliar de Almoxarifado (Gestão de Estoque)',
     COMPRAS: 'Compras',
     GESTOR_DE_COMPRAS: 'Gestor de Compras',
     GESTOR_FINANCEIRO: 'Gestor Financeiro',
@@ -1592,7 +1619,10 @@ export const getRoleColor = (role: UserRole): string => {
     ENCARREGADO_DE_MANUTENCAO: 'bg-blue-50 text-blue-800 border border-blue-300/80 font-medium dark:bg-blue-950/50 dark:text-blue-200 dark:border-blue-800/60',
     ANALISTA_DE_FROTA: 'bg-teal-50 text-teal-700 border border-teal-200/80 font-medium dark:bg-teal-950/40 dark:text-teal-300 dark:border-teal-900/60',
     ANALISTA_FROTA: 'bg-teal-50 text-teal-700 border border-teal-200/80 font-medium dark:bg-teal-950/40 dark:text-teal-300 dark:border-teal-900/60',
+    ALMOXARIFE: 'bg-amber-50 text-amber-800 border border-amber-300/80 font-medium dark:bg-amber-950/50 dark:text-amber-200 dark:border-amber-800/60',
     ALMOXARIFADO: 'bg-amber-50 text-amber-700 border border-amber-200/80 font-medium dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900/60',
+    AUXILIAR_DE_ALMOXARIFADO: 'bg-amber-50/70 text-amber-700 border border-amber-200/70 font-medium dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-900/50',
+    AUXILIAR_ALMOXARIFADO: 'bg-amber-50/70 text-amber-700 border border-amber-200/70 font-medium dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-900/50',
     COMPRAS: 'bg-emerald-50 text-emerald-700 border border-emerald-200/80 font-medium dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/60',
     GESTOR_DE_COMPRAS: 'bg-emerald-50 text-emerald-800 border border-emerald-300/80 font-medium dark:bg-emerald-950/50 dark:text-emerald-200 dark:border-emerald-800/60',
     GESTOR_FINANCEIRO: 'bg-emerald-50 text-emerald-800 border border-emerald-300/80 font-medium dark:bg-emerald-950/50 dark:text-emerald-200 dark:border-emerald-800/60',

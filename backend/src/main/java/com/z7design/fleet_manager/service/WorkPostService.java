@@ -40,6 +40,25 @@ public class WorkPostService {
     private final ContractRepository contractRepository;
     private final UserRepository userRepository;
     
+    /**
+     * work_posts não possui coluna company_id própria: o tenant é inferido pelo
+     * cliente vinculado. Sem este filtro, a OS de uma empresa mostra obras de todas.
+     */
+    private List<WorkPost> filterByTenant(List<WorkPost> posts) {
+        UUID tenantId = com.z7design.fleet_manager.tenant.TenantContext.get();
+        if (tenantId == null || posts == null) {
+            return posts;
+        }
+        return posts.stream()
+                .filter(wp -> {
+                    if (wp == null || wp.getClient() == null || wp.getClient().getCompanyId() == null) {
+                        return true; // posto sem cliente (interno) continua visível
+                    }
+                    return tenantId.equals(wp.getClient().getCompanyId());
+                })
+                .toList();
+    }
+
     // MÃ©todos bÃ¡sicos CRUD
     @Transactional(readOnly = true)
     public List<WorkPost> findAll() {
@@ -55,7 +74,7 @@ public class WorkPostService {
                 return List.of();
             }
             
-            return workPosts;
+            return filterByTenant(workPosts);
             
         } catch (DataAccessException e) {
             log.warn("âš ï¸ Erro de acesso a dados ao usar EntityGraph: {} - Tipo: {}", e.getMessage(), e.getClass().getSimpleName());
@@ -110,7 +129,7 @@ public class WorkPostService {
             }
             
             // Converter dentro da MESMA transaÃ§Ã£o (ainda estÃ¡ aberta)
-            List<WorkPostDTO> dtos = convertToDTOList(workPosts);
+            List<WorkPostDTO> dtos = convertToDTOList(filterByTenant(workPosts));
             log.info("âœ… findAllAsDTO: {} postos convertidos para DTOs", dtos != null ? dtos.size() : 0);
             return dtos != null ? dtos : new java.util.ArrayList<>();
             

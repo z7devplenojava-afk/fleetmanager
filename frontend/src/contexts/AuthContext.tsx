@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
+import { useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/axios';
 import { User, AuthContextType, UserGroupData, UserRole, EmpresaInfo } from '@/types/user';
 import { generatePermissions, generatePermissionsFromGroups, combinePermissions } from '@/utils/permissions';
@@ -33,6 +34,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [refreshToken, setRefreshToken] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Troca de usuário/empresa precisa descartar todo o cache do React Query,
+  // senão a lista da empresa anterior (ex.: OS da VSS) aparece para a empresa nova.
+  const clearTenantCache = () => {
+    queryClient.clear();
+    sessionStorage.removeItem('admin_target_company_id');
+  };
 
   // Determina a "função efetiva" do usuário com base em roles e grupos
   const determineEffectiveRole = (currentRole: UserRole | undefined, groups: UserGroupData[] | undefined): UserRole => {
@@ -329,7 +338,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         'VENDAS',
         'GESTOR_DE_COMPRAS',
         'COMPRAS',
+        'ALMOXARIFE',
         'ALMOXARIFADO',
+        'AUXILIAR_DE_ALMOXARIFADO',
+        'AUXILIAR_ALMOXARIFADO',
         'GESTOR_DE_MANUTENCAO',
         'ENCARREGADO_DE_MANUTENCAO',
         'ANALISTA_DE_FROTA',
@@ -443,6 +455,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       console.log('✅ ID do usuário obtido:', userData.id);
+
+      // Descarta dados em cache da sessão anterior antes de trocar de tenant.
+      clearTenantCache();
 
       // Salvar token e dados do usuário
       if (response.data.token) {
@@ -583,6 +598,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const logout = () => {
+    clearTenantCache();
     localStorage.removeItem('token');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
@@ -615,7 +631,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const ROLE_PRIORITY: UserRole[] = [
           'SUPER_ADMIN', 'FLEX_ADMIN', 'COMPANY_ADMIN', 'ADMIN',
           'GESTOR', 'GESTOR_COMERCIAL', 'COMERCIAL', 'VENDAS',
-          'GESTOR_DE_COMPRAS', 'COMPRAS', 'ALMOXARIFADO',
+          'GESTOR_DE_COMPRAS', 'COMPRAS', 'ALMOXARIFE', 'ALMOXARIFADO', 'AUXILIAR_DE_ALMOXARIFADO', 'AUXILIAR_ALMOXARIFADO',
           'GESTOR_DE_MANUTENCAO', 'ENCARREGADO_DE_MANUTENCAO', 'ANALISTA_DE_FROTA', 'ANALISTA_FROTA', 'MANUTENCAO', 'MECANICO', 'AUXILIAR_MECANICO',
           'GESTOR_OPERACIONAL', 'GESTOR_TRAFEGO', 'GESTOR_DE_TRAFEGO', 'ENCARREGADO_DE_TRANSPORTES', 'ENCARREGADO_TRANSPORTES', 'ENCARREGADO_DE_TRAFEGO', 'ENCARREGADO_TRAFEGO',
           'OPERACIONAL', 'ASSISTENTE_OPERACIONAL', 'MOTORISTA',

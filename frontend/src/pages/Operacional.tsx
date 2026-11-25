@@ -400,7 +400,7 @@ const Operacional: React.FC = () => {
   };
 
   const handleSaveDailyLog = async (data: CreateDailyLogDTO) => {
-    if (selectedDailyLog) {
+    if (selectedDailyLog?.id) {
       const updated = await dailyLogService.update(selectedDailyLog.id, data);
       setDailyLogs(prev => prev.map(l => l.id === selectedDailyLog.id ? updated : l));
       toast({ title: 'Sucesso', description: 'Registro atualizado.' });

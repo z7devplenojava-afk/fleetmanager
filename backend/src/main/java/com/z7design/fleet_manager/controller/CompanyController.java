@@ -3,6 +3,7 @@ package com.z7design.fleet_manager.controller;
 import com.z7design.fleet_manager.dto.CompanyDTO;
 import com.z7design.fleet_manager.model.Company;
 import com.z7design.fleet_manager.service.CompanyService;
+import com.z7design.fleet_manager.security.TenantSecurityValidator;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -30,6 +31,7 @@ public class CompanyController {
 
     private final CompanyService companyService;
     private final com.z7design.fleet_manager.service.UserCompanyResolver userCompanyResolver;
+    private final TenantSecurityValidator tenantSecurityValidator;
 
 
     @GetMapping
@@ -46,7 +48,7 @@ public class CompanyController {
             if (authentication != null && authentication.getPrincipal() instanceof org.springframework.security.core.userdetails.UserDetails) {
                 String username = ((org.springframework.security.core.userdetails.UserDetails) authentication.getPrincipal()).getUsername();
                 com.z7design.fleet_manager.model.User user = userCompanyResolver.resolveUser(username);
-                if (user != null && !userCompanyResolver.isPrivilegedUser(user)) {
+                if (user != null && !tenantSecurityValidator.isSuperAdmin()) {
                     // Usuário comum de empresa: listar somente a(s) empresa(s) às quais pertence
                     List<Company> userCompanies = userCompanyResolver.resolveUserCompanies(user);
                     List<CompanyDTO> dtos = userCompanies.stream()
@@ -168,7 +170,7 @@ public class CompanyController {
             String username = ((org.springframework.security.core.userdetails.UserDetails) authentication.getPrincipal())
                     .getUsername();
             com.z7design.fleet_manager.model.User user = userCompanyResolver.resolveUser(username);
-            if (user != null && !userCompanyResolver.isPrivilegedUser(user)) {
+            if (user != null && !tenantSecurityValidator.isSuperAdmin()) {
                 List<Company> allowedCompanies = userCompanyResolver.resolveUserCompanies(user);
                 boolean ownsCompany = allowedCompanies.stream()
                         .anyMatch(c -> c != null && id.equals(c.getId()));
@@ -207,7 +209,7 @@ public class CompanyController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyAuthority('HR_WRITE','SUPER_ADMIN','ROLE_SUPER_ADMIN','ADMIN','ROLE_ADMIN','COMPANY_ADMIN','ROLE_COMPANY_ADMIN')")
+    @PreAuthorize("hasAuthority('SUPER_ADMIN') or hasAuthority('ROLE_SUPER_ADMIN')")
     @Operation(summary = "Criar nova empresa", description = "Cria uma nova empresa")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Empresa criada com sucesso"),
@@ -234,6 +236,7 @@ public class CompanyController {
             @Parameter(description = "ID da empresa") @PathVariable("id") UUID id,
             @Parameter(description = "Dados atualizados da empresa") @Valid @RequestBody CompanyDTO companyDTO) {
         log.debug("Recebida requisição para atualizar empresa ID: {}", id);
+        tenantSecurityValidator.validateTenantAccess(id);
         CompanyDTO updatedCompany = companyService.updateCompany(id, companyDTO);
         return ResponseEntity.ok(updatedCompany);
     }
@@ -250,6 +253,7 @@ public class CompanyController {
     public ResponseEntity<Void> deleteCompany(
             @Parameter(description = "ID da empresa") @PathVariable("id") UUID id) {
         log.debug("Recebida requisição para excluir empresa ID: {}", id);
+        tenantSecurityValidator.validateTenantAccess(id);
         companyService.deleteCompany(id);
         return ResponseEntity.noContent().build();
     }
@@ -260,6 +264,7 @@ public class CompanyController {
     public ResponseEntity<?> toggleCompanyStatus(
             @Parameter(description = "ID da empresa") @PathVariable("id") UUID id) {
         log.debug("Recebida requisição para alternar status da empresa ID: {}", id);
+        tenantSecurityValidator.validateTenantAccess(id);
         try {
             CompanyDTO updatedCompany = companyService.toggleCompanyStatus(id);
             return ResponseEntity.ok(updatedCompany);

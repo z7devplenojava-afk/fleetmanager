@@ -90,7 +90,11 @@ interface MaintenancePlanItem {
     isActive?: boolean;
 }
 
-const DriverChecklist: React.FC = () => {
+export interface DriverChecklistProps {
+    embedded?: boolean;
+}
+
+export const DriverChecklist: React.FC<DriverChecklistProps> = ({ embedded = false }) => {
     const { user } = useAuth();
     const { toast } = useToast();
     const queryClient = useQueryClient();
@@ -197,6 +201,10 @@ const DriverChecklist: React.FC = () => {
     });
 
     const isDriver = isDriverUser(user);
+
+    const [selectionMode, setSelectionMode] = useState<'SCHEDULE' | 'MANUAL'>(() => {
+        return embedded || !isDriverUser(user) ? 'MANUAL' : 'SCHEDULE';
+    });
 
     // Escalas do motorista (para preenchimento automático de Motorista, Veículo, Rota e Cliente)
     const [selectedScheduleMode, setSelectedScheduleMode] = useState<'WEEKLY_FIXED' | 'WEEKEND' | 'ALL'>(() => {
@@ -345,6 +353,26 @@ const DriverChecklist: React.FC = () => {
             };
         });
     }, [vehicles]);
+
+    const driverOptions = useMemo<SearchableOption[]>(() => {
+        const list: SearchableOption[] = [
+            {
+                value: user?.id || 'evaluator-user',
+                label: `${user?.name || 'Avaliador Atual'} (Avaliador / Gestor)`,
+                subtitle: 'Registro realizado pela equipe de manutenção/gestão',
+                keywords: ['gestor', 'avaliador', user?.name || '']
+            }
+        ];
+        drivers.forEach((d) => {
+            list.push({
+                value: d.id,
+                label: d.name,
+                subtitle: d.cnh ? `CNH: ${d.cnh}` : (d.employeeId ? `Mat: ${d.employeeId}` : undefined),
+                keywords: [d.name, d.cnh || '', d.cpf || '', d.employeeId || ''].filter(Boolean)
+            });
+        });
+        return list;
+    }, [drivers, user]);
 
     // Auto-seleciona o motorista se o usuário logado for motorista ou tiver registro correspondente
     useEffect(() => {
@@ -853,9 +881,9 @@ const DriverChecklist: React.FC = () => {
         vehicleId,
     ]);
 
-    return (
-        <StandardLayout>
-            <div className="space-y-6">
+    const content = (
+        <div className="space-y-6">
+            {!embedded ? (
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div>
                         <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
@@ -867,8 +895,21 @@ const DriverChecklist: React.FC = () => {
                         </p>
                     </div>
                 </div>
+            ) : (
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-2">
+                    <div>
+                        <h2 className="text-xl sm:text-2xl font-bold tracking-tight flex items-center gap-2">
+                            <ClipboardCheck className="h-6 w-6 text-seguranca-red" />
+                            Checklist e Vistoria de Avarias
+                        </h2>
+                        <p className="text-xs sm:text-sm text-muted-foreground">
+                            Vistoria completa com planta técnica 4 vistas (Ônibus, Double Decker, Micro, Van), inspeção de pneus, níveis e registro de danos.
+                        </p>
+                    </div>
+                </div>
+            )}
 
-                {/* Banner de Modo Offline e Sincronização */}
+            {/* Banner de Modo Offline e Sincronização */}
                 {(!isNetworkOnline || pendingOfflineCount > 0) && (
                     <div className={`p-4 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm transition-all ${
                         !isNetworkOnline
@@ -1010,21 +1051,41 @@ const DriverChecklist: React.FC = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Coluna principal: formulário */}
                     <div className="lg:col-span-2 space-y-6">
-                        {/* Identificação Automática pela Escala do Motorista */}
+                        {/* Identificação Automática pela Escala do Motorista ou Seleção Direta de Frota */}
                         <Card className="border-primary/30 shadow-sm">
                             <CardHeader className="pb-3">
-                                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                                    <Car className="h-5 w-5 text-primary" /> Dados da Escala (Motorista, Veículo, Rota e Cliente)
-                                </CardTitle>
-                                <CardDescription className="text-xs sm:text-sm">
-                                    {rawDriverSchedules.length > 1
-                                        ? 'Selecione abaixo qual das suas escalas (Semanal ou Final de Semana - FDS) você está executando.'
-                                        : 'Informações carregadas automaticamente da sua escala cadastrada pelo Gestor de Tráfego.'}
-                                </CardDescription>
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                    <div>
+                                        <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                                            <Car className="h-5 w-5 text-primary" />
+                                            {selectionMode === 'SCHEDULE' && selectedSchedule
+                                                ? 'Dados da Escala (Motorista, Veículo, Rota e Cliente)'
+                                                : 'Identificação do Veículo e Motorista'}
+                                        </CardTitle>
+                                        <CardDescription className="text-xs sm:text-sm">
+                                            {selectionMode === 'SCHEDULE' && selectedSchedule
+                                                ? (rawDriverSchedules.length > 1
+                                                    ? 'Selecione abaixo qual das suas escalas você está executando.'
+                                                    : 'Informações carregadas automaticamente da sua escala cadastrada.')
+                                                : 'Selecione o veículo da frota e o motorista para registrar o checklist e vistoria de avarias.'}
+                                        </CardDescription>
+                                    </div>
+                                    {rawDriverSchedules.length > 0 && (
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setSelectionMode((m) => (m === 'SCHEDULE' ? 'MANUAL' : 'SCHEDULE'))}
+                                            className="text-xs shrink-0 self-start sm:self-auto h-8 px-2.5"
+                                        >
+                                            {selectionMode === 'SCHEDULE' ? 'Selecionar Qualquer Veículo' : 'Usar Minha Escala'}
+                                        </Button>
+                                    )}
+                                </div>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 {/* Só exibe seletor de escala se o motorista tiver mais de uma escala cadastrada (ex: Semanal e FDS) */}
-                                {rawDriverSchedules.length > 1 && (
+                                {selectionMode === 'SCHEDULE' && selectedSchedule && rawDriverSchedules.length > 1 && (
                                     <div className="p-3.5 rounded-xl bg-muted/40 border border-border space-y-3">
                                         <Label className="text-xs sm:text-sm font-bold text-primary flex items-center gap-1.5">
                                             <CalendarClock className="h-4 w-4 shrink-0" />
@@ -1099,7 +1160,7 @@ const DriverChecklist: React.FC = () => {
                                 )}
 
                                 {/* Resumo Automático da Escala: Motorista, Veículo, Rota e Cliente */}
-                                {selectedSchedule ? (
+                                {selectionMode === 'SCHEDULE' && selectedSchedule ? (
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-xl bg-muted/30 border border-border">
                                         <div className="flex items-start gap-2.5 p-2.5 rounded-lg bg-background/70 border border-border/60">
                                             <UserCheck className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
@@ -1188,7 +1249,6 @@ const DriverChecklist: React.FC = () => {
                                         </div>
                                     </div>
                                 ) : (
-                                    /* Fallback apenas se não houver escala cadastrada para o motorista ou quando acessado por gestor/portaria */
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div className="space-y-2">
                                             <Label className="text-sm sm:text-base font-bold text-foreground">Veículo *</Label>
@@ -1204,13 +1264,26 @@ const DriverChecklist: React.FC = () => {
                                             />
                                         </div>
                                         <div className="space-y-2">
-                                            <Label className="text-sm sm:text-base font-bold text-foreground">Motorista {isDriver ? 'Responsável' : ''}</Label>
-                                            <div className="flex items-center gap-2.5 h-14 sm:h-12 px-3.5 rounded-xl border border-input bg-muted/40 text-sm sm:text-base">
-                                                <UserCheck className="h-5 w-5 text-emerald-500 shrink-0" />
-                                                <span className="font-bold text-foreground truncate">
-                                                    {user?.name || 'Motorista Logado'}
-                                                </span>
-                                            </div>
+                                            <Label className="text-sm sm:text-base font-bold text-foreground">Motorista / Avaliador</Label>
+                                            {!isDriver || embedded ? (
+                                                <SearchableSelect
+                                                    value={driverId || user?.id || ''}
+                                                    onChange={(val) => setDriverId(val)}
+                                                    options={driverOptions}
+                                                    size="lg"
+                                                    placeholder="Selecione o motorista ou avaliador..."
+                                                    searchPlaceholder="Buscar por nome, CNH ou matrícula..."
+                                                    emptyText="Nenhum motorista encontrado."
+                                                    className="w-full bg-muted/40 border-input text-foreground h-14 sm:h-12 rounded-xl"
+                                                />
+                                            ) : (
+                                                <div className="flex items-center gap-2.5 h-14 sm:h-12 px-3.5 rounded-xl border border-input bg-muted/40 text-sm sm:text-base">
+                                                    <UserCheck className="h-5 w-5 text-emerald-500 shrink-0" />
+                                                    <span className="font-bold text-foreground truncate">
+                                                        {user?.name || 'Motorista Logado'}
+                                                    </span>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 )}
@@ -1628,14 +1701,41 @@ const DriverChecklist: React.FC = () => {
                     </div>
                 </div>
             </div>
+    );
 
+    if (embedded) {
+        return (
+            <>
+                {content}
+                <ChecklistDetailsModal
+                    checklist={selectedChecklistForView}
+                    open={isDetailsModalOpen}
+                    onOpenChange={setIsDetailsModalOpen}
+                />
+                <FleetWorkOrderForm
+                    isOpen={isQuickOsModalOpen}
+                    onClose={() => setIsQuickOsModalOpen(false)}
+                    onSuccess={(savedOs) => {
+                        const osNum = savedOs?.osNumber || savedOs?.id?.slice(0, 8) || 'Aberta';
+                        setOpenedOsNumber(osNum);
+                        setIsQuickOsModalOpen(false);
+                        queryClient.invalidateQueries({ queryKey: ['driver-work-orders-list'] });
+                    }}
+                    initialVehicleId={vehicleId || undefined}
+                    initialValues={workOrderInitialValues}
+                />
+            </>
+        );
+    }
+
+    return (
+        <StandardLayout>
+            {content}
             <ChecklistDetailsModal
                 checklist={selectedChecklistForView}
                 open={isDetailsModalOpen}
                 onOpenChange={setIsDetailsModalOpen}
             />
-
-            {/* Modal inline de Abertura de OS a partir das avarias marcadas (mantém o checklist aberto) */}
             <FleetWorkOrderForm
                 isOpen={isQuickOsModalOpen}
                 onClose={() => setIsQuickOsModalOpen(false)}

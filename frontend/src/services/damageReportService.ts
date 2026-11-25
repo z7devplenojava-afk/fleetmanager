@@ -1,4 +1,4 @@
-interface DamageReport {
+export interface DamageReport {
   id: string;
   vehicleId: string;
   vehiclePlate: string;
@@ -130,7 +130,7 @@ interface RepairPart {
   receivedAt?: string;
 }
 
-interface DamageReportFilter {
+export interface DamageReportFilter {
   vehicleId?: string;
   status?: string;
   severity?: string;

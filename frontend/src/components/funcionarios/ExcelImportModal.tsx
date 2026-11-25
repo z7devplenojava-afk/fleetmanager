@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import { employeeService } from '@/services/employeeService';
 import { Upload, FileSpreadsheet, Loader2, AlertCircle, CheckCircle2, X } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -16,6 +17,7 @@ interface ExcelImportModalProps {
 
 const ExcelImportModal: React.FC<ExcelImportModalProps> = ({ open, onOpenChange, onSuccess }) => {
   const { toast } = useToast();
+  const { currentCompany, user } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{
@@ -26,6 +28,9 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({ open, onOpenChange,
     warnings: string[];
     message: string;
   } | null>(null);
+
+  const targetCompanyId = currentCompany?.id || user?.companyId || localStorage.getItem('selected_company_id') || undefined;
+  const companyName = currentCompany?.name || user?.companyName || 'Empresa Ativa';
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -73,7 +78,7 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({ open, onOpenChange,
     setResult(null);
 
     try {
-      const importResult = await employeeService.importEmployeesFromExcel(file);
+      const importResult = await employeeService.importEmployeesFromExcel(file, targetCompanyId);
 
       setResult(importResult);
 
@@ -133,7 +138,7 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({ open, onOpenChange,
           </DialogTitle>
           <DialogDescription className="text-gray-400">
             Selecione uma planilha Excel (.xlsx ou .xls) com os dados dos funcionários.
-            A planilha deve conter uma coluna "CNPJ Empresa" para vincular os funcionários à empresa.
+            A planilha pode conter coluna de CNPJ ou vinculará diretamente à empresa ativa.
           </DialogDescription>
         </DialogHeader>
 
@@ -141,13 +146,12 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({ open, onOpenChange,
           {/* Instruções */}
           <Alert className="bg-blue-900/20 border-blue-600/50">
             <AlertCircle className="h-4 w-4 text-blue-400" />
-            <AlertTitle className="text-blue-300">Requisitos da Planilha</AlertTitle>
+            <AlertTitle className="text-blue-300">Instruções de Importação</AlertTitle>
             <AlertDescription className="text-gray-300 text-sm mt-2">
               <ul className="list-disc list-inside space-y-1">
-                <li>A planilha deve ter uma coluna <strong>"CNPJ Empresa"</strong> na primeira linha</li>
-                <li>A empresa deve estar cadastrada no sistema</li>
-                <li>Os funcionários serão vinculados à empresa encontrada pelo CNPJ</li>
-                <li>Colunas reconhecidas: Nome, CPF, Email, Telefone, Data Nascimento, Sexo, Município/Estado Nascimento, Grau Instrução, Matrícula eSocial, Endereço completo, etc.</li>
+                <li>Vínculo: Os funcionários serão vinculados automaticamente à sua empresa <strong>({companyName})</strong> ou pela coluna "CNPJ Empresa" se informada.</li>
+                <li>Colunas suportadas: Função/Cargo, Nome, CPF, CNH, Nascimento, E-mail, Celular/WhatsApp, Endereço, CEP.</li>
+                <li>Atualização automática: Caso o funcionário já exista pelo CPF, e-mail ou nome, os dados serão atualizados.</li>
               </ul>
             </AlertDescription>
           </Alert>

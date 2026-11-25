@@ -2,6 +2,8 @@ package com.z7design.fleet_manager.service;
 
 import com.z7design.fleet_manager.model.ExtractDataHolerites;
 import com.z7design.fleet_manager.repository.ExtractDataHoleritesRepository;
+import com.z7design.fleet_manager.security.TenantSecurityValidator;
+import com.z7design.fleet_manager.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -16,6 +18,7 @@ import java.util.UUID;
 public class ExtractDataHoleritesService {
     
     private final ExtractDataHoleritesRepository extractDataHoleritesRepository;
+    private final TenantSecurityValidator tenantSecurityValidator;
     
     /**
      * Salvar dados extraÃ­dos de holerite
@@ -33,14 +36,23 @@ public class ExtractDataHoleritesService {
             
             if (existing.isPresent()) {
                 ExtractDataHolerites existingData = existing.get();
+                tenantSecurityValidator.validateTenantAccess(existingData.getCompanyId());
                 existingData.setNome(nome);
                 existingData.setCodigo(codigo);
+                if (existingData.getCompanyId() == null) {
+                    existingData.setCompanyId(TenantContext.get());
+                }
                 return extractDataHoleritesRepository.save(existingData);
             }
         }
         
         // Criar novo registro
+        UUID tenantId = TenantContext.get();
+        if (tenantId == null) {
+            throw new IllegalStateException("Não foi possível identificar a empresa do usuário para salvar o holerite.");
+        }
         ExtractDataHolerites extractData = ExtractDataHolerites.builder()
+                .companyId(tenantId)
                 .nome(nome)
                 .cpf(cpf)
                 .codigo(codigo)
@@ -99,7 +111,10 @@ public class ExtractDataHoleritesService {
      * Deletar por ID
      */
     public void deleteById(UUID id) {
-        extractDataHoleritesRepository.deleteById(id);
+        ExtractDataHolerites entity = extractDataHoleritesRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Registro não encontrado."));
+        tenantSecurityValidator.validateTenantAccess(entity.getCompanyId());
+        extractDataHoleritesRepository.delete(entity);
     }
     
     /**

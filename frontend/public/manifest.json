@@ -73,22 +73,6 @@
       "purpose": "maskable"
     }
   ],
-  "screenshots": [
-    {
-      "src": "/screenshots/desktop-1.png",
-      "sizes": "1280x720",
-      "type": "image/png",
-      "form_factor": "wide",
-      "label": "Dashboard Principal"
-    },
-    {
-      "src": "/screenshots/mobile-1.png",
-      "sizes": "375x667",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "Interface Mobile"
-    }
-  ],
   "shortcuts": [
     {
       "name": "Dashboard",

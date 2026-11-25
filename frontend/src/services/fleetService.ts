@@ -503,6 +503,19 @@ class FleetService {
     await api.delete(`/api/fines/${id}`);
   }
 
+  async deleteFinesBatch(ids: string[]): Promise<{ count: number; message: string }> {
+    try {
+      const response = await api.post('/api/fines/batch-delete', ids);
+      return response.data;
+    } catch (error) {
+      // Fallback para exclusão individual caso o endpoint em lote falhe
+      for (const id of ids) {
+        await api.delete(`/api/fines/${id}`);
+      }
+      return { count: ids.length, message: `${ids.length} multas excluídas com sucesso` };
+    }
+  }
+
   // Manutenções
   async getMaintenances(vehicleId?: string | any): Promise<Maintenance[]> {
     const validVehicleId = typeof vehicleId === 'string' && vehicleId.trim() !== '' ? vehicleId.trim() : null;

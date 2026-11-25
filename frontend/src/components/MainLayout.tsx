@@ -11,7 +11,8 @@ import {
   HelpCircle,
   Headphones,
   CalendarDays,
-  Building2
+  Building2,
+  Menu
 } from 'lucide-react';
 import { getRoleDisplayName } from '@/utils/permissions';
 import CollapsibleSidebar from './CollapsibleSidebar';
@@ -155,11 +156,24 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           <div className="flex items-center justify-between px-4 sm:px-6 h-full gap-2 sm:gap-4">
             {/* Lado esquerdo: Toggle + Navegação Voltar/Avançar + Logo Dinâmica + Título */}
             <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
+              {/* Botão de abrir menu no mobile */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleSidebar}
+                className="text-muted-foreground hover:text-foreground hover:bg-accent h-9 w-9 transition-all flex md:hidden shrink-0 active:scale-90"
+                aria-label="Abrir menu lateral"
+              >
+                <Menu size={20} />
+              </Button>
+
+              {/* Botão de colapsar no desktop */}
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={toggleSidebar}
                 className="text-muted-foreground hover:text-foreground hover:bg-accent h-8 w-8 transition-all hidden md:flex shrink-0"
+                aria-label="Recolher menu lateral"
               >
                 {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
               </Button>

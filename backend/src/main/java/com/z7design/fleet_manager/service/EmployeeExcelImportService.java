@@ -3,7 +3,9 @@ package com.z7design.fleet_manager.service;
 import com.z7design.fleet_manager.dto.EmployeeDTO;
 import com.z7design.fleet_manager.model.Company;
 import com.z7design.fleet_manager.model.Employee;
+import com.z7design.fleet_manager.model.Position;
 import com.z7design.fleet_manager.repository.CompanyRepository;
+import com.z7design.fleet_manager.repository.PositionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
@@ -28,6 +30,7 @@ public class EmployeeExcelImportService {
     private final CompanyRepository companyRepository;
     private final com.z7design.fleet_manager.repository.EmployeeRepository employeeRepository;
     private final UserCompanyResolver userCompanyResolver;
+    private final PositionRepository positionRepository;
 
     // Mapeamento de colunas possíveis da planilha para campos da entidade
     private static final Map<String, String> COLUMN_MAPPING = new HashMap<>();
@@ -86,6 +89,20 @@ public class EmployeeExcelImportService {
         COLUMN_MAPPING.put("admissao", "hireDate");
         COLUMN_MAPPING.put("matricula", "registrationNumber");
         COLUMN_MAPPING.put("matrícula", "registrationNumber");
+
+        // Cargo / função (planilha WG usa "FUNÇÃO")
+        COLUMN_MAPPING.put("funcao", "positionName");
+        COLUMN_MAPPING.put("função", "positionName");
+        COLUMN_MAPPING.put("cargo", "positionName");
+        COLUMN_MAPPING.put("position", "positionName");
+
+        // CNH
+        COLUMN_MAPPING.put("cnh", "cnhNumber");
+        COLUMN_MAPPING.put("cnh numero", "cnhNumber");
+        COLUMN_MAPPING.put("cnh número", "cnhNumber");
+        COLUMN_MAPPING.put("carteira nacional habilitacao", "cnhNumber");
+        COLUMN_MAPPING.put("carteira nacional habilitação", "cnhNumber");
+
         COLUMN_MAPPING.put("status", "status");
         COLUMN_MAPPING.put("situacao", "status");
 
@@ -143,6 +160,11 @@ public class EmployeeExcelImportService {
 
     @Transactional
     public ImportResult importEmployees(MultipartFile file) {
+        return importEmployees(file, null);
+    }
+
+    @Transactional
+    public ImportResult importEmployees(MultipartFile file, UUID explicitCompanyId) {
         log.info("📥 Iniciando importação de funcionários do Excel: {}", file.getOriginalFilename());
 
         ImportResult result = new ImportResult();
@@ -213,8 +235,18 @@ public class EmployeeExcelImportService {
                 }
             }
 
-            // Validar se encontrou CNPJ da empresa ou se deve usar a empresa do usuário logado
-            Optional<Company> currentTenantCompany = userCompanyResolver.resolveCurrentCompany();
+            // Validar se encontrou CNPJ da empresa ou se deve usar a empresa do usuário logado / explicitamente informada
+            Optional<Company> currentTenantCompany = Optional.empty();
+            if (explicitCompanyId != null) {
+                currentTenantCompany = companyRepository.findById(explicitCompanyId);
+                if (currentTenantCompany.isPresent()) {
+                    log.info("📋 Empresa informada explicitamente: {} (ID: {})", 
+                            currentTenantCompany.get().getName(), explicitCompanyId);
+                }
+            }
+            if (currentTenantCompany.isEmpty()) {
+                currentTenantCompany = userCompanyResolver.resolveCurrentCompany();
+            }
             Company company = null;
 
             if (companyCnpjColumnIndex == -1) {
@@ -328,17 +360,20 @@ public class EmployeeExcelImportService {
                         continue;
                     }
 
-                    // Busca multi-tenant: CPF + empresa, ou Nome + empresa
+                    // Busca multi-tenant: CPF + empresa, ou fallback global CPF, ou Email, ou Nome + empresa
                     Optional<Employee> existingEmployee = Optional.empty();
                     if (employeeDTO.getCpf() != null && !employeeDTO.getCpf().isBlank()) {
                         String normalizedCpf = employeeDTO.getCpf().replaceAll("[^0-9]", "");
                         existingEmployee = employeeRepository.findByCpfAndCompanyId(normalizedCpf, company.getId());
                         if (existingEmployee.isEmpty()) {
                             // fallback global (sem filtro de empresa) para evitar duplicata cross-tenant
-                            existingEmployee = employeeRepository.findByCpf(normalizedCpf);
+                            existingEmployee = employeeRepository.findByCpfGlobal(normalizedCpf);
                         }
                     }
-                    if (existingEmployee.isEmpty()) {
+                    if (existingEmployee.isEmpty() && employeeDTO.getEmail() != null && !employeeDTO.getEmail().isBlank()) {
+                        existingEmployee = employeeRepository.findByEmail(employeeDTO.getEmail().trim());
+                    }
+                    if (existingEmployee.isEmpty() && employeeDTO.getName() != null && !employeeDTO.getName().isBlank()) {
                         existingEmployee = employeeRepository.findByNameExactAndCompanyId(
                                 employeeDTO.getName().trim(), company.getId());
                     }
@@ -405,18 +440,26 @@ public class EmployeeExcelImportService {
                     case "name":
                         dto.setName(cellValue.trim());
                         break;
-                    case "cpf":
-                        dto.setCpf(cellValue.replaceAll("[^0-9]", ""));
+                    case "cpf": {
+                        String rawCpf = cellValue.replaceAll("[^0-9]", "");
+                        if (!rawCpf.isEmpty() && rawCpf.length() < 11) {
+                            rawCpf = String.format("%011d", Long.parseLong(rawCpf));
+                        }
+                        dto.setCpf(rawCpf);
                         break;
+                    }
                     case "rg":
                         dto.setRg(cellValue.trim());
                         break;
                     case "email":
-                        dto.setEmail(cellValue.trim());
+                        dto.setEmail(cellValue.trim().toLowerCase());
                         break;
-                    case "phone":
-                        dto.setPhone(cellValue.replaceAll("[^0-9]", ""));
+                    case "phone": {
+                        String rawPhone = cellValue.replaceAll("[^0-9]", "");
+                        dto.setPhone(rawPhone);
+                        // dto.setPossuiWhatsapp(true);
                         break;
+                    }
                     case "birthDate":
                         dto.setBirthDate(parseDate(cellValue));
                         break;
@@ -436,9 +479,18 @@ public class EmployeeExcelImportService {
                     case "matriculaEsocial":
                         dto.setMatriculaEsocial(cellValue.trim());
                         break;
-                    case "enderecoRua":
-                        dto.setEnderecoRua(cellValue.trim());
+                    case "enderecoRua": {
+                        String street = cellValue.trim();
+                        dto.setEnderecoRua(street);
+                        if (dto.getAddress() == null) {
+                            EmployeeDTO.AddressDTO addressDTO = new EmployeeDTO.AddressDTO();
+                            addressDTO.setStreet(street);
+                            dto.setAddress(addressDTO);
+                        } else {
+                            dto.getAddress().setStreet(street);
+                        }
                         break;
+                    }
                     case "enderecoNumero":
                         dto.setEnderecoNumero(cellValue.trim());
                         break;
@@ -455,15 +507,58 @@ public class EmployeeExcelImportService {
                         dto.setEnderecoEstado(
                                 cellValue.trim().toUpperCase().substring(0, Math.min(2, cellValue.length())));
                         break;
-                    case "enderecoCep":
-                        dto.setEnderecoCep(cellValue.replaceAll("[^0-9]", ""));
+                    case "enderecoCep": {
+                        String rawCep = cellValue.replaceAll("[^0-9]", "");
+                        if (!rawCep.isEmpty() && rawCep.length() < 8) {
+                            rawCep = String.format("%08d", Long.parseLong(rawCep));
+                        }
+                        dto.setEnderecoCep(rawCep);
+                        // dto.setCep(rawCep);
+                        if (dto.getAddress() == null) {
+                            EmployeeDTO.AddressDTO addressDTO = new EmployeeDTO.AddressDTO();
+                            addressDTO.setZipCode(rawCep);
+                            dto.setAddress(addressDTO);
+                        } else {
+                            dto.getAddress().setZipCode(rawCep);
+                        }
                         break;
+                    }
                     case "hireDate":
                         dto.setHireDate(parseDate(cellValue));
                         break;
                     case "registrationNumber":
                         dto.setRegistrationNumber(cellValue.trim());
                         break;
+                    case "positionName": {
+                        String positionName = cellValue.trim();
+                        if (!positionName.isEmpty()) {
+                            List<Position> posList = positionRepository.findAllByNameIgnoreCase(positionName);
+                            Position position;
+                            if (!posList.isEmpty()) {
+                                position = posList.get(0);
+                            } else {
+                                Position created = new Position();
+                                created.setName(positionName);
+                                created.setDescription("Cargo criado automaticamente na importação de funcionários");
+                                created.setBaseSalary(BigDecimal.ZERO);
+                                position = positionRepository.save(created);
+                            }
+                            EmployeeDTO.PositionDTO positionDTO = new EmployeeDTO.PositionDTO();
+                            positionDTO.setId(position.getId());
+                            positionDTO.setName(position.getName());
+                            dto.setPosition(positionDTO);
+                            dto.setPositionDescription(position.getName());
+                        }
+                        break;
+                    }
+                    case "cnhNumber": {
+                        String rawCnh = cellValue.replaceAll("[^0-9]", "");
+                        if (!rawCnh.isEmpty() && rawCnh.length() < 11) {
+                            rawCnh = String.format("%011d", Long.parseLong(rawCnh));
+                        }
+                        dto.setCnhNumber(rawCnh);
+                        break;
+                    }
                     case "status":
                         dto.setStatus(normalizeStatus(cellValue));
                         break;
@@ -584,7 +679,11 @@ public class EmployeeExcelImportService {
                 return cell.getStringCellValue();
             case NUMERIC:
                 if (DateUtil.isCellDateFormatted(cell)) {
-                    return cell.getDateCellValue().toString();
+                    java.util.Date d = cell.getDateCellValue();
+                    if (d != null) {
+                        return new java.text.SimpleDateFormat("yyyy-MM-dd").format(d);
+                    }
+                    return null;
                 } else {
                     // Evitar notaÃ§Ã£o cientÃ­fica
                     double numericValue = cell.getNumericCellValue();
@@ -611,10 +710,20 @@ public class EmployeeExcelImportService {
         if (dateStr == null || dateStr.trim().isEmpty())
             return null;
 
+        String clean = dateStr.trim();
+        // Se contiver horário (ex: "1990-01-13 00:00:00"), pegar apenas a data
+        if (clean.contains(" ")) {
+            String[] parts = clean.split("\\s+");
+            if (parts.length > 0 && (parts[0].contains("-") || parts[0].contains("/"))) {
+                clean = parts[0];
+            }
+        }
+
         // Tentar diferentes formatos de data
         String[] formats = {
                 "yyyy-MM-dd",
                 "dd/MM/yyyy",
+                "d/M/yyyy",
                 "dd-MM-yyyy",
                 "dd.MM.yyyy",
                 "yyyy/MM/dd",

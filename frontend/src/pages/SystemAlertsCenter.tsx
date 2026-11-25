@@ -115,12 +115,12 @@ const CATEGORY_LABELS: Record<AlertCategory, string> = {
   RH_EXAM: 'Exame ASO / Laudo',
 };
 
-const MODULE_OPTIONS: { id: AlertModule; label: string; icon: React.ElementType }[] = [
-  { id: 'ALL', label: 'Todos os Módulos', icon: Bell },
-  { id: 'FINANCEIRO', label: 'Financeiro (Pagar & Receber)', icon: DollarSign },
-  { id: 'RH', label: 'RH & Pessoal (Férias, CNH, ASO)', icon: Users },
-  { id: 'FROTA', label: 'Frota & Manutenção', icon: Bus },
-  { id: 'EMPRESA', label: 'Empresa & Contratos', icon: Building2 },
+const MODULE_OPTIONS: { id: AlertModule; label: string; shortLabel: string; icon: React.ElementType }[] = [
+  { id: 'ALL', label: 'Todos os Módulos', shortLabel: 'Todos', icon: Bell },
+  { id: 'FINANCEIRO', label: 'Financeiro (Pagar & Receber)', shortLabel: 'Financeiro', icon: DollarSign },
+  { id: 'RH', label: 'RH & Pessoal (Férias, CNH, ASO)', shortLabel: 'RH & Pessoal', icon: Users },
+  { id: 'FROTA', label: 'Frota & Manutenção', shortLabel: 'Frota & Manutenção', icon: Bus },
+  { id: 'EMPRESA', label: 'Empresa & Contratos', shortLabel: 'Empresas', icon: Building2 },
 ];
 
 const SystemAlertsCenter: React.FC = () => {
@@ -331,8 +331,8 @@ const SystemAlertsCenter: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Abas de Seleção de Módulo Contextual */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-0.5 scrollbar-thin">
+        {/* Abas de Seleção de Módulo Contextual com rolagem horizontal suave no mobile */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2 pt-0.5 whitespace-nowrap">
           {MODULE_OPTIONS.map((m) => {
             const Icon = m.icon;
             const isSelected = activeModule === m.id;
@@ -352,17 +352,20 @@ const SystemAlertsCenter: React.FC = () => {
                 key={m.id}
                 type="button"
                 onClick={() => handleModuleChange(m.id)}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 border cursor-pointer ${
+                className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold shrink-0 transition-all duration-200 border cursor-pointer select-none active:scale-95 touch-manipulation min-h-[42px] ${
                   isSelected
                     ? 'bg-seguranca-red text-white border-red-500 shadow-md shadow-red-950/40'
                     : 'bg-card hover:bg-accent text-muted-foreground hover:text-foreground border-border'
                 }`}
               >
-                <Icon className={`h-4 w-4 ${isSelected ? 'text-white' : 'text-primary'}`} />
-                <span>{m.label}</span>
+                <Icon className={`h-4 w-4 shrink-0 ${isSelected ? 'text-white' : 'text-primary'}`} />
+                <span>
+                  <span className="sm:hidden">{m.shortLabel}</span>
+                  <span className="hidden sm:inline">{m.label}</span>
+                </span>
                 {count !== undefined && count > 0 && (
                   <span
-                    className={`ml-1 text-[10px] font-bold px-1.5 py-0.2 rounded-full ${
+                    className={`ml-1 text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full shrink-0 ${
                       isSelected
                         ? 'bg-white/20 text-white'
                         : 'bg-red-500/15 text-red-400 border border-red-500/30'
@@ -531,27 +534,35 @@ const SystemAlertsCenter: React.FC = () => {
 
         {/* Alternador de visualização exclusivo do Módulo de Frota & Manutenção */}
         {activeModule === 'FROTA' && filteredAlerts.length > 0 && (
-          <div className="flex items-center justify-between bg-seguranca-graphite border border-gray-700/80 rounded-xl p-2.5">
-            <div className="flex items-center gap-2">
-              <Bus className="h-4 w-4 text-seguranca-yellow" />
-              <span className="text-xs text-gray-200 font-semibold">Visualização no Módulo de Manutenção:</span>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-seguranca-graphite border border-gray-700/80 rounded-xl p-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <Bus className="h-4 w-4 text-seguranca-yellow shrink-0" />
+              <span className="text-xs sm:text-sm text-gray-200 font-semibold truncate">Visualização no Módulo de Manutenção:</span>
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto">
               <Button
                 type="button"
                 size="sm"
                 variant={frotaViewMode === 'vehicle' ? 'default' : 'ghost'}
                 onClick={() => setFrotaViewMode('vehicle')}
-                className={`h-7 px-2.5 text-xs font-bold ${frotaViewMode === 'vehicle' ? 'bg-seguranca-red text-white' : 'text-gray-400 hover:text-white'}`}
+                className={`h-9 px-3 text-xs font-bold rounded-lg transition-all ${
+                  frotaViewMode === 'vehicle'
+                    ? 'bg-seguranca-red text-white shadow-md shadow-red-950/40'
+                    : 'text-gray-300 hover:text-white bg-slate-800/40 hover:bg-slate-800'
+                }`}
               >
-                Agrupar por Veículo (Criar OS)
+                Agrupar por Veículo
               </Button>
               <Button
                 type="button"
                 size="sm"
                 variant={frotaViewMode === 'priority' ? 'default' : 'ghost'}
                 onClick={() => setFrotaViewMode('priority')}
-                className={`h-7 px-2.5 text-xs font-bold ${frotaViewMode === 'priority' ? 'bg-seguranca-red text-white' : 'text-gray-400 hover:text-white'}`}
+                className={`h-9 px-3 text-xs font-bold rounded-lg transition-all ${
+                  frotaViewMode === 'priority'
+                    ? 'bg-seguranca-red text-white shadow-md shadow-red-950/40'
+                    : 'text-gray-300 hover:text-white bg-slate-800/40 hover:bg-slate-800'
+                }`}
               >
                 Por Prioridade
               </Button>

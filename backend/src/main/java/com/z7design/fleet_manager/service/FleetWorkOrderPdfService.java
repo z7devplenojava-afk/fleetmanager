@@ -77,8 +77,9 @@ public class FleetWorkOrderPdfService {
     private static final NumberFormat CURRENCY = NumberFormat.getCurrencyInstance(new Locale("pt", "BR"));
 
     // Caches de alta performance em memória para geração quase instantânea de PDF
-    private static final String PDF_CACHE_VERSION = "v7_model2_two_cols_evidences_active";
-    private static final String MODEL_2_SINGLE_COLUMN_CACHE_VERSION = "v8_model2_single_column_evidences_active";
+    // v9: invalida PDFs gerados antes do fallback de logo WebP -> ícone JPG.
+    private static final String PDF_CACHE_VERSION = "v9_company_logo_webp_fallback";
+    private static final String MODEL_2_SINGLE_COLUMN_CACHE_VERSION = "v9_company_logo_webp_fallback";
     private static final Map<String, byte[]> PDF_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
     private static final Map<String, String> LOGO_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
     private static final Map<String, String> PHOTO_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
@@ -320,7 +321,7 @@ public class FleetWorkOrderPdfService {
             company = resolveCompany(order);
             if (company != null) {
                 data.put("companyName", company.getName());
-                data.put("companyLogo", loadLogoAsDataUri(company.getLogoUrl()));
+                data.put("companyLogo", loadCompanyLogo(company));
             }
         } catch (Exception e) {
             log.warn("Aviso ao resolver empresa para PDF do motorista da OS {}: {}", order.getId(), e.getMessage());
@@ -745,7 +746,7 @@ public class FleetWorkOrderPdfService {
                 data.put("companyName", company.getName());
                 data.put("companyCnpj", CompanyDataFormatter.formatCnpjForHeader(company));
                 data.put("companyAddress", CompanyDataFormatter.formatFullAddress(company));
-                data.put("companyLogo", loadLogoAsDataUri(company.getLogoUrl()));
+                data.put("companyLogo", loadCompanyLogo(company));
             }
         } catch (Exception e) {
             log.warn("Aviso ao resolver dados de empresa para PDF da OS {}: {}", order.getId(), e.getMessage());
@@ -832,6 +833,36 @@ public class FleetWorkOrderPdfService {
     }
 
     /**
+     * Fontes possíveis da logomarca da empresa: o cadastro pode ter preenchido
+     * logoUrl, iconUrl ou ambos (a UI trata ícone e logo como campos separados).
+     */
+    private String resolveCompanyLogoSource(Company company) {
+        if (company == null)
+            return null;
+        if (company.getLogoUrl() != null && !company.getLogoUrl().isBlank())
+            return company.getLogoUrl();
+        return company.getIconUrl();
+    }
+
+    /**
+     * Tenta a logomarca principal e, se ela estiver em formato não suportado pelo
+     * gerador de PDF (ex.: WebP), usa o ícone da empresa como fallback.
+     */
+    private String loadCompanyLogo(Company company) {
+        if (company == null)
+            return null;
+        String logo = resolveCompanyLogoSource(company);
+        String result = loadLogoAsDataUri(logo);
+        if (result == null && company.getIconUrl() != null
+                && !company.getIconUrl().isBlank()
+                && !company.getIconUrl().equals(logo)) {
+            log.debug("Logo principal da empresa {} não renderizável; tentando ícone.", company.getId());
+            result = loadLogoAsDataUri(company.getIconUrl());
+        }
+        return result;
+    }
+
+    /**
      * Carrega o logo da empresa e converte para data URI (base64) para ser
      * embutido diretamente no HTML do PDF (evita dependência de rede/base URL).
      */
@@ -880,6 +911,10 @@ public class FleetWorkOrderPdfService {
                 if (filenameOnly != null && storedUploadService != null) {
                     try {
                         var dbLogo = storedUploadService.find("companies/logos", filenameOnly);
+                        if (dbLogo.isEmpty()) {
+                            // A UI de branding grava o ícone em companies/icons.
+                            dbLogo = storedUploadService.find("companies/icons", filenameOnly);
+                        }
                         if (dbLogo.isPresent() && dbLogo.get().getData() != null && dbLogo.get().getData().length > 0) {
                             bytes = dbLogo.get().getData();
                         }
@@ -917,6 +952,13 @@ public class FleetWorkOrderPdfService {
             if (normalized != null) {
                 LOGO_CACHE.put(cleanUrl, normalized);
                 return normalized;
+            }
+
+            // ImageIO não decodifica WebP: devolver os bytes crus como "image/png"
+            // gera um data URI inválido e o Flying Saucer simplesmente não desenha a imagem.
+            if (lower.endsWith(".webp")) {
+                log.warn("Logo da empresa em WebP não é suportado no PDF: {}", logoUrl);
+                return null;
             }
 
             String mime = "image/png";
@@ -1080,13 +1122,18 @@ public class FleetWorkOrderPdfService {
             List<Path> candidates = new ArrayList<>();
             if (uploadDir != null && !uploadDir.isBlank()) {
                 candidates.add(Paths.get(uploadDir, "companies", "logos", filename).toAbsolutePath().normalize());
+                candidates.add(Paths.get(uploadDir, "companies", "icons", filename).toAbsolutePath().normalize());
                 candidates.add(Paths.get(uploadDir, filename).toAbsolutePath().normalize());
             }
             candidates
                     .add(Paths.get("/var/www/fluxbus/uploads/companies/logos", filename).toAbsolutePath().normalize());
+            candidates.add(Paths.get("/var/www/fluxbus/uploads/companies/icons", filename).toAbsolutePath().normalize());
             candidates.add(Paths.get("/app/uploads/companies/logos", filename).toAbsolutePath().normalize());
+            candidates.add(Paths.get("/app/uploads/companies/icons", filename).toAbsolutePath().normalize());
             candidates.add(Paths.get("uploads", "companies", "logos", filename).toAbsolutePath().normalize());
+            candidates.add(Paths.get("uploads", "companies", "icons", filename).toAbsolutePath().normalize());
             candidates.add(Paths.get("..", "uploads", "companies", "logos", filename).toAbsolutePath().normalize());
+            candidates.add(Paths.get("..", "uploads", "companies", "icons", filename).toAbsolutePath().normalize());
 
             for (Path candidate : candidates) {
                 if (Files.exists(candidate) && Files.isRegularFile(candidate)) {

@@ -12,7 +12,7 @@ function isInvalidImageTarget(path: string, invalidKeywords: string[]): boolean 
   const segments = clean.split('/').filter(Boolean);
   if (segments.length === 0) return true;
   const lastSegment = segments[segments.length - 1];
-  
+
   return invalidKeywords.includes(lastSegment);
 }
 
@@ -39,7 +39,7 @@ export function resolveCompanyLogoUrl(logoUrl?: string | null): string | null {
   // Redirecionar logos legadas com fundo preto sólido (JPEG) do FluxBus para o asset oficial transparente
   if (trimmed.includes('3d89ef9d-7e6f-4c76-8925-016dc70faa10') || trimmed.includes('6d3509eb-6055-4df9-85c9-bcf311f55038')) {
     const isWhiteTheme = typeof window !== 'undefined' && (
-      localStorage.getItem('theme') === 'white' || 
+      localStorage.getItem('theme') === 'white' ||
       localStorage.getItem('fluxbus_theme') === 'white' ||
       !document.documentElement.classList.contains('dark')
     );
@@ -156,9 +156,6 @@ export function resolveCompanyIconUrl(
   companyName?: string | null
 ): string | null {
   const isFluxBus = !companyName || companyName.toLowerCase().includes('fluxbus') || companyName === 'FluxBus';
-  if (isFluxBus) {
-    return '/fluxbus-icon.png';
-  }
 
   const isSilvestre = (companyName && companyName.toLowerCase().includes('silvestre')) ||
     (typeof window !== 'undefined' && (
@@ -166,11 +163,9 @@ export function resolveCompanyIconUrl(
       localStorage.getItem('theme') === 'white'
     ));
 
-  if (isLightMode && isSilvestre) {
-    return '/images/sao-silvestre-icon.png?v=clean3';
-  }
-
   const stored = getStoredCompanyBranding();
+
+  // O ícone enviado pelo usuário tem prioridade sobre qualquer fallback hardcoded.
   const candidateIcon = iconUrl !== undefined ? iconUrl : stored.iconUrl;
   const resolvedIcon = resolveCompanyLogoUrl(candidateIcon);
   if (resolvedIcon) {
@@ -178,6 +173,14 @@ export function resolveCompanyIconUrl(
       return '/images/sao-silvestre-icon.png?v=clean3';
     }
     return resolvedIcon;
+  }
+
+  if (isFluxBus) {
+    return '/fluxbus-icon.png';
+  }
+
+  if (isLightMode && isSilvestre) {
+    return '/images/sao-silvestre-icon.png?v=clean3';
   }
 
   const candidateLogo = fallbackLogoUrl !== undefined ? fallbackLogoUrl : stored.logoUrl;

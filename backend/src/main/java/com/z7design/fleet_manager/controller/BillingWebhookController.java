@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -133,6 +134,7 @@ public class BillingWebhookController {
     }
 
     @PostMapping("/manual-simulation")
+    @PreAuthorize("hasAuthority('SUPER_ADMIN') or hasAuthority('ROLE_SUPER_ADMIN')")
     @Operation(summary = "Simulação Manual de Regularização/Bloqueio (Ambiente Administrativo)")
     public ResponseEntity<?> simulateStatusChange(
             @RequestParam UUID companyId,

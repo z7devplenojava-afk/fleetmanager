@@ -160,8 +160,135 @@ const OrdensServicoTable: React.FC<OrdensServicoTableProps> = ({ onRefresh }) =>
         </Button>
       </div>
 
-      {/* Tabela */}
-      <div className="rounded-lg border border-gray-700 overflow-hidden">
+      {/* Tabela Mobile (Cards View) */}
+      <div className="block md:hidden space-y-3">
+        {filtered.length === 0 ? (
+          <div className="p-8 text-center text-gray-400 bg-seguranca-graphite border border-gray-700 rounded-xl">
+            {isLoading ? 'Carregando ordens de serviço...' : 'Nenhuma ordem de serviço encontrada.'}
+          </div>
+        ) : (
+          filtered.map(order => (
+            <div
+              key={`mobile-os-${order.id}`}
+              className="bg-seguranca-black border border-gray-700/80 hover:border-seguranca-yellow/50 rounded-xl p-3.5 space-y-3 shadow-md transition-all cursor-pointer"
+              onClick={() => onEdit?.(order)}
+            >
+              {/* Header: OS number + Status + Tipo */}
+              <div className="flex items-center justify-between gap-2 border-b border-gray-800 pb-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="font-bold text-white text-sm truncate">
+                    {order.osNumber || `OS-${order.id.slice(0, 8)}`}
+                  </span>
+                  <Badge
+                    variant="outline"
+                    className={`text-[10px] font-bold shrink-0 ${
+                      order.maintenanceType === MaintenanceType.PREVENTIVA
+                        ? 'bg-emerald-950/40 text-emerald-400 border-emerald-500/50'
+                        : 'bg-amber-950/40 text-amber-400 border-amber-500/50'
+                    }`}
+                  >
+                    {order.maintenanceType || 'CORRETIVA'}
+                  </Badge>
+                </div>
+                <Badge className={`${STATUS_CONFIG[order.status]?.color || 'bg-gray-600'} border-none font-bold text-[10px] shrink-0`}>
+                  {STATUS_CONFIG[order.status]?.label || order.status}
+                </Badge>
+              </div>
+
+              {/* Informações do Veículo e Cliente */}
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <span className="text-[10px] text-gray-400 uppercase tracking-wider block">Veículo</span>
+                  <span className="font-semibold text-gray-100">{order.vehiclePlate || 'N/A'}</span>
+                  {order.vehicleModel && <span className="text-gray-400 block text-[11px] truncate">{order.vehicleModel}</span>}
+                </div>
+                <div>
+                  <span className="text-[10px] text-gray-400 uppercase tracking-wider block">Cliente / Setor</span>
+                  <span className="font-medium text-gray-200 truncate block">{order.clientName || '—'}</span>
+                  {order.workPostName && <span className="text-gray-400 block text-[11px] truncate">{order.workPostName}</span>}
+                </div>
+              </div>
+
+              {/* Detalhes operacionais: Parada, Odômetro, Mecânico, Custo */}
+              <div className="grid grid-cols-2 gap-2 text-xs bg-seguranca-graphite/40 p-2.5 rounded-lg border border-gray-800">
+                <div>
+                  <span className="text-[10px] text-gray-400 block">Data Parada</span>
+                  <span className="text-gray-200">
+                    {order.stopDate ? new Date(order.stopDate + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-gray-400 block">Odômetro</span>
+                  <span className="font-mono text-gray-200">
+                    {order.odometerIn != null ? `${order.odometerIn.toLocaleString('pt-BR')} km` : '—'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-gray-400 block">Responsável</span>
+                  <span className="text-gray-200 truncate block">{getOrderResponsibleDisplay(order)}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-gray-400 block">Custo Total</span>
+                  <span className="font-mono font-bold text-seguranca-yellow">
+                    {(order.totalCost || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  </span>
+                </div>
+              </div>
+
+              {/* Ações Mobile com toque mínimo ergonômico */}
+              <div className="flex items-center justify-end gap-2 pt-1 border-t border-gray-800/80" onClick={e => e.stopPropagation()}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleGeneratePDF(order)}
+                  disabled={generatingPdfId === order.id}
+                  className="h-9 px-3 text-xs border-red-500/60 text-red-400 hover:bg-red-500/10 active:scale-95"
+                >
+                  <FileText className="mr-1.5 h-3.5 w-3.5" />
+                  PDF
+                </Button>
+                {onEdit && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onEdit(order)}
+                    className="h-9 px-3 text-xs border-blue-500/60 text-blue-400 hover:bg-blue-500/10 active:scale-95"
+                  >
+                    <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                    Editar
+                  </Button>
+                )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-9 w-9 p-0 hover:bg-gray-700 active:scale-95" title="Mais opções">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="bg-seguranca-graphite border-gray-600 text-gray-200">
+                    <DropdownMenuItem onClick={() => handleGeneratePDF(order)}>
+                      <Eye className="mr-2 h-4 w-4" /> Visualizar PDF
+                    </DropdownMenuItem>
+                    {onDuplicate && (
+                      <DropdownMenuItem onClick={() => onDuplicate(order)}>
+                        <Copy className="mr-2 h-4 w-4" /> Duplicar OS
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem
+                      onClick={() => setDeleteConfirmOrder(order)}
+                      className="text-red-400 hover:text-red-300 focus:text-red-300"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Tabela Desktop */}
+      <div className="hidden md:block rounded-lg border border-gray-700 overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow className="bg-seguranca-graphite border-gray-700 hover:bg-transparent">

@@ -267,7 +267,7 @@ const Frota: React.FC = () => {
   const [fineQueryUf, setFineQueryUf] = useState('MG');
 
   // Estados para relatórios
-  const [showMultaSelection, setShowMultaSelection] = useState(false);
+  const [showMultaSelection, setShowMultaSelection] = useState(true);
   const [fineToDownload, setFineToDownload] = useState<any>(null);
   const { empresa } = useAuth();
 
@@ -644,21 +644,9 @@ const Frota: React.FC = () => {
 
   const handleDeleteMultipleMultas = async (selectedIds: string[]) => {
     try {
-      console.log('🗑️ Excluindo multas:', selectedIds);
+      console.log('🗑️ Excluindo multas em lote:', selectedIds);
 
-      // Confirmar exclusão
-      const confirmed = window.confirm(
-        `Tem certeza que deseja excluir ${selectedIds.length} multa(s) selecionada(s)?\n\nEsta ação não pode ser desfeita.`
-      );
-
-      if (!confirmed) {
-        return;
-      }
-
-      // Excluir cada multa
-      for (const id of selectedIds) {
-        await fleetService.deleteFine(id);
-      }
+      await fleetService.deleteFinesBatch(selectedIds);
 
       console.log('✅ Multas excluídas! Atualizando lista...');
 
@@ -674,11 +662,11 @@ const Frota: React.FC = () => {
         title: 'Sucesso!',
         description: `${selectedIds.length} multa(s) excluída(s) com sucesso.`,
       });
-    } catch (error) {
-      console.error('❌ Erro ao excluir multas:', error);
+    } catch (error: any) {
+      console.error('❌ Erro ao excluir multas em lote:', error);
       toast({
         title: 'Erro!',
-        description: 'Erro ao excluir multas. Tente novamente.',
+        description: error?.response?.data?.message || error?.message || 'Erro ao excluir multas. Tente novamente.',
         variant: 'destructive',
       });
     }

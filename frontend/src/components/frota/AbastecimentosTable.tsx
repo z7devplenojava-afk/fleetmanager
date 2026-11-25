@@ -702,7 +702,138 @@ export const AbastecimentosTable: React.FC<AbastecimentosTableProps> = ({
         </div>
       )}
 
-      <div className="w-full overflow-auto bg-seguranca-black border border-gray-600 rounded-lg">
+      {/* Visualização Mobile em Cards */}
+      <div className="block md:hidden space-y-3">
+        {abastecimentos.length === 0 ? (
+          <div className="text-center py-8 bg-seguranca-graphite border border-gray-700 rounded-xl text-gray-400">
+            Nenhum abastecimento encontrado
+          </div>
+        ) : (
+          abastecimentos.map((abastecimento) => (
+            <div
+              key={`mobile-fuel-${abastecimento.id}`}
+              className="bg-seguranca-black border border-gray-700/80 hover:border-seguranca-yellow/50 rounded-xl p-3.5 space-y-3 shadow-md transition-all cursor-pointer"
+              onClick={() => handleView(abastecimento)}
+            >
+              {/* Header do Card Mobile: Checkbox + Placa + Data */}
+              <div className="flex items-center justify-between gap-2 border-b border-gray-800 pb-2.5">
+                <div className="flex items-center gap-2.5 min-w-0" onClick={(e) => e.stopPropagation()}>
+                  <Checkbox
+                    checked={selectedItems.has(abastecimento.id)}
+                    onCheckedChange={(checked) => handleSelectItem(abastecimento.id, checked as boolean)}
+                    aria-label={`Selecionar abastecimento ${abastecimento.vehiclePlate}`}
+                    className="border-gray-500 data-[state=checked]:bg-seguranca-yellow data-[state=checked]:border-seguranca-yellow"
+                  />
+                  <div className="flex items-center gap-2">
+                    <Car className="h-4 w-4 text-seguranca-yellow shrink-0" />
+                    <span className="font-bold text-white text-sm">
+                      {abastecimento.vehiclePlate || 'N/A'}
+                    </span>
+                  </div>
+                </div>
+                <span className="text-xs text-gray-400 font-medium shrink-0">
+                  {(() => {
+                    if (!abastecimento.date) return '—';
+                    try {
+                      const date = new Date(abastecimento.date);
+                      return isNaN(date.getTime()) ? '—' : format(date, 'dd/MM/yyyy');
+                    } catch {
+                      return '—';
+                    }
+                  })()}
+                </span>
+              </div>
+
+              {/* Informações Principais: Combustível, Litros e Valor */}
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <span className="text-[10px] text-gray-400 uppercase tracking-wider block">Combustível</span>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <Badge variant="outline" className="text-[10px] border-seguranca-yellow/40 text-seguranca-yellow bg-seguranca-yellow/10 font-bold">
+                      {abastecimento.fuelType || 'Diesel'}
+                    </Badge>
+                    <span className="font-semibold text-gray-200">
+                      {(abastecimento.liters || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })} L
+                    </span>
+                  </div>
+                </div>
+                <div>
+                  <span className="text-[10px] text-gray-400 uppercase tracking-wider block">Valor Total</span>
+                  <span className="font-mono font-bold text-seguranca-yellow text-sm block mt-0.5">
+                    {(abastecimento.totalValue || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  </span>
+                  {abastecimento.unitPrice && (
+                    <span className="text-[10px] text-gray-400 font-mono">
+                      {(abastecimento.unitPrice || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/L
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Detalhes de Rodagem e Motorista */}
+              <div className="grid grid-cols-2 gap-2 text-xs bg-seguranca-graphite/40 p-2.5 rounded-lg border border-gray-800">
+                <div>
+                  <span className="text-[10px] text-gray-400 block">Odômetro / KM</span>
+                  <span className="font-mono text-gray-200">
+                    {abastecimento.currentKm != null ? `${abastecimento.currentKm.toLocaleString('pt-BR')} km` : '—'}
+                  </span>
+                  {abastecimento.kmTraveled && (
+                    <span className="text-[10px] text-emerald-400 block font-mono">
+                      +{abastecimento.kmTraveled.toLocaleString('pt-BR')} km rodados
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <span className="text-[10px] text-gray-400 block">Motorista</span>
+                  <span className="text-gray-200 truncate block">
+                    {abastecimento.driverName || 'Não informado'}
+                  </span>
+                </div>
+                <div className="col-span-2">
+                  <span className="text-[10px] text-gray-400 block">Posto / Local</span>
+                  <span className="text-gray-200 text-[11px] truncate block">
+                    {abastecimento.station || abastecimento.posto || 'Posto não informado'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Ações Mobile Táteis */}
+              <div className="flex items-center justify-end gap-2 pt-1 border-t border-gray-800/80" onClick={(e) => e.stopPropagation()}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleView(abastecimento)}
+                  className="h-9 px-3 text-xs border-blue-500/60 text-blue-400 hover:bg-blue-500/10 active:scale-95"
+                >
+                  <Eye className="mr-1.5 h-3.5 w-3.5" />
+                  Ver
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleEdit(abastecimento)}
+                  className="h-9 px-3 text-xs border-yellow-500/60 text-yellow-400 hover:bg-yellow-500/10 active:scale-95"
+                >
+                  <Edit className="mr-1.5 h-3.5 w-3.5" />
+                  Editar
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDelete(abastecimento)}
+                  className="h-9 w-9 p-0 border-red-500/60 text-red-400 hover:bg-red-500/10 active:scale-95"
+                  title="Excluir"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Tabela Desktop */}
+      <div className="hidden md:block w-full overflow-auto bg-seguranca-black border border-gray-600 rounded-lg">
         <Table>
           <TableHeader>
             <TableRow className="bg-seguranca-graphite hover:bg-seguranca-graphite">

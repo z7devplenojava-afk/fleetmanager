@@ -1219,6 +1219,66 @@
       color: #0f172a !important;
     }
 
+    
+    /* ============================================================================
+       CALENDÁRIO DO SISTEMA (React Day Picker) NO MODO BRANCO
+       Contraste forte, numerais nítidos e legibilidade impecável
+       ============================================================================ */
+    .rdp-root {
+      --rdp-accent-color: #dc2626 !important;
+      color: #0f172a !important;
+    }
+
+    .rdp-month_caption {
+      color: #0f172a !important;
+    }
+
+    .rdp-caption_label {
+      color: #0f172a !important;
+      font-weight: 800 !important;
+    }
+
+    .rdp-weekday {
+      color: #334155 !important;
+      font-weight: 800 !important;
+    }
+
+    .rdp-day_button {
+      color: #0f172a !important;
+      font-weight: 700 !important;
+      -webkit-text-fill-color: #0f172a !important;
+    }
+
+    .rdp-day_button:hover {
+      background-color: #f1f5f9 !important;
+      color: #dc2626 !important;
+      -webkit-text-fill-color: #dc2626 !important;
+    }
+
+    .rdp-selected .rdp-day_button,
+    .rdp-day_button.rdp-selected,
+    .rdp-day_button[aria-selected="true"] {
+      background-color: #dc2626 !important;
+      color: #ffffff !important;
+      -webkit-text-fill-color: #ffffff !important;
+      font-weight: 800 !important;
+      box-shadow: 0 4px 6px -1px rgba(220, 38, 38, 0.3) !important;
+    }
+
+    .rdp-today:not(.rdp-selected) .rdp-day_button,
+    .rdp-day_button.rdp-today:not(.rdp-selected) {
+      border: 2px solid #d97706 !important;
+      color: #b45309 !important;
+      -webkit-text-fill-color: #b45309 !important;
+      background-color: rgba(245, 158, 11, 0.1) !important;
+    }
+
+    .rdp-outside .rdp-day_button {
+      color: #94a3b8 !important;
+      -webkit-text-fill-color: #94a3b8 !important;
+      opacity: 0.45 !important;
+    }
+
     /* 8. Bordas Visíveis e Definidas no Modo Branco */
     .border-gray-800,
     .border-gray-700,

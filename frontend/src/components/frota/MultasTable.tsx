@@ -15,7 +15,9 @@ import {
   RefreshCw,
   User,
   FileText,
-  Download
+  Download,
+  Loader2,
+  CheckSquare
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -70,6 +72,8 @@ const MultasTable: React.FC<MultasTableProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [selectedMultas, setSelectedMultas] = useState<string[]>([]);
   const [isAllSelected, setIsAllSelected] = useState(false);
+  const [isBatchDeleteDialogOpen, setIsBatchDeleteDialogOpen] = useState(false);
+  const [isDeletingBatch, setIsDeletingBatch] = useState(false);
   
   // State for PDF report modal
   const [isPDFModalOpen, setIsPDFModalOpen] = useState(false);
@@ -260,9 +264,23 @@ const MultasTable: React.FC<MultasTableProps> = ({
       });
       return;
     }
+    setIsBatchDeleteDialogOpen(true);
+  };
 
-    if (onDeleteMultiple) {
-      onDeleteMultiple(selectedMultas);
+  const confirmDeleteBatch = async () => {
+    if (selectedMultas.length === 0) return;
+    setIsDeletingBatch(true);
+    try {
+      if (onDeleteMultiple) {
+        await onDeleteMultiple(selectedMultas);
+      }
+      setSelectedMultas([]);
+      setIsAllSelected(false);
+      setIsBatchDeleteDialogOpen(false);
+    } catch (error: any) {
+      console.error('Erro ao excluir multas em lote:', error);
+    } finally {
+      setIsDeletingBatch(false);
     }
   };
 
@@ -353,11 +371,10 @@ const MultasTable: React.FC<MultasTableProps> = ({
                 <Button
                   onClick={handleDeleteMultiple}
                   size="sm"
-                  variant="outline"
-                  className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white text-xs h-8"
+                  className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs h-8 shadow"
                 >
                   <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-                  Excluir ({selectedMultas.length})
+                  Excluir Selecionadas ({selectedMultas.length})
                 </Button>
               )}
               {onGenerateReport && (
@@ -385,6 +402,54 @@ const MultasTable: React.FC<MultasTableProps> = ({
           )}
         </div>
       </div>
+
+      {/* Barra de Ações em Lote destacada */}
+      {showSelection && selectedMultas.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-red-950/40 border border-red-700/60 rounded-lg p-3 text-xs shadow-md">
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="font-bold text-red-200 flex items-center gap-1.5">
+              <CheckSquare className="h-4 w-4 text-seguranca-yellow" />
+              {selectedMultas.length} de {multas.length} multa{multas.length > 1 ? 's' : ''} selecionada{selectedMultas.length > 1 ? 's' : ''}
+            </span>
+            <span className="text-gray-500 hidden sm:inline">|</span>
+            <span className="text-seguranca-yellow font-mono font-semibold">
+              Total: {formatCurrency(multas.filter(m => selectedMultas.includes(m.id)).reduce((acc, m) => acc + (m.valor || 0), 0))}
+            </span>
+            {selectedMultas.length < multas.length ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleSelectAll(true)}
+                className="text-blue-400 hover:text-blue-300 hover:bg-blue-950/40 h-6 px-2 text-xs font-medium"
+              >
+                Selecionar todas ({multas.length})
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleSelectAll(false)}
+                className="text-gray-300 hover:text-white hover:bg-gray-800 h-6 px-2 text-xs"
+              >
+                Desmarcar todas
+              </Button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end flex-wrap">
+            {onDeleteMultiple && (
+              <Button
+                size="sm"
+                onClick={handleDeleteMultiple}
+                className="bg-red-600 hover:bg-red-700 text-white font-bold h-8 text-xs flex items-center gap-1.5 shadow"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Excluir Selecionadas ({selectedMultas.length})
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Visualização Mobile (Cards Individuais) */}
       <div className="block md:hidden space-y-3">
@@ -856,6 +921,77 @@ const MultasTable: React.FC<MultasTableProps> = ({
                 {isGeneratingPDF ? 'Gerando...' : 'Gerar PDF'}
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Confirmação de Exclusão em Lote */}
+      <Dialog open={isBatchDeleteDialogOpen} onOpenChange={setIsBatchDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-md bg-seguranca-graphite border-gray-600 text-seguranca-lightgray">
+          <DialogHeader>
+            <DialogTitle className="text-red-400 flex items-center gap-2 text-lg">
+              <AlertTriangle className="h-5 w-5 text-red-500" />
+              Excluir Multas Selecionadas
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-gray-300">
+              Você está prestes a excluir permanentemente <strong className="text-white font-bold">{selectedMultas.length} multa(s)</strong> selecionada(s).
+            </p>
+
+            <div className="bg-seguranca-black/60 border border-gray-700 rounded-lg p-3 space-y-2 text-xs max-h-48 overflow-y-auto">
+              <span className="text-gray-400 font-semibold block uppercase tracking-wider text-[11px]">
+                Multas que serão removidas:
+              </span>
+              {multas
+                .filter(m => selectedMultas.includes(m.id))
+                .slice(0, 10)
+                .map(m => (
+                  <div key={m.id} className="flex items-center justify-between py-1 border-b border-gray-800 last:border-0">
+                    <span className="font-mono text-seguranca-yellow font-bold">{m.placa}</span>
+                    <span className="text-gray-300 truncate max-w-[180px]">{m.tipo_infracao}</span>
+                    <span className="font-mono text-gray-200 font-semibold">{formatCurrency(m.valor)}</span>
+                  </div>
+                ))}
+              {selectedMultas.length > 10 && (
+                <p className="text-center text-gray-400 italic pt-1">
+                  ... e mais {selectedMultas.length - 10} multa(s)
+                </p>
+              )}
+            </div>
+
+            <div className="p-3 bg-red-950/40 border border-red-800/40 rounded-lg text-xs text-red-300">
+              ⚠️ <strong>Atenção:</strong> Esta ação removerá definitivamente o histórico dessas infrações do sistema e não poderá ser desfeita.
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4 border-t border-gray-700">
+            <Button
+              variant="outline"
+              onClick={() => setIsBatchDeleteDialogOpen(false)}
+              disabled={isDeletingBatch}
+              className="border-gray-600 text-gray-300 hover:bg-gray-800"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={confirmDeleteBatch}
+              disabled={isDeletingBatch}
+              className="bg-red-600 hover:bg-red-700 text-white font-bold flex items-center gap-2"
+            >
+              {isDeletingBatch ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Excluindo...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4" />
+                  Sim, Excluir {selectedMultas.length} Multa(s)
+                </>
+              )}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

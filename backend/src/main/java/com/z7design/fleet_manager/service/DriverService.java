@@ -28,8 +28,12 @@ public class DriverService {
 
     @Transactional
     public void syncDriversFromEmployees() {
+        syncDriversFromEmployees(TenantContext.get());
+    }
+
+    @Transactional
+    public void syncDriversFromEmployees(UUID currentCompanyId) {
         try {
-            UUID currentCompanyId = TenantContext.get();
             List<Object[]> basicData = employeeRepository.findBasicDataScoped(currentCompanyId);
             if (basicData == null || basicData.isEmpty()) {
                 return;
@@ -77,6 +81,11 @@ public class DriverService {
                     }
                     if (driver == null && cleanCnh != null && !cleanCnh.isBlank()) {
                         driver = driverRepository.findByLicenseNumber(cleanCnh).orElse(null);
+                    }
+                    // Não reaproveita motorista já vinculado a outra empresa (isolation multi-tenant).
+                    if (driver != null && driver.getCompanyId() != null
+                            && !driver.getCompanyId().equals(currentCompanyId)) {
+                        driver = null;
                     }
 
                     if (driver == null) {
@@ -128,7 +137,7 @@ public class DriverService {
         }
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<DriverDTO> getAllDrivers() {
         UUID tenantId = TenantContext.get();
         if (tenantId == null && userCompanyResolver != null) {
@@ -137,6 +146,16 @@ public class DriverService {
         List<Driver> drivers = tenantId != null
                 ? driverRepository.findByCompanyId(tenantId)
                 : java.util.Collections.emptyList();
+
+        // A tela de Motoristas do Operacional deve mostrar os funcionários com cargo
+        // de motorista. Se a tabela de motoristas ainda não foi populada para o tenant,
+        // sincroniza automaticamente a partir dos funcionários (equivalente ao /sync).
+        if (drivers.isEmpty() && tenantId != null) {
+            log.info("Nenhum motorista cadastrado para a empresa {}; sincronizando funcionários com cargo de motorista.", tenantId);
+            syncDriversFromEmployees(tenantId);
+            drivers = driverRepository.findByCompanyId(tenantId);
+        }
+
         return drivers.stream()
                 .map(DriverDTO::fromEntity)
                 .collect(Collectors.toList());

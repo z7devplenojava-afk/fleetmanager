@@ -33,9 +33,25 @@ public class DailyLogController {
         return service.findByDateRange(start, end);
     }
 
+    private UUID parseUuidOrNull(String idStr) {
+        if (idStr == null || "undefined".equalsIgnoreCase(idStr) || "null".equalsIgnoreCase(idStr)) {
+            return null;
+        }
+        try {
+            return UUID.fromString(idStr.trim());
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
     @GetMapping("/{id}")
-    public DailyLog getById(@PathVariable("id") UUID id) {
-        return service.findById(id);
+    public ResponseEntity<?> getById(@PathVariable("id") String idStr) {
+        UUID id = parseUuidOrNull(idStr);
+        if (id == null) {
+            return ResponseEntity.badRequest().body(Map.of("message", "ID inválido: " + idStr));
+        }
+        DailyLog log = service.findById(id);
+        return log != null ? ResponseEntity.ok(log) : ResponseEntity.notFound().build();
     }
 
     @PostMapping
@@ -44,12 +60,20 @@ public class DailyLogController {
     }
 
     @PutMapping("/{id}")
-    public DailyLog update(@PathVariable("id") UUID id, @RequestBody DailyLog dailyLog) {
-        return service.update(id, dailyLog);
+    public ResponseEntity<?> update(@PathVariable("id") String idStr, @RequestBody DailyLog dailyLog) {
+        UUID id = parseUuidOrNull(idStr);
+        if (id == null) {
+            return ResponseEntity.badRequest().body(Map.of("message", "ID inválido: " + idStr));
+        }
+        return ResponseEntity.ok(service.update(id, dailyLog));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") String idStr) {
+        UUID id = parseUuidOrNull(idStr);
+        if (id == null) {
+            return ResponseEntity.badRequest().build();
+        }
         service.delete(id);
         return ResponseEntity.noContent().build();
     }
@@ -57,8 +81,12 @@ public class DailyLogController {
     // ===== PRD Módulo 5 (RF-05.1): assinatura do Fiscal da Contratante =====
 
     @PostMapping("/{id}/sign-inspector")
-    public DailyLog signByInspector(@PathVariable("id") UUID id, @RequestBody Map<String, String> body) {
-        return service.signByInspector(id, body.get("inspectorName"), body.get("signature"));
+    public ResponseEntity<?> signByInspector(@PathVariable("id") String idStr, @RequestBody Map<String, String> body) {
+        UUID id = parseUuidOrNull(idStr);
+        if (id == null) {
+            return ResponseEntity.badRequest().body(Map.of("message", "ID inválido: " + idStr));
+        }
+        return ResponseEntity.ok(service.signByInspector(id, body.get("inspectorName"), body.get("signature")));
     }
 
     @GetMapping("/signed")
@@ -71,12 +99,16 @@ public class DailyLogController {
     // ===== PRD Módulo 5 (RF-05.2): conciliação telemetria =====
 
     @PostMapping("/{id}/telemetry")
-    public DailyLog importTelemetry(@PathVariable("id") UUID id, @RequestBody Map<String, Object> body) {
+    public ResponseEntity<?> importTelemetry(@PathVariable("id") String idStr, @RequestBody Map<String, Object> body) {
+        UUID id = parseUuidOrNull(idStr);
+        if (id == null) {
+            return ResponseEntity.badRequest().body(Map.of("message", "ID inválido: " + idStr));
+        }
         Integer telemetryKm = body.get("telemetryKm") != null
                 ? Integer.valueOf(body.get("telemetryKm").toString())
                 : null;
         String source = body.get("source") != null ? body.get("source").toString() : null;
-        return telemetryReconciliationService.importTelemetryKm(id, telemetryKm, source);
+        return ResponseEntity.ok(telemetryReconciliationService.importTelemetryKm(id, telemetryKm, source));
     }
 
     @PostMapping("/telemetry/batch")

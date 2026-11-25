@@ -206,15 +206,155 @@ export const ContasAReceberTable: React.FC<ContasAReceberTableProps> = ({
           </Button>
         </div>
 
-        {/* Tabela */}
+        {/* Tabela ou Cards Mobile */}
         {contasFiltradas.length === 0 ? (
           <div className="text-center py-8">
             <DollarSign className="mx-auto h-12 w-12 text-gray-500 mb-4" />
             <p className="text-gray-400">Nenhuma conta a receber encontrada</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <Table>
+          <>
+            {/* VISUALIZAÇÃO EM CARDS MOBILE (Telas menores que lg) */}
+            <div className="block lg:hidden divide-y divide-gray-700/60">
+              {contasFiltradas.map((conta) => {
+                const vencida = isVencida(conta.vencimento) && conta.status === 'ABERTA';
+                const vencendo = isVencendoEmBreve(conta.vencimento) && conta.status === 'ABERTA';
+
+                return (
+                  <div
+                    key={conta.id}
+                    className={`p-3.5 space-y-3 transition-colors ${
+                      vencida ? 'bg-red-950/20' : 'bg-transparent'
+                    }`}
+                  >
+                    {/* Linha 1: Fatura, NFS-e e Badges de Status */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex flex-col min-w-0">
+                        <span className="font-mono font-bold text-sm text-white">
+                          Fatura: {conta.numeroFatura || '-'}
+                        </span>
+                        {conta.nfseNumber ? (
+                          <span className="text-[11px] text-green-400 font-mono font-semibold">
+                            NFS-e: #{conta.nfseNumber}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-yellow-500 font-mono">Pend. NFS-e</span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                        {getTipoBadge(conta.tipo)}
+                        {getStatusBadge(conta.status)}
+                      </div>
+                    </div>
+
+                    {/* Linha 2: Cliente */}
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-gray-200">
+                        <Users size={14} className="text-gray-400 shrink-0" />
+                        <span className="truncate">{conta.cliente || '-'}</span>
+                      </div>
+                      <p className="text-xs text-gray-400 line-clamp-2">{conta.descricao}</p>
+                      {(conta.obra || conta.contrato || conta.measurementNumber || conta.placasVeiculos || conta.periodoLocacao) && (
+                        <div className="text-[11px] text-gray-400 flex flex-wrap gap-1.5 pt-0.5">
+                          {conta.measurementNumber && (
+                            <span className="bg-purple-950/50 border border-purple-800/60 text-purple-300 px-1.5 py-0.5 rounded font-mono">
+                              Medição #{conta.measurementNumber}
+                            </span>
+                          )}
+                          {conta.contrato && (
+                            <span className="bg-slate-800 text-gray-300 px-1.5 py-0.5 rounded">
+                              Contrato: {conta.contrato}
+                            </span>
+                          )}
+                          {conta.placasVeiculos && (
+                            <span className="bg-amber-950/50 border border-amber-800/60 text-amber-300 px-1.5 py-0.5 rounded font-mono">
+                              Placas: {conta.placasVeiculos}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Linha 3: Valor e Vencimento */}
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/80 border border-gray-700/60">
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-gray-400 block">Valor a Receber</span>
+                        <span className="text-base font-black text-green-400">{formatCurrency(conta.valor)}</span>
+                        {conta.grossAmount && (
+                          <span className="text-[10px] text-gray-400 block">Bruto: {formatCurrency(conta.grossAmount)}</span>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[10px] uppercase font-bold text-gray-400 block">Vencimento</span>
+                        <div className="flex items-center gap-1 justify-end">
+                          <Calendar size={13} className="text-gray-400 shrink-0" />
+                          <span className={`text-xs font-bold ${vencida ? 'text-red-400' : vencendo ? 'text-yellow-400' : 'text-gray-200'}`}>
+                            {conta.vencimento ? (() => {
+                              try {
+                                const date = new Date(conta.vencimento);
+                                return isNaN(date.getTime()) ? '-' : format(date, 'dd/MM/yyyy', { locale: ptBR });
+                              } catch {
+                                return '-';
+                              }
+                            })() : '-'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Linha 4: Ações com botões de tamanho adequado */}
+                    <div className="grid grid-cols-4 gap-1.5 pt-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onView(conta)}
+                        className="h-9 border-gray-700 text-gray-200 hover:bg-slate-800 rounded-lg text-xs"
+                        title="Visualizar Detalhes"
+                      >
+                        <Eye size={15} className="mr-1" /> Ver
+                      </Button>
+                      {onImportNfse && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onImportNfse(conta)}
+                          className="h-9 border-green-700 text-green-400 hover:bg-green-950/40 rounded-lg text-xs"
+                          title="Importar NFS-e"
+                        >
+                          <FileUp size={15} className="mr-1" /> NFS-e
+                        </Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onEdit(conta)}
+                        className="h-9 border-blue-700 text-blue-400 hover:bg-blue-950/40 rounded-lg text-xs"
+                        title="Editar"
+                      >
+                        <Edit size={15} className="mr-1" /> Edit
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (confirm('Deseja excluir esta conta a receber?')) {
+                            onDelete(conta.id!);
+                          }
+                        }}
+                        className="h-9 border-red-700 text-red-400 hover:bg-red-950/40 rounded-lg text-xs"
+                        title="Excluir"
+                      >
+                        <Trash2 size={15} />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* TABELA TRADICIONAL (Desktop) */}
+            <div className="hidden lg:block overflow-x-auto">
+              <Table>
               <TableHeader>
                 <TableRow className="border-gray-600 hover:bg-seguranca-black">
                   <TableHead className="text-seguranca-lightgray">Número</TableHead>
@@ -354,6 +494,7 @@ export const ContasAReceberTable: React.FC<ContasAReceberTableProps> = ({
               </TableBody>
             </Table>
           </div>
+          </>
         )}
 
         {/* Resumo */}

@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ClipboardCheck, Users, Car, AlertTriangle } from 'lucide-react';
 import GestaoChecklistCliente from './GestaoChecklistCliente';
 import GestaoChecklistVeiculo from './GestaoChecklistVeiculo';
+import DriverChecklist from '../driver/DriverChecklist';
 import DamageReportManagement from '../maintenance/DamageReportManagement';
 
 export const GestaoChecklistHub: React.FC = () => {
@@ -19,6 +20,7 @@ export const GestaoChecklistHub: React.FC = () => {
       : 'cliente';
 
   const [activeTab, setActiveTab] = useState<string>(initialTab);
+  const [avariasSubTab, setAvariasSubTab] = useState<'checklist' | 'reports'>('checklist');
 
   useEffect(() => {
     if (tabParam) {
@@ -77,8 +79,41 @@ export const GestaoChecklistHub: React.FC = () => {
               <GestaoChecklistVeiculo embedded />
             </TabsContent>
 
-            <TabsContent value="avarias" className="mt-0 focus-visible:outline-hidden">
-              <DamageReportManagement embedded />
+            <TabsContent value="avarias" className="mt-0 focus-visible:outline-hidden space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-border/50">
+                <div className="inline-flex rounded-xl bg-muted/60 p-1 border border-border/60">
+                  <button
+                    type="button"
+                    onClick={() => setAvariasSubTab('checklist')}
+                    className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
+                      avariasSubTab === 'checklist'
+                        ? 'bg-seguranca-yellow text-black font-bold shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <ClipboardCheck className="h-4 w-4" />
+                    <span>Vistoria & Checklist (Planta 4 Vistas)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAvariasSubTab('reports')}
+                    className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
+                      avariasSubTab === 'reports'
+                        ? 'bg-seguranca-yellow text-black font-bold shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <AlertTriangle className="h-4 w-4" />
+                    <span>Painel de Relatórios de Avarias</span>
+                  </button>
+                </div>
+              </div>
+
+              {avariasSubTab === 'checklist' ? (
+                <DriverChecklist embedded />
+              ) : (
+                <DamageReportManagement embedded />
+              )}
             </TabsContent>
           </div>
         </Tabs>

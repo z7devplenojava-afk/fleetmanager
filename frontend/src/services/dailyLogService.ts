@@ -1,5 +1,11 @@
 import api from '@/lib/axios';
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/** Evita montar URLs como /api/daily-logs/undefined (o backend espera um UUID). */
+export const isValidDailyLogId = (value?: string | null): boolean =>
+  typeof value === 'string' && UUID_REGEX.test(value.trim());
+
 /**
  * PRD 1.0 - Módulo 5: Execução de Campo & Apontamento (Parte Diária & Telemetria).
  * RF-05.1 (estrutura + assinaturas), RF-05.2 (conciliação telemetria >5%),
@@ -70,6 +76,15 @@ class DailyLogService {
         return response.data;
     }
 
+    async getById(id?: string | null): Promise<DailyLog | null> {
+        if (!isValidDailyLogId(id)) {
+            console.warn('[dailyLogService] getById ignorado: UUID inválido ou não informado.', id);
+            return null;
+        }
+        const response = await api.get(`/api/daily-logs/${id!.trim()}`);
+        return response.data;
+    }
+
     async getByPeriod(start: string, end: string): Promise<DailyLog[]> {
         const response = await api.get('/api/daily-logs/by-period', {
             params: { start, end }
@@ -78,13 +93,12 @@ class DailyLogService {
     }
 
     async save(log: Partial<DailyLog>): Promise<DailyLog> {
-        if (log.id) {
-            const response = await api.put(`/api/daily-logs/${log.id}`, log);
-            return response.data;
-        } else {
-            const response = await api.post('/api/daily-logs', log);
+        if (isValidDailyLogId(log.id)) {
+            const response = await api.put(`/api/daily-logs/${log.id!.trim()}`, log);
             return response.data;
         }
+        const response = await api.post('/api/daily-logs', log);
+        return response.data;
     }
 
     async create(log: Partial<DailyLog>): Promise<DailyLog> {
@@ -93,17 +107,29 @@ class DailyLogService {
     }
 
     async update(id: string, log: Partial<DailyLog>): Promise<DailyLog> {
-        const response = await api.put(`/api/daily-logs/${id}`, log);
+        // Id inválido/ausente: cria um registro em vez de enviar "/undefined" ao backend.
+        if (!isValidDailyLogId(id)) {
+            console.warn('[dailyLogService] update chamado sem UUID válido; criando novo registro.', id);
+            return this.create(log);
+        }
+        const response = await api.put(`/api/daily-logs/${id.trim()}`, log);
         return response.data;
     }
 
     async delete(id: string): Promise<void> {
-        await api.delete(`/api/daily-logs/${id}`);
+        if (!isValidDailyLogId(id)) {
+            console.warn('[dailyLogService] delete ignorado: UUID inválido.', id);
+            return;
+        }
+        await api.delete(`/api/daily-logs/${id.trim()}`);
     }
 
     /** RF-05.1: assinatura do Fiscal da Contratante no talão de bordo. */
     async signByInspector(id: string, inspectorName: string, signature?: string): Promise<DailyLog> {
-        const response = await api.post(`/api/daily-logs/${id}/sign-inspector`, {
+        if (!isValidDailyLogId(id)) {
+            throw new Error('Não é possível assinar uma Parte Diária sem ID válido.');
+        }
+        const response = await api.post(`/api/daily-logs/${id.trim()}/sign-inspector`, {
             inspectorName,
             signature,
         });
@@ -118,7 +144,10 @@ class DailyLogService {
 
     /** RF-05.2: importa KM da telemetria e concilia com o apontamento. */
     async importTelemetry(id: string, telemetryKm: number, source?: string): Promise<DailyLog> {
-        const response = await api.post(`/api/daily-logs/${id}/telemetry`, {
+        if (!isValidDailyLogId(id)) {
+            throw new Error('Não é possível conciliar telemetria de uma Parte Diária sem ID válido.');
+        }
+        const response = await api.post(`/api/daily-logs/${id.trim()}/telemetry`, {
             telemetryKm,
             source,
         });

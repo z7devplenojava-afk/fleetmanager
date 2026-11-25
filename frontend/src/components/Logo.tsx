@@ -59,6 +59,26 @@ const Logo: React.FC<LogoProps> = ({
     companyName.toLowerCase().includes('fluxbus') ||
     empresa?.nome?.toLowerCase().includes('fluxbus');
 
+  // Determinar fonte da imagem (Logomarca de Empresa Terceira / Cliente)
+  const storedBranding = getStoredCompanyBranding(empresa?.id || (user as any)?.companyId);
+  const rawCompanyLogo = propSrc ||
+    empresa?.logoUrl ||
+    storedBranding.logoUrl ||
+    (user as any)?.company?.logoUrl ||
+    (user as any)?.empresa?.logoUrl ||
+    (user as any)?.companyLogo ||
+    (user as any)?.companyLogoUrl ||
+    empresa?.iconUrl ||
+    storedBranding.iconUrl ||
+    (user as any)?.company?.iconUrl;
+
+  const resolvedLogoUrl = resolveCompanyLogoUrl(rawCompanyLogo);
+
+  // Hook useEffect SEMPRE no topo para cumprir estritamente as Rules of Hooks
+  useEffect(() => {
+    setImgError(false);
+  }, [resolvedLogoUrl]);
+
   // Caso 1: Marca FluxBus oficial (SaaS e tenant próprio)
   // Utiliza os assets vetorizados e transparentes oficiais
   if (isFluxBus) {
@@ -85,30 +105,10 @@ const Logo: React.FC<LogoProps> = ({
     );
   }
 
-  // Determinar fonte da imagem (Logomarca de Empresa Terceira / Cliente)
-  const storedBranding = getStoredCompanyBranding(empresa?.id || (user as any)?.companyId);
-  const rawCompanyLogo = propSrc ||
-    empresa?.logoUrl ||
-    storedBranding.logoUrl ||
-    (user as any)?.company?.logoUrl ||
-    (user as any)?.empresa?.logoUrl ||
-    (user as any)?.companyLogo ||
-    (user as any)?.companyLogoUrl ||
-    empresa?.iconUrl ||
-    storedBranding.iconUrl ||
-    (user as any)?.company?.iconUrl;
-
-  const resolvedLogoUrl = resolveCompanyLogoUrl(rawCompanyLogo);
-
   const companySigla =
     empresa?.sigla ||
     (user as any)?.company?.sigla ||
     (companyName ? companyName.slice(0, 3).toUpperCase() : '');
-
-  // Resetar erro caso a URL mude
-  useEffect(() => {
-    setImgError(false);
-  }, [resolvedLogoUrl]);
 
   // Prioridade para parceiros legados como São Silvestre no modo Claro
   const isSilvestre =

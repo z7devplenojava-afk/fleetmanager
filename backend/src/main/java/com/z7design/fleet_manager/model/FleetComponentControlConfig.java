@@ -15,6 +15,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@org.hibernate.annotations.Filter(name = "tenantFilter", condition = "company_id = :companyId")
 public class FleetComponentControlConfig {
 
     @Id

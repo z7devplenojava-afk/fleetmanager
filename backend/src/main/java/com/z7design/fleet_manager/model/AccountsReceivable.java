@@ -19,7 +19,7 @@ import org.hibernate.annotations.Filter;
 
 @Entity
 @Table(name = "accounts_receivable")
-@Filter(name = "tenantFilter", condition = "(company_id = :companyId OR company_id IS NULL)")
+@Filter(name = "tenantFilter", condition = "company_id = :companyId")
 public class AccountsReceivable implements TenantAware {
 
     @Id

@@ -354,11 +354,22 @@ public class FineService {
         log.info("Deletando multa: {}", id);
         
         if (!fineRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Multa nÃ£o encontrada com ID: " + id);
+            throw new ResourceNotFoundException("Multa não encontrada com ID: " + id);
         }
         
         fineRepository.deleteById(id);
         log.info("Multa deletada com sucesso: {}", id);
+    }
+
+    @Transactional
+    public int deleteFinesBatch(List<UUID> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return 0;
+        }
+        log.info("Deletando multas em lote: {} multas", ids.size());
+        fineRepository.deleteAllByIdInBatch(ids);
+        log.info("{} multas deletadas com sucesso em lote", ids.size());
+        return ids.size();
     }
     
     // ===== RELATÃ“RIOS =====
