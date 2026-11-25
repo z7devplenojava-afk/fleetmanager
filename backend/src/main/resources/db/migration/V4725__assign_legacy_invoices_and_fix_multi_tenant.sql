@@ -29,8 +29,16 @@ BEGIN
                 AND s2.code = s.code
           );
 
-        UPDATE suppliers
+        -- fornecedores legados: evita colisão com CNPJ já cadastrado na empresa (uq_suppliers_company_cnpj)
+        UPDATE suppliers s
         SET company_id = vss_id
-        WHERE company_id IS NULL;
+        WHERE s.company_id IS NULL
+          AND NOT EXISTS (
+              SELECT 1 FROM suppliers s2
+              WHERE s2.company_id = vss_id
+                AND s2.cnpj IS NOT NULL
+                AND s2.cnpj <> ''
+                AND s2.cnpj = s.cnpj
+          );
     END IF;
 END $$;
