@@ -63,6 +63,7 @@ export const DueComponentsAlertModal: React.FC<DueComponentsAlertModalProps> = (
   const [selectedKeys, setSelectedKeys] = useState<Record<string, boolean>>({});
 
   // Inicializar todos os itens selecionados por padrão quando o modal abrir ou alertas mudarem
+  // E registrar que o alerta preventivo foi exibido nesta sessão/dia para não ficar reabrindo a cada navegação
   useEffect(() => {
     if (open && alerts && alerts.length > 0) {
       const initial: Record<string, boolean> = {};
@@ -70,6 +71,12 @@ export const DueComponentsAlertModal: React.FC<DueComponentsAlertModalProps> = (
         initial[`${a.vehicleId}-${a.controlType}`] = true;
       });
       setSelectedKeys(initial);
+
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        sessionStorage.setItem('fluxbus_preventive_due_alert_shown', 'true');
+        localStorage.setItem('fluxbus_preventive_due_alert_dismissed_today', today);
+      } catch {}
     }
   }, [open, alerts]);
 
@@ -147,8 +154,17 @@ export const DueComponentsAlertModal: React.FC<DueComponentsAlertModalProps> = (
     onOpenWorkOrder(item);
   };
 
+  const handleModalClose = () => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      sessionStorage.setItem('fluxbus_preventive_due_alert_shown', 'true');
+      localStorage.setItem('fluxbus_preventive_due_alert_dismissed_today', today);
+    } catch {}
+    onOpenChange(false);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(val) => { if (!val) handleModalClose(); else onOpenChange(val); }}>
       <DialogContent className="max-w-4xl w-[96vw] max-h-[92dvh] overflow-y-auto bg-seguranca-graphite border-amber-500/50 text-white p-3.5 sm:p-6 shadow-2xl">
         <DialogHeader className="pr-8 sm:pr-0">
           <DialogTitle className="flex items-center gap-2.5 text-base sm:text-xl font-bold text-white pr-2">

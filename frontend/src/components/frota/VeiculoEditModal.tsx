@@ -218,15 +218,15 @@ const VeiculoEditModal: React.FC<VeiculoEditModalProps> = ({
 
     try {
       const vehicleData: Record<string, any> = {
-        plate: formData.placa.toUpperCase(),
+        plate: formData.placa.toUpperCase().trim(),
         fleetNumber: formData.fleetNumber?.trim() || undefined,
-        brand: formData.marca,
-        model: formData.modelo,
-        year: Number(formData.ano),
+        brand: formData.marca?.trim() || 'Outros',
+        model: formData.modelo?.trim() || 'Não informado',
+        year: Number(formData.ano) || new Date().getFullYear(),
         color: formData.cor || '',
-        fuelType: formData.combustivel.toUpperCase() as 'GASOLINE' | 'ETHANOL' | 'DIESEL' | 'FLEX',
+        fuelType: (formData.combustivel || 'FLEX').toUpperCase() as any,
         currentMileage: Number(formData.quilometragem) || 0,
-        status: formData.status.toUpperCase() as 'ACTIVE' | 'INACTIVE' | 'MAINTENANCE',
+        status: (formData.status || 'ACTIVE').toUpperCase() as any,
         capacity: Number(formData.capacidade) || 5,
         vehicleType: formData.vehicleType || undefined,
 
@@ -393,8 +393,8 @@ const VeiculoEditModal: React.FC<VeiculoEditModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0 bg-seguranca-darkgray text-seguranca-white border-seguranca-darkgray overflow-hidden">
-        <DialogHeader className="p-6 pb-2">
+      <DialogContent className="max-w-4xl h-[92vh] max-h-[92vh] flex flex-col p-0 gap-0 bg-seguranca-darkgray text-seguranca-white border-seguranca-darkgray overflow-hidden">
+        <DialogHeader className="p-6 pb-2 flex-none">
           <DialogTitle className="text-2xl font-bold flex items-center gap-2">
             <span className="text-seguranca-red">Editar</span> Veículo
           </DialogTitle>
@@ -404,14 +404,17 @@ const VeiculoEditModal: React.FC<VeiculoEditModalProps> = ({
         </DialogHeader>
 
         {isOpen && initialValues && (
-          <VehicleForm
-            key={`${veiculo?.id || 'edit-vehicle'}-${initialTab || 'general'}`}
-            initialData={initialValues}
-            onSubmit={handleSubmit}
-            isLoading={isLoading}
-            isEditMode={true}
-            initialTab={initialTab}
-          />
+          <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+            <VehicleForm
+              key={`${veiculo?.id || 'edit-vehicle'}-${initialTab || 'general'}`}
+              initialData={initialValues}
+              onSubmit={handleSubmit}
+              isLoading={isLoading}
+              isEditMode={true}
+              submitLabel="Salvar Alterações"
+              initialTab={initialTab}
+            />
+          </div>
         )}
       </DialogContent>
     </Dialog>

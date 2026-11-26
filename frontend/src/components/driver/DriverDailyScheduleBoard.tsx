@@ -50,6 +50,7 @@ import {
 import escalaService, { Escala } from '@/services/escalaService';
 import { parteDiariaService } from '@/services/parteDiariaService';
 import { DriverRouteTrajectoryMap } from '@/components/driver/DriverRouteTrajectoryMap';
+import fleetService from '@/services/fleetService';
 
 export interface DailyTripRow {
   id: string;
@@ -69,6 +70,7 @@ export interface DailyTripRow {
   status?: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
   delayMinutes?: number;
   delayReason?: string;
+  otherReason?: string;
 }
 
 export const resolveRowStatus = (
@@ -112,6 +114,7 @@ const createEmptyRow = (prevEndKm = '', defaultCompany = ''): DailyTripRow => ({
   passengers: '',
   direction: 'IDA',
   status: 'PENDING',
+  otherReason: '',
 });
 
 export const DriverDailyScheduleBoard: React.FC<DriverDailyScheduleBoardProps> = ({
@@ -136,6 +139,27 @@ export const DriverDailyScheduleBoard: React.FC<DriverDailyScheduleBoardProps> =
   const [isSavingDaily, setIsSavingDaily] = useState<boolean>(false);
   const [scaleLoadedCount, setScaleLoadedCount] = useState<number>(0);
   const [syncedSchedules, setSyncedSchedules] = useState<Schedule[]>([]);
+
+  // Veículo selecionado localmente caso não venha da escala
+  const [vehiclesList, setVehiclesList] = useState<any[]>([]);
+  const [currentVehicleId, setCurrentVehicleId] = useState<string>(vehicleId || '');
+  const [currentVehiclePlate, setCurrentVehiclePlate] = useState<string>(vehiclePlate || '');
+  const [currentVehicleModel, setCurrentVehicleModel] = useState<string>(vehicleModel || '');
+
+  useEffect(() => {
+    if (vehiclePlate) setCurrentVehiclePlate(vehiclePlate);
+    if (vehicleId) setCurrentVehicleId(vehicleId);
+    if (vehicleModel) setCurrentVehicleModel(vehicleModel);
+  }, [vehiclePlate, vehicleId, vehicleModel]);
+
+  useEffect(() => {
+    fleetService
+      .getVehicles()
+      .then((res: any) => {
+        if (Array.isArray(res)) setVehiclesList(res);
+      })
+      .catch(() => {});
+  }, []);
 
   // Modal de gerenciamento de códigos de percurso por empresa
   const [isCodeModalOpen, setIsCodeModalOpen] = useState<boolean>(false);
@@ -504,7 +528,12 @@ export const DriverDailyScheduleBoard: React.FC<DriverDailyScheduleBoardProps> =
       const lastRow = prev[prev.length - 1];
       const nextStartKm = lastRow?.endKm || lastRow?.startKm || (vehicleCurrentKm ? String(vehicleCurrentKm) : '');
       const nextCompany = lastRow?.companyName || '';
-      const nextList = [...prev, createEmptyRow(nextStartKm, nextCompany)];
+      const nextDirection = (lastRow?.direction || 'IDA') === 'IDA' ? 'RETORNO' : 'IDA';
+      const nextStartTime = lastRow?.endTime || '';
+      const newRow = createEmptyRow(nextStartKm, nextCompany);
+      newRow.direction = nextDirection;
+      if (nextStartTime) newRow.startTime = nextStartTime;
+      const nextList = [...prev, newRow];
       setActiveRowIndex(nextList.length - 1);
       return nextList;
     });
@@ -619,15 +648,6 @@ export const DriverDailyScheduleBoard: React.FC<DriverDailyScheduleBoardProps> =
   };
 
   const handleSaveParteDiaria = async () => {
-    if (hasCode15OrJustificationRequired && !otherJustification.trim()) {
-      toast({
-        title: 'Justificativa obrigatória para código 15 (OUTROS)',
-        description: 'Preencha o campo "Justificar outros (15)" no rodapé da tabela.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     const validRows = rows.filter((r) => r.startTime || r.endTime || r.companyName || r.startKm || r.endKm);
     if (validRows.length === 0) {
       toast({
@@ -638,10 +658,25 @@ export const DriverDailyScheduleBoard: React.FC<DriverDailyScheduleBoardProps> =
       return;
     }
 
+    const hasCode15WithoutReason = validRows.some(
+      (r) => r.routeCode === '15' && !r.otherReason?.trim() && !otherJustification.trim()
+    );
+    if (hasCode15WithoutReason) {
+      toast({
+        title: 'Motivo obrigatório para código 15 (OUTROS)',
+        description: 'Por favor, informe o motivo do percurso para o código 15 - OUTROS antes de salvar.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsSavingDaily(true);
     try {
       const firstRow = validRows[0];
       const lastRow = validRows[validRows.length - 1];
+      const effectivePlate = currentVehiclePlate || vehiclePlate || 'SEM-PLACA';
+      const effectiveVehicleId = currentVehicleId || vehicleId || undefined;
+      const effectiveModel = currentVehicleModel || vehicleModel || 'ÔNIBUS';
 
       try {
         localStorage.setItem(
@@ -650,7 +685,7 @@ export const DriverDailyScheduleBoard: React.FC<DriverDailyScheduleBoardProps> =
             driverId,
             driverName,
             date: selectedDate,
-            vehiclePlate,
+            vehiclePlate: effectivePlate,
             rows: validRows,
           })
         );
@@ -664,9 +699,9 @@ export const DriverDailyScheduleBoard: React.FC<DriverDailyScheduleBoardProps> =
           date: selectedDate,
           clientName: firstRow.companyName || 'Operação Diária',
           obraName: firstRow.companyName || 'Escala Motorista',
-          vehicleId: vehicleId || undefined,
-          vehiclePlate: vehiclePlate || 'SEM-PLACA',
-          vehicleModel: vehicleModel || 'ÔNIBUS',
+          vehicleId: effectiveVehicleId,
+          vehiclePlate: effectivePlate,
+          vehicleModel: effectiveModel,
           driverId: driverId || undefined,
           driverName: driverName || 'Motorista',
           startTime: firstRow.startTime || '06:00',
@@ -682,6 +717,7 @@ export const DriverDailyScheduleBoard: React.FC<DriverDailyScheduleBoardProps> =
           atividades: validRows.map((r) => {
             const codeObj = routeCodes.find((c) => c.code === r.routeCode);
             const codeLabel = codeObj ? `${codeObj.code} - ${codeObj.description}` : r.routeCode;
+            const itemMotive = r.otherReason?.trim() || otherJustification.trim();
             return {
               startTime: r.startTime || '--:--',
               endTime: r.endTime || '--:--',
@@ -691,9 +727,8 @@ export const DriverDailyScheduleBoard: React.FC<DriverDailyScheduleBoardProps> =
               endKm: Number.parseInt(r.endKm, 10) || undefined,
               passengersCount: Number.parseInt(r.passengers, 10) || undefined,
               activityType: r.routeCode,
-              description: `[${codeLabel}] ${r.companyName || 'Percurso'}${r.passengers ? ` (${r.passengers} pass.)` : ''
-                }`,
-              notes: r.routeCode === '15' ? otherJustification : undefined,
+              description: `[${codeLabel}] ${r.companyName || 'Percurso'}${r.passengers ? ` (${r.passengers} pass.)` : ''}${itemMotive && r.routeCode === '15' ? ` - Motivo: ${itemMotive}` : ''}`,
+              notes: r.routeCode === '15' ? itemMotive : undefined,
             };
           }),
         });
@@ -780,60 +815,63 @@ export const DriverDailyScheduleBoard: React.FC<DriverDailyScheduleBoardProps> =
             </CardDescription>
           </div>
 
-          <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 w-full lg:w-auto">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setDelayTargetRowIndex(activeRowIndex || 0);
-                setIsDelayModalOpen(true);
-              }}
-              className="w-full sm:w-auto h-9 gap-1.5 border-amber-500/60 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 font-bold text-xs justify-center"
-              title="Informar ocorrência de atraso na rota"
-            >
-              <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0" />
-              <span className="truncate">Informar Atraso</span>
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => syncFromDriverSchedule(false)}
-              disabled={isLoadingScale}
-              className="w-full sm:w-auto h-9 gap-1.5 border-primary/40 text-primary hover:bg-primary/10 font-semibold text-xs justify-center"
-            >
-              {isLoadingScale ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
-              ) : (
-                <RefreshCw className="h-3.5 w-3.5 shrink-0" />
-              )}
-              <span className="truncate">Sincronizar Escala</span>
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setIsCodeModalOpen(true)}
-              className="w-full sm:w-auto h-9 gap-1.5 text-xs justify-center"
-            >
-              <Settings2 className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-              <span className="truncate">Códigos ({routeCodes.length})</span>
-            </Button>
+          <div className="flex flex-col gap-2 w-full lg:w-auto">
             <Button
               type="button"
               size="sm"
               onClick={handleSaveParteDiaria}
               disabled={isSavingDaily}
-              className="col-span-2 sm:w-auto h-10 sm:h-9 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm justify-center"
+              className="w-full sm:w-auto h-11 px-4 gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm justify-center shadow-md active:scale-98 transition-all flex items-center"
             >
               {isSavingDaily ? (
                 <Loader2 className="h-4 w-4 animate-spin shrink-0" />
               ) : (
                 <Save className="h-4 w-4 shrink-0" />
               )}
-              <span>Salvar Quadro Diário</span>
+              <span>Salvar Formulário Diário</span>
             </Button>
+
+            <div className="grid grid-cols-3 gap-1.5 w-full">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setDelayTargetRowIndex(activeRowIndex || 0);
+                  setIsDelayModalOpen(true);
+                }}
+                className="h-9 px-1 border-amber-500/60 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 font-bold text-xs justify-center flex items-center gap-1"
+                title="Informar ocorrência de atraso na rota"
+              >
+                <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                <span>Atraso</span>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => syncFromDriverSchedule(false)}
+                disabled={isLoadingScale}
+                className="h-9 px-1 border-primary/40 text-primary hover:bg-primary/10 font-semibold text-xs justify-center flex items-center gap-1"
+              >
+                {isLoadingScale ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+                ) : (
+                  <RefreshCw className="h-3.5 w-3.5 shrink-0" />
+                )}
+                <span>Sincronizar</span>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsCodeModalOpen(true)}
+                className="h-9 px-1 text-xs justify-center flex items-center gap-1 font-semibold"
+              >
+                <Settings2 className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                <span>Códigos (15)</span>
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -866,15 +904,42 @@ export const DriverDailyScheduleBoard: React.FC<DriverDailyScheduleBoardProps> =
             />
           </div>
           <div className="space-y-1 min-w-0">
-            <Label className="text-[10px] sm:text-[11px] font-bold uppercase text-muted-foreground">Veículo</Label>
-            <div className="h-9 px-2.5 sm:px-3 rounded-lg border bg-background/80 flex items-center justify-between text-xs sm:text-sm font-bold">
-              <span className="truncate">{vehiclePlate || 'Selecione acima'}</span>
-              {vehicleModel && (
-                <Badge variant="outline" className="text-[9px] ml-1 shrink-0 hidden sm:inline-flex">
-                  {vehicleModel}
-                </Badge>
+            <Label className="text-[10px] sm:text-[11px] font-bold uppercase text-muted-foreground flex items-center justify-between">
+              <span>Veículo</span>
+              {currentVehiclePlate && (
+                <span className="text-[9px] text-emerald-400 font-normal">OK</span>
               )}
-            </div>
+            </Label>
+            {currentVehiclePlate ? (
+              <div className="h-9 px-2.5 sm:px-3 rounded-lg border bg-background/80 flex items-center justify-between text-xs sm:text-sm font-bold">
+                <span className="truncate">{currentVehiclePlate}</span>
+                {currentVehicleModel && (
+                  <Badge variant="outline" className="text-[9px] ml-1 shrink-0 hidden sm:inline-flex">
+                    {currentVehicleModel}
+                  </Badge>
+                )}
+              </div>
+            ) : (
+              <select
+                value={currentVehicleId}
+                onChange={(e) => {
+                  const found = vehiclesList.find((v) => v.id === e.target.value);
+                  if (found) {
+                    setCurrentVehicleId(found.id);
+                    setCurrentVehiclePlate(found.plate || found.placa || '');
+                    setCurrentVehicleModel(found.model || found.modelo || '');
+                  }
+                }}
+                className="w-full h-9 rounded-lg border border-input bg-background/90 px-2 text-xs font-bold text-foreground focus:ring-1 focus:ring-primary"
+              >
+                <option value="">Selecione o veículo...</option>
+                {vehiclesList.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.plate || v.placa} {v.model || v.modelo ? `— ${v.model || v.modelo}` : ''}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
         </div>
       </CardHeader>
@@ -884,8 +949,8 @@ export const DriverDailyScheduleBoard: React.FC<DriverDailyScheduleBoardProps> =
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-start">
           {/* Quadro Principal (Horário | Empresa | Percurso (cód.) | Km Inicial/Final | Qtde. Passageiros) */}
           <div className="xl:col-span-9 space-y-3">
-            {/* Visão Mobile em Cards (sem rolagem horizontal) */}
-            <div className="md:hidden space-y-3">
+            {/* Visão Mobile em Cards com Ergonomia de Toque e Navegação Guiada */}
+            <div className="md:hidden space-y-4">
               {rows.map((row, index) => {
                 const isSelectedRow = activeRowIndex === index;
                 const sKm = Number.parseInt(row.startKm, 10);
@@ -893,61 +958,90 @@ export const DriverDailyScheduleBoard: React.FC<DriverDailyScheduleBoardProps> =
                 const rowKmDiff =
                   !Number.isNaN(sKm) && !Number.isNaN(eKm) && eKm >= sKm ? eKm - sKm : null;
 
+                const setCurrentTimeForField = (field: 'startTime' | 'endTime') => {
+                  const now = new Date();
+                  const hh = String(now.getHours()).padStart(2, '0');
+                  const mm = String(now.getMinutes()).padStart(2, '0');
+                  handleRowChange(index, field, `${hh}:${mm}`);
+                };
+
                 return (
                   <div
                     key={row.id}
                     onClick={() => setActiveRowIndex(index)}
-                    className={`rounded-xl border p-3 space-y-2.5 transition-all ${isSelectedRow ? 'border-primary bg-primary/5 shadow-sm' : 'border-border bg-card'
-                      }`}
+                    className={`rounded-2xl border p-4 space-y-3.5 transition-all shadow-sm ${
+                      isSelectedRow ? 'border-primary ring-2 ring-primary/20 bg-card' : 'border-border bg-card/90'
+                    }`}
                   >
-                    <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-border/60">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-[10px] font-bold">
+                    {/* Cabeçalho do Card: Número do Percurso, KM Rodado e Ações */}
+                    <div className="flex items-center justify-between gap-2 pb-2 border-b border-border/70">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant="outline" className="text-xs font-bold px-2.5 py-1">
                           Percurso #{index + 1}
                         </Badge>
                         {row.fromScale && (
-                          <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 text-[10px]">
+                          <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 text-[11px] font-semibold">
                             Da Escala
                           </Badge>
                         )}
                         {rowKmDiff !== null && rowKmDiff > 0 && (
-                          <Badge className="bg-emerald-600 text-white text-[10px] font-mono">
+                          <Badge className="bg-emerald-600 text-white text-xs font-mono font-bold px-2 py-0.5">
                             +{rowKmDiff} km
                           </Badge>
                         )}
                       </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRemoveRow(index);
-                        }}
-                        className="h-7 w-7 text-muted-foreground hover:text-red-500"
-                        title="Remover linha"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+
+                      <div className="flex items-center gap-1.5">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDelayTargetRowIndex(index);
+                            setIsDelayModalOpen(true);
+                          }}
+                          className="h-8 px-2 text-xs font-bold rounded-lg bg-amber-500/15 text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 flex items-center gap-1"
+                          title="Informar atraso neste percurso"
+                        >
+                          <AlertTriangle className="h-3.5 w-3.5" />
+                          <span>Atraso</span>
+                        </Button>
+
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveRow(index);
+                          }}
+                          className="h-8 w-8 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-lg"
+                          title="Remover percurso"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
 
-                    {/* Sentido (Ida / Retorno) & Status Operacional */}
-                    <div className="flex flex-wrap items-center justify-between gap-2 p-1.5 rounded-lg bg-muted/30 border border-border/70">
-                      <div className="flex items-center gap-1">
-                        <span className="text-[10px] font-bold uppercase text-muted-foreground mr-0.5">Sentido:</span>
+                    {/* Etapa 1: Sentido e Status Operacional */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold uppercase text-muted-foreground">1. Sentido da Viagem & Status</Label>
+                      <div className="grid grid-cols-2 gap-2">
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleRowChange(index, 'direction', 'IDA');
                           }}
-                          className={`px-2 py-0.5 text-[11px] font-bold rounded border transition-all ${
+                          className={`h-11 rounded-xl text-xs sm:text-sm font-bold border flex items-center justify-center gap-1.5 transition-all ${
                             (row.direction || 'IDA') === 'IDA'
-                              ? 'bg-blue-600 text-white border-blue-500 shadow-sm'
-                              : 'bg-background/80 text-muted-foreground border-border hover:text-foreground'
+                              ? 'bg-blue-600 text-white border-blue-500 shadow-md ring-2 ring-blue-500/30'
+                              : 'bg-background text-muted-foreground border-border hover:bg-muted/40'
                           }`}
                         >
-                          ➡️ IDA
+                          <span>➡️</span>
+                          <span>IDA</span>
                         </button>
                         <button
                           type="button"
@@ -955,17 +1049,18 @@ export const DriverDailyScheduleBoard: React.FC<DriverDailyScheduleBoardProps> =
                             e.stopPropagation();
                             handleRowChange(index, 'direction', 'RETORNO');
                           }}
-                          className={`px-2 py-0.5 text-[11px] font-bold rounded border transition-all ${
+                          className={`h-11 rounded-xl text-xs sm:text-sm font-bold border flex items-center justify-center gap-1.5 transition-all ${
                             row.direction === 'RETORNO'
-                              ? 'bg-amber-600 text-white border-amber-500 shadow-sm'
-                              : 'bg-background/80 text-muted-foreground border-border hover:text-foreground'
+                              ? 'bg-amber-600 text-white border-amber-500 shadow-md ring-2 ring-amber-500/30'
+                              : 'bg-background text-muted-foreground border-border hover:bg-muted/40'
                           }`}
                         >
-                          ⬅️ RETORNO
+                          <span>⬅️</span>
+                          <span>RETORNO</span>
                         </button>
                       </div>
 
-                      <div className="flex items-center gap-1.5">
+                      <div className="pt-1">
                         <select
                           value={resolveRowStatus(row)}
                           onChange={(e) => {
@@ -973,7 +1068,7 @@ export const DriverDailyScheduleBoard: React.FC<DriverDailyScheduleBoardProps> =
                             handleRowChange(index, 'status', e.target.value as any);
                           }}
                           aria-label="Status do percurso"
-                          className={`h-7 px-2 text-[11px] font-bold rounded border ${
+                          className={`w-full h-10 px-3 text-xs font-bold rounded-xl border ${
                             resolveRowStatus(row) === 'COMPLETED'
                               ? 'bg-emerald-950/60 text-emerald-400 border-emerald-500/50'
                               : resolveRowStatus(row) === 'IN_PROGRESS'
@@ -983,148 +1078,244 @@ export const DriverDailyScheduleBoard: React.FC<DriverDailyScheduleBoardProps> =
                                   : 'bg-amber-950/60 text-amber-400 border-amber-500/50'
                           }`}
                         >
-                          <option value="PENDING">⏳ Pendente</option>
-                          <option value="IN_PROGRESS">🔵 Em Execução</option>
-                          <option value="COMPLETED">✅ Concluído</option>
-                          <option value="CANCELLED">❌ Cancelado</option>
+                          <option value="PENDING">⏳ Status: Pendente</option>
+                          <option value="IN_PROGRESS">🔵 Status: Em Execução</option>
+                          <option value="COMPLETED">✅ Status: Concluído</option>
+                          <option value="CANCELLED">❌ Status: Cancelado</option>
                         </select>
-
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDelayTargetRowIndex(index);
-                            setIsDelayModalOpen(true);
-                          }}
-                          className="h-7 px-2 text-[10px] font-bold rounded bg-amber-500/15 text-amber-400 border border-amber-500/40 hover:bg-amber-500/25 flex items-center gap-1"
-                          title="Informar atraso neste percurso"
-                        >
-                          <AlertTriangle className="h-3 w-3" />
-                          <span>Atraso</span>
-                        </button>
                       </div>
                     </div>
 
                     {/* Aviso de Atraso se registrado */}
                     {row.delayMinutes != null && row.delayMinutes > 0 && (
-                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-red-950/50 border border-red-500/50 text-[11px] font-semibold text-red-300">
-                        <AlertTriangle className="h-3.5 w-3.5 text-red-400 shrink-0 animate-pulse" />
+                      <div className="flex items-center gap-2 p-2 rounded-xl bg-red-950/50 border border-red-500/50 text-xs font-semibold text-red-300">
+                        <AlertTriangle className="h-4 w-4 text-red-400 shrink-0 animate-pulse" />
                         <span>Atraso: +{row.delayMinutes} min ({row.delayReason || 'Informado pelo motorista'})</span>
                       </div>
                     )}
 
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Início</Label>
-                        <Input
-                          type="time"
-                          value={row.startTime}
-                          onChange={(e) => handleRowChange(index, 'startTime', e.target.value)}
-                          className="h-9 mt-0.5 text-xs font-mono font-bold"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Término</Label>
-                        <Input
-                          type="time"
-                          value={row.endTime}
-                          onChange={(e) => handleRowChange(index, 'endTime', e.target.value)}
-                          className="h-9 mt-0.5 text-xs font-mono font-bold"
-                        />
+                    {/* Etapa 2: Horários (Início e Término com atalho Agora) */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold uppercase text-muted-foreground">2. Horários da Rota</Label>
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-muted-foreground font-semibold flex items-center gap-1">
+                              <Clock className="h-3.5 w-3.5 text-primary" /> Início
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCurrentTimeForField('startTime');
+                              }}
+                              className="text-[10px] text-primary font-bold hover:underline"
+                            >
+                              🕒 Agora
+                            </button>
+                          </div>
+                          <Input
+                            type="time"
+                            value={row.startTime}
+                            onChange={(e) => handleRowChange(index, 'startTime', e.target.value)}
+                            className="h-12 text-sm sm:text-base font-mono font-bold text-center bg-background rounded-xl"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-muted-foreground font-semibold flex items-center gap-1">
+                              <Clock className="h-3.5 w-3.5 text-primary" /> Término
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCurrentTimeForField('endTime');
+                              }}
+                              className="text-[10px] text-primary font-bold hover:underline"
+                            >
+                              🕒 Agora
+                            </button>
+                          </div>
+                          <Input
+                            type="time"
+                            value={row.endTime}
+                            onChange={(e) => handleRowChange(index, 'endTime', e.target.value)}
+                            className="h-12 text-sm sm:text-base font-mono font-bold text-center bg-background rounded-xl"
+                          />
+                        </div>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-2">
-                      <div>
-                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Empresa / Cliente</Label>
+                    {/* Etapa 3: Código do Percurso */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center justify-between">
+                        <span>3. Código do Percurso</span>
+                        <span className="text-xs text-primary font-normal">01 a 15</span>
+                      </Label>
+                      <select
+                        value={row.routeCode}
+                        onChange={(e) => handleRowChange(index, 'routeCode', e.target.value)}
+                        aria-label="Código de Percurso"
+                        className={`w-full h-12 rounded-xl border bg-background px-3 text-xs sm:text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary ${
+                          row.routeCode === '15' ? 'border-amber-500 bg-amber-500/10 text-amber-300' : 'border-input'
+                        }`}
+                      >
+                        {routeCodes.map((rc) => (
+                          <option key={rc.code} value={rc.code}>
+                            {rc.code} - {rc.description}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Justificativa / Motivo quando for Código 15 - OUTROS */}
+                    {row.routeCode === '15' && (
+                      <div className="p-3 rounded-xl border border-amber-500/60 bg-amber-500/15 space-y-2 animate-in fade-in duration-150">
+                        <Label className="text-xs font-bold text-amber-400 flex items-center justify-between">
+                          <span className="flex items-center gap-1.5">
+                            <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
+                            Motivo do Código 15 (Outros)
+                          </span>
+                          <span className="text-red-400 text-xs font-bold">* Obrigatório</span>
+                        </Label>
                         <Input
-                          value={row.companyName}
-                          onChange={(e) => handleRowChange(index, 'companyName', e.target.value)}
-                          placeholder="Cliente / Empresa..."
-                          className="h-9 mt-0.5 text-xs font-medium"
+                          value={row.otherReason || otherJustification}
+                          onChange={(e) => {
+                            handleRowChange(index, 'otherReason', e.target.value);
+                            setOtherJustification(e.target.value);
+                          }}
+                          placeholder="Informe o motivo da rota extra..."
+                          className="h-11 text-xs sm:text-sm bg-background border-amber-500/50 font-medium rounded-lg"
                         />
-                      </div>
-                      <div>
-                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Percurso (Código)</Label>
-                        <select
-                          value={row.routeCode}
-                          onChange={(e) => handleRowChange(index, 'routeCode', e.target.value)}
-                          aria-label="Código de Percurso"
-                          className="w-full h-9 mt-0.5 rounded-md border border-input bg-background px-2.5 text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                        >
-                          {routeCodes.map((rc) => (
-                            <option key={rc.code} value={rc.code}>
-                              {rc.code} - {rc.description}
-                            </option>
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {['Socorro mecânico', 'Apoio operacional', 'Abastecimento', 'Desvio itinerário', 'Viagem extra'].map((chip) => (
+                            <button
+                              key={chip}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRowChange(index, 'otherReason', chip);
+                                setOtherJustification(chip);
+                              }}
+                              className="text-xs px-2.5 py-1 rounded-lg border border-amber-500/40 bg-amber-500/20 text-amber-300 font-semibold active:scale-95 transition-all"
+                            >
+                              + {chip}
+                            </button>
                           ))}
-                        </select>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Etapa 4: Hodômetro (KM) & Passageiros */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-bold uppercase text-muted-foreground">4. Quilometragem & Passageiros</Label>
+                        {rowKmDiff !== null && rowKmDiff > 0 && (
+                          <span className="text-xs font-mono font-bold text-emerald-500">
+                            Distância: +{rowKmDiff} km
+                          </span>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <span className="text-[11px] font-semibold text-muted-foreground text-center block mb-0.5">
+                            KM Inicial
+                          </span>
+                          <Input
+                            type="number"
+                            inputMode="numeric"
+                            min={0}
+                            value={row.startKm}
+                            onChange={(e) => handleRowChange(index, 'startKm', e.target.value)}
+                            placeholder="KM Ini"
+                            className="h-12 px-1 text-sm sm:text-base font-mono font-bold text-center bg-background rounded-xl"
+                          />
+                        </div>
+                        <div>
+                          <span className="text-[11px] font-semibold text-emerald-500 text-center block mb-0.5">
+                            KM Final
+                          </span>
+                          <Input
+                            type="number"
+                            inputMode="numeric"
+                            min={0}
+                            value={row.endKm}
+                            onChange={(e) => handleRowChange(index, 'endKm', e.target.value)}
+                            placeholder="KM Fim"
+                            className="h-12 px-1 text-sm sm:text-base font-mono font-bold text-emerald-500 text-center bg-background rounded-xl border-emerald-500/40"
+                          />
+                        </div>
+                        <div>
+                          <span className="text-[11px] font-semibold text-muted-foreground text-center block mb-0.5">
+                            Passag.
+                          </span>
+                          <Input
+                            type="number"
+                            inputMode="numeric"
+                            min={0}
+                            value={row.passengers}
+                            onChange={(e) => handleRowChange(index, 'passengers', e.target.value)}
+                            placeholder="0"
+                            className="h-12 px-1 text-sm sm:text-base font-mono text-center font-bold bg-background rounded-xl"
+                          />
+                        </div>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">KM Inicial</Label>
-                        <Input
-                          type="number"
-                          inputMode="numeric"
-                          min={0}
-                          value={row.startKm}
-                          onChange={(e) => handleRowChange(index, 'startKm', e.target.value)}
-                          placeholder="KM Ini"
-                          className="h-9 mt-0.5 px-2 text-xs font-mono font-semibold text-center"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">KM Final</Label>
-                        <Input
-                          type="number"
-                          inputMode="numeric"
-                          min={0}
-                          value={row.endKm}
-                          onChange={(e) => handleRowChange(index, 'endKm', e.target.value)}
-                          placeholder="KM Fim"
-                          className="h-9 mt-0.5 px-2 text-xs font-mono font-bold text-emerald-500 text-center"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Passag.</Label>
-                        <Input
-                          type="number"
-                          inputMode="numeric"
-                          min={0}
-                          value={row.passengers}
-                          onChange={(e) => handleRowChange(index, 'passengers', e.target.value)}
-                          placeholder="0"
-                          className="h-9 mt-0.5 px-2 text-xs font-mono text-center"
-                        />
-                      </div>
+                    {/* Etapa 5: Empresa / Cliente ou Linha */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold uppercase text-muted-foreground">5. Empresa / Cliente ou Linha</Label>
+                      <Input
+                        value={row.companyName}
+                        onChange={(e) => handleRowChange(index, 'companyName', e.target.value)}
+                        placeholder="Ex: Petrobras, Linha 03..."
+                        className="h-11 text-xs sm:text-sm font-medium bg-background rounded-xl"
+                      />
                     </div>
                   </div>
                 );
               })}
 
-              {/* Justificar outros (15) no Mobile */}
-              <div
-                className={`p-3 rounded-xl border flex flex-col gap-1.5 ${hasCode15OrJustificationRequired
-                    ? 'bg-amber-500/10 border-amber-500/40'
-                    : 'bg-muted/30 border-border'
-                  }`}
+              {/* Botão de Adicionar Próximo Percurso Amplo no Rodapé Mobile */}
+              <Button
+                type="button"
+                onClick={handleAddRow}
+                className="w-full h-12 text-sm font-bold bg-primary/10 border-2 border-dashed border-primary/50 text-primary hover:bg-primary/20 rounded-2xl flex items-center justify-center gap-2 shadow-xs active:scale-[0.99] transition-all"
               >
-                <Label className="text-xs font-bold flex items-center gap-1.5">
-                  Justificar outros (15):
-                  {hasCode15OrJustificationRequired && (
+                <Plus className="h-5 w-5" />
+                <span>+ Adicionar Próximo Percurso</span>
+              </Button>
+
+              {/* Justificar outros (15) no Mobile se ativo */}
+              {hasCode15OrJustificationRequired && (
+                <div className="p-3.5 rounded-2xl border flex flex-col gap-2 bg-amber-500/10 border-amber-500/40">
+                  <Label className="text-xs font-bold flex items-center justify-between text-amber-400">
+                    <span className="flex items-center gap-1.5">
+                      <AlertTriangle className="h-4 w-4" />
+                      Justificativa Geral (Código 15):
+                    </span>
                     <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-500">
                       Obrigatório
                     </Badge>
-                  )}
-                </Label>
-                <Input
-                  value={otherJustification}
-                  onChange={(e) => setOtherJustification(e.target.value)}
-                  placeholder="Descreva o motivo caso utilize o código 15 - OUTROS..."
-                  className="h-9 text-xs bg-background"
-                />
-              </div>
+                  </Label>
+                  <Input
+                    value={otherJustification}
+                    onChange={(e) => setOtherJustification(e.target.value)}
+                    placeholder="Descreva o motivo caso utilize o código 15 - OUTROS..."
+                    className="h-11 text-xs sm:text-sm bg-background border-amber-500/40 rounded-xl"
+                  />
+                </div>
+              )}
+            </div>
+                    value={otherJustification}
+                    onChange={(e) => setOtherJustification(e.target.value)}
+                    placeholder="Descreva o motivo caso utilize o código 15 - OUTROS..."
+                    className="h-9 text-xs bg-background border-amber-500/40"
+                  />
+                </div>
+              )}
             </div>
 
             {/* Visão Desktop em Tabela */}

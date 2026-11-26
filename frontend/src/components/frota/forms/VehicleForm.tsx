@@ -351,8 +351,8 @@ export const VehicleForm: React.FC<VehicleFormProps> = ({
     };
 
     return (
-        <form onSubmit={handleSubmit} className="flex flex-col h-full">
-            <div className="flex-1 overflow-y-auto px-6 py-4">
+        <form onSubmit={handleSubmit} className="flex-1 min-h-0 flex flex-col overflow-hidden">
+            <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
                 <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
                     <TabsList className="grid w-full grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 mb-4 bg-gray-800/50 p-1 flex-none gap-1 h-auto">
                         <TabsTrigger value="general" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white flex gap-1 items-center text-xs">
@@ -675,45 +675,47 @@ export const VehicleForm: React.FC<VehicleFormProps> = ({
                 </Tabs>
             </div>
 
-            <div className="flex-none p-6 pt-4 border-t border-gray-700 bg-seguranca-darkgray">
+            <div className="flex-none p-4 px-6 border-t border-gray-700 bg-seguranca-darkgray z-10 shadow-lg">
                 {/* Validation Errors */}
                 {validationErrors.length > 0 && (
-                    <div className="mb-4 p-3 bg-red-900/30 border border-red-700/50 rounded-lg">
-                        <div className="flex items-center gap-2 mb-2">
+                    <div className="mb-3 p-3 bg-red-900/40 border border-red-700/60 rounded-lg">
+                        <div className="flex items-center gap-2 mb-1">
                             <AlertTriangle className="h-4 w-4 text-red-400" />
-                            <span className="text-sm font-medium text-red-400">
-                                {validationErrors.length} campo(s) obrigatório(s) não preenchido(s)
+                            <span className="text-sm font-medium text-red-300">
+                                Por favor, verifique os campos obrigatórios:
                             </span>
                         </div>
                         <ul className="text-xs text-red-300 space-y-1 ml-6">
-                            {validationErrors.slice(0, 5).map((error, index) => (
+                            {validationErrors.map((error, index) => (
                                 <li key={index}>• {error.message}</li>
                             ))}
-                            {validationErrors.length > 5 && (
-                                <li className="text-red-400">• ...e mais {validationErrors.length - 5} campo(s)</li>
-                            )}
                         </ul>
                     </div>
                 )}
 
-                <div className="flex justify-end gap-3">
-                <Button
-                    type="submit"
-                    disabled={isLoading}
-                    className="bg-green-600 hover:bg-green-700 text-white min-w-[140px]"
-                >
-                    {isLoading ? (
-                        <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Salvando...
-                        </>
-                    ) : (
-                        <>
-                            <Save className="mr-2 h-4 w-4" />
-                            {submitLabel}
-                        </>
-                    )}
-                </Button>
+                <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs text-gray-400 hidden sm:inline">
+                        <span className="text-amber-400 font-semibold">*</span> Apenas a placa é obrigatória para salvar.
+                    </span>
+                    <div className="flex items-center gap-3 ml-auto">
+                        <Button
+                            type="submit"
+                            disabled={isLoading}
+                            className="bg-green-600 hover:bg-green-700 text-white font-semibold min-w-[160px] h-10 px-5 shadow-md flex items-center justify-center gap-2"
+                        >
+                            {isLoading ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Salvando...
+                                </>
+                            ) : (
+                                <>
+                                    <Save className="mr-2 h-4 w-4" />
+                                    {submitLabel}
+                                </>
+                            )}
+                        </Button>
+                    </div>
                 </div>
             </div>
         </form>

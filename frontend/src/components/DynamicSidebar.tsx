@@ -101,6 +101,7 @@ const ROLE_ALLOWED_ITEM_IDS: Partial<Record<UserRole, Set<string>>> = {
     'holerites',
     'meus-holerites',
     'driver-dashboard',
+    'driver-formulario-diario',
     'driver-checklist',
     'ponto-eletronico',
     'mensagens',

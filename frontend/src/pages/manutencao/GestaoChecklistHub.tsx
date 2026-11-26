@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ClipboardCheck, Users, Car, AlertTriangle } from 'lucide-react';
+import { ClipboardCheck, Users, Car, AlertTriangle, UserCheck } from 'lucide-react';
 import GestaoChecklistCliente from './GestaoChecklistCliente';
 import GestaoChecklistVeiculo from './GestaoChecklistVeiculo';
+import GestaoChecklistMotorista from './GestaoChecklistMotorista';
 import DriverChecklist from '../driver/DriverChecklist';
 import DamageReportManagement from '../maintenance/DamageReportManagement';
 
@@ -17,6 +18,8 @@ export const GestaoChecklistHub: React.FC = () => {
       ? 'veiculo'
       : tabParam === 'avarias' || tabParam === 'avaria'
       ? 'avarias'
+      : tabParam === 'motorista' || tabParam === 'motoristas'
+      ? 'motorista'
       : 'cliente';
 
   const [activeTab, setActiveTab] = useState<string>(initialTab);
@@ -30,6 +33,8 @@ export const GestaoChecklistHub: React.FC = () => {
         setActiveTab('avarias');
       } else if (tabParam === 'cliente' || tabParam === 'clientes') {
         setActiveTab('cliente');
+      } else if (tabParam === 'motorista' || tabParam === 'motoristas') {
+        setActiveTab('motorista');
       }
     }
   }, [tabParam]);
@@ -42,11 +47,11 @@ export const GestaoChecklistHub: React.FC = () => {
   return (
     <StandardLayout
       title="Gestão de Checklists"
-      subtitle="Central unificada de checklists: por cliente, por veículo e controle de avarias."
+      subtitle="Central unificada de checklists: por cliente, por veículo, controle de avarias e por motorista."
     >
       <div className="space-y-6">
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 max-w-2xl bg-muted/70 p-1 rounded-xl">
+          <TabsList className="grid w-full grid-cols-1 sm:grid-cols-4 max-w-4xl bg-muted/70 p-1 rounded-xl">
             <TabsTrigger
               value="cliente"
               className="flex items-center justify-center gap-2 py-2.5 data-[state=active]:bg-seguranca-yellow data-[state=active]:text-black data-[state=active]:font-semibold transition-all"
@@ -67,6 +72,13 @@ export const GestaoChecklistHub: React.FC = () => {
             >
               <AlertTriangle className="h-4 w-4" />
               <span>Checklist por Avarias</span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="motorista"
+              className="flex items-center justify-center gap-2 py-2.5 data-[state=active]:bg-seguranca-yellow data-[state=active]:text-black data-[state=active]:font-semibold transition-all"
+            >
+              <UserCheck className="h-4 w-4" />
+              <span>Checklist por Motorista</span>
             </TabsTrigger>
           </TabsList>
 
@@ -114,6 +126,10 @@ export const GestaoChecklistHub: React.FC = () => {
               ) : (
                 <DamageReportManagement embedded />
               )}
+            </TabsContent>
+
+            <TabsContent value="motorista" className="mt-0 focus-visible:outline-hidden">
+              <GestaoChecklistMotorista embedded />
             </TabsContent>
           </div>
         </Tabs>

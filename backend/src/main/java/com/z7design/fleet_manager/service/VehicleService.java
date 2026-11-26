@@ -320,14 +320,7 @@ public class VehicleService {
             }
             Vehicle savedVehicle = vehicleRepository.save(existingVehicle);
             log.debug("VeÃ­culo atualizado com sucesso: {}", savedVehicle.getId());
-            if (savedVehicle.getCurrentMileage() != null && savedVehicle.getCurrentMileage() > 0
-                    && (previousMileage == null || savedVehicle.getCurrentMileage() > previousMileage)) {
-                try {
-                    preventiveModel2Service.evaluateAndAutoOpenForVehicle(savedVehicle);
-                } catch (Exception autoEx) {
-                    log.warn("Aviso ao avaliar OS Preventiva Modelo 2 automática para {}: {}", savedVehicle.getPlate(), autoEx.getMessage());
-                }
-            }
+            // Abertura automática de preventiva ao atualizar veículo desativada: gerar somente sob demanda via botão "Gerar Preventivas (KM)"
             return VehicleDTO.fromEntity(savedVehicle);
         } catch (Exception e) {
             log.error("Erro ao atualizar veÃ­culo: ", e);

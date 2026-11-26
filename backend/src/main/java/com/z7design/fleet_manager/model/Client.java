@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.z7design.fleet_manager.tenant.TenantAware;
+import com.z7design.fleet_manager.tenant.TenantEntityListener;
 import org.hibernate.annotations.Filter;
 import java.util.UUID;
 
@@ -21,6 +22,7 @@ import java.util.UUID;
 @Table(name = "clients", uniqueConstraints = {
     @UniqueConstraint(name = "uk_clients_cnpj_company", columnNames = { "cnpj", "company_id" })
 })
+@EntityListeners(TenantEntityListener.class)
 @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
 @Filter(name = "tenantFilter", condition = "company_id = :companyId")
 public class Client implements TenantAware {

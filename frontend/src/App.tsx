@@ -89,6 +89,7 @@ const Index = lazy(() => import('@/pages/Index').catch(() => ({ default: () => <
 const Dashboard = lazy(() => import('@/pages/Dashboard').catch(() => ({ default: () => <div>Erro ao carregar Dashboard</div> })));
 const DashboardColaborador = lazy(() => import('@/pages/DashboardColaborador'));
 const DriverDashboard = lazy(() => import('@/pages/DriverDashboard'));
+const DriverFormularioDiarioPage = lazy(() => import('@/pages/driver/DriverFormularioDiarioPage'));
 const DriverChecklist = lazy(() => import('@/pages/driver/DriverChecklist'));
 const DriverWorkOrdersPage = lazy(() => import('@/pages/driver/DriverWorkOrdersPage'));
 const DashboardVigilante = lazy(() => import('@/pages/DashboardVigilante'));
@@ -582,6 +583,13 @@ function App() {
                         <ProtectedRoute>
                           <Suspense fallback={<LoadingSpinner />}>
                             <DriverDashboard />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/driver/formulario-diario" element={
+                        <ProtectedRoute>
+                          <Suspense fallback={<LoadingSpinner />}>
+                            <DriverFormularioDiarioPage />
                           </Suspense>
                         </ProtectedRoute>
                       } />

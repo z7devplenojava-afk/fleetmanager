@@ -198,63 +198,14 @@ export function useVehicleValidation() {
 
     const validate = (formData: VehicleFormData): ValidationError[] => {
         const errors: ValidationError[] = [];
-        const rules = getValidationRules(formData.vehicleType);
 
-        // Validar campos obrigatórios
-        for (const field of rules.required) {
-            const value = formData[field as keyof VehicleFormData];
-            if (value === undefined || value === null || value === '' || value === 0) {
-                const label = FIELD_LABELS[field] || field;
-                const description = rules.descriptions[field] || `${label} é obrigatório para este tipo de veículo`;
-                errors.push({ field, message: description });
-            }
-        }
-
-        // Validações específicas de agregado
-        if (formData.isAggregated) {
-            if (!formData.aggregatedOwnerName) {
-                errors.push({
-                    field: 'aggregatedOwnerName',
-                    message: 'Nome do proprietário é obrigatório para veículos de agregado'
-                });
-            }
-            if (!formData.aggregatedPaymentType) {
-                errors.push({
-                    field: 'aggregatedPaymentType',
-                    message: 'Tipo de pagamento é obrigatório para veículos de agregado'
-                });
-            }
-        }
-
-        // Validações de financiamento
-        if (formData.financingStatus === 'FINANCED') {
-            if (!formData.financingBankOrInstitution) {
-                errors.push({
-                    field: 'financingBankOrInstitution',
-                    message: 'Banco/Instituição é obrigatório para veículos financiados'
-                });
-            }
-            if (!formData.financingInstallmentValue || formData.financingInstallmentValue <= 0) {
-                errors.push({
-                    field: 'financingInstallmentValue',
-                    message: 'Valor da parcela é obrigatório para veículos financiados'
-                });
-            }
-        }
-
-        // Validação de placa
-        if (formData.placa && formData.placa.length < 7) {
+        // Apenas a placa é campo estritamente obrigatório para salvar/atualizar
+        // Isso garante que veículos importados possam ser salvos e editados normalmente
+        const placa = formData.placa?.trim() || (formData as any).plate?.trim();
+        if (!placa || placa.length < 3) {
             errors.push({
                 field: 'placa',
-                message: 'Placa deve ter pelo menos 7 caracteres'
-            });
-        }
-
-        // Validação de chassi (17 caracteres se informado)
-        if (formData.chassi && formData.chassi.length !== 17) {
-            errors.push({
-                field: 'chassisNumber',
-                message: 'Chassi deve ter exatamente 17 caracteres'
+                message: 'Placa é obrigatória para salvar o veículo'
             });
         }
 

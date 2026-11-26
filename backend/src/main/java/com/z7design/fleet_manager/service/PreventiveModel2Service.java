@@ -438,7 +438,8 @@ public class PreventiveModel2Service {
                 .build();
     }
 
-    @Scheduled(cron = "0 0 6 * * ?")
+    // Varredura automática desativada: OS Preventivas só devem ser geradas quando o usuário clicar no botão "Gerar Preventivas (KM)"
+    // @Scheduled(cron = "0 0 6 * * ?")
     public void scheduledDailyPreventiveSweep() {
         try {
             List<Company> companies = companyRepository.findAll();

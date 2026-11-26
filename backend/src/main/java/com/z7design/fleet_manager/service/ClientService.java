@@ -23,6 +23,7 @@ import com.z7design.fleet_manager.model.AccountsReceivable;
 import com.z7design.fleet_manager.repository.WorkPostRepository;
 import com.z7design.fleet_manager.repository.VehicleRepository;
 import com.z7design.fleet_manager.repository.AccountsReceivableRepository;
+import com.z7design.fleet_manager.security.TenantSecurityValidator;
 
 @Service
 @Transactional
@@ -35,7 +36,16 @@ public class ClientService {
     private final VehicleRepository vehicleRepository;
     private final AccountsReceivableRepository accountsReceivableRepository;
     private final UserCompanyResolver userCompanyResolver;
+    private final TenantSecurityValidator tenantSecurityValidator;
     
+    private UUID resolveCurrentTenantId() {
+        UUID tenantId = com.z7design.fleet_manager.tenant.TenantContext.get();
+        if (tenantId == null && userCompanyResolver != null) {
+            tenantId = userCompanyResolver.resolveCurrentCompanyId();
+        }
+        return tenantId;
+    }
+
     public ClientDTO createClient(ClientDTO clientDTO) {
         try {
             log.info("[DEBUG] ClientService.createClient - Iniciando criação de cliente");
@@ -48,13 +58,11 @@ public class ClientService {
             if (normalizedCnpj == null || normalizedCnpj.isBlank()) {
                 throw new BusinessException("CNPJ é obrigatório");
             }
-            UUID currentCompanyId = clientDTO.getCompanyId() != null 
-                    ? clientDTO.getCompanyId() 
-                    : userCompanyResolver.resolveCurrentCompanyId();
+            UUID effectiveCompanyId = tenantSecurityValidator.getEffectiveCompanyId(clientDTO.getCompanyId());
 
-            log.info("[DEBUG] Verificando se CNPJ já existe na empresa [{}]: {}", currentCompanyId, normalizedCnpj);
-            boolean cnpjExists = currentCompanyId != null 
-                    ? clientRepository.existsByCnpjAndCompanyId(normalizedCnpj, currentCompanyId)
+            log.info("[DEBUG] Verificando se CNPJ já existe na empresa [{}]: {}", effectiveCompanyId, normalizedCnpj);
+            boolean cnpjExists = effectiveCompanyId != null 
+                    ? clientRepository.existsByCnpjAndCompanyId(normalizedCnpj, effectiveCompanyId)
                     : clientRepository.existsByCnpj(normalizedCnpj);
             log.info("[DEBUG] CNPJ existe: {}", cnpjExists);
             
@@ -67,9 +75,7 @@ public class ClientService {
             Client client = new Client();
             BeanUtils.copyProperties(clientDTO, client);
 
-            if (client.getCompanyId() == null) {
-                client.setCompanyId(currentCompanyId);
-            }
+            client.setCompanyId(effectiveCompanyId);
 
             // Forçar salvar CNPJ normalizado
             client.setCnpj(normalizedCnpj);
@@ -116,15 +122,27 @@ public class ClientService {
     
     public ClientDTO updateClient(UUID id, ClientDTO clientDTO) {
         Client existingClient = clientRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Cliente nÃ£o encontrado com ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Cliente não encontrado com ID: " + id));
         
-        // Verificar se o CNPJ foi alterado e se jÃ¡ existe outro cliente com o novo CNPJ
-        if (!existingClient.getCnpj().equals(clientDTO.getCnpj()) && 
-            clientRepository.existsByCnpj(clientDTO.getCnpj())) {
-            throw new BusinessException("JÃ¡ existe um cliente cadastrado com este CNPJ: " + clientDTO.getCnpj());
+        tenantSecurityValidator.validateTenantAccess(existingClient.getCompanyId());
+        
+        // Normalizar CNPJ
+        String normalizedCnpj = clientDTO.getCnpj() != null ? clientDTO.getCnpj().replaceAll("\\D", "") : null;
+
+        // Verificar se o CNPJ foi alterado e se já existe outro cliente com o novo CNPJ na mesma empresa
+        if (normalizedCnpj != null && !normalizedCnpj.equals(existingClient.getCnpj())) {
+            boolean exists = existingClient.getCompanyId() != null
+                    ? clientRepository.existsByCnpjAndCompanyId(normalizedCnpj, existingClient.getCompanyId())
+                    : clientRepository.existsByCnpj(normalizedCnpj);
+            if (exists) {
+                throw new BusinessException("Já existe um cliente cadastrado com este CNPJ: " + clientDTO.getCnpj());
+            }
         }
         
-        BeanUtils.copyProperties(clientDTO, existingClient, "id", "createdAt");
+        BeanUtils.copyProperties(clientDTO, existingClient, "id", "createdAt", "companyId");
+        if (normalizedCnpj != null) {
+            existingClient.setCnpj(normalizedCnpj);
+        }
         
         Client updatedClient = clientRepository.save(existingClient);
         
@@ -136,7 +154,9 @@ public class ClientService {
     
     public ClientDTO getClientById(UUID id) {
         Client client = clientRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Cliente nÃ£o encontrado com ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Cliente não encontrado com ID: " + id));
+        
+        tenantSecurityValidator.validateTenantAccess(client.getCompanyId());
         
         ClientDTO clientDTO = new ClientDTO();
         BeanUtils.copyProperties(client, clientDTO);
@@ -145,8 +165,19 @@ public class ClientService {
     }
     
     public ClientDTO getClientByCnpj(String cnpj) {
-        Client client = clientRepository.findByCnpj(cnpj)
-                .orElseThrow(() -> new ResourceNotFoundException("Cliente nÃ£o encontrado com CNPJ: " + cnpj));
+        String normalizedCnpj = cnpj != null ? cnpj.replaceAll("\\D", "") : "";
+        UUID tenantId = resolveCurrentTenantId();
+        
+        Client client;
+        if (tenantId != null) {
+            client = clientRepository.findByCnpjAndCompanyId(normalizedCnpj, tenantId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Cliente não encontrado com CNPJ: " + cnpj));
+        } else if (tenantSecurityValidator.isSuperAdmin()) {
+            client = clientRepository.findByCnpj(normalizedCnpj)
+                    .orElseThrow(() -> new ResourceNotFoundException("Cliente não encontrado com CNPJ: " + cnpj));
+        } else {
+            throw new ResourceNotFoundException("Cliente não encontrado com CNPJ: " + cnpj);
+        }
         
         ClientDTO clientDTO = new ClientDTO();
         BeanUtils.copyProperties(client, clientDTO);
@@ -155,13 +186,17 @@ public class ClientService {
     }
     
     public Page<ClientDTO> getAllClients(Pageable pageable) {
-        UUID tenantId = com.z7design.fleet_manager.tenant.TenantContext.get();
-        if (tenantId == null && userCompanyResolver != null) {
-            tenantId = userCompanyResolver.resolveCurrentCompanyId();
+        UUID tenantId = resolveCurrentTenantId();
+        Page<Client> clients;
+        
+        if (tenantId != null) {
+            clients = clientRepository.findByCompanyId(tenantId, pageable);
+        } else if (tenantSecurityValidator.isSuperAdmin()) {
+            clients = clientRepository.findAll(pageable);
+        } else {
+            clients = Page.empty(pageable);
         }
-        Page<Client> clients = tenantId != null 
-                ? clientRepository.findByCompanyId(tenantId, pageable)
-                : Page.empty(pageable);
+        
         return clients.map(client -> {
             ClientDTO clientDTO = new ClientDTO();
             BeanUtils.copyProperties(client, clientDTO);
@@ -170,7 +205,17 @@ public class ClientService {
     }
     
     public Page<ClientDTO> searchClients(String searchTerm, Pageable pageable) {
-        Page<Client> clients = clientRepository.findBySearchTerm(searchTerm, pageable);
+        UUID tenantId = resolveCurrentTenantId();
+        Page<Client> clients;
+        
+        if (tenantId != null) {
+            clients = clientRepository.findBySearchTermAndCompanyId(searchTerm, tenantId, pageable);
+        } else if (tenantSecurityValidator.isSuperAdmin()) {
+            clients = clientRepository.findBySearchTerm(searchTerm, pageable);
+        } else {
+            clients = Page.empty(pageable);
+        }
+        
         return clients.map(client -> {
             ClientDTO clientDTO = new ClientDTO();
             BeanUtils.copyProperties(client, clientDTO);
@@ -179,7 +224,17 @@ public class ClientService {
     }
     
     public Page<ClientDTO> getClientsByStatus(ClientStatus status, Pageable pageable) {
-        Page<Client> clients = clientRepository.findByStatus(status, pageable);
+        UUID tenantId = resolveCurrentTenantId();
+        Page<Client> clients;
+        
+        if (tenantId != null) {
+            clients = clientRepository.findByStatusAndCompanyId(status, tenantId, pageable);
+        } else if (tenantSecurityValidator.isSuperAdmin()) {
+            clients = clientRepository.findByStatus(status, pageable);
+        } else {
+            clients = Page.empty(pageable);
+        }
+        
         return clients.map(client -> {
             ClientDTO clientDTO = new ClientDTO();
             BeanUtils.copyProperties(client, clientDTO);
@@ -188,12 +243,23 @@ public class ClientService {
     }
     
     public Page<ClientDTO> getClientsByStatus(ClientStatus status, String searchTerm, Pageable pageable) {
+        UUID tenantId = resolveCurrentTenantId();
         Page<Client> clients;
         
-        if (searchTerm != null && !searchTerm.trim().isEmpty()) {
-            clients = clientRepository.findByStatusAndSearchTerm(status, searchTerm, pageable);
+        if (tenantId != null) {
+            if (searchTerm != null && !searchTerm.trim().isEmpty()) {
+                clients = clientRepository.findByStatusAndSearchTermAndCompanyId(status, searchTerm, tenantId, pageable);
+            } else {
+                clients = clientRepository.findByStatusAndCompanyId(status, tenantId, pageable);
+            }
+        } else if (tenantSecurityValidator.isSuperAdmin()) {
+            if (searchTerm != null && !searchTerm.trim().isEmpty()) {
+                clients = clientRepository.findByStatusAndSearchTerm(status, searchTerm, pageable);
+            } else {
+                clients = clientRepository.findByStatus(status, pageable);
+            }
         } else {
-            clients = clientRepository.findByStatus(status, pageable);
+            clients = Page.empty(pageable);
         }
         
         return clients.map(client -> {
@@ -204,7 +270,17 @@ public class ClientService {
     }
     
     public List<ClientDTO> getClientsByStatus(ClientStatus status) {
-        List<Client> clients = clientRepository.findByStatus(status);
+        UUID tenantId = resolveCurrentTenantId();
+        List<Client> clients;
+        
+        if (tenantId != null) {
+            clients = clientRepository.findByStatusAndCompanyId(status, tenantId);
+        } else if (tenantSecurityValidator.isSuperAdmin()) {
+            clients = clientRepository.findByStatus(status);
+        } else {
+            clients = java.util.Collections.emptyList();
+        }
+        
         return clients.stream().map(client -> {
             ClientDTO clientDTO = new ClientDTO();
             BeanUtils.copyProperties(client, clientDTO);
@@ -215,6 +291,8 @@ public class ClientService {
     public void deleteClient(UUID id) {
         Client client = clientRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Cliente não encontrado com ID: " + id));
+        
+        tenantSecurityValidator.validateTenantAccess(client.getCompanyId());
         
         log.info("🗑️ Excluindo cliente {} ({})", client.getName(), id);
 
@@ -286,17 +364,30 @@ public class ClientService {
     
     public void updateClientStatus(UUID id, ClientStatus status) {
         Client client = clientRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Cliente nÃ£o encontrado com ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Cliente não encontrado com ID: " + id));
         
+        tenantSecurityValidator.validateTenantAccess(client.getCompanyId());
+
         client.setStatus(status);
         clientRepository.save(client);
     }
     
     public long countClientsByStatus(ClientStatus status) {
-        return clientRepository.countByStatus(status);
+        UUID tenantId = resolveCurrentTenantId();
+        if (tenantId != null) {
+            return clientRepository.countByStatusAndCompanyId(status, tenantId);
+        } else if (tenantSecurityValidator.isSuperAdmin()) {
+            return clientRepository.countByStatus(status);
+        }
+        return 0L;
     }
     
     public boolean existsByCnpj(String cnpj) {
-        return clientRepository.existsByCnpj(cnpj);
+        String normalizedCnpj = cnpj != null ? cnpj.replaceAll("\\D", "") : "";
+        UUID tenantId = resolveCurrentTenantId();
+        if (tenantId != null) {
+            return clientRepository.existsByCnpjAndCompanyId(normalizedCnpj, tenantId);
+        }
+        return clientRepository.existsByCnpj(normalizedCnpj);
     }
 } 

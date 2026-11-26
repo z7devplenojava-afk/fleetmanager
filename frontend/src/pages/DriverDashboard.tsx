@@ -202,6 +202,13 @@ const DriverDashboard: React.FC = () => {
 
     const quickActions = [
         {
+            title: 'Formulário Diário',
+            description: 'Controle de percursos, horários, KM inicial/final e passageiros',
+            icon: FileSpreadsheet,
+            color: 'bg-amber-600',
+            to: '/driver/formulario-diario'
+        },
+        {
             title: 'Checklist & Avarias (Vistoria)',
             description: 'Mapa de avarias na carroceria, pneus, níveis e KM',
             icon: ClipboardCheck,
@@ -235,13 +242,6 @@ const DriverDashboard: React.FC = () => {
             icon: Clock,
             color: 'bg-emerald-600',
             to: '/rh/ponto-eletronico'
-        },
-        {
-            title: 'Lançamento de Parte Diária',
-            description: 'Lançar ficha de veículo, horários e KM para medição',
-            icon: FileText,
-            color: 'bg-amber-600',
-            action: () => setIsParteDiariaModalOpen(true)
         },
         {
             title: 'Controle de Horas',

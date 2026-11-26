@@ -102,7 +102,17 @@ const ManutencaoDashboard: React.FC = () => {
     const [selectedOrder, setSelectedOrder] = useState<FleetWorkOrder | undefined>(undefined);
     const [prefillOrderValues, setPrefillOrderValues] = useState<Partial<FleetWorkOrder> | undefined>(undefined);
     const [dueModalOpen, setDueModalOpen] = useState(false);
-    const [hasTriggeredDueModal, setHasTriggeredDueModal] = useState(false);
+    const [hasTriggeredDueModal, setHasTriggeredDueModal] = useState(() => {
+        try {
+            const today = new Date().toISOString().split('T')[0];
+            return Boolean(
+                sessionStorage.getItem('fluxbus_preventive_due_alert_shown') ||
+                localStorage.getItem('fluxbus_preventive_due_alert_dismissed_today') === today
+            );
+        } catch {
+            return false;
+        }
+    });
     const [statusFilter, setStatusFilter] = useState<WorkOrderStatus | 'ALL'>('ALL');
     const [typeFilter, setTypeFilter] = useState<MaintenanceType | 'ALL'>('ALL');
     const [searchTerm, setSearchTerm] = useState('');
@@ -150,9 +160,18 @@ const ManutencaoDashboard: React.FC = () => {
     const expiringComponentsCount = compDashboard?.expiringAlerts?.length || 0;
 
     useEffect(() => {
-        if (!hasTriggeredDueModal && compDashboard && compDashboard.expiringAlerts.length > 0) {
+        const today = new Date().toISOString().split('T')[0];
+        const alreadyShown = Boolean(
+            sessionStorage.getItem('fluxbus_preventive_due_alert_shown') ||
+            localStorage.getItem('fluxbus_preventive_due_alert_dismissed_today') === today
+        );
+        if (!hasTriggeredDueModal && !alreadyShown && compDashboard && compDashboard.expiringAlerts.length > 0) {
             setHasTriggeredDueModal(true);
             setDueModalOpen(true);
+            try {
+                sessionStorage.setItem('fluxbus_preventive_due_alert_shown', 'true');
+                localStorage.setItem('fluxbus_preventive_due_alert_dismissed_today', today);
+            } catch {}
         }
     }, [compDashboard, hasTriggeredDueModal]);
 
@@ -988,7 +1007,17 @@ const ManutencaoDashboard: React.FC = () => {
 
             <DueComponentsAlertModal
                 open={dueModalOpen}
-                onOpenChange={setDueModalOpen}
+                onOpenChange={(openVal) => {
+                    setDueModalOpen(openVal);
+                    if (!openVal) {
+                        setHasTriggeredDueModal(true);
+                        try {
+                            const today = new Date().toISOString().split('T')[0];
+                            sessionStorage.setItem('fluxbus_preventive_due_alert_shown', 'true');
+                            localStorage.setItem('fluxbus_preventive_due_alert_dismissed_today', today);
+                        } catch {}
+                    }
+                }}
                 alerts={compDashboard?.expiringAlerts || []}
                 thresholdKm={compDashboard?.config?.alertThresholdKm}
                 onOpenWorkOrder={(row: FleetComponentControlRow) =>

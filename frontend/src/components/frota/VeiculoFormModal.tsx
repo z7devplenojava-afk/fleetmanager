@@ -64,15 +64,15 @@ const VeiculoFormModal: React.FC<VeiculoFormModalProps> = ({ isOpen, onClose, on
     try {
       // Mapear dados do formulário para o formato da API
       const vehicleData: Record<string, any> = {
-        plate: formData.placa.toUpperCase(),
+        plate: formData.placa.toUpperCase().trim(),
         fleetNumber: formData.fleetNumber?.trim() || undefined,
-        brand: formData.marca,
-        model: formData.modelo,
-        year: Number(formData.ano),
-        color: formData.cor,
-        fuelType: formData.combustivel.toUpperCase() as 'GASOLINE' | 'ETHANOL' | 'DIESEL' | 'FLEX',
+        brand: formData.marca?.trim() || 'Outros',
+        model: formData.modelo?.trim() || 'Não informado',
+        year: Number(formData.ano) || new Date().getFullYear(),
+        color: formData.cor || '',
+        fuelType: (formData.combustivel || 'FLEX').toUpperCase() as any,
         currentMileage: Number(formData.quilometragem) || 0,
-        status: formData.status.toUpperCase() as 'ACTIVE' | 'INACTIVE' | 'MAINTENANCE',
+        status: (formData.status || 'ACTIVE').toUpperCase() as any,
         capacity: Number(formData.capacidade) || 5,
         vehicleType: formData.vehicleType || undefined,
 
@@ -217,8 +217,8 @@ const VeiculoFormModal: React.FC<VeiculoFormModalProps> = ({ isOpen, onClose, on
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-seguranca-darkgray text-seguranca-white border-seguranca-darkgray">
-        <DialogHeader>
+      <DialogContent className="max-w-4xl h-[92vh] max-h-[92vh] flex flex-col p-0 gap-0 bg-seguranca-darkgray text-seguranca-white border-seguranca-darkgray overflow-hidden">
+        <DialogHeader className="p-6 pb-2 flex-none">
           <DialogTitle className="text-2xl font-bold flex items-center gap-2">
             <span className="text-seguranca-red">Novo</span> Veículo
           </DialogTitle>
@@ -228,13 +228,15 @@ const VeiculoFormModal: React.FC<VeiculoFormModalProps> = ({ isOpen, onClose, on
         </DialogHeader>
 
         {isOpen && (
-          <VehicleForm
-            key="new-vehicle-form"
-            onSubmit={handleSubmit}
-            isLoading={isLoading}
-            submitLabel="Cadastrar Veículo"
-            isEditMode={false}
-          />
+          <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+            <VehicleForm
+              key="new-vehicle-form"
+              onSubmit={handleSubmit}
+              isLoading={isLoading}
+              submitLabel="Cadastrar Veículo"
+              isEditMode={false}
+            />
+          </div>
         )}
       </DialogContent>
     </Dialog>

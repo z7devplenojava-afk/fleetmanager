@@ -105,11 +105,7 @@ public class OdometerService {
                 log.error("Erro ao canalizar alertas de PMP: {}", e.getMessage());
             }
         }
-        try {
-            preventiveModel2Service.evaluateAndAutoOpenForVehicle(vehicle);
-        } catch (Exception e) {
-            log.warn("Erro ao avaliar abertura automática de OS Preventiva Modelo 2 para {}: {}", vehicle.getPlate(), e.getMessage());
-        }
+        // Abertura automática em segundo plano desativada: Preventivas só devem ser geradas sob demanda pelo usuário via botão "Gerar Preventivas (KM)"
         return overdue;
     }
 

@@ -147,11 +147,7 @@ public class VehicleGateChecklistService {
             vehicle.setCurrentMileage(dto.getKmReading());
             vehicleRepository.save(vehicle);
             log.info("KM do veículo {} atualizado para {}", vehicle.getPlate(), dto.getKmReading());
-            try {
-                preventiveModel2Service.evaluateAndAutoOpenForVehicle(vehicle);
-            } catch (Exception autoEx) {
-                log.warn("Aviso ao avaliar OS Preventiva Modelo 2 automática após checklist {}: {}", vehicle.getPlate(), autoEx.getMessage());
-            }
+            // Abertura automática em segundo plano desativada: Preventivas só devem ser geradas sob demanda pelo usuário via botão "Gerar Preventivas (KM)"
         }
 
         // Gerar automaticamente Ordem de Serviço Corretiva se o motorista reportou avaria, pneu cortado, nível baixo ou reparo
@@ -221,11 +217,7 @@ public class VehicleGateChecklistService {
         if (dto.getType() == VehicleGateChecklist.ChecklistType.ARRIVAL && dto.getKmReading() != null) {
             entity.getVehicle().setCurrentMileage(dto.getKmReading());
             vehicleRepository.save(entity.getVehicle());
-            try {
-                preventiveModel2Service.evaluateAndAutoOpenForVehicle(entity.getVehicle());
-            } catch (Exception autoEx) {
-                log.warn("Aviso ao avaliar OS Preventiva Modelo 2 automática após edição de checklist {}: {}", entity.getVehicle().getPlate(), autoEx.getMessage());
-            }
+            // Abertura automática em segundo plano desativada: Preventivas só devem ser geradas sob demanda pelo usuário via botão "Gerar Preventivas (KM)"
         }
 
         return toDTO(entity);

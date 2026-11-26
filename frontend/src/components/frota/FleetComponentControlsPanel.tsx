@@ -157,15 +157,26 @@ export const FleetComponentControlsPanel: React.FC<FleetComponentControlsPanelPr
   }, [dashboard?.config]);
 
   useEffect(() => {
+    const today = new Date().toISOString().split('T')[0];
+    const alreadyShown = Boolean(
+      sessionStorage.getItem('fluxbus_preventive_due_alert_shown') ||
+      localStorage.getItem('fluxbus_preventive_due_alert_dismissed_today') === today
+    );
+
     if (
       showAutoAlertModalOnMount &&
       hasVehicles &&
       !hasTriggeredAutoModal &&
+      !alreadyShown &&
       dashboard?.expiringAlerts &&
       dashboard.expiringAlerts.length > 0
     ) {
       setAlertModalOpen(true);
       setHasTriggeredAutoModal(true);
+      try {
+        sessionStorage.setItem('fluxbus_preventive_due_alert_shown', 'true');
+        localStorage.setItem('fluxbus_preventive_due_alert_dismissed_today', today);
+      } catch {}
     }
   }, [showAutoAlertModalOnMount, hasVehicles, hasTriggeredAutoModal, dashboard?.expiringAlerts]);
 
