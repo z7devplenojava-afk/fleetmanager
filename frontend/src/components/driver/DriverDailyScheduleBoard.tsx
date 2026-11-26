@@ -1309,14 +1309,6 @@ export const DriverDailyScheduleBoard: React.FC<DriverDailyScheduleBoardProps> =
                 </div>
               )}
             </div>
-                    value={otherJustification}
-                    onChange={(e) => setOtherJustification(e.target.value)}
-                    placeholder="Descreva o motivo caso utilize o código 15 - OUTROS..."
-                    className="h-9 text-xs bg-background border-amber-500/40"
-                  />
-                </div>
-              )}
-            </div>
 
             {/* Visão Desktop em Tabela */}
             <div className="hidden md:block rounded-xl border border-border overflow-x-auto bg-card">
