@@ -536,10 +536,45 @@
               <span th:if="${cItem['observacao'] != null}" th:text="${cItem['observacao']}"></span>
               <span th:if="${cItem['reparoRealizado'] != null and !#strings.isEmpty(cItem['reparoRealizado'])}"
                     th:text="${(cItem['observacao'] != null ? ' | Reparo: ' : 'Reparo: ') + cItem['reparoRealizado']}"></span>
+              <span th:if="${cItem['quantidadePecas'] != null or cItem['valorPeca'] != null}" style="display: block; font-weight: bold; color: #1e3a8a; margin-top: 2px;">
+                <span th:if="${cItem['quantidadePecas'] != null}" th:text="'Qtd Peças: ' + ${cItem['quantidadePecas']}"></span>
+                <span th:if="${cItem['quantidadePecas'] != null and cItem['valorPeca'] != null}"> &bull; </span>
+                <span th:if="${cItem['valorPeca'] != null}" th:text="'Valor: R$ ' + ${#numbers.formatDecimal(cItem['valorPeca'], 1, 'POINT', 2, 'COMMA')}"></span>
+              </span>
             </td>
           </tr>
         </tbody>
       </table>
+    </div>
+  </div>
+
+  <!-- PEÇAS E MATERIAIS UTILIZADOS (SE HOUVER) -->
+  <div class="secao" th:if="${not #lists.isEmpty(itens)}" style="margin-top: 6px; page-break-inside: avoid;">
+    <div class="secao-titulo">Peças e Materiais Utilizados</div>
+    <table class="checklist-table">
+      <thead>
+        <tr>
+          <th style="width: 14%;">CÓDIGO</th>
+          <th style="width: 46%; text-align: left;">DESCRIÇÃO DA PEÇA / SERVIÇO</th>
+          <th style="width: 12%;">QTD</th>
+          <th style="width: 14%; text-align: right;">VALOR UNIT.</th>
+          <th style="width: 14%; text-align: right;">VALOR TOTAL</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr th:each="it : ${itens}">
+          <td style="text-align: center; font-size: 11px;" th:text="${it.codigo}">-</td>
+          <td style="font-size: 11px; font-weight: 500;" th:text="${it.descricao}">Descrição</td>
+          <td style="text-align: center; font-size: 11px;" th:text="${it.quantidade}">1</td>
+          <td style="text-align: right; font-size: 11px;" th:text="${it.unitario}">R$ 0,00</td>
+          <td style="text-align: right; font-size: 11px; font-weight: bold;" th:text="${it.total}">R$ 0,00</td>
+        </tr>
+      </tbody>
+    </table>
+    <div style="text-align: right; margin-top: 4px; font-size: 11px; padding: 2px 4px; background-color: #f9fafb; border: 1px solid #e5e7eb;">
+      <span><strong>Custo Peças:</strong> <span th:text="${partsCost}">R$ 0,00</span></span>
+      <span style="margin-left: 14px;"><strong>Mão de Obra:</strong> <span th:text="${laborCost}">R$ 0,00</span></span>
+      <span style="margin-left: 14px;"><strong>Total Geral:</strong> <span style="color: #2e7d32; font-weight: bold;" th:text="${totalCost}">R$ 0,00</span></span>
     </div>
   </div>
 

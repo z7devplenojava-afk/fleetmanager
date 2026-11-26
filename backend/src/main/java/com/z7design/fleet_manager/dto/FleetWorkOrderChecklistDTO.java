@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @Data
@@ -21,6 +22,8 @@ public class FleetWorkOrderChecklistDTO {
     private FleetWorkOrderChecklist.ChecklistStatus situacao;
     private String observacao;
     private String reparoRealizado;
+    private BigDecimal quantidadePecas;
+    private BigDecimal valorPeca;
 
     public static FleetWorkOrderChecklistDTO fromEntity(FleetWorkOrderChecklist entity) {
         if (entity == null) return null;
@@ -33,6 +36,8 @@ public class FleetWorkOrderChecklistDTO {
                 .situacao(entity.getSituacao())
                 .observacao(entity.getObservacao())
                 .reparoRealizado(entity.getReparoRealizado())
+                .quantidadePecas(entity.getQuantidadePecas())
+                .valorPeca(entity.getValorPeca())
                 .build();
     }
 }

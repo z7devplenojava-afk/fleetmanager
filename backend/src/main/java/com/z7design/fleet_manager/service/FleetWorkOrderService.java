@@ -1091,6 +1091,8 @@ public class FleetWorkOrderService {
                 .situacao(cDto.getSituacao() != null ? cDto.getSituacao() : com.z7design.fleet_manager.model.FleetWorkOrderChecklist.ChecklistStatus.OK)
                 .observacao(cDto.getObservacao())
                 .reparoRealizado(cDto.getReparoRealizado())
+                .quantidadePecas(cDto.getQuantidadePecas())
+                .valorPeca(cDto.getValorPeca())
                 .build();
 
         workOrder.getChecklistItems().add(checklist);
@@ -1592,6 +1594,9 @@ public class FleetWorkOrderService {
                         .checklistItem(srcCheck.getChecklistItem())
                         .situacao(FleetWorkOrderChecklist.ChecklistStatus.OK)
                         .observacao(srcCheck.getObservacao())
+                        .reparoRealizado(srcCheck.getReparoRealizado())
+                        .quantidadePecas(srcCheck.getQuantidadePecas())
+                        .valorPeca(srcCheck.getValorPeca())
                         .build();
                 copy.getChecklistItems().add(newCheck);
             }
@@ -1677,6 +1682,8 @@ public class FleetWorkOrderService {
                 existing.setSituacao(cDto.getSituacao() != null ? cDto.getSituacao() : com.z7design.fleet_manager.model.FleetWorkOrderChecklist.ChecklistStatus.OK);
                 existing.setObservacao(cDto.getObservacao());
                 existing.setReparoRealizado(cDto.getReparoRealizado());
+                existing.setQuantidadePecas(cDto.getQuantidadePecas());
+                existing.setValorPeca(cDto.getValorPeca());
             } else {
                 addChecklistItemToEntity(entity, cDto);
             }

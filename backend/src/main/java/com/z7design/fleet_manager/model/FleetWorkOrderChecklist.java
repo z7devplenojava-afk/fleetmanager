@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -41,6 +42,12 @@ public class FleetWorkOrderChecklist {
 
     @Column(name = "reparo_realizado", columnDefinition = "TEXT")
     private String reparoRealizado;
+
+    @Column(name = "quantidade_pecas", precision = 10, scale = 2)
+    private BigDecimal quantidadePecas;
+
+    @Column(name = "valor_peca", precision = 12, scale = 2)
+    private BigDecimal valorPeca;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

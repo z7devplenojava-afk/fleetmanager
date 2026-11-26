@@ -14,7 +14,7 @@ import {
     Gauge, AlertTriangle, Send, ChevronDown, ChevronUp, CheckCircle, XCircle, MinusCircle, UserCheck,
     Camera, UploadCloud, Image as LucideImage, Package, ShieldCheck, Tag, FileText, Check, AlertCircle,
     Timer, Edit, PlayCircle, StopCircle, RefreshCw, Zap, Sparkles, Car, PenLine, Eraser, User, Calendar,
-    Truck, ExternalLink
+    Truck, ExternalLink, DollarSign
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -1825,21 +1825,76 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
             setFormData(p => ({ ...p, laborCost: cost, totalCost: cost + (p.partsCost || 0) }));
         };
 
+        // Sincroniza peças do checklist marcadas com TROCAR / NÃO OK com a tabela de Peças e Serviços Utilizados
+        const syncChecklistWithItems = (currentForm: typeof formData, updatedChecklist: FleetWorkOrderChecklist[]) => {
+            const existingManualItems = (currentForm.items || []).filter(
+                it => it.sourceChecklistIndex === undefined && !it.sourceChecklistItemId
+            );
+
+            const checklistParts: WorkOrderItem[] = [];
+            updatedChecklist.forEach((chk, idx) => {
+                if (chk.situacao === ChecklistStatus.TROCAR || chk.situacao === ChecklistStatus.NAO_OK) {
+                    const hasQty = chk.quantidadePecas !== undefined && chk.quantidadePecas !== null && chk.quantidadePecas > 0;
+                    const hasVal = chk.valorPeca !== undefined && chk.valorPeca !== null && chk.valorPeca > 0;
+                    const hasDesc = !!chk.observacao?.trim();
+
+                    if (hasQty || hasVal || hasDesc) {
+                        const qty = hasQty ? Number(chk.quantidadePecas) : 1;
+                        const unitPrice = hasVal ? Number(chk.valorPeca) : 0;
+                        const totalPrice = qty * unitPrice;
+                        const itemLabel = chk.checklistItemDescricao || `Item #${idx + 1}`;
+                        const desc = chk.observacao?.trim()
+                            ? `${itemLabel} — ${chk.observacao.trim()}`
+                            : `Substituição: ${itemLabel}`;
+
+                        checklistParts.push({
+                            description: desc,
+                            type: WorkOrderItemType.PART,
+                            quantity: qty,
+                            unitPrice: unitPrice,
+                            totalPrice: totalPrice,
+                            isManual: true,
+                            sourceChecklistIndex: idx,
+                            sourceChecklistItemId: chk.checklistItemId || chk.id,
+                        });
+                    }
+                }
+            });
+
+            const newItems = [...existingManualItems, ...checklistParts];
+            const partsCost = newItems.reduce((acc, it) => acc + (it.totalPrice || 0), 0);
+            const totalCost = partsCost + (currentForm.laborCost || 0);
+
+            return {
+                ...currentForm,
+                checklistItems: updatedChecklist,
+                items: newItems,
+                partsCost,
+                totalCost,
+            };
+        };
+
         const handleChecklistStatusChange = (idx: number, status: ChecklistStatus) => {
             setFormData(p => {
                 const list = [...(p.checklistItems || [])];
                 const current = list[idx]?.situacao;
-                list[idx] = { ...list[idx], situacao: current === status ? null : status };
-                return { ...p, checklistItems: list };
+                const newStatus = current === status ? null : status;
+                list[idx] = { ...list[idx], situacao: newStatus };
+                return syncChecklistWithItems(p, list);
             });
         };
 
-        const handleChecklistTextChange = (idx: number, field: 'observacao' | 'reparoRealizado', value: string) => {
+        const handleChecklistFieldChange = (idx: number, field: 'observacao' | 'reparoRealizado' | 'quantidadePecas' | 'valorPeca', value: any) => {
             setFormData(p => {
                 const list = [...(p.checklistItems || [])];
                 list[idx] = { ...list[idx], [field]: value };
-                return { ...p, checklistItems: list };
+                return syncChecklistWithItems(p, list);
             });
+        };
+
+        // Mantém retrocompatibilidade
+        const handleChecklistTextChange = (idx: number, field: 'observacao' | 'reparoRealizado', value: string) => {
+            handleChecklistFieldChange(idx, field, value);
         };
 
         // ── Submit ─────────────────────────────────────────────────────────────────
@@ -3235,12 +3290,70 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                                                         </Button>
                                                                     </div>
                                                                     {(item.situacao === ChecklistStatus.NAO_OK || item.situacao === ChecklistStatus.TROCAR) && (
-                                                                        <div className="w-full md:w-1/2 flex flex-col gap-1.5 mt-2 md:mt-0">
-                                                                            <Input value={item.observacao || ''} onChange={e => handleChecklistTextChange(originalIndex, 'observacao', e.target.value)}
-                                                                                placeholder={item.situacao === ChecklistStatus.TROCAR ? "Item a ser trocado / motivo da troca…" : "Observação da anomalia…"}
-                                                                                className={`bg-seguranca-black text-xs h-8 ${item.situacao === ChecklistStatus.TROCAR ? 'border-amber-700' : 'border-red-900'}`} />
-                                                                            <Input value={item.reparoRealizado || ''} onChange={e => handleChecklistTextChange(originalIndex, 'reparoRealizado', e.target.value)}
-                                                                                placeholder="Reparo executado para corrigir…" className="bg-seguranca-black border-green-900 text-xs h-8" />
+                                                                        <div className="w-full md:w-3/5 flex flex-col gap-2 mt-2 md:mt-0 p-2.5 rounded-lg bg-gray-900/80 border border-gray-800">
+                                                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                                                <div>
+                                                                                    <label className="text-[10px] text-gray-400 font-medium uppercase mb-0.5 block">
+                                                                                        {item.situacao === ChecklistStatus.TROCAR ? "Peça a ser trocada / Motivo" : "Defeito / Anomalia"}
+                                                                                    </label>
+                                                                                    <Input 
+                                                                                        value={item.observacao || ''} 
+                                                                                        onChange={e => handleChecklistFieldChange(originalIndex, 'observacao', e.target.value)}
+                                                                                        placeholder={item.situacao === ChecklistStatus.TROCAR ? "Item a ser trocado / motivo da troca…" : "Observação da anomalia…"}
+                                                                                        className={`bg-seguranca-black text-xs h-8 ${item.situacao === ChecklistStatus.TROCAR ? 'border-amber-700 focus:border-amber-500' : 'border-red-900 focus:border-red-500'}`} 
+                                                                                    />
+                                                                                </div>
+                                                                                <div>
+                                                                                    <label className="text-[10px] text-gray-400 font-medium uppercase mb-0.5 block">
+                                                                                        Reparo Executado
+                                                                                    </label>
+                                                                                    <Input 
+                                                                                        value={item.reparoRealizado || ''} 
+                                                                                        onChange={e => handleChecklistFieldChange(originalIndex, 'reparoRealizado', e.target.value)}
+                                                                                        placeholder="Reparo executado para corrigir…" 
+                                                                                        className="bg-seguranca-black border-green-900 focus:border-green-600 text-xs h-8" 
+                                                                                    />
+                                                                                </div>
+                                                                            </div>
+
+                                                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1.5 border-t border-gray-800/80 items-end">
+                                                                                <div>
+                                                                                    <label className="text-[10px] text-amber-300 font-semibold uppercase mb-0.5 flex items-center gap-1">
+                                                                                        <Package className="h-3 w-3" /> Qtd de Peças
+                                                                                    </label>
+                                                                                    <Input 
+                                                                                        type="number"
+                                                                                        min="1"
+                                                                                        step="1"
+                                                                                        value={item.quantidadePecas !== undefined && item.quantidadePecas !== null ? item.quantidadePecas : ''} 
+                                                                                        onChange={e => handleChecklistFieldChange(originalIndex, 'quantidadePecas', e.target.value ? parseFloat(e.target.value) : undefined)}
+                                                                                        placeholder="1" 
+                                                                                        className="bg-seguranca-black border-amber-800/80 focus:border-amber-500 text-xs h-8 font-medium text-white" 
+                                                                                    />
+                                                                                </div>
+                                                                                <div>
+                                                                                    <label className="text-[10px] text-amber-300 font-semibold uppercase mb-0.5 flex items-center gap-1">
+                                                                                        <DollarSign className="h-3 w-3" /> Valor Unit. (R$)
+                                                                                    </label>
+                                                                                    <Input 
+                                                                                        type="number"
+                                                                                        min="0"
+                                                                                        step="0.01"
+                                                                                        value={item.valorPeca !== undefined && item.valorPeca !== null ? item.valorPeca : ''} 
+                                                                                        onChange={e => handleChecklistFieldChange(originalIndex, 'valorPeca', e.target.value ? parseFloat(e.target.value) : undefined)}
+                                                                                        placeholder="0,00" 
+                                                                                        className="bg-seguranca-black border-amber-800/80 focus:border-amber-500 text-xs h-8 font-medium text-white" 
+                                                                                    />
+                                                                                </div>
+                                                                                <div className="flex flex-col justify-end">
+                                                                                    <div className="text-[11px] text-gray-300 bg-black/60 px-2 py-1.5 rounded border border-gray-800 flex items-center justify-between">
+                                                                                        <span className="text-gray-400">Total Peça:</span>
+                                                                                        <span className="font-bold text-emerald-400">
+                                                                                            R$ {(((item.quantidadePecas || 1) * (item.valorPeca || 0))).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
                                                                         </div>
                                                                     )}
                                                                 </div>
@@ -3512,6 +3625,12 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                                                     {isPart ? <Package className="h-3 w-3" /> : <Wrench className="h-3 w-3" />}
                                                                     {isPart ? 'PEÇA / ITEM' : 'SERVIÇO'}
                                                                 </span>
+
+                                                                {item.sourceChecklistIndex !== undefined && (
+                                                                    <span className="text-[11px] px-2 py-0.5 rounded border bg-amber-950/60 text-amber-300 border-amber-700/60 font-semibold flex items-center gap-1">
+                                                                        📋 Item do Checklist
+                                                                    </span>
+                                                                )}
 
                                                                 {item.code && (
                                                                     <span className="font-mono text-xs px-2 py-0.5 bg-gray-900 text-gray-300 rounded border border-gray-700">

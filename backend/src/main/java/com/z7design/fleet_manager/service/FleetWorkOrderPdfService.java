@@ -297,6 +297,8 @@ public class FleetWorkOrderPdfService {
                     cMap.put("situacao", cItem.getSituacao() != null ? cItem.getSituacao().name() : "OK");
                     cMap.put("observacao", cItem.getObservacao());
                     cMap.put("reparoRealizado", cItem.getReparoRealizado());
+                    cMap.put("quantidadePecas", cItem.getQuantidadePecas());
+                    cMap.put("valorPeca", cItem.getValorPeca());
                     checklistData.add(cMap);
                 }
             }
@@ -530,6 +532,8 @@ public class FleetWorkOrderPdfService {
                             : (cItem.getSituacao() != null ? cItem.getSituacao().name() : "BLANK"));
                     cMap.put("observacao", blankChecklist ? null : cItem.getObservacao());
                     cMap.put("reparoRealizado", blankChecklist ? null : cItem.getReparoRealizado());
+                    cMap.put("quantidadePecas", blankChecklist ? null : cItem.getQuantidadePecas());
+                    cMap.put("valorPeca", blankChecklist ? null : cItem.getValorPeca());
                     checklistData.add(cMap);
                 }
             } else if (isResumidoActive && checklistItemRepository != null) {

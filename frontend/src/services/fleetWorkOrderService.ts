@@ -69,6 +69,8 @@ export interface WorkOrderItem {
     approvedBy?: string;
     approvedAt?: string;
     provider?: string;
+    sourceChecklistIndex?: number;
+    sourceChecklistItemId?: string;
 }
 
 export interface ChecklistItemMaster {
@@ -89,6 +91,8 @@ export interface FleetWorkOrderChecklist {
     situacao?: ChecklistStatus | null;
     observacao?: string;
     reparoRealizado?: string;
+    quantidadePecas?: number;
+    valorPeca?: number;
 }
 
 export interface WorkOrderHistoryEntry {
