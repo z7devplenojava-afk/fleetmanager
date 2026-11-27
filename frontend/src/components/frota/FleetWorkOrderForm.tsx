@@ -3267,94 +3267,102 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                                         </div>
                                                         <div className="space-y-2">
                                                             {items.map(({ item, originalIndex }) => (
-                                                                <div key={originalIndex} className="p-2.5 bg-black/40 rounded border border-gray-800 flex flex-col md:flex-row md:items-center justify-between gap-3">
-                                                                    <div className="flex-1 flex items-center gap-2">
-                                                                        {item.situacao === ChecklistStatus.OK && (
-                                                                            <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
-                                                                        )}
-                                                                        <p className="text-sm font-medium text-gray-200">{item.checklistItemDescricao}</p>
-                                                                    </div>
-                                                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                                                        <Button
-                                                                            type="button"
-                                                                            size="sm"
-                                                                            variant={item.situacao === ChecklistStatus.OK ? 'default' : 'outline'}
-                                                                            onClick={() => handleChecklistStatusChange(originalIndex, ChecklistStatus.OK)}
-                                                                            className={`h-8 px-2.5 text-xs font-bold transition-all ${item.situacao === ChecklistStatus.OK
-                                                                                    ? 'bg-green-600 hover:bg-green-700 !text-white border-green-600 shadow-sm'
-                                                                                    : 'border-green-600/50 text-green-500 hover:bg-green-600 hover:!text-white'
-                                                                                }`}
-                                                                        >
-                                                                            <CheckCircle className="h-3.5 w-3.5 mr-1" /> OK
-                                                                        </Button>
-                                                                        <Button
-                                                                            type="button"
-                                                                            size="sm"
-                                                                            variant={item.situacao === ChecklistStatus.NAO_OK ? 'default' : 'outline'}
-                                                                            onClick={() => handleChecklistStatusChange(originalIndex, ChecklistStatus.NAO_OK)}
-                                                                            className={`h-8 px-2 text-xs font-bold ${item.situacao === ChecklistStatus.NAO_OK
-                                                                                    ? 'bg-red-600 !text-white border-red-600'
-                                                                                    : 'border-gray-700 text-gray-400 hover:bg-red-600/20'
-                                                                                }`}
-                                                                        >
-                                                                            <XCircle className="h-3.5 w-3.5 mr-1" /> NÃO OK
-                                                                        </Button>
-                                                                        <Button
-                                                                            type="button"
-                                                                            size="sm"
-                                                                            variant={item.situacao === ChecklistStatus.TROCAR ? 'default' : 'outline'}
-                                                                            onClick={() => handleChecklistStatusChange(originalIndex, ChecklistStatus.TROCAR)}
-                                                                            className={`h-8 px-2 text-xs font-bold ${item.situacao === ChecklistStatus.TROCAR
-                                                                                    ? 'bg-amber-600 !text-white border-amber-600'
-                                                                                    : 'border-gray-700 text-gray-400 hover:bg-amber-600/20'
-                                                                                }`}
-                                                                        >
-                                                                            <RefreshCw className="h-3.5 w-3.5 mr-1" /> TROCAR
-                                                                        </Button>
-                                                                        <Button
-                                                                            type="button"
-                                                                            size="sm"
-                                                                            variant={item.situacao === ChecklistStatus.NAO_APLICA ? 'default' : 'outline'}
-                                                                            onClick={() => handleChecklistStatusChange(originalIndex, ChecklistStatus.NAO_APLICA)}
-                                                                            className={`h-8 px-2 text-xs font-bold ${item.situacao === ChecklistStatus.NAO_APLICA
-                                                                                    ? 'bg-gray-600 !text-white border-gray-600'
-                                                                                    : 'border-gray-700 text-gray-400'
-                                                                                }`}
-                                                                        >
-                                                                            <MinusCircle className="h-3.5 w-3.5 mr-1" /> N/A
-                                                                        </Button>
+                                                                <div key={originalIndex} className="p-3 bg-black/40 rounded-lg border border-gray-800 space-y-2.5 transition-colors hover:border-gray-700">
+                                                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                                                                        <div className="flex-1 min-w-0 flex items-center gap-2">
+                                                                            {item.situacao === ChecklistStatus.OK && (
+                                                                                <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
+                                                                            )}
+                                                                            {item.situacao === ChecklistStatus.TROCAR && (
+                                                                                <RefreshCw className="h-4 w-4 text-amber-500 shrink-0" />
+                                                                            )}
+                                                                            {item.situacao === ChecklistStatus.NAO_OK && (
+                                                                                <XCircle className="h-4 w-4 text-red-500 shrink-0" />
+                                                                            )}
+                                                                            <p className="text-sm font-medium text-gray-200 leading-snug">{item.checklistItemDescricao}</p>
+                                                                        </div>
+                                                                        <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+                                                                            <Button
+                                                                                type="button"
+                                                                                size="sm"
+                                                                                variant={item.situacao === ChecklistStatus.OK ? 'default' : 'outline'}
+                                                                                onClick={() => handleChecklistStatusChange(originalIndex, ChecklistStatus.OK)}
+                                                                                className={`h-8 px-2.5 text-xs font-bold transition-all ${item.situacao === ChecklistStatus.OK
+                                                                                        ? 'bg-green-600 hover:bg-green-700 !text-white border-green-600 shadow-sm'
+                                                                                        : 'border-green-600/50 text-green-500 hover:bg-green-600 hover:!text-white'
+                                                                                    }`}
+                                                                            >
+                                                                                <CheckCircle className="h-3.5 w-3.5 mr-1" /> OK
+                                                                            </Button>
+                                                                            <Button
+                                                                                type="button"
+                                                                                size="sm"
+                                                                                variant={item.situacao === ChecklistStatus.NAO_OK ? 'default' : 'outline'}
+                                                                                onClick={() => handleChecklistStatusChange(originalIndex, ChecklistStatus.NAO_OK)}
+                                                                                className={`h-8 px-2 text-xs font-bold ${item.situacao === ChecklistStatus.NAO_OK
+                                                                                        ? 'bg-red-600 !text-white border-red-600'
+                                                                                        : 'border-gray-700 text-gray-400 hover:bg-red-600/20'
+                                                                                    }`}
+                                                                            >
+                                                                                <XCircle className="h-3.5 w-3.5 mr-1" /> NÃO OK
+                                                                            </Button>
+                                                                            <Button
+                                                                                type="button"
+                                                                                size="sm"
+                                                                                variant={item.situacao === ChecklistStatus.TROCAR ? 'default' : 'outline'}
+                                                                                onClick={() => handleChecklistStatusChange(originalIndex, ChecklistStatus.TROCAR)}
+                                                                                className={`h-8 px-2 text-xs font-bold ${item.situacao === ChecklistStatus.TROCAR
+                                                                                        ? 'bg-amber-600 !text-white border-amber-600'
+                                                                                        : 'border-gray-700 text-gray-400 hover:bg-amber-600/20'
+                                                                                    }`}
+                                                                            >
+                                                                                <RefreshCw className="h-3.5 w-3.5 mr-1" /> TROCAR
+                                                                            </Button>
+                                                                            <Button
+                                                                                type="button"
+                                                                                size="sm"
+                                                                                variant={item.situacao === ChecklistStatus.NAO_APLICA ? 'default' : 'outline'}
+                                                                                onClick={() => handleChecklistStatusChange(originalIndex, ChecklistStatus.NAO_APLICA)}
+                                                                                className={`h-8 px-2 text-xs font-bold ${item.situacao === ChecklistStatus.NAO_APLICA
+                                                                                        ? 'bg-gray-600 !text-white border-gray-600'
+                                                                                        : 'border-gray-700 text-gray-400'
+                                                                                    }`}
+                                                                            >
+                                                                                <MinusCircle className="h-3.5 w-3.5 mr-1" /> N/A
+                                                                            </Button>
+                                                                        </div>
                                                                     </div>
                                                                     {(item.situacao === ChecklistStatus.NAO_OK || item.situacao === ChecklistStatus.TROCAR) && (
-                                                                        <div className="w-full md:w-3/5 flex flex-col gap-2 mt-2 md:mt-0 p-2.5 rounded-lg bg-gray-900/80 border border-gray-800">
-                                                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                                        <div className="w-full mt-2 p-3 rounded-lg bg-gray-950/80 border border-gray-800 space-y-2.5">
+                                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                                                                 <div>
-                                                                                    <label className="text-[10px] text-gray-400 font-medium uppercase mb-0.5 block">
+                                                                                    <label className="text-[11px] text-gray-300 font-semibold uppercase tracking-wider mb-1 block">
                                                                                         {item.situacao === ChecklistStatus.TROCAR ? "Peça a ser trocada / Motivo" : "Defeito / Anomalia"}
                                                                                     </label>
                                                                                     <Input 
                                                                                         value={item.observacao || ''} 
                                                                                         onChange={e => handleChecklistFieldChange(originalIndex, 'observacao', e.target.value)}
                                                                                         placeholder={item.situacao === ChecklistStatus.TROCAR ? "Item a ser trocado / motivo da troca…" : "Observação da anomalia…"}
-                                                                                        className={`bg-seguranca-black text-xs h-8 ${item.situacao === ChecklistStatus.TROCAR ? 'border-amber-700 focus:border-amber-500' : 'border-red-900 focus:border-red-500'}`} 
+                                                                                        className={`bg-seguranca-black text-xs h-8.5 ${item.situacao === ChecklistStatus.TROCAR ? 'border-amber-700 focus:border-amber-500' : 'border-red-900 focus:border-red-500'}`} 
                                                                                     />
                                                                                 </div>
                                                                                 <div>
-                                                                                    <label className="text-[10px] text-gray-400 font-medium uppercase mb-0.5 block">
+                                                                                    <label className="text-[11px] text-gray-300 font-semibold uppercase tracking-wider mb-1 block">
                                                                                         Reparo Executado
                                                                                     </label>
                                                                                     <Input 
                                                                                         value={item.reparoRealizado || ''} 
                                                                                         onChange={e => handleChecklistFieldChange(originalIndex, 'reparoRealizado', e.target.value)}
                                                                                         placeholder="Reparo executado para corrigir…" 
-                                                                                        className="bg-seguranca-black border-green-900 focus:border-green-600 text-xs h-8" 
+                                                                                        className="bg-seguranca-black border-green-900 focus:border-green-600 text-xs h-8.5" 
                                                                                     />
                                                                                 </div>
                                                                             </div>
 
-                                                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1.5 border-t border-gray-800/80 items-end">
+                                                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-gray-800 items-end">
                                                                                 <div>
-                                                                                    <label className="text-[10px] text-amber-300 font-semibold uppercase mb-0.5 flex items-center gap-1">
-                                                                                        <Package className="h-3 w-3" /> Qtd de Peças
+                                                                                    <label className="text-[11px] text-amber-300 font-semibold uppercase tracking-wider mb-1 flex items-center gap-1">
+                                                                                        <Package className="h-3.5 w-3.5" /> Qtd de Peças
                                                                                     </label>
                                                                                     <Input 
                                                                                         type="number"
@@ -3363,12 +3371,12 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                                                                         value={item.quantidadePecas !== undefined && item.quantidadePecas !== null ? item.quantidadePecas : ''} 
                                                                                         onChange={e => handleChecklistFieldChange(originalIndex, 'quantidadePecas', e.target.value ? parseFloat(e.target.value) : undefined)}
                                                                                         placeholder="1" 
-                                                                                        className="bg-seguranca-black border-amber-800/80 focus:border-amber-500 text-xs h-8 font-medium text-white" 
+                                                                                        className="bg-seguranca-black border-amber-800/80 focus:border-amber-500 text-xs h-8.5 font-medium text-white" 
                                                                                     />
                                                                                 </div>
                                                                                 <div>
-                                                                                    <label className="text-[10px] text-amber-300 font-semibold uppercase mb-0.5 flex items-center gap-1">
-                                                                                        <DollarSign className="h-3 w-3" /> Valor Unit. (R$)
+                                                                                    <label className="text-[11px] text-amber-300 font-semibold uppercase tracking-wider mb-1 flex items-center gap-1">
+                                                                                        <DollarSign className="h-3.5 w-3.5" /> Valor Unit. (R$)
                                                                                     </label>
                                                                                     <Input 
                                                                                         type="number"
@@ -3377,13 +3385,13 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                                                                         value={item.valorPeca !== undefined && item.valorPeca !== null ? item.valorPeca : ''} 
                                                                                         onChange={e => handleChecklistFieldChange(originalIndex, 'valorPeca', e.target.value ? parseFloat(e.target.value) : undefined)}
                                                                                         placeholder="0,00" 
-                                                                                        className="bg-seguranca-black border-amber-800/80 focus:border-amber-500 text-xs h-8 font-medium text-white" 
+                                                                                        className="bg-seguranca-black border-amber-800/80 focus:border-amber-500 text-xs h-8.5 font-medium text-white" 
                                                                                     />
                                                                                 </div>
                                                                                 <div className="flex flex-col justify-end">
-                                                                                    <div className="text-[11px] text-gray-300 bg-black/60 px-2 py-1.5 rounded border border-gray-800 flex items-center justify-between">
+                                                                                    <div className="text-xs text-gray-300 bg-black/60 px-3 py-1.5 rounded border border-gray-800 flex items-center justify-between h-8.5">
                                                                                         <span className="text-gray-400">Total Peça:</span>
-                                                                                        <span className="font-bold text-emerald-400">
+                                                                                        <span className="font-bold text-emerald-400 text-sm">
                                                                                             R$ {(((item.quantidadePecas || 1) * (item.valorPeca || 0))).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                                                         </span>
                                                                                     </div>

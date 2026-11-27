@@ -655,12 +655,22 @@ public class FleetWorkOrderPdfService {
         int totalItemsInChecklist = checklistData.size();
         int halfItems = (totalItemsInChecklist + 1) / 2;
         int runningCount = 0;
-        for (Map.Entry<String, List<Map<String, Object>>> entry : checklistByGroup.entrySet()) {
-            if (runningCount < halfItems || checklistGroupsCol1.isEmpty()) {
-                checklistGroupsCol1.put(entry.getKey(), entry.getValue());
-                runningCount += entry.getValue().size();
-            } else {
-                checklistGroupsCol2.put(entry.getKey(), entry.getValue());
+        if (checklistByGroup.size() == 1) {
+            Map.Entry<String, List<Map<String, Object>>> singleEntry = checklistByGroup.entrySet().iterator().next();
+            List<Map<String, Object>> allItems = singleEntry.getValue();
+            int mid = (allItems.size() + 1) / 2;
+            checklistGroupsCol1.put(singleEntry.getKey(), new ArrayList<>(allItems.subList(0, mid)));
+            if (mid < allItems.size()) {
+                checklistGroupsCol2.put(singleEntry.getKey() + " (cont.)", new ArrayList<>(allItems.subList(mid, allItems.size())));
+            }
+        } else {
+            for (Map.Entry<String, List<Map<String, Object>>> entry : checklistByGroup.entrySet()) {
+                if (runningCount < halfItems || checklistGroupsCol1.isEmpty()) {
+                    checklistGroupsCol1.put(entry.getKey(), entry.getValue());
+                    runningCount += entry.getValue().size();
+                } else {
+                    checklistGroupsCol2.put(entry.getKey(), entry.getValue());
+                }
             }
         }
         data.put("checklistGroupsCol1", checklistGroupsCol1);

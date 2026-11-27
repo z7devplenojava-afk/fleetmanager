@@ -180,8 +180,8 @@
     table.checklist-table th {
       background-color: #333;
       color: #fff;
-      padding: 3px 4px;
-      font-size: 11px;
+      padding: 3px 5px;
+      font-size: 11.5px;
       text-transform: uppercase;
       text-align: left;
     }
@@ -189,8 +189,74 @@
     table.checklist-table td {
       padding: 3px 4px;
       border-bottom: 1px solid #e0e0e0;
-      font-size: 12px;
+      font-size: 11.5px;
       line-height: 1.25;
+    }
+
+    .group-header-row td.group-header-cell {
+      background-color: #24292e;
+      color: #ffffff;
+      font-size: 11.5px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      padding: 3.5px 6px;
+      border-top: 1.5px solid #1f2937;
+      border-bottom: 1px solid #374151;
+      border-left: 3.5px solid #2e7d32;
+    }
+
+    .group-dot {
+      color: #4ade80;
+      font-size: 13px;
+      margin-right: 4px;
+    }
+
+    .box-manual {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 1.3px solid #333333;
+      background-color: #ffffff;
+      border-radius: 2px;
+      vertical-align: middle;
+    }
+
+    .box-checked, .box-nok, .box-trocar, .box-na {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      line-height: 12px;
+      font-size: 9.5px;
+      font-weight: bold;
+      text-align: center;
+      border-radius: 2px;
+      margin-right: 3px;
+      vertical-align: middle;
+    }
+
+    .box-checked {
+      border: 1px solid #1b5e20;
+      background-color: #e8f5e9;
+      color: #1b5e20;
+    }
+
+    .box-nok {
+      border: 1px solid #b71c1c;
+      background-color: #ffebee;
+      color: #b71c1c;
+    }
+
+    .box-trocar {
+      border: 1px solid #e65100;
+      background-color: #fff3e0;
+      color: #e65100;
+    }
+
+    .box-na {
+      border: 1px solid #616161;
+      background-color: #eeeeee;
+      color: #616161;
     }
 
     .cat-badge {
@@ -205,13 +271,13 @@
     }
 
     .item-desc {
-      font-size: 12px;
+      font-size: 11.5px;
       color: #222;
       font-weight: 500;
     }
 
     .item-obs {
-      font-size: 10.5px;
+      font-size: 10px;
       color: #c62828;
       font-style: italic;
       margin-top: 2px;
@@ -219,9 +285,9 @@
 
     .badge-status {
       display: inline-block;
-      font-size: 10px;
+      font-size: 10.5px;
       font-weight: bold;
-      padding: 1px 4px;
+      padding: 1.5px 5px;
       border-radius: 2px;
       white-space: nowrap;
     }
@@ -584,39 +650,42 @@
   <div class="secao secao-checklist" th:if="${not #lists.isEmpty(checklistItems)}">
     <div class="secao-titulo" th:classappend="${maintenanceType == 'PREVENTIVA' ? 'preventiva' : ''}">Checklist de Inspeção Preventiva</div>
 
-    <!-- Layout em 2 Colunas equilibradas lado a lado -->
-    <table class="checklist-grid-table" th:if="${not #lists.isEmpty(checklistCol1)}">
+    <!-- Layout em 2 Colunas organizadas por Grupos (sem coluna CAT.) -->
+    <table class="checklist-grid-table" th:if="${not #maps.isEmpty(checklistGroupsCol1)}">
       <tr>
         <!-- Coluna 1 -->
         <td style="width: 50%; vertical-align: top; padding-right: 3px;">
           <table class="checklist-table">
             <thead>
               <tr>
-                <th style="width: 58%;">Item de Inspeção</th>
-                <th style="width: 18%; text-align: center;">Cat.</th>
-                <th style="width: 24%; text-align: center;">Situação</th>
+                <th style="width: 78%;">Item de Inspeção</th>
+                <th style="width: 22%; text-align: center;">Situação</th>
               </tr>
             </thead>
             <tbody>
-              <tr th:each="cItem : ${checklistCol1}">
-                <td>
-                  <div class="item-desc" th:text="${cItem.itemDescricao}">Item</div>
-                  <div class="item-obs" th:if="${(cItem.observacao != null and cItem.observacao != '') or (cItem.reparoRealizado != null and cItem.reparoRealizado != '')}">
-                    <span th:if="${cItem.observacao != null and cItem.observacao != ''}" th:text="'Obs: ' + ${cItem.observacao}"></span>
-                    <span th:if="${cItem.reparoRealizado != null and cItem.reparoRealizado != ''}" th:text="' | Rep: ' + ${cItem.reparoRealizado}"></span>
-                  </div>
-                </td>
-                <td style="text-align: center;">
-                  <span class="cat-badge" th:text="${cItem.categoria}">GERAL</span>
-                </td>
-                <td style="text-align: center;">
-                  <span th:if="${blankChecklist or cItem.situacao == 'BLANK' or cItem.situacao == null}">&nbsp;</span>
-                  <span class="badge-status status-ok" th:if="${!blankChecklist and cItem.situacao == 'OK'}">[OK]</span>
-                  <span class="badge-status status-nok" th:if="${!blankChecklist and cItem.situacao == 'NAO_OK'}">[NÃO OK]</span>
-                  <span class="badge-status status-trocar" th:if="${!blankChecklist and cItem.situacao == 'TROCAR'}">[TROCAR]</span>
-                  <span class="badge-status status-na" th:if="${!blankChecklist and cItem.situacao == 'NAO_APLICA'}">[N/A]</span>
-                </td>
-              </tr>
+              <th:block th:each="entry : ${checklistGroupsCol1}">
+                <tr class="group-header-row">
+                  <td colspan="2" class="group-header-cell">
+                    <span class="group-dot">&bull;</span> <span th:text="${entry.key}">GRUPO</span>
+                  </td>
+                </tr>
+                <tr th:each="cItem : ${entry.value}">
+                  <td>
+                    <div class="item-desc" th:text="${cItem.itemDescricao}">Item</div>
+                    <div class="item-obs" th:if="${(cItem.observacao != null and cItem.observacao != '') or (cItem.reparoRealizado != null and cItem.reparoRealizado != '')}">
+                      <span th:if="${cItem.observacao != null and cItem.observacao != ''}" th:text="'Obs: ' + ${cItem.observacao}"></span>
+                      <span th:if="${cItem.reparoRealizado != null and cItem.reparoRealizado != ''}" th:text="' | Rep: ' + ${cItem.reparoRealizado}"></span>
+                    </div>
+                  </td>
+                  <td style="text-align: center; vertical-align: middle;">
+                    <span class="box-manual" th:if="${blankChecklist or cItem.situacao == 'BLANK' or cItem.situacao == null}"></span>
+                    <span class="badge-status status-ok" th:if="${!blankChecklist and cItem.situacao == 'OK'}"><span class="box-checked">X</span> OK</span>
+                    <span class="badge-status status-nok" th:if="${!blankChecklist and cItem.situacao == 'NAO_OK'}"><span class="box-nok">X</span> NÃO OK</span>
+                    <span class="badge-status status-trocar" th:if="${!blankChecklist and cItem.situacao == 'TROCAR'}"><span class="box-trocar">X</span> TROCAR</span>
+                    <span class="badge-status status-na" th:if="${!blankChecklist and cItem.situacao == 'NAO_APLICA'}"><span class="box-na">-</span> N/A</span>
+                  </td>
+                </tr>
+              </th:block>
             </tbody>
           </table>
         </td>
@@ -626,63 +695,72 @@
           <table class="checklist-table">
             <thead>
               <tr>
-                <th style="width: 58%;">Item de Inspeção</th>
-                <th style="width: 18%; text-align: center;">Cat.</th>
-                <th style="width: 24%; text-align: center;">Situação</th>
+                <th style="width: 78%;">Item de Inspeção</th>
+                <th style="width: 22%; text-align: center;">Situação</th>
               </tr>
             </thead>
             <tbody>
-              <tr th:each="cItem : ${checklistCol2}">
-                <td>
-                  <div class="item-desc" th:text="${cItem.itemDescricao}">Item</div>
-                  <div class="item-obs" th:if="${(cItem.observacao != null and cItem.observacao != '') or (cItem.reparoRealizado != null and cItem.reparoRealizado != '')}">
-                    <span th:if="${cItem.observacao != null and cItem.observacao != ''}" th:text="'Obs: ' + ${cItem.observacao}"></span>
-                    <span th:if="${cItem.reparoRealizado != null and cItem.reparoRealizado != ''}" th:text="' | Rep: ' + ${cItem.reparoRealizado}"></span>
-                  </div>
-                </td>
-                <td style="text-align: center;">
-                  <span class="cat-badge" th:text="${cItem.categoria}">GERAL</span>
-                </td>
-                <td style="text-align: center;">
-                  <span th:if="${blankChecklist or cItem.situacao == 'BLANK' or cItem.situacao == null}">&nbsp;</span>
-                  <span class="badge-status status-ok" th:if="${!blankChecklist and cItem.situacao == 'OK'}">[OK]</span>
-                  <span class="badge-status status-nok" th:if="${!blankChecklist and cItem.situacao == 'NAO_OK'}">[NÃO OK]</span>
-                  <span class="badge-status status-trocar" th:if="${!blankChecklist and cItem.situacao == 'TROCAR'}">[TROCAR]</span>
-                  <span class="badge-status status-na" th:if="${!blankChecklist and cItem.situacao == 'NAO_APLICA'}">[N/A]</span>
-                </td>
-              </tr>
+              <th:block th:each="entry : ${checklistGroupsCol2}">
+                <tr class="group-header-row">
+                  <td colspan="2" class="group-header-cell">
+                    <span class="group-dot">&bull;</span> <span th:text="${entry.key}">GRUPO</span>
+                  </td>
+                </tr>
+                <tr th:each="cItem : ${entry.value}">
+                  <td>
+                    <div class="item-desc" th:text="${cItem.itemDescricao}">Item</div>
+                    <div class="item-obs" th:if="${(cItem.observacao != null and cItem.observacao != '') or (cItem.reparoRealizado != null and cItem.reparoRealizado != '')}">
+                      <span th:if="${cItem.observacao != null and cItem.observacao != ''}" th:text="'Obs: ' + ${cItem.observacao}"></span>
+                      <span th:if="${cItem.reparoRealizado != null and cItem.reparoRealizado != ''}" th:text="' | Rep: ' + ${cItem.reparoRealizado}"></span>
+                    </div>
+                  </td>
+                  <td style="text-align: center; vertical-align: middle;">
+                    <span class="box-manual" th:if="${blankChecklist or cItem.situacao == 'BLANK' or cItem.situacao == null}"></span>
+                    <span class="badge-status status-ok" th:if="${!blankChecklist and cItem.situacao == 'OK'}"><span class="box-checked">X</span> OK</span>
+                    <span class="badge-status status-nok" th:if="${!blankChecklist and cItem.situacao == 'NAO_OK'}"><span class="box-nok">X</span> NÃO OK</span>
+                    <span class="badge-status status-trocar" th:if="${!blankChecklist and cItem.situacao == 'TROCAR'}"><span class="box-trocar">X</span> TROCAR</span>
+                    <span class="badge-status status-na" th:if="${!blankChecklist and cItem.situacao == 'NAO_APLICA'}"><span class="box-na">-</span> N/A</span>
+                  </td>
+                </tr>
+              </th:block>
             </tbody>
           </table>
         </td>
       </tr>
     </table>
 
-    <!-- Fallback caso não venha em colunas -->
-    <table class="checklist-table" th:if="${#lists.isEmpty(checklistCol1)}">
+    <!-- Fallback caso checklistGroupsCol1 esteja vazio -->
+    <table class="checklist-table" th:if="${#maps.isEmpty(checklistGroupsCol1)}">
       <thead>
         <tr>
-          <th>Categoria</th>
-          <th>Item de Inspeção</th>
-          <th style="width: 15%; text-align: center;">Situação</th>
-          <th>Observação / Reparo</th>
+          <th style="width: 78%;">Item de Inspeção</th>
+          <th style="width: 22%; text-align: center;">Situação</th>
         </tr>
       </thead>
       <tbody>
-        <tr th:each="cItem : ${checklistItems}">
-          <td th:text="${cItem.categoria}">GERAL</td>
-          <td th:text="${cItem.itemDescricao}">Item</td>
-          <td style="text-align: center;">
-            <span th:if="${blankChecklist or cItem.situacao == 'BLANK' or cItem.situacao == null}">&nbsp;</span>
-            <span class="badge-status status-ok" th:if="${!blankChecklist and cItem.situacao == 'OK'}">[OK]</span>
-            <span class="badge-status status-nok" th:if="${!blankChecklist and cItem.situacao == 'NAO_OK'}">[NÃO OK]</span>
-            <span class="badge-status status-trocar" th:if="${!blankChecklist and cItem.situacao == 'TROCAR'}">[TROCAR]</span>
-            <span class="badge-status status-na" th:if="${!blankChecklist and cItem.situacao == 'NAO_APLICA'}">[N/A]</span>
-          </td>
-          <td>
-            <span th:if="${cItem.observacao != null and cItem.observacao != ''}" th:text="'Obs: ' + ${cItem.observacao}"></span>
-            <span th:if="${cItem.reparoRealizado != null and cItem.reparoRealizado != ''}" th:text="' | Reparo: ' + ${cItem.reparoRealizado}"></span>
-          </td>
-        </tr>
+        <th:block th:each="entry : ${checklistByGroup}">
+          <tr class="group-header-row">
+            <td colspan="2" class="group-header-cell">
+              <span class="group-dot">&bull;</span> <span th:text="${entry.key}">GRUPO</span>
+            </td>
+          </tr>
+          <tr th:each="cItem : ${entry.value}">
+            <td>
+              <div class="item-desc" th:text="${cItem.itemDescricao}">Item</div>
+              <div class="item-obs" th:if="${(cItem.observacao != null and cItem.observacao != '') or (cItem.reparoRealizado != null and cItem.reparoRealizado != '')}">
+                <span th:if="${cItem.observacao != null and cItem.observacao != ''}" th:text="'Obs: ' + ${cItem.observacao}"></span>
+                <span th:if="${cItem.reparoRealizado != null and cItem.reparoRealizado != ''}" th:text="' | Rep: ' + ${cItem.reparoRealizado}"></span>
+              </div>
+            </td>
+            <td style="text-align: center; vertical-align: middle;">
+              <span class="box-manual" th:if="${blankChecklist or cItem.situacao == 'BLANK' or cItem.situacao == null}"></span>
+              <span class="badge-status status-ok" th:if="${!blankChecklist and cItem.situacao == 'OK'}"><span class="box-checked">X</span> OK</span>
+              <span class="badge-status status-nok" th:if="${!blankChecklist and cItem.situacao == 'NAO_OK'}"><span class="box-nok">X</span> NÃO OK</span>
+              <span class="badge-status status-trocar" th:if="${!blankChecklist and cItem.situacao == 'TROCAR'}"><span class="box-trocar">X</span> TROCAR</span>
+              <span class="badge-status status-na" th:if="${!blankChecklist and cItem.situacao == 'NAO_APLICA'}"><span class="box-na">-</span> N/A</span>
+            </td>
+          </tr>
+        </th:block>
       </tbody>
     </table>
   </div>
