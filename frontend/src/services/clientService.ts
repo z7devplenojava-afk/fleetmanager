@@ -30,9 +30,10 @@ const filterClientsByTenant = (clients: Client[]): Client[] => {
 
     // Se há empresa ativa no contexto do usuário (inclusive para SUPER_ADMIN com empresa selecionada):
     if (empId) {
+      const normalizedEmpId = empId.trim().toLowerCase();
       return clients.filter((c: any) => {
-        const cId = c.companyId ? String(c.companyId) : '';
-        if (cId) return cId === empId;
+        const cId = c.companyId ? String(c.companyId).trim().toLowerCase() : '';
+        if (cId) return cId === normalizedEmpId;
         return true;
       });
     }

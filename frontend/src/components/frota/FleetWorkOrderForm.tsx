@@ -319,9 +319,16 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
             refetchOnWindowFocus: false,
             enabled: isOpen,
         });
-        const clients = React.useMemo(() =>
-            (Array.isArray(clientsRaw) ? clientsRaw : []).filter(belongsToCurrentCompany),
-            [clientsRaw, belongsToCurrentCompany]);
+        const clients = React.useMemo(() => {
+            const list = Array.isArray(clientsRaw) ? clientsRaw : [];
+            if (!currentCompanyId || currentCompanyId === 'none') return list;
+            const normCompany = currentCompanyId.toLowerCase();
+            return list.filter((c: any) => {
+                const cId = c?.companyId ? String(c.companyId).trim().toLowerCase() : '';
+                if (cId) return cId === normCompany;
+                return true;
+            });
+        }, [clientsRaw, currentCompanyId]);
 
         const { data: allWorkPostsRaw = [] } = useQuery<WorkPost[]>({
             queryKey: ['work-posts-all'],
@@ -332,12 +339,14 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         });
         // work_posts não tem company_id próprio: o tenant vem do cliente vinculado.
         const allWorkPosts = React.useMemo(() => {
-            const companyClientIds = new Set(clients.map((c: any) => String(c.id)));
-            return allWorkPostsRaw.filter((wp: any) => {
+            const list = Array.isArray(allWorkPostsRaw) ? allWorkPostsRaw : [];
+            if (clients.length === 0) return list;
+            const companyClientIds = new Set(clients.map((c: any) => String(c.id).toLowerCase()));
+            return list.filter((wp: any) => {
                 if (wp?.companyId || wp?.company?.id) return belongsToCurrentCompany(wp);
                 const clientId = wp?.clientId || wp?.client?.id;
                 if (!clientId) return true;
-                return companyClientIds.has(String(clientId));
+                return companyClientIds.has(String(clientId).toLowerCase());
             });
         }, [allWorkPostsRaw, clients, belongsToCurrentCompany]);
         const { data: departmentsRaw = [] } = useQuery({
@@ -435,42 +444,36 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         const obrasForClient = React.useMemo(() => {
             if (!isOpen || !allWorkPosts || allWorkPosts.length === 0) return [];
             if (!formData.clientId) return allWorkPosts;
-            const matching = allWorkPosts.filter((wp: any) => wp.clientId === formData.clientId);
+            const targetClientId = String(formData.clientId).trim().toLowerCase();
+            const matching = allWorkPosts.filter((wp: any) => {
+                const wpClientId = String(wp.clientId || wp.client?.id || '').trim().toLowerCase();
+                return wpClientId === targetClientId;
+            });
             return matching.length > 0 ? matching : allWorkPosts;
         }, [isOpen, allWorkPosts, formData.clientId]);
 
-        // Lista de Mecânicos e Auxiliares Mecânicos / Manutenção de Oficina
+        // Lista de Mecânicos e Auxiliares Mecânicos (Apenas cargo de Mecânico ou Auxiliar de Mecânico)
         const mechanicsList = React.useMemo(() => {
             if (!isOpen || !employees || employees.length === 0) return [];
             const normalize = (s: string) =>
                 s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
             const isMechanicOrAssistant = (e: any) => {
+                // Analisa estritamente o CARGO e FUNÇÃO do colaborador (não utiliza departamento geral)
                 const pos = normalize([
                     e.positionDescription,
                     e.position?.name,
                     e.position?.description,
+                    typeof e.position === 'string' ? e.position : '',
                     e.cargo,
                     e.funcao,
                     e.jobTitle,
                     e.cbo,
-                    e.role,
-                    e.department?.name,
-                    e.departamento
                 ].filter(Boolean).join(' '));
 
-                // Mecânico / Mecânica / Mec. / Mecanico
-                const hasMec = pos.includes('mecanic') || pos.includes('mec.') || pos.includes(' mec ') || pos.startsWith('mec ');
-                // Auxiliar / Ajudante / Assistente / Meio Oficial
-                const isAux = pos.includes('auxiliar') || pos.includes('aux.') || pos.includes('aux ') ||
-                    pos.includes('ajudante') || pos.includes('assistente') ||
-                    pos.includes('meio oficial') || pos.includes('meio-oficial');
-                // Oficina / Manutenção / Frota / Eletricista / Lubrificador / Borracheiro / Soldador
-                const isWorkshopOrMaint = pos.includes('oficina') || pos.includes('manuten') || pos.includes('frota') ||
-                    pos.includes('eletric') || pos.includes('lubrif') || pos.includes('borrach') ||
-                    pos.includes('soldad') || pos.includes('alinhad') || pos.includes('lantern');
-
-                return hasMec || (isAux && (hasMec || isWorkshopOrMaint)) || isWorkshopOrMaint;
+                // ESTRITAMENTE: cargo de Mecânico ou Auxiliar de Mecânico
+                const hasMec = pos.includes('mecanic') || pos.includes('mec.');
+                return hasMec;
             };
 
             return employees.filter(isMechanicOrAssistant);
@@ -685,12 +688,14 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                     e.positionDescription,
                     e.position?.name,
                     e.position?.description,
+                    typeof e.position === 'string' ? e.position : '',
                     e.cargo,
                     e.funcao,
                     e.jobTitle,
                     e.cbo,
+                    e.role,
                 ].filter(Boolean).join(' '));
-                return pos.includes('motorista') || pos.includes('condutor');
+                return pos.includes('motorista') || pos.includes('rodoviario') || pos.includes('condutor') || pos.includes('chofer') || Boolean(e.cnhNumber) || Boolean(e.driverCategory);
             };
             const drivers = employees.filter(isDriverRole);
             const seen = new Set<string>();
@@ -701,12 +706,12 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                 const key = name.toLowerCase();
                 if (seen.has(key)) continue;
                 seen.add(key);
-                const pos = e.positionDescription || e.position?.name || e.cargo || e.funcao || '';
+                const pos = e.positionDescription || e.position?.name || e.cargo || e.funcao || 'Motorista';
                 opts.push({
                     value: name,
                     label: name,
                     subtitle: [pos, e.registrationNumber ? `Mat. ${e.registrationNumber}` : ''].filter(Boolean).join(' • ') || undefined,
-                    keywords: [name, e.registrationNumber, e.cpf, pos].filter(Boolean),
+                    keywords: [name, e.registrationNumber, e.cpf, pos, 'motorista', 'rodoviario'].filter(Boolean) as string[],
                 });
             }
             return opts;
@@ -1261,6 +1266,13 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                         : (openedByDriverFromText || fallbackDriver),
                     requestDate: order.requestDate || order.stopDate || new Date().toISOString().split('T')[0],
                     mechanicName: cleanMechanicName,
+                    clientId: order.clientId,
+                    workPostId: order.workPostId || order.sectorId,
+                    sectorId: order.sectorId || order.workPostId,
+                    workPostName: order.workPostName,
+                    requesterId: order.requesterId,
+                    garageId: order.garageId,
+                    garageName: order.garageName,
                     responsibleName: (order.responsibleName && order.responsibleName.trim() && !order.responsibleName.toLowerCase().includes('(motorista)'))
                         ? order.responsibleName
                         : (order.responsibleId && !resp.toLowerCase().includes('(motorista)') ? resp : undefined),
@@ -1958,6 +1970,12 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                     mechanicName: resolvedMechanic,
                     responsibleName: formData.responsibleName && !formData.responsibleName.toLowerCase().includes('(motorista)') ? formData.responsibleName : undefined,
                     requesterName: formData.requesterName || (isDriver ? driverName : undefined),
+                    requesterId: formData.requesterId || undefined,
+                    clientId: formData.clientId || undefined,
+                    sectorId: formData.sectorId || formData.workPostId || undefined,
+                    workPostId: formData.workPostId || formData.sectorId || undefined,
+                    garageId: formData.garageId || undefined,
+                    aggregateInfo: formData.aggregateInfo?.trim() || undefined,
                     stopDate: formData.stopDate || today,
                     stopTime: formData.stopTime || nowTime,
                     stopReason: formData.stopReason?.trim() || resolvedAnomalies,
@@ -2052,6 +2070,12 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                     mechanicName: resolvedMechanic,
                     responsibleName: formData.responsibleName && !formData.responsibleName.toLowerCase().includes('(motorista)') ? formData.responsibleName : undefined,
                     requesterName: formData.requesterName || (isDriver ? driverName : undefined),
+                    requesterId: formData.requesterId || undefined,
+                    clientId: formData.clientId || undefined,
+                    sectorId: formData.sectorId || formData.workPostId || undefined,
+                    workPostId: formData.workPostId || formData.sectorId || undefined,
+                    garageId: formData.garageId || undefined,
+                    aggregateInfo: formData.aggregateInfo?.trim() || undefined,
                     stopDate: formData.stopDate || today,
                     stopTime: formData.stopTime || nowTime,
                     stopReason: formData.stopReason?.trim() || resolvedAnomalies,

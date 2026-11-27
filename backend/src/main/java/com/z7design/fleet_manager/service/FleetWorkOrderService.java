@@ -713,24 +713,32 @@ public class FleetWorkOrderService {
             entity.setGarage(garageRepository.findById(dto.getGarageId()).orElse(null));
         }
 
-        // Alocação: Obra (Cliente) — re-resolve a partir do veículo quando alterado
+        // Cliente
+        if (dto.getClientId() != null) {
+            entity.setClientId(dto.getClientId());
+        }
+
+        // Alocação: Obra (Cliente) / Setor
         if (dto.getWorkPostId() != null) {
             entity.setWorkPost(workPostRepository.findById(dto.getWorkPostId()).orElse(null));
-            if (entity.getWorkPost() != null && entity.getWorkPost().getClient() != null) {
+            entity.setSectorId(dto.getWorkPostId());
+            if (entity.getClientId() == null && entity.getWorkPost() != null && entity.getWorkPost().getClient() != null) {
                 entity.setClientId(entity.getWorkPost().getClient().getId());
             }
         } else if (dto.getSectorId() != null) {
             entity.setWorkPost(workPostRepository.findById(dto.getSectorId()).orElse(null));
-            if (entity.getWorkPost() != null && entity.getWorkPost().getClient() != null) {
+            entity.setSectorId(dto.getSectorId());
+            if (entity.getClientId() == null && entity.getWorkPost() != null && entity.getWorkPost().getClient() != null) {
                 entity.setClientId(entity.getWorkPost().getClient().getId());
             }
-        } else if (dto.getClientId() != null) {
-            entity.setClientId(dto.getClientId());
         } else if (entity.getVehicle() != null && entity.getVehicle().getWorkPostId() != null
                 && entity.getWorkPost() == null) {
             entity.setWorkPost(workPostRepository.findById(entity.getVehicle().getWorkPostId()).orElse(null));
-            if (entity.getWorkPost() != null && entity.getWorkPost().getClient() != null) {
-                entity.setClientId(entity.getWorkPost().getClient().getId());
+            if (entity.getWorkPost() != null) {
+                entity.setSectorId(entity.getWorkPost().getId());
+                if (entity.getClientId() == null && entity.getWorkPost().getClient() != null) {
+                    entity.setClientId(entity.getWorkPost().getClient().getId());
+                }
             }
         }
         if (dto.getSectorId() != null) entity.setSectorId(dto.getSectorId());

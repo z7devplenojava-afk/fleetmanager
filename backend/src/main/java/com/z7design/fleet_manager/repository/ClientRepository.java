@@ -30,13 +30,29 @@ public interface ClientRepository extends JpaRepository<Client, java.util.UUID>,
 
     Page<Client> findByCompanyId(java.util.UUID companyId, Pageable pageable);
 
+    @Query("SELECT c FROM Client c WHERE (:companyId IS NULL OR c.companyId = :companyId OR c.companyId IS NULL) ORDER BY c.name ASC")
+    Page<Client> findByCompanyIdOrCompanyIdIsNull(@Param("companyId") java.util.UUID companyId, Pageable pageable);
+
+    @Query("SELECT c FROM Client c WHERE (:companyId IS NULL OR c.companyId = :companyId OR c.companyId IS NULL) ORDER BY c.name ASC")
+    List<Client> findByCompanyIdOrCompanyIdIsNull(@Param("companyId") java.util.UUID companyId);
+
     List<Client> findByStatus(ClientStatus status);
 
     List<Client> findByStatusAndCompanyId(ClientStatus status, java.util.UUID companyId);
+
+    @Query("SELECT c FROM Client c WHERE (:companyId IS NULL OR c.companyId = :companyId OR c.companyId IS NULL) AND " +
+           "(:status IS NULL OR c.status = :status) ORDER BY c.name ASC")
+    List<Client> findByStatusAndCompanyIdOrCompanyIdIsNull(@Param("status") ClientStatus status, @Param("companyId") java.util.UUID companyId);
     
     Page<Client> findByStatus(ClientStatus status, Pageable pageable);
 
     Page<Client> findByStatusAndCompanyId(ClientStatus status, java.util.UUID companyId, Pageable pageable);
+
+    @Query("SELECT c FROM Client c WHERE (:companyId IS NULL OR c.companyId = :companyId OR c.companyId IS NULL) AND " +
+           "(:status IS NULL OR c.status = :status) ORDER BY c.name ASC")
+    Page<Client> findByStatusAndCompanyIdOrCompanyIdIsNull(@Param("status") ClientStatus status, 
+                                                          @Param("companyId") java.util.UUID companyId, 
+                                                          Pageable pageable);
     
     @Query("SELECT c FROM Client c WHERE " +
            "LOWER(c.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
@@ -45,14 +61,14 @@ public interface ClientRepository extends JpaRepository<Client, java.util.UUID>,
            "LOWER(c.contactName) LIKE LOWER(CONCAT('%', :searchTerm, '%'))")
     Page<Client> findBySearchTerm(@Param("searchTerm") String searchTerm, Pageable pageable);
 
-    @Query("SELECT c FROM Client c WHERE c.companyId = :companyId AND (" +
+    @Query("SELECT c FROM Client c WHERE (:companyId IS NULL OR c.companyId = :companyId OR c.companyId IS NULL) AND (" +
            "LOWER(c.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
            "LOWER(c.cnpj) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
            "LOWER(c.email) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
-           "LOWER(c.contactName) LIKE LOWER(CONCAT('%', :searchTerm, '%')))")
+           "LOWER(c.contactName) LIKE LOWER(CONCAT('%', :searchTerm, '%'))) ORDER BY c.name ASC")
     Page<Client> findBySearchTermAndCompanyId(@Param("searchTerm") String searchTerm,
-                                             @Param("companyId") java.util.UUID companyId,
-                                             Pageable pageable);
+                                              @Param("companyId") java.util.UUID companyId,
+                                              Pageable pageable);
     
     @Query("SELECT c FROM Client c WHERE " +
            "(:status IS NULL OR c.status = :status) AND " +
@@ -61,25 +77,25 @@ public interface ClientRepository extends JpaRepository<Client, java.util.UUID>,
            "LOWER(c.email) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
            "LOWER(c.contactName) LIKE LOWER(CONCAT('%', :searchTerm, '%')))")
     Page<Client> findByStatusAndSearchTerm(@Param("status") ClientStatus status, 
-                                          @Param("searchTerm") String searchTerm, 
-                                          Pageable pageable);
+                                           @Param("searchTerm") String searchTerm, 
+                                           Pageable pageable);
 
-    @Query("SELECT c FROM Client c WHERE c.companyId = :companyId AND " +
+    @Query("SELECT c FROM Client c WHERE (:companyId IS NULL OR c.companyId = :companyId OR c.companyId IS NULL) AND " +
            "(:status IS NULL OR c.status = :status) AND (" +
            "LOWER(c.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
            "LOWER(c.cnpj) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
            "LOWER(c.email) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
-           "LOWER(c.contactName) LIKE LOWER(CONCAT('%', :searchTerm, '%')))")
+           "LOWER(c.contactName) LIKE LOWER(CONCAT('%', :searchTerm, '%'))) ORDER BY c.name ASC")
     Page<Client> findByStatusAndSearchTermAndCompanyId(@Param("status") ClientStatus status, 
-                                                      @Param("searchTerm") String searchTerm, 
-                                                      @Param("companyId") java.util.UUID companyId, 
-                                                      Pageable pageable);
+                                                       @Param("searchTerm") String searchTerm, 
+                                                       @Param("companyId") java.util.UUID companyId, 
+                                                       Pageable pageable);
     
     @Query("SELECT COUNT(c) FROM Client c WHERE c.status = :status")
     long countByStatus(@Param("status") ClientStatus status);
 
-    @Query("SELECT COUNT(c) FROM Client c WHERE c.status = :status AND c.companyId = :companyId")
+    @Query("SELECT COUNT(c) FROM Client c WHERE (:companyId IS NULL OR c.companyId = :companyId OR c.companyId IS NULL) AND c.status = :status")
     long countByStatusAndCompanyId(@Param("status") ClientStatus status, @Param("companyId") java.util.UUID companyId);
 
     Optional<Client> findByIdAndCompanyId(java.util.UUID id, java.util.UUID companyId);
-} 
+}

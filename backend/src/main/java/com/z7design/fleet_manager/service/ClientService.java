@@ -190,11 +190,11 @@ public class ClientService {
         Page<Client> clients;
         
         if (tenantId != null) {
-            clients = clientRepository.findByCompanyId(tenantId, pageable);
+            clients = clientRepository.findByCompanyIdOrCompanyIdIsNull(tenantId, pageable);
         } else if (tenantSecurityValidator.isSuperAdmin()) {
             clients = clientRepository.findAll(pageable);
         } else {
-            clients = Page.empty(pageable);
+            clients = clientRepository.findByCompanyIdOrCompanyIdIsNull(null, pageable);
         }
         
         return clients.map(client -> {
@@ -213,7 +213,7 @@ public class ClientService {
         } else if (tenantSecurityValidator.isSuperAdmin()) {
             clients = clientRepository.findBySearchTerm(searchTerm, pageable);
         } else {
-            clients = Page.empty(pageable);
+            clients = clientRepository.findBySearchTerm(searchTerm, pageable);
         }
         
         return clients.map(client -> {
@@ -228,11 +228,11 @@ public class ClientService {
         Page<Client> clients;
         
         if (tenantId != null) {
-            clients = clientRepository.findByStatusAndCompanyId(status, tenantId, pageable);
+            clients = clientRepository.findByStatusAndCompanyIdOrCompanyIdIsNull(status, tenantId, pageable);
         } else if (tenantSecurityValidator.isSuperAdmin()) {
             clients = clientRepository.findByStatus(status, pageable);
         } else {
-            clients = Page.empty(pageable);
+            clients = clientRepository.findByStatus(status, pageable);
         }
         
         return clients.map(client -> {
@@ -250,7 +250,7 @@ public class ClientService {
             if (searchTerm != null && !searchTerm.trim().isEmpty()) {
                 clients = clientRepository.findByStatusAndSearchTermAndCompanyId(status, searchTerm, tenantId, pageable);
             } else {
-                clients = clientRepository.findByStatusAndCompanyId(status, tenantId, pageable);
+                clients = clientRepository.findByStatusAndCompanyIdOrCompanyIdIsNull(status, tenantId, pageable);
             }
         } else if (tenantSecurityValidator.isSuperAdmin()) {
             if (searchTerm != null && !searchTerm.trim().isEmpty()) {
@@ -259,7 +259,11 @@ public class ClientService {
                 clients = clientRepository.findByStatus(status, pageable);
             }
         } else {
-            clients = Page.empty(pageable);
+            if (searchTerm != null && !searchTerm.trim().isEmpty()) {
+                clients = clientRepository.findByStatusAndSearchTerm(status, searchTerm, pageable);
+            } else {
+                clients = clientRepository.findByStatus(status, pageable);
+            }
         }
         
         return clients.map(client -> {
@@ -274,11 +278,11 @@ public class ClientService {
         List<Client> clients;
         
         if (tenantId != null) {
-            clients = clientRepository.findByStatusAndCompanyId(status, tenantId);
+            clients = clientRepository.findByStatusAndCompanyIdOrCompanyIdIsNull(status, tenantId);
         } else if (tenantSecurityValidator.isSuperAdmin()) {
             clients = clientRepository.findByStatus(status);
         } else {
-            clients = java.util.Collections.emptyList();
+            clients = clientRepository.findByStatus(status);
         }
         
         return clients.stream().map(client -> {

@@ -540,8 +540,16 @@
         </td>
       </tr>
       <tr>
-        <td class="label">Obra (Cliente):</td>
-        <td class="valor" colspan="3"><span th:text="${workPostName} ?: '—'">—</span><span th:if="${clientName}" th:text="' — ' + ${clientName}"></span></td>
+        <td class="label">Cliente:</td>
+        <td class="valor" th:text="${clientName} ?: '—'">—</td>
+        <td class="label">Setor / Obra:</td>
+        <td class="valor" th:text="${workPostName} ?: '—'">—</td>
+      </tr>
+      <tr>
+        <td class="label">Requerente:</td>
+        <td class="valor" th:text="${requesterName} ?: '—'">—</td>
+        <td class="label">Garagem Execução:</td>
+        <td class="valor" th:text="${garageName} ?: '—'">—</td>
       </tr>
       <tr>
         <td class="label">Odômetro Parada (KM):</td>

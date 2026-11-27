@@ -1,19 +1,24 @@
 package com.z7design.fleet_manager.service;
 
 import com.z7design.fleet_manager.exception.ResourceNotFoundException;
+import com.z7design.fleet_manager.model.Client;
 import com.z7design.fleet_manager.model.Company;
 import com.z7design.fleet_manager.model.FleetWorkOrder;
+import com.z7design.fleet_manager.model.Garage;
 import com.z7design.fleet_manager.model.VehicleGateChecklist;
 import com.z7design.fleet_manager.model.VehicleInspection;
 import com.z7design.fleet_manager.model.WorkOrderItem;
 import com.z7design.fleet_manager.model.WorkPost;
 import com.z7design.fleet_manager.repository.ChecklistItemRepository;
+import com.z7design.fleet_manager.repository.ClientRepository;
 import com.z7design.fleet_manager.repository.CompanyRepository;
 import com.z7design.fleet_manager.repository.EmployeeRepository;
 import com.z7design.fleet_manager.repository.FleetWorkOrderRepository;
+import com.z7design.fleet_manager.repository.GarageRepository;
 import com.z7design.fleet_manager.repository.UserRepository;
 import com.z7design.fleet_manager.repository.VehicleGateChecklistRepository;
 import com.z7design.fleet_manager.repository.VehicleInspectionRepository;
+import com.z7design.fleet_manager.repository.WorkPostRepository;
 import com.z7design.fleet_manager.tenant.TenantContext;
 import com.z7design.fleet_manager.util.CompanyDataFormatter;
 import lombok.RequiredArgsConstructor;
@@ -65,6 +70,9 @@ public class FleetWorkOrderPdfService {
     private final VehicleInspectionRepository vehicleInspectionRepository;
     private final StoredUploadService storedUploadService;
     private final TemplateEngine templateEngine;
+    private final ClientRepository clientRepository;
+    private final WorkPostRepository workPostRepository;
+    private final GarageRepository garageRepository;
 
     @Value("${app.upload.dir:uploads}")
     private String uploadDir;
@@ -423,21 +431,49 @@ public class FleetWorkOrderPdfService {
         // Obra / Cliente
         try {
             WorkPost obra = order.getWorkPost();
+            if (obra == null && order.getSectorId() != null) {
+                obra = workPostRepository.findById(order.getSectorId()).orElse(null);
+            }
             if (obra == null && order.getVehicle() != null) {
                 obra = order.getVehicle().getWorkPostEntity();
             }
-            if (obra != null) {
-                data.put("workPostName", obra.getName());
-                data.put("clientName", obra.getClient() != null ? obra.getClient().getName() : null);
-            } else {
-                data.put("workPostName", null);
-                data.put("clientName", null);
+
+            String clientName = null;
+            if (order.getClientId() != null) {
+                clientName = clientRepository.findById(order.getClientId())
+                        .map(Client::getName)
+                        .orElse(null);
             }
+            if (clientName == null && obra != null && obra.getClient() != null) {
+                clientName = obra.getClient().getName();
+            }
+            if (clientName == null && order.getVehicle() != null) {
+                clientName = order.getVehicle().getClientName();
+            }
+
+            data.put("workPostName", obra != null ? obra.getName() : null);
+            data.put("clientName", clientName);
         } catch (Exception e) {
             log.warn("Aviso ao resolver Obra/Cliente da OS {}: {}", order.getId(), e.getMessage());
             data.put("workPostName", null);
             data.put("clientName", null);
         }
+
+        // Requerente
+        String requesterName = null;
+        if (order.getRequesterId() != null) {
+            requesterName = resolvePersonNameById(order.getRequesterId());
+        }
+        data.put("requesterName", requesterName);
+
+        // Garagem de Execução
+        String garageName = null;
+        if (order.getGarage() != null) {
+            garageName = order.getGarage().getName();
+        } else if (order.getVehicle() != null && order.getVehicle().getGarage() != null) {
+            garageName = order.getVehicle().getGarage().getName();
+        }
+        data.put("garageName", garageName);
 
         data.put("odometerIn", order.getOdometerIn() != null ? formatKm(order.getOdometerIn()) : null);
         data.put("odometerOut", order.getOdometerOut() != null ? formatKm(order.getOdometerOut()) : null);
