@@ -22,7 +22,9 @@ import {
     FolderCheck,
     FileText,
     CheckCircle2,
-    Download
+    Download,
+    Printer,
+    FileSpreadsheet
 } from 'lucide-react';
 import {
     Select,
@@ -38,6 +40,7 @@ import type { MobilizationType, TransportMobilization } from '@/types/mobilizati
 import { MobilizationInspectionModal } from '@/components/frota/MobilizationInspectionModal';
 import { MobilizationDossierModal } from '@/components/frota/MobilizationDossierModal';
 import { generatePreUseChecklistPDF } from '@/utils/preUseChecklistPdfGenerator';
+import { generatePreUseMonthlyPDF } from '@/utils/preUseMonthlyChecklistPdfGenerator';
 
 const MobilizationListPage: React.FC = () => {
     const navigate = useNavigate();
@@ -132,6 +135,52 @@ const MobilizationListPage: React.FC = () => {
         }
     };
 
+    const handleGenerateMonthlyBlankPDF = async () => {
+        try {
+            await generatePreUseMonthlyPDF({
+                companyName: 'VIAÇÃO SÃO SILVESTRE',
+                vehicleDescription: '',
+                vehiclePlate: '',
+                responsibleName: '',
+                monthYear: new Date().toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' })
+            });
+            toast({
+                title: 'PDF Gerado com Sucesso!',
+                description: 'Ficha Mensal de Pré-Uso (Grade 31 dias / 46 itens) baixada.'
+            });
+        } catch (err: any) {
+            console.error('Erro ao gerar Pré-Uso Mensal:', err);
+            toast({
+                title: 'Erro ao gerar PDF',
+                description: err?.message || 'Falha ao processar o relatório mensal.',
+                variant: 'destructive'
+            });
+        }
+    };
+
+    const handleGenerateMonthlyVehiclePDF = async (m: TransportMobilization) => {
+        try {
+            await generatePreUseMonthlyPDF({
+                companyName: m.clientName || 'VIAÇÃO SÃO SILVESTRE',
+                vehicleDescription: m.vehiclePlate || 'Veículo',
+                vehiclePlate: m.vehiclePlate || '',
+                responsibleName: m.driverName || '',
+                monthYear: new Date(m.occurredAt).toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' })
+            });
+            toast({
+                title: 'PDF Gerado com Sucesso!',
+                description: `Ficha Mensal de Pré-Uso baixada para a placa ${m.vehiclePlate || 'do veículo'}.`
+            });
+        } catch (err: any) {
+            console.error('Erro ao gerar Pré-Uso Mensal do veículo:', err);
+            toast({
+                title: 'Erro ao gerar PDF',
+                description: err?.message || 'Falha ao processar o relatório mensal.',
+                variant: 'destructive'
+            });
+        }
+    };
+
     return (
         <StandardLayout title="Mobilização de Transportes">
             <div className="space-y-6">
@@ -164,6 +213,13 @@ const MobilizationListPage: React.FC = () => {
                             className="bg-purple-600 text-white hover:bg-purple-700 font-bold"
                         >
                             <CheckCircle2 className="mr-1.5 h-4 w-4" /> Checklist Pré-Uso
+                        </Button>
+                        <Button
+                            onClick={handleGenerateMonthlyBlankPDF}
+                            className="bg-teal-600 text-white hover:bg-teal-700 font-bold shadow-md"
+                            title="Imprimir Modelo Físico Mensal (Grade 31 dias / 46 itens - São Silvestre)"
+                        >
+                            <Printer className="mr-1.5 h-4 w-4" /> Pré-Uso Mensal (31 Dias)
                         </Button>
                         <Button
                             onClick={() => openDossier(mobilizations[0])}
@@ -322,9 +378,18 @@ const MobilizationListPage: React.FC = () => {
                                                             size="sm"
                                                             onClick={() => handleGenerateChecklistPDF(m)}
                                                             className="border-purple-500/40 bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 text-xs font-semibold h-8 px-2.5 rounded-lg flex items-center gap-1"
-                                                            title="Baixar Relatório em PDF do Checklist de Pré-Uso"
+                                                            title="Baixar Relatório em PDF do Checklist de Pré-Uso (Inspeção Pontual)"
                                                         >
                                                             <FileText className="h-3.5 w-3.5" /> Checklist PDF
+                                                        </Button>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => handleGenerateMonthlyVehiclePDF(m)}
+                                                            className="border-teal-500/40 bg-teal-500/10 text-teal-300 hover:bg-teal-500/20 text-xs font-semibold h-8 px-2 rounded-lg flex items-center gap-1"
+                                                            title="Baixar Ficha Mensal de Pré-Uso (Grade 31 Dias) com dados deste veículo"
+                                                        >
+                                                            <Printer className="h-3.5 w-3.5" /> Mensal (31d)
                                                         </Button>
                                                         <Button
                                                             variant="outline"

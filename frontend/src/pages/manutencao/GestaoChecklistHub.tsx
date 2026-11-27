@@ -2,7 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { StandardLayout } from '@/components/StandardLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ClipboardCheck, Users, Car, AlertTriangle, UserCheck } from 'lucide-react';
+import { ClipboardCheck, Users, Car, AlertTriangle, UserCheck, Printer } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import { generatePreUseMonthlyPDF } from '@/utils/preUseMonthlyChecklistPdfGenerator';
 import GestaoChecklistCliente from './GestaoChecklistCliente';
 import GestaoChecklistVeiculo from './GestaoChecklistVeiculo';
 import GestaoChecklistMotorista from './GestaoChecklistMotorista';
@@ -39,15 +42,47 @@ export const GestaoChecklistHub: React.FC = () => {
     }
   }, [tabParam]);
 
+  const { toast } = useToast();
+
   const handleTabChange = (val: string) => {
     setActiveTab(val);
     setSearchParams({ tab: val });
+  };
+
+  const handlePrintPreUseMonthly = async () => {
+    try {
+      await generatePreUseMonthlyPDF({
+        companyName: 'VIAÇÃO SÃO SILVESTRE',
+        monthYear: new Date().toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' })
+      });
+      toast({
+        title: 'PDF Gerado com Sucesso!',
+        description: 'Ficha Mensal de Pré-Uso (Grade 31 dias / 46 itens) baixada.'
+      });
+    } catch (err: any) {
+      console.error('Erro ao gerar ficha de pré-uso mensal:', err);
+      toast({
+        title: 'Erro ao gerar PDF',
+        description: err?.message || 'Falha ao processar a ficha mensal.',
+        variant: 'destructive'
+      });
+    }
   };
 
   return (
     <StandardLayout
       title="Gestão de Checklists"
       subtitle="Central unificada de checklists: por cliente, por veículo, controle de avarias e por motorista."
+      actions={
+        <Button
+          onClick={handlePrintPreUseMonthly}
+          className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs sm:text-sm shadow-md flex items-center gap-2"
+          title="Imprimir Modelo Físico Mensal de Pré-Uso (31 Dias / 46 Itens - São Silvestre)"
+        >
+          <Printer className="h-4 w-4" />
+          <span>Pré-Uso Mensal (31 Dias)</span>
+        </Button>
+      }
     >
       <div className="space-y-6">
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
