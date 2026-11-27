@@ -1088,7 +1088,7 @@ public class FleetWorkOrderService {
         com.z7design.fleet_manager.model.FleetWorkOrderChecklist checklist = com.z7design.fleet_manager.model.FleetWorkOrderChecklist.builder()
                 .workOrder(workOrder)
                 .checklistItem(itemMaster)
-                .situacao(cDto.getSituacao() != null ? cDto.getSituacao() : com.z7design.fleet_manager.model.FleetWorkOrderChecklist.ChecklistStatus.OK)
+                .situacao(cDto.getSituacao() != null ? cDto.getSituacao() : com.z7design.fleet_manager.model.FleetWorkOrderChecklist.ChecklistStatus.BLANK)
                 .observacao(cDto.getObservacao())
                 .reparoRealizado(cDto.getReparoRealizado())
                 .quantidadePecas(cDto.getQuantidadePecas())
@@ -1679,7 +1679,7 @@ public class FleetWorkOrderService {
 
             com.z7design.fleet_manager.model.FleetWorkOrderChecklist existing = existingByMasterId.get(cDto.getChecklistItemId());
             if (existing != null) {
-                existing.setSituacao(cDto.getSituacao() != null ? cDto.getSituacao() : com.z7design.fleet_manager.model.FleetWorkOrderChecklist.ChecklistStatus.OK);
+                existing.setSituacao(cDto.getSituacao() != null ? cDto.getSituacao() : com.z7design.fleet_manager.model.FleetWorkOrderChecklist.ChecklistStatus.BLANK);
                 existing.setObservacao(cDto.getObservacao());
                 existing.setReparoRealizado(cDto.getReparoRealizado());
                 existing.setQuantidadePecas(cDto.getQuantidadePecas());

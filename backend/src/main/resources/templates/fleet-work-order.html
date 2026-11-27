@@ -602,11 +602,11 @@
                   <span class="cat-badge" th:text="${cItem.categoria}">GERAL</span>
                 </td>
                 <td style="text-align: center;">
-                  <span class="badge-status status-ok" th:if="${cItem.situacao == 'OK'}">[OK]</span>
-                  <span class="badge-status status-nok" th:if="${cItem.situacao == 'NAO_OK'}">[NÃO OK]</span>
-                  <span class="badge-status status-trocar" th:if="${cItem.situacao == 'TROCAR'}">[TROCAR]</span>
-                  <span class="badge-status status-na" th:if="${cItem.situacao == 'NAO_APLICA'}">[N/A]</span>
-                  <span class="badge-status status-blank" th:if="${cItem.situacao == 'BLANK' or (cItem.situacao != 'OK' and cItem.situacao != 'NAO_OK' and cItem.situacao != 'TROCAR' and cItem.situacao != 'NAO_APLICA')}">[&nbsp;&nbsp;] OK &nbsp;[&nbsp;&nbsp;] NOK &nbsp;[&nbsp;&nbsp;] TR</span>
+                  <span th:if="${blankChecklist or cItem.situacao == 'BLANK' or cItem.situacao == null}">&nbsp;</span>
+                  <span class="badge-status status-ok" th:if="${!blankChecklist and cItem.situacao == 'OK'}">[OK]</span>
+                  <span class="badge-status status-nok" th:if="${!blankChecklist and cItem.situacao == 'NAO_OK'}">[NÃO OK]</span>
+                  <span class="badge-status status-trocar" th:if="${!blankChecklist and cItem.situacao == 'TROCAR'}">[TROCAR]</span>
+                  <span class="badge-status status-na" th:if="${!blankChecklist and cItem.situacao == 'NAO_APLICA'}">[N/A]</span>
                 </td>
               </tr>
             </tbody>
@@ -636,11 +636,11 @@
                   <span class="cat-badge" th:text="${cItem.categoria}">GERAL</span>
                 </td>
                 <td style="text-align: center;">
-                  <span class="badge-status status-ok" th:if="${cItem.situacao == 'OK'}">[OK]</span>
-                  <span class="badge-status status-nok" th:if="${cItem.situacao == 'NAO_OK'}">[NÃO OK]</span>
-                  <span class="badge-status status-trocar" th:if="${cItem.situacao == 'TROCAR'}">[TROCAR]</span>
-                  <span class="badge-status status-na" th:if="${cItem.situacao == 'NAO_APLICA'}">[N/A]</span>
-                  <span class="badge-status status-blank" th:if="${cItem.situacao == 'BLANK' or (cItem.situacao != 'OK' and cItem.situacao != 'NAO_OK' and cItem.situacao != 'TROCAR' and cItem.situacao != 'NAO_APLICA')}">[&nbsp;&nbsp;] OK &nbsp;[&nbsp;&nbsp;] NOK &nbsp;[&nbsp;&nbsp;] TR</span>
+                  <span th:if="${blankChecklist or cItem.situacao == 'BLANK' or cItem.situacao == null}">&nbsp;</span>
+                  <span class="badge-status status-ok" th:if="${!blankChecklist and cItem.situacao == 'OK'}">[OK]</span>
+                  <span class="badge-status status-nok" th:if="${!blankChecklist and cItem.situacao == 'NAO_OK'}">[NÃO OK]</span>
+                  <span class="badge-status status-trocar" th:if="${!blankChecklist and cItem.situacao == 'TROCAR'}">[TROCAR]</span>
+                  <span class="badge-status status-na" th:if="${!blankChecklist and cItem.situacao == 'NAO_APLICA'}">[N/A]</span>
                 </td>
               </tr>
             </tbody>
@@ -664,11 +664,11 @@
           <td th:text="${cItem.categoria}">GERAL</td>
           <td th:text="${cItem.itemDescricao}">Item</td>
           <td style="text-align: center;">
-            <span class="badge-status status-ok" th:if="${cItem.situacao == 'OK'}">[OK]</span>
-            <span class="badge-status status-nok" th:if="${cItem.situacao == 'NAO_OK'}">[NÃO OK]</span>
-            <span class="badge-status status-trocar" th:if="${cItem.situacao == 'TROCAR'}">[TROCAR]</span>
-            <span class="badge-status status-na" th:if="${cItem.situacao == 'NAO_APLICA'}">[N/A]</span>
-            <span class="badge-status status-blank" th:if="${cItem.situacao == 'BLANK' or (cItem.situacao != 'OK' and cItem.situacao != 'NAO_OK' and cItem.situacao != 'TROCAR' and cItem.situacao != 'NAO_APLICA')}">[&nbsp;&nbsp;] OK &nbsp;[&nbsp;&nbsp;] NOK &nbsp;[&nbsp;&nbsp;] TR</span>
+            <span th:if="${blankChecklist or cItem.situacao == 'BLANK' or cItem.situacao == null}">&nbsp;</span>
+            <span class="badge-status status-ok" th:if="${!blankChecklist and cItem.situacao == 'OK'}">[OK]</span>
+            <span class="badge-status status-nok" th:if="${!blankChecklist and cItem.situacao == 'NAO_OK'}">[NÃO OK]</span>
+            <span class="badge-status status-trocar" th:if="${!blankChecklist and cItem.situacao == 'TROCAR'}">[TROCAR]</span>
+            <span class="badge-status status-na" th:if="${!blankChecklist and cItem.situacao == 'NAO_APLICA'}">[N/A]</span>
           </td>
           <td>
             <span th:if="${cItem.observacao != null and cItem.observacao != ''}" th:text="'Obs: ' + ${cItem.observacao}"></span>

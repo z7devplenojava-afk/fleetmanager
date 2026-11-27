@@ -78,8 +78,8 @@ public class FleetWorkOrderPdfService {
 
     // Caches de alta performance em memória para geração quase instantânea de PDF
     // v9: invalida PDFs gerados antes do fallback de logo WebP -> ícone JPG.
-    private static final String PDF_CACHE_VERSION = "v9_company_logo_webp_fallback";
-    private static final String MODEL_2_SINGLE_COLUMN_CACHE_VERSION = "v9_company_logo_webp_fallback";
+    private static final String PDF_CACHE_VERSION = "v10_manual_blank_empty";
+    private static final String MODEL_2_SINGLE_COLUMN_CACHE_VERSION = "v10_manual_blank_empty";
     private static final Map<String, byte[]> PDF_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
     private static final Map<String, String> LOGO_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
     private static final Map<String, String> PHOTO_CACHE = new java.util.concurrent.ConcurrentHashMap<>();

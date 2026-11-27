@@ -521,7 +521,7 @@
             <td class="col-item" th:text="${cItem['itemCode']}">1</td>
             <td class="col-desc-cell" th:text="${cItem['itemLabel']}">Item</td>
             <td class="col-sit">
-              <span th:if="${blankChecklist or cItem['situacao'] == 'BLANK'}">(   ) Verificado / (   ) N-A / (   ) Não Conforme</span>
+              <span th:if="${blankChecklist or cItem['situacao'] == 'BLANK' or cItem['situacao'] == null}">&nbsp;</span>
               <span th:if="${!blankChecklist and cItem['situacao'] == 'OK'}">
                 <span class="sit-marked">( X ) Verificado</span> / (   ) N-A / (   ) Não Conforme
               </span>

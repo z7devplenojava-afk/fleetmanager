@@ -1121,18 +1121,73 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
             }
         };
 
+        // Sincroniza peças do checklist marcadas com TROCAR / NÃO OK com a tabela de Peças e Serviços Utilizados
+        const syncChecklistWithItems = (currentForm: Partial<FleetWorkOrder>, updatedChecklist: FleetWorkOrderChecklist[]) => {
+            const existingManualItems = (currentForm.items || []).filter(it => {
+                if (it.sourceChecklistIndex !== undefined || it.sourceChecklistItemId) return false;
+                const matchesChecklistDesc = (updatedChecklist || []).some((chk, idx) => {
+                    const itemLabel = chk.checklistItemDescricao || `Item #${idx + 1}`;
+                    return it.description && (
+                        it.description.startsWith(`${itemLabel} — `) ||
+                        it.description === `Substituição: ${itemLabel}`
+                    );
+                });
+                return !matchesChecklistDesc;
+            });
+
+            const checklistParts: WorkOrderItem[] = [];
+            (updatedChecklist || []).forEach((chk, idx) => {
+                if (chk.situacao === ChecklistStatus.TROCAR || chk.situacao === ChecklistStatus.NAO_OK) {
+                    const hasQty = chk.quantidadePecas !== undefined && chk.quantidadePecas !== null && chk.quantidadePecas > 0;
+                    const hasVal = chk.valorPeca !== undefined && chk.valorPeca !== null && chk.valorPeca > 0;
+                    const hasDesc = !!chk.observacao?.trim();
+
+                    if (hasQty || hasVal || hasDesc) {
+                        const qty = hasQty ? Number(chk.quantidadePecas) : 1;
+                        const unitPrice = hasVal ? Number(chk.valorPeca) : 0;
+                        const totalPrice = qty * unitPrice;
+                        const itemLabel = chk.checklistItemDescricao || `Item #${idx + 1}`;
+                        const desc = chk.observacao?.trim()
+                            ? `${itemLabel} — ${chk.observacao.trim()}`
+                            : `Substituição: ${itemLabel}`;
+
+                        checklistParts.push({
+                            description: desc,
+                            type: WorkOrderItemType.PART,
+                            quantity: qty,
+                            unitPrice: unitPrice,
+                            totalPrice: totalPrice,
+                            isManual: true,
+                            sourceChecklistIndex: idx,
+                            sourceChecklistItemId: chk.checklistItemId || chk.id,
+                        });
+                    }
+                }
+            });
+
+            const newItems = [...existingManualItems, ...checklistParts];
+            const partsCost = newItems.reduce((acc, it) => acc + (it.totalPrice || 0), 0);
+            const totalCost = partsCost + (currentForm.laborCost || 0);
+
+            return {
+                ...currentForm,
+                checklistItems: updatedChecklist,
+                items: newItems,
+                partsCost,
+                totalCost,
+            };
+        };
+
         const handleMarkAllChecklistOk = async () => {
             if (!formData.checklistItems || formData.checklistItems.length === 0) {
                 await handleLoadDefaultChecklist(undefined, ChecklistStatus.OK);
                 return;
             }
-            setFormData(p => ({
-                ...p,
-                checklistItems: (p.checklistItems || []).map(item => ({
-                    ...item,
-                    situacao: ChecklistStatus.OK
-                }))
+            const updated = (formData.checklistItems || []).map(item => ({
+                ...item,
+                situacao: ChecklistStatus.OK
             }));
+            setFormData(p => syncChecklistWithItems(p, updated));
             toast({
                 title: 'Todos os campos preenchidos com OK!',
                 description: `${formData.checklistItems.length} itens do checklist preventivo marcados como OK em verde.`
@@ -1141,15 +1196,15 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
 
         const handleClearAllChecklist = () => {
             if (!formData.checklistItems || formData.checklistItems.length === 0) return;
-            setFormData(p => ({
-                ...p,
-                checklistItems: (p.checklistItems || []).map(item => ({
-                    ...item,
-                    situacao: null,
-                    observacao: '',
-                    reparoRealizado: ''
-                }))
+            const updated = (formData.checklistItems || []).map(item => ({
+                ...item,
+                situacao: null,
+                observacao: '',
+                reparoRealizado: '',
+                quantidadePecas: undefined,
+                valorPeca: undefined
             }));
+            setFormData(p => syncChecklistWithItems(p, updated));
             toast({
                 title: 'Checklist em Branco',
                 description: 'Marcações limpas. Você pode preencher individualmente ou gerar o PDF em branco.'
@@ -1157,14 +1212,14 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         };
 
         const handleMarkCategoryOk = (category: string) => {
-            setFormData(p => ({
-                ...p,
-                checklistItems: (p.checklistItems || []).map(item =>
+            setFormData(p => {
+                const updated = (p.checklistItems || []).map(item =>
                     (item.checklistItemCategoria || 'GERAL') === category
                         ? { ...item, situacao: ChecklistStatus.OK }
                         : item
-                )
-            }));
+                );
+                return syncChecklistWithItems(p, updated);
+            });
         };
 
         // Carregar itens mestre de checklist caso selecione PREVENTIVA e ainda não tenha itens
@@ -1199,7 +1254,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                 const cleanMechanicName = order.mechanicName && !order.mechanicName.toLowerCase().includes('(motorista)')
                     ? order.mechanicName
                     : (resp !== 'Não atribuído' && !resp.toLowerCase().includes('(motorista)') ? resp : '');
-                setFormData({
+                const loadedForm: Partial<FleetWorkOrder> = {
                     ...order,
                     driverName: (order.driverName && order.driverName.trim())
                         ? order.driverName.trim()
@@ -1215,7 +1270,12 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                     releaseSignature: order.releaseSignature?.startsWith('data:image/') ? order.releaseSignature : '',
                     preventiveModel: order.preventiveModel || 'MODELO_1',
                     operationProfile: order.operationProfile || 'URBANO',
-                });
+                };
+                if (order.checklistItems && order.checklistItems.length > 0) {
+                    setFormData(syncChecklistWithItems(loadedForm, order.checklistItems));
+                } else {
+                    setFormData(loadedForm);
+                }
                 setIsExpressMode(isDriverUser);
             } else {
                 const today = new Date().toISOString().split('T')[0];
@@ -1823,55 +1883,6 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         const handleLaborChange = (val: string) => {
             const cost = parseFloat(val) || 0;
             setFormData(p => ({ ...p, laborCost: cost, totalCost: cost + (p.partsCost || 0) }));
-        };
-
-        // Sincroniza peças do checklist marcadas com TROCAR / NÃO OK com a tabela de Peças e Serviços Utilizados
-        const syncChecklistWithItems = (currentForm: typeof formData, updatedChecklist: FleetWorkOrderChecklist[]) => {
-            const existingManualItems = (currentForm.items || []).filter(
-                it => it.sourceChecklistIndex === undefined && !it.sourceChecklistItemId
-            );
-
-            const checklistParts: WorkOrderItem[] = [];
-            updatedChecklist.forEach((chk, idx) => {
-                if (chk.situacao === ChecklistStatus.TROCAR || chk.situacao === ChecklistStatus.NAO_OK) {
-                    const hasQty = chk.quantidadePecas !== undefined && chk.quantidadePecas !== null && chk.quantidadePecas > 0;
-                    const hasVal = chk.valorPeca !== undefined && chk.valorPeca !== null && chk.valorPeca > 0;
-                    const hasDesc = !!chk.observacao?.trim();
-
-                    if (hasQty || hasVal || hasDesc) {
-                        const qty = hasQty ? Number(chk.quantidadePecas) : 1;
-                        const unitPrice = hasVal ? Number(chk.valorPeca) : 0;
-                        const totalPrice = qty * unitPrice;
-                        const itemLabel = chk.checklistItemDescricao || `Item #${idx + 1}`;
-                        const desc = chk.observacao?.trim()
-                            ? `${itemLabel} — ${chk.observacao.trim()}`
-                            : `Substituição: ${itemLabel}`;
-
-                        checklistParts.push({
-                            description: desc,
-                            type: WorkOrderItemType.PART,
-                            quantity: qty,
-                            unitPrice: unitPrice,
-                            totalPrice: totalPrice,
-                            isManual: true,
-                            sourceChecklistIndex: idx,
-                            sourceChecklistItemId: chk.checklistItemId || chk.id,
-                        });
-                    }
-                }
-            });
-
-            const newItems = [...existingManualItems, ...checklistParts];
-            const partsCost = newItems.reduce((acc, it) => acc + (it.totalPrice || 0), 0);
-            const totalCost = partsCost + (currentForm.laborCost || 0);
-
-            return {
-                ...currentForm,
-                checklistItems: updatedChecklist,
-                items: newItems,
-                partsCost,
-                totalCost,
-            };
         };
 
         const handleChecklistStatusChange = (idx: number, status: ChecklistStatus) => {

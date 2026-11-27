@@ -49,7 +49,8 @@ export enum ChecklistStatus {
     OK = 'OK',
     NAO_OK = 'NAO_OK',
     TROCAR = 'TROCAR',
-    NAO_APLICA = 'NAO_APLICA'
+    NAO_APLICA = 'NAO_APLICA',
+    BLANK = 'BLANK'
 }
 
 export interface WorkOrderItem {
