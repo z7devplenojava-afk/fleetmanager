@@ -51,7 +51,10 @@ public class ClientController {
                     searchTerm, status, pageable.getPageNumber(), pageable.getPageSize());
             
             Page<ClientDTO> result;
-            if (searchTerm != null && !searchTerm.trim().isEmpty()) {
+            if (searchTerm != null && !searchTerm.trim().isEmpty() && status != null) {
+                log.info("Executando busca por termo e status: {}, {}", searchTerm, status);
+                result = clientService.getClientsByStatus(status, searchTerm, pageable);
+            } else if (searchTerm != null && !searchTerm.trim().isEmpty()) {
                 log.info("Executando busca por termo: {}", searchTerm);
                 result = clientService.searchClients(searchTerm, pageable);
             } else if (status != null) {
@@ -101,9 +104,21 @@ public class ClientController {
     }
     
     @GetMapping("/select")
-    @Operation(summary = "Listar clientes para seleÃ§Ã£o", description = "Retorna uma lista de clientes para seleÃ§Ã£o")
+    @Operation(summary = "Listar clientes para seleção", description = "Retorna uma lista de clientes para seleção")
     public ResponseEntity<List<ClientDTO>> getForSelect() {
         return ResponseEntity.ok(clientService.getAllClients(Pageable.unpaged()).getContent());
+    }
+
+    @GetMapping("/active")
+    @Operation(summary = "Listar clientes ativos", description = "Retorna a lista de clientes ativos da empresa")
+    public ResponseEntity<List<ClientDTO>> getActive() {
+        return ResponseEntity.ok(clientService.getClientsByStatus(ClientStatus.ACTIVE));
+    }
+
+    @GetMapping("/cnpj/{cnpj}")
+    @Operation(summary = "Buscar cliente por CNPJ", description = "Retorna o cliente correspondente ao CNPJ na empresa")
+    public ResponseEntity<ClientDTO> getByCnpj(@PathVariable("cnpj") String cnpj) {
+        return ResponseEntity.ok(clientService.getClientByCnpj(cnpj));
     }
     
     @PostMapping

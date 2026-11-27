@@ -27,6 +27,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
 import { ordemServicoPDFGenerator } from '@/utils/ordemServicoPDFGenerator';
 import { mockAPIData } from '@/utils/mockAPIData';
+import { clientService } from '@/services/clientService';
 
 // Interfaces
 interface Position {
@@ -197,19 +198,11 @@ const OrdemServicoForm = () => {
 
       // Carregar clientes
       try {
-        const clientsResponse = await fetch('/api/clients', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (clientsResponse.ok) {
-          const clientsData = await clientsResponse.json();
-          setClients(clientsData);
-        } else {
-          console.warn('Erro ao carregar clientes, usando dados mock');
-          setClients(mockAPIData.clients);
-        }
+        const clientsData = await clientService.getClientsForSelect();
+        setClients(clientsData || []);
       } catch (error) {
-        console.warn('Erro ao carregar clientes, usando dados mock:', error);
-        setClients(mockAPIData.clients);
+        console.warn('Erro ao carregar clientes:', error);
+        setClients([]);
       }
 
       // Carregar empresas

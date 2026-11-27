@@ -13,33 +13,32 @@ export interface Client {
   companyId?: string;
 }
 
-const filterFluxbusClients = (clients: Client[]): Client[] => {
+const filterClientsByTenant = (clients: Client[]): Client[] => {
   if (!Array.isArray(clients)) return [];
   const empresaRaw = typeof window !== 'undefined' ? localStorage.getItem('empresa') || '' : '';
   const userRaw = typeof window !== 'undefined' ? localStorage.getItem('user') || '' : '';
-  let isFluxbus = false;
   try {
     const emp = empresaRaw ? JSON.parse(empresaRaw) : null;
     const u = userRaw ? JSON.parse(userRaw) : null;
-    const empNome = (emp?.nome || emp?.name || '').toUpperCase();
-    const empId = String(emp?.id || '');
-    const uCompanyId = String(u?.companyId || '');
+    const empId = emp?.id && emp.id !== 'none' ? String(emp.id) : (u?.companyId ? String(u.companyId) : '');
     const isSuperAdmin = u?.role === 'SUPER_ADMIN' || (Array.isArray(u?.roles) && u.roles.some((r: any) => (typeof r === 'string' ? r : r?.name) === 'SUPER_ADMIN'));
 
-    isFluxbus = empNome.includes('FLUXBUS') ||
-                empId === '19b92948-1acd-401f-935a-9fb376961e33' ||
-                uCompanyId === '19b92948-1acd-401f-935a-9fb376961e33' ||
-                (isSuperAdmin && (!empId || empId === 'none' || empNome.includes('FLUXBUS') || !empNome));
+    // Se for SUPER_ADMIN sem empresa alvo selecionada, vê todos os clientes
+    if (isSuperAdmin && (!empId || empId === 'none')) {
+      return clients;
+    }
+
+    // Se há empresa ativa no contexto do usuário (inclusive para SUPER_ADMIN com empresa selecionada):
+    if (empId) {
+      return clients.filter((c: any) => {
+        const cId = c.companyId ? String(c.companyId) : '';
+        if (cId) return cId === empId;
+        return true;
+      });
+    }
   } catch (_) {}
 
-  if (!isFluxbus) return clients;
-
-  return clients.filter((c: any) => {
-    const cId = c.companyId ? String(c.companyId) : '';
-    if (cId) return cId === '19b92948-1acd-401f-935a-9fb376961e33';
-    const cName = (c.name || '').toUpperCase();
-    return cName.includes('FLUXBUS') || cName.includes('DEMO');
-  });
+  return clients;
 };
 
 export const clientService = {
@@ -57,15 +56,22 @@ export const clientService = {
     const data = response.data;
     // Normalizar resposta (Page do backend ou array)
     if (Array.isArray(data)) {
+      const filtered = filterClientsByTenant(data);
       return {
-        content: data,
-        totalElements: data.length,
+        content: filtered,
+        totalElements: filtered.length,
         totalPages: 1,
-        size: data.length,
+        size: filtered.length,
         number: 0,
         first: true,
         last: true,
       } as ClientPage;
+    }
+    if (data && Array.isArray(data.content)) {
+      return {
+        ...data,
+        content: filterClientsByTenant(data.content),
+      };
     }
     return data as ClientPage;
   },
@@ -83,7 +89,7 @@ export const clientService = {
         if (Array.isArray(fallback.data)) result = fallback.data;
         else if (Array.isArray(fallback.data?.content)) result = fallback.data.content;
       }
-      return filterFluxbusClients(result);
+      return filterClientsByTenant(result);
     } catch (error: any) {
       console.warn('⚠️ Não foi possível carregar lista de clientes:', error);
       return [];
@@ -95,7 +101,7 @@ export const clientService = {
     try {
       const response = await api.get('/api/clients/select');
       const list = Array.isArray(response.data) ? response.data : [];
-      return filterFluxbusClients(list);
+      return filterClientsByTenant(list);
     } catch (error: any) {
       if (isConnectionError(error)) {
         console.warn('⚠️ Backend não está disponível. Retornando array vazio para seleção de clientes.');

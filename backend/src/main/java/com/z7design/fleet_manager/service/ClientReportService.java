@@ -20,6 +20,7 @@ import java.io.ByteArrayOutputStream;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.UUID;
 
 // Placeholder for PDF generation library (e.g., iText, Apache PDFBox)
 // Placeholder for Excel generation library (e.g., Apache POI)
@@ -129,6 +130,11 @@ public class ClientReportService {
 
     private List<Client> findClientsByFilters(ClientReportFilterDTO filters) {
         Specification<Client> spec = Specification.where(null);
+
+        UUID tenantId = com.z7design.fleet_manager.tenant.TenantContext.get();
+        if (tenantId != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("companyId"), tenantId));
+        }
 
         if (filters.getName() != null && !filters.getName().isEmpty()) {
             spec = spec.and((root, query, cb) -> cb.like(cb.lower(root.get("name")), "%" + filters.getName().toLowerCase() + "%"));

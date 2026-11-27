@@ -28,6 +28,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { ActivityReport, CreateActivityReportDTO } from '@/types/activityReport';
+import { clientService } from '@/services/clientService';
 import { useToast } from '@/hooks/use-toast';
 import { activityReportService } from '@/services/activityReportService';
 import { workPostService } from '@/services/workPostService';
@@ -253,39 +254,16 @@ const ActivityReportModal: React.FC<ActivityReportModalProps> = ({
       
       // Carregar clientes
       try {
-        console.log('🔍 Buscando clientes em /api/clients/select...');
-        const clientsResponse = await fetch('/api/clients/select');
-        console.log('📡 Resposta do servidor:', clientsResponse.status, clientsResponse.statusText);
+        console.log('🔍 Buscando clientes com isolamento de tenant...');
+        const clientsData = await clientService.getClientsForSelect();
         
-        if (clientsResponse.ok) {
-          const clientsData = await clientsResponse.json();
-          console.log('👥 Clientes carregados (raw):', clientsData?.length || 0);
-          console.log('👥 Primeiro cliente (exemplo):', clientsData?.[0]);
-          
-          // Mapear os dados para garantir formato correto
-          const mappedClients = (clientsData || []).map((client: any) => ({
-            id: client.id?.toString() || client.id,
-            name: client.name || 'Sem nome'
-          }));
-          
-          console.log('✅ Clientes mapeados:', mappedClients.length);
-          if (mappedClients.length > 0) {
-            console.log('👥 Primeiros 3 clientes:', mappedClients.slice(0, 3));
-          } else {
-            console.warn('⚠️ Nenhum cliente encontrado!');
-          }
-          
-          setClients(mappedClients);
-        } else {
-          console.error('❌ Erro ao carregar clientes:', clientsResponse.status, clientsResponse.statusText);
-          const errorText = await clientsResponse.text();
-          console.error('❌ Detalhes do erro:', errorText);
-          toast({
-            title: 'Aviso',
-            description: `Não foi possível carregar os clientes (${clientsResponse.status}). Verifique sua conexão.`,
-            variant: 'destructive'
-          });
-        }
+        const mappedClients = (clientsData || []).map((client: any) => ({
+          id: client.id?.toString() || client.id,
+          name: client.name || 'Sem nome'
+        }));
+        
+        console.log('✅ Clientes mapeados da empresa:', mappedClients.length);
+        setClients(mappedClients);
       } catch (error: any) {
         console.error('❌ Erro ao buscar clientes:', error);
         toast({
@@ -293,6 +271,7 @@ const ActivityReportModal: React.FC<ActivityReportModalProps> = ({
           description: 'Erro ao carregar clientes: ' + (error.message || 'Erro desconhecido'),
           variant: 'destructive'
         });
+        setClients([]);
       }
       
       // Não precisamos mais carregar todos os postos antecipadamente
