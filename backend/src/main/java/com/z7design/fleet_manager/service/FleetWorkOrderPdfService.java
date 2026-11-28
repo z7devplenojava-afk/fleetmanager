@@ -150,14 +150,7 @@ public class FleetWorkOrderPdfService {
 
         boolean isResumido = "MODELO_RESUMIDO".equals(activeModel) || "MODELO_2".equals(activeModel) || "RESUMIDO".equals(activeModel);
 
-        String cacheVersion = isResumido ? MODEL_2_SINGLE_COLUMN_CACHE_VERSION : PDF_CACHE_VERSION;
-        String cacheKey = cacheVersion + ":" + workOrderId + ":" + blankChecklist + ":" + activeModel + ":"
-                + (order.getUpdatedAt() != null ? order.getUpdatedAt().toString() : "0");
-        byte[] cachedPdf = PDF_CACHE.get(cacheKey);
-        if (cachedPdf != null && cachedPdf.length > 0) {
-            log.info("PDF da OS {} retornado instantaneamente do cache em memória ({} bytes)", order.getOsNumber(), cachedPdf.length);
-            return cachedPdf;
-        }
+        PDF_CACHE.clear();
 
         Map<String, Object> data = buildDataMap(order, blankChecklist, activeModel);
         String templateName = isResumido ? "fleet-work-order-model2" : "fleet-work-order";
@@ -173,11 +166,6 @@ public class FleetWorkOrderPdfService {
                 renderer.layout();
                 renderer.createPDF(outputStream);
                 byte[] pdfBytes = outputStream.toByteArray();
-
-                if (PDF_CACHE.size() > 250) {
-                    PDF_CACHE.clear();
-                }
-                PDF_CACHE.put(cacheKey, pdfBytes);
 
                 log.info("PDF da OS {} gerado com sucesso: {} bytes", order.getOsNumber(), pdfBytes.length);
                 return pdfBytes;
@@ -448,7 +436,11 @@ public class FleetWorkOrderPdfService {
                 clientName = obra.getClient().getName();
             }
             if (clientName == null && order.getVehicle() != null) {
-                clientName = order.getVehicle().getClientName();
+                if (order.getVehicle().getClientName() != null && !order.getVehicle().getClientName().isBlank()) {
+                    clientName = order.getVehicle().getClientName();
+                } else if (order.getVehicle().getClientEntity() != null) {
+                    clientName = order.getVehicle().getClientEntity().getName();
+                }
             }
 
             data.put("workPostName", obra != null ? obra.getName() : null);
@@ -468,10 +460,18 @@ public class FleetWorkOrderPdfService {
 
         // Garagem de Execução
         String garageName = null;
-        if (order.getGarage() != null) {
-            garageName = order.getGarage().getName();
-        } else if (order.getVehicle() != null && order.getVehicle().getGarage() != null) {
-            garageName = order.getVehicle().getGarage().getName();
+        try {
+            if (order.getGarage() != null) {
+                garageName = order.getGarage().getName();
+            } else if (order.getVehicle() != null) {
+                if (order.getVehicle().getGarage() != null) {
+                    garageName = order.getVehicle().getGarage().getName();
+                } else if (order.getVehicle().getGarageName() != null) {
+                    garageName = order.getVehicle().getGarageName();
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Aviso ao resolver Garagem da OS {}: {}", order.getId(), e.getMessage());
         }
         data.put("garageName", garageName);
 
@@ -577,6 +577,8 @@ public class FleetWorkOrderPdfService {
                 if (items.isEmpty()) {
                     items = checklistItemRepository.findByTemplateModelAndAtivoTrueOrderByOrdemAsc("MODELO_2");
                 }
+                String defaultSituacao = blankChecklist ? "BLANK"
+                        : (order.getStatus() == com.z7design.fleet_manager.model.FleetWorkOrder.WorkOrderStatus.COMPLETED ? "OK" : "BLANK");
                 if (!items.isEmpty()) {
                     for (var m : items) {
                         String desc = m.getDescricao() != null ? m.getDescricao() : "";
@@ -585,7 +587,7 @@ public class FleetWorkOrderPdfService {
                         cMap.put("itemCode", extractItemCode(desc));
                         cMap.put("itemLabel", extractItemLabel(desc));
                         cMap.put("categoria", m.getCategoria() != null ? m.getCategoria() : "GERAL");
-                        cMap.put("situacao", blankChecklist ? "BLANK" : "OK");
+                        cMap.put("situacao", defaultSituacao);
                         cMap.put("observacao", null);
                         cMap.put("reparoRealizado", null);
                         checklistData.add(cMap);
@@ -597,7 +599,7 @@ public class FleetWorkOrderPdfService {
                         cMap.put("itemCode", r.getItemCode());
                         cMap.put("itemLabel", extractItemLabel(r.getDescricao()));
                         cMap.put("categoria", r.getCategoria());
-                        cMap.put("situacao", blankChecklist ? "BLANK" : "OK");
+                        cMap.put("situacao", defaultSituacao);
                         cMap.put("observacao", null);
                         cMap.put("reparoRealizado", null);
                         checklistData.add(cMap);
@@ -606,6 +608,8 @@ public class FleetWorkOrderPdfService {
             } else if ((order
                     .getMaintenanceType() == com.z7design.fleet_manager.model.FleetWorkOrder.MaintenanceType.PREVENTIVA
                     || blankChecklist) && checklistItemRepository != null) {
+                String defaultSituacao = blankChecklist ? "BLANK"
+                        : (order.getStatus() == com.z7design.fleet_manager.model.FleetWorkOrder.WorkOrderStatus.COMPLETED ? "OK" : "BLANK");
                 String vType = "";
                 if (order.getVehicle() != null) {
                     if (order.getVehicle().getVehicleType() != null)
@@ -630,7 +634,7 @@ public class FleetWorkOrderPdfService {
                     cMap.put("itemCode", extractItemCode(desc));
                     cMap.put("itemLabel", extractItemLabel(desc));
                     cMap.put("categoria", m.getCategoria() != null ? m.getCategoria() : "GERAL");
-                    cMap.put("situacao", blankChecklist ? "BLANK" : "OK");
+                    cMap.put("situacao", defaultSituacao);
                     cMap.put("observacao", null);
                     cMap.put("reparoRealizado", null);
                     checklistData.add(cMap);

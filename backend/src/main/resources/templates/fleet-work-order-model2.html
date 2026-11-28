@@ -529,15 +529,15 @@
             <td class="col-item" th:text="${cItem['itemCode']}">1</td>
             <td class="col-desc-cell" th:text="${cItem['itemLabel']}">Item</td>
             <td class="col-sit">
-              <span th:if="${blankChecklist or cItem['situacao'] == 'BLANK' or cItem['situacao'] == null}">&nbsp;</span>
+              <span th:if="${blankChecklist or cItem['situacao'] == 'BLANK' or cItem['situacao'] == null}">( &nbsp; ) Verificado / ( &nbsp; ) N-A / ( &nbsp; ) Não Conforme</span>
               <span th:if="${!blankChecklist and cItem['situacao'] == 'OK'}">
-                <span class="sit-marked">( X ) Verificado</span> / (   ) N-A / (   ) Não Conforme
+                <span class="sit-marked">( X ) Verificado</span> / ( &nbsp; ) N-A / ( &nbsp; ) Não Conforme
               </span>
               <span th:if="${!blankChecklist and cItem['situacao'] == 'NAO_APLICA'}">
-                (   ) Verificado / <span class="sit-marked">( X ) N-A</span> / (   ) Não Conforme
+                ( &nbsp; ) Verificado / <span class="sit-marked">( X ) N-A</span> / ( &nbsp; ) Não Conforme
               </span>
               <span th:if="${!blankChecklist and (cItem['situacao'] == 'NAO_OK' or cItem['situacao'] == 'TROCAR')}">
-                (   ) Verificado / (   ) N-A / <span class="sit-fail">( X ) Não Conforme</span>
+                ( &nbsp; ) Verificado / ( &nbsp; ) N-A / <span class="sit-fail">( X ) Não Conforme</span>
               </span>
             </td>
             <td class="col-obs">

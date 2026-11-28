@@ -168,6 +168,26 @@ public class PreventiveModel2Service {
 
     public static String inferOperationProfile(Vehicle vehicle) {
         if (vehicle == null) return "URBANO";
+        String vType = vehicle.getVehicleType() != null ? vehicle.getVehicleType().name().toUpperCase() : "";
+        String busType = vehicle.getBusType() != null ? vehicle.getBusType().name().toUpperCase() : "";
+        String joined = String.join(" ",
+                vehicle.getOperationName() != null ? vehicle.getOperationName() : "",
+                vehicle.getProjectName() != null ? vehicle.getProjectName() : "",
+                vehicle.getDepartment() != null ? vehicle.getDepartment() : "",
+                vehicle.getModel() != null ? vehicle.getModel() : "",
+                vehicle.getBrand() != null ? vehicle.getBrand() : ""
+        ).toUpperCase();
+
+        if (joined.contains("VAN") || joined.contains("SPRINTER") || joined.contains("MASTER")
+                || joined.contains("DUCATO") || joined.contains("TRANSIT") || joined.contains("DAILY")
+                || vType.contains("VAN") || busType.contains("VAN")) {
+            return "VAN";
+        }
+        if (joined.contains("MICRO") || joined.contains("MINIBUS") || joined.contains("VOLARE")
+                || joined.contains("SENIOR") || vType.contains("MICRO") || busType.contains("MICRO")) {
+            return "MICRO";
+        }
+
         if (vehicle.getBusType() != null) {
             Vehicle.BusType bt = vehicle.getBusType();
             if (bt == Vehicle.BusType.RODOVIARIO
@@ -190,12 +210,6 @@ public class PreventiveModel2Service {
                 return "RODOVIARIO";
             }
         }
-        String joined = String.join(" ",
-                vehicle.getOperationName() != null ? vehicle.getOperationName() : "",
-                vehicle.getProjectName() != null ? vehicle.getProjectName() : "",
-                vehicle.getDepartment() != null ? vehicle.getDepartment() : "",
-                vehicle.getModel() != null ? vehicle.getModel() : ""
-        ).toUpperCase();
         if (joined.contains("RODOV") || joined.contains("TURISM") || joined.contains("VIAGEM")
                 || joined.contains("DOUBLE") || joined.contains("FRETAM")) {
             return "RODOVIARIO";

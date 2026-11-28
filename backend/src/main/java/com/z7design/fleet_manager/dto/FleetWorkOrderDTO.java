@@ -301,7 +301,7 @@ public class FleetWorkOrderDTO {
                 .clientName(clientName)
                 .sectorId(entity.getSectorId())
                 .requesterId(entity.getRequesterId())
-                .requesterName(resolvedDriverName)
+                .requesterName(entity.getRequesterId() != null ? null : resolvedDriverName)
                 .responsibleId(entity.getResponsibleId())
                 .responsibleName(mechanicName)
                 .supervisorId(entity.getSupervisorId())

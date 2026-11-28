@@ -152,15 +152,22 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         triggeredItemsSummary: ''
     });
 
-    const inferVehicleOperationProfile = (veh?: any): 'URBANO' | 'RODOVIARIO' => {
+    const inferVehicleOperationProfile = (veh?: any): 'URBANO' | 'RODOVIARIO' | 'MICRO' | 'VAN' => {
         if (!veh) return 'URBANO';
         const busType = String(veh.busType || '').toUpperCase();
         const vType = String(veh.vehicleType || '').toUpperCase();
+        const joined = [veh.operationName, veh.projectName, veh.department, veh.model, veh.brand].filter(Boolean).join(' ').toUpperCase();
+
+        if (['VAN', 'UTILITARIO', 'SPRINTER', 'MASTER', 'DUCATO', 'TRANSIT', 'DAILY'].some(k => busType.includes(k) || vType.includes(k) || joined.includes(k))) {
+            return 'VAN';
+        }
+        if (['MICRO', 'MINIBUS', 'VOLARE', 'SENIOR', 'MICROONIBUS'].some(k => busType.includes(k) || vType.includes(k) || joined.includes(k))) {
+            return 'MICRO';
+        }
         if (['RODOVIARIO', 'LUXO_TURISMO', 'DOUBLE_DECKER', 'FRETADO', 'INTERMUNICIPAL', 'VIP'].includes(busType)
             || ['BUS_ROAD', 'BUS_LUXURY_TOURISM', 'BUS_INTERCITY'].includes(vType)) {
             return 'RODOVIARIO';
         }
-        const joined = [veh.operationName, veh.projectName, veh.department, veh.model].filter(Boolean).join(' ').toUpperCase();
         if (joined.includes('RODOV') || joined.includes('TURISM') || joined.includes('VIAGEM') || joined.includes('DOUBLE') || joined.includes('FRETAM')) {
             return 'RODOVIARIO';
         }
@@ -2098,8 +2105,10 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                     }));
                 }
 
-                // Atualiza tabela de ordens de serviço
-                onSuccess();
+                // Invalida dados em background para atualizar tabelas sem fechar o formulário atual
+                queryClient.invalidateQueries({ queryKey: ['fleet-work-orders'] });
+                queryClient.invalidateQueries({ queryKey: ['fleet-component-controls'] });
+                queryClient.invalidateQueries({ queryKey: ['system-alerts-center'] });
 
                 // Gera e carrega o Blob do PDF para visualização imediata
                 const blob = await generateFleetWorkOrderPDFBlob(savedOrder, {
@@ -2361,7 +2370,8 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
         }, []);
 
         return (
-            <ResponsiveDrawer isOpen={isOpen} onClose={handleCloseDrawer}
+            <>
+                <ResponsiveDrawer isOpen={isOpen} onClose={handleCloseDrawer}
                 title={currentOsNumber ? `OS #${currentOsNumber} — ${isEdit ? 'Editar' : 'Ordem de Serviço'}` : 'Nova Ordem de Serviço'}
                 description="Cadastre manutenções corretivas e preventivas com controle completo de checklist e execução."
                 footer={footer}
@@ -2804,6 +2814,8 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                                     <SelectContent className="bg-seguranca-black border-gray-600 z-[10060]">
                                                         <SelectItem value="URBANO">🚌 Urbano (10k óleo / 15k alternador / 150k rev. geral)</SelectItem>
                                                         <SelectItem value="RODOVIARIO">🛣️ Rodoviário (20k óleo / 15k alternador / 150k rev. geral)</SelectItem>
+                                                        <SelectItem value="MICRO">🚐 Micro-ônibus (10k óleo / 15k alternador / 150k rev. geral)</SelectItem>
+                                                        <SelectItem value="VAN">🚙 Van / Utilitário (10k óleo / 15k alternador / 150k rev. geral)</SelectItem>
                                                     </SelectContent>
                                                 </Select>
                                             </Field>
@@ -2876,13 +2888,15 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                         <Field label="Cliente (Opcional)">
                                             <SearchableSelect
                                                 value={formData.clientId || ''}
-                                                onChange={(v) => {
+                                                fallbackLabel={formData.clientName || undefined}
+                                                onChange={(v, opt) => {
                                                     setFormData(p => {
                                                         const currentWp = allWorkPosts.find((w: any) => w.id === (p.sectorId || p.workPostId));
                                                         const isCurrentWpValid = currentWp && currentWp.clientId === v;
                                                         return {
                                                             ...p,
                                                             clientId: v,
+                                                            clientName: opt ? opt.label : p.clientName,
                                                             sectorId: isCurrentWpValid ? p.sectorId : undefined,
                                                             workPostId: isCurrentWpValid ? p.workPostId : undefined,
                                                             workPostName: isCurrentWpValid ? p.workPostName : undefined
@@ -2899,14 +2913,16 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                             <SearchableSelect
                                                 value={formData.sectorId || formData.workPostId || ''}
                                                 fallbackLabel={formData.workPostName || undefined}
-                                                onChange={(v) => {
+                                                onChange={(v, opt) => {
                                                     const selectedWp = allWorkPosts.find((w: any) => w.id === v);
+                                                    const resolvedClient = selectedWp && selectedWp.clientId ? clients.find((c: any) => c.id === selectedWp.clientId) : undefined;
                                                     setFormData(p => ({
                                                         ...p,
                                                         sectorId: v,
                                                         workPostId: v,
-                                                        workPostName: selectedWp ? selectedWp.name : p.workPostName,
-                                                        clientId: (selectedWp && selectedWp.clientId) ? selectedWp.clientId : p.clientId
+                                                        workPostName: opt ? opt.label : (selectedWp ? selectedWp.name : p.workPostName),
+                                                        clientId: (selectedWp && selectedWp.clientId) ? selectedWp.clientId : p.clientId,
+                                                        clientName: resolvedClient ? resolvedClient.name : p.clientName
                                                     }));
                                                 }}
                                                 options={workPostOptions}
@@ -2918,7 +2934,12 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                         <Field label="Requerente (Opcional)">
                                             <SearchableSelect
                                                 value={formData.requesterId || ''}
-                                                onChange={(v) => setFormData(p => ({ ...p, requesterId: v }))}
+                                                fallbackLabel={formData.requesterName || undefined}
+                                                onChange={(v, opt) => setFormData(p => ({
+                                                    ...p,
+                                                    requesterId: v,
+                                                    requesterName: opt ? opt.label : p.requesterName
+                                                }))}
                                                 options={requesterOptions}
                                                 placeholder="Selecione o requerente (opcional)…"
                                                 searchPlaceholder="Buscar requerente por nome..."
@@ -4737,6 +4758,8 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                     </div>
                 )}
 
+                </ResponsiveDrawer>
+
                 {/* Modal de Pré-visualização e Impressão da OS em PDF */}
                 <FleetWorkOrderViewModal
                     isOpen={isPdfModalOpen}
@@ -4745,7 +4768,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                     pdfBlob={pdfPreviewBlob}
                     initialBlankMode={isBlankPdfMode}
                 />
-            </ResponsiveDrawer>
+            </>
         );
 };
 

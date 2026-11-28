@@ -499,7 +499,9 @@ public class FleetWorkOrderService {
             garage = garageRepository.findById(dto.getGarageId()).orElse(null);
         }
         if (garage == null) {
-            if (vehicle.getGarageId() != null) {
+            if (dto.getGarageName() != null && !dto.getGarageName().isBlank()) {
+                garage = garageService.getOrCreateByName(dto.getGarageName().trim(), companyId);
+            } else if (vehicle.getGarageId() != null) {
                 garage = garageRepository.findById(vehicle.getGarageId()).orElse(null);
             } else if (vehicle.getGarageName() != null && !vehicle.getGarageName().isBlank()) {
                 garage = garageService.getOrCreateByName(vehicle.getGarageName(), companyId);
@@ -711,6 +713,9 @@ public class FleetWorkOrderService {
         // Garagem: atualiza quando informada explicitamente
         if (dto.getGarageId() != null) {
             entity.setGarage(garageRepository.findById(dto.getGarageId()).orElse(null));
+        } else if (dto.getGarageName() != null && !dto.getGarageName().isBlank()) {
+            UUID compId = entity.getCompany() != null ? entity.getCompany().getId() : null;
+            entity.setGarage(garageService.getOrCreateByName(dto.getGarageName().trim(), compId));
         }
 
         // Cliente
