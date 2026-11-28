@@ -76,7 +76,9 @@ class EmailAccountServiceSmtpIntegrationTest {
 
         emailAccountService = new EmailAccountService(
                 accountRepository, folderRepository, messageRepository,
-                attachmentRepository, authenticationService, new ObjectMapper());
+                attachmentRepository, authenticationService, new ObjectMapper(),
+                mock(com.z7design.fleet_manager.repository.CompanyRepository.class),
+                mock(com.z7design.fleet_manager.repository.UserConsentRepository.class));
         ReflectionTestUtils.setField(emailAccountService, "storagePath", tempDir.toString());
     }
 

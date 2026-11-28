@@ -2,10 +2,12 @@ package com.z7design.fleet_manager.service.email;
 
 import com.z7design.fleet_manager.model.email.EmailAccount;
 import com.z7design.fleet_manager.model.email.EmailFolder;
+import com.z7design.fleet_manager.model.email.EmailMailboxQuota;
 import com.z7design.fleet_manager.model.email.EmailMessage;
 import com.z7design.fleet_manager.model.email.EmailMessageAttachment;
 import com.z7design.fleet_manager.repository.email.EmailAccountRepository;
 import com.z7design.fleet_manager.repository.email.EmailFolderRepository;
+import com.z7design.fleet_manager.repository.email.EmailMailboxQuotaRepository;
 import com.z7design.fleet_manager.repository.email.EmailMessageRepository;
 import com.z7design.fleet_manager.repository.email.EmailMessageAttachmentRepository;
 import lombok.RequiredArgsConstructor;
@@ -45,6 +47,7 @@ public class ImapSyncService {
     private final EmailMessageRepository messageRepository;
     private final EmailMessageAttachmentRepository attachmentRepository;
     private final EmailAccountService emailAccountService;
+    private final EmailMailboxQuotaRepository quotaRepository;
 
     @Value("${app.file.storage-path:data/files}")
     private String storagePath;
@@ -161,6 +164,7 @@ public class ImapSyncService {
                     log.warn("Falha ao espelhar pasta {}: {}", remoteFolder.getFullName(), e.getMessage());
                 }
             }
+            linkFolderParents(accountId);
         } catch (Exception e) {
             throw new IllegalArgumentException("Erro ao conectar ao servidor IMAP: " + emailAccountService.extractFriendlyError(e));
         }
@@ -311,6 +315,8 @@ public class ImapSyncService {
                     f.setDisplayName(display);
                     f.setDelimiter(String.valueOf(separator));
                     f.setAttributes(describeFolder(remoteFolder));
+                    f.setFullPath(remoteName);
+                    f.setSortOrder(computeSortOrder(remoteName, separator));
                     return f;
                 })
                 .orElseGet(() -> {
@@ -323,6 +329,8 @@ public class ImapSyncService {
                             .attributes(describeFolder(remoteFolder))
                             .highestUid(0L)
                             .totalMessages(0)
+                            .fullPath(remoteName)
+                            .sortOrder(computeSortOrder(remoteName, separator))
                             .system(SYSTEM_FOLDER.matcher(remoteName).find())
                             .build();
                     return folderRepository.save(f);
@@ -369,6 +377,19 @@ public class ImapSyncService {
         if (!rawAttachments.isEmpty()) {
             builder.hasAttachments(true);
         }
+
+        // Cota por caixa: bloqueia a importação quando o limite é atingido.
+        long msgSize = Math.max(0L, mime.getSize());
+        quotaRepository.findByAccountId(account.getId()).ifPresent(quota -> {
+            long used = quota.getUsedBytes() == null ? 0L : quota.getUsedBytes();
+            long max = quota.getMaxBytes() == null ? Long.MAX_VALUE : quota.getMaxBytes();
+            long size = msgSize;
+            if (used + size > max) {
+                throw new IllegalStateException("Cota de armazenamento da caixa de e-mail excedida");
+            }
+            quota.setUsedBytes(used + size);
+            quotaRepository.save(quota);
+        });
 
         EmailMessage saved = messageRepository.save(builder.build());
 
@@ -486,6 +507,30 @@ public class ImapSyncService {
             return String.join(",", attrs);
         } catch (MessagingException e) {
             return "";
+        }
+    }
+
+    /** Ordem determinística: pastas do sistema primeiro, depois por caminho completo. */
+    private int computeSortOrder(String remoteName, char separator) {
+        int depth = remoteName.isEmpty() ? 0 : remoteName.length() - remoteName.replace(String.valueOf(separator), "").length();
+        boolean system = SYSTEM_FOLDER.matcher(remoteName).find();
+        return (system ? 0 : 1000) + depth * 100;
+    }
+
+    /** Reconstitui a árvore de pastas do webmail de origem (cPanel) após o espelhamento. */
+    private void linkFolderParents(UUID accountId) {
+        List<EmailFolder> folders = folderRepository.findByAccount_IdOrderByRemoteNameAsc(accountId);
+        for (EmailFolder folder : folders) {
+            String path = folder.getFullPath() != null ? folder.getFullPath() : folder.getRemoteName();
+            String delimiter = folder.getDelimiter() != null && !folder.getDelimiter().isBlank()
+                    ? folder.getDelimiter() : "/";
+            int idx = path.lastIndexOf(delimiter);
+            if (idx <= 0)
+                continue;
+            String parentPath = path.substring(0, idx);
+            folderRepository.findByAccount_IdAndRemoteName(accountId, parentPath)
+                    .ifPresent(folder::setParent);
+            folderRepository.save(folder);
         }
     }
 

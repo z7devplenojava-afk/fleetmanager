@@ -1,0 +1,37 @@
+# Servidor de e-mail do domínio fluxbus.com.br na VPS.
+# Antes de subir: configurar DNS (MX, A, PTR, SPF, DKIM, DMARC) conforme
+# docs/EMAIL_SYSTEM_ARCHITECTURE.md e liberar a porta 25 no provedor da VPS.
+#
+# As portas HTTP/HTTPS do mailcow NÃO são publicadas aqui: o reverse proxy
+# nginx/Traefik existente na VPS deve publicar 80/443 e encaminhar para
+# nginx-mailcow na rede fluxbus-mail. Ajuste o upstream conforme seu proxy.
+
+services:
+  mailcow:
+    image: mailcow/mailcow-dockerized:latest
+    container_name: fluxbus-mailcow
+    restart: unless-stopped
+    hostname: mail.fluxbus.com.br
+    env_file:
+      - ./mailcow.env
+    environment:
+      - TZ=America/Sao_Paulo
+    ports:
+      - "25:25"      # SMTP (recebimento / MX)
+      - "465:465"    # SMTPS (submissão)
+      - "587:587"    # STARTTLS (submissão)
+      - "143:143"    # IMAP
+      - "993:993"    # IMAPS
+    volumes:
+      - mailcow_data:/opt/mailcow-dockerized
+    networks:
+      - fluxbus-mail
+
+volumes:
+  mailcow_data:
+    driver: local
+
+networks:
+  fluxbus-mail:
+    name: fluxbus-mail
+    driver: bridge

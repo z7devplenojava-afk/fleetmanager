@@ -54,8 +54,11 @@ public class CommercialEmailQuotationService {
     private String storageBasePath;
 
     private static final String DEFAULT_COMMERCIAL_EMAIL = "comercialvss@viacaosaosilvestre.com.br";
-    private static final String DEFAULT_COMMERCIAL_PASS = "Comerci@l2026";
     private static final String DEFAULT_HOST = "mail.viacaosaosilvestre.com.br";
+
+    /** Senha vem de variável de ambiente/secret — nunca do código-fonte. */
+    @Value("${app.email.commercial.password:}")
+    private String commercialEmailPassword;
 
     /**
      * Obtém ou inicializa a configuração de e-mail comercial corporativo da empresa.
@@ -64,6 +67,10 @@ public class CommercialEmailQuotationService {
     public CommercialEmailConfigDTO getConfig(UUID companyId) {
         EmailAccount account = findCommercialAccount(companyId);
         if (account == null) {
+            if (commercialEmailPassword == null || commercialEmailPassword.isBlank()) {
+                throw new IllegalStateException(
+                        "E-mail comercial não configurado. Defina app.email.commercial.password (ou APP_EMAIL_COMMERCIAL_PASSWORD) no servidor.");
+            }
             // Inicializar com as credenciais oficiais da Viação São Silvestre
             account = EmailAccount.builder()
                     .companyId(companyId)
@@ -76,7 +83,7 @@ public class CommercialEmailQuotationService {
                     .smtpPort(465)
                     .smtpSsl(true)
                     .username(DEFAULT_COMMERCIAL_EMAIL)
-                    .password(DEFAULT_COMMERCIAL_PASS)
+                    .password(commercialEmailPassword)
                     .authType("PASSWORD")
                     .status("ACTIVE")
                     .build();
@@ -132,7 +139,7 @@ public class CommercialEmailQuotationService {
         req.setSmtpPort(dto.getSmtpPort() != null ? dto.getSmtpPort() : 465);
         req.setSmtpSsl(dto.getSmtpSsl() != null ? dto.getSmtpSsl() : true);
         req.setUsername(dto.getUsername() != null ? dto.getUsername() : req.getEmailAddress());
-        req.setPassword(dto.getPassword() != null ? dto.getPassword() : DEFAULT_COMMERCIAL_PASS);
+        req.setPassword(dto.getPassword() != null ? dto.getPassword() : commercialEmailPassword);
 
         return emailAccountService.testCredentials(req);
     }

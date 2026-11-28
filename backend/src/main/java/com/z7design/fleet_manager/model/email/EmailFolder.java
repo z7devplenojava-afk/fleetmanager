@@ -69,6 +69,15 @@ public class EmailFolder {
     @Builder.Default
     private Integer totalMessages = 0;
 
+    /** Caminho completo no servidor (ex.: INBOX/Clientes/2026) para preservar a árvore do cPanel. */
+    @Column(name = "full_path", length = 500)
+    private String fullPath;
+
+    /** Ordem de exibição da pasta na árvore. */
+    @Column(name = "sort_order")
+    @Builder.Default
+    private Integer sortOrder = 0;
+
     @Column(name = "is_system")
     @Builder.Default
     private Boolean system = false;

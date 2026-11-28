@@ -11,6 +11,7 @@ import com.z7design.fleet_manager.model.email.EmailMessageAttachment;
 import com.z7design.fleet_manager.repository.email.EmailFolderRepository;
 import com.z7design.fleet_manager.repository.email.EmailMessageAttachmentRepository;
 import com.z7design.fleet_manager.repository.email.EmailMessageRepository;
+import com.z7design.fleet_manager.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -74,18 +75,31 @@ public class EmailMessageService {
         return new PageImpl<>(dto, pageable, total);
     }
 
+    // ==================== ISOLAMENTO MULTI-TENANT ====================
+
+    private void validateTenant(UUID companyId) {
+        UUID tenant = TenantContext.get();
+        if (tenant != null && companyId != null && !tenant.equals(companyId)) {
+            throw new IllegalArgumentException("Acesso negado: registro de outra empresa");
+        }
+    }
+
+    private EmailMessage findMessageScoped(UUID id) {
+        EmailMessage message = messageRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Mensagem não encontrada"));
+        validateTenant(message.getCompanyId());
+        return message;
+    }
+
     // ==================== LEITURA ====================
 
     public EmailMessageDTO getMessage(UUID id) {
-        EmailMessage message = messageRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Mensagem não encontrada"));
-        return toFullDTO(message);
+        return toFullDTO(findMessageScoped(id));
     }
 
     @Transactional
     public EmailMessageDTO getMessageAndMarkRead(UUID id) {
-        EmailMessage message = messageRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Mensagem não encontrada"));
+        EmailMessage message = findMessageScoped(id);
         if (!Boolean.TRUE.equals(message.getRead())) {
             messageRepository.updateReadStatus(id, true);
             message.setRead(true);
@@ -97,15 +111,15 @@ public class EmailMessageService {
 
     @Transactional
     public EmailMessageDTO markRead(UUID id, boolean read) {
+        EmailMessage message = findMessageScoped(id);
         messageRepository.updateReadStatus(id, read);
-        return toFullDTO(messageRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Mensagem não encontrada")));
+        message.setRead(read);
+        return toFullDTO(message);
     }
 
     @Transactional
     public EmailMessageDTO toggleFlag(UUID id) {
-        EmailMessage message = messageRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Mensagem não encontrada"));
+        EmailMessage message = findMessageScoped(id);
         boolean newFlag = !Boolean.TRUE.equals(message.getFlagged());
         messageRepository.updateFlaggedStatus(id, newFlag);
         message.setFlagged(newFlag);
@@ -114,6 +128,7 @@ public class EmailMessageService {
 
     @Transactional
     public void deleteMessage(UUID id) {
+        findMessageScoped(id);
         messageRepository.deleteById(id);
     }
 
@@ -126,10 +141,10 @@ public class EmailMessageService {
      */
     @Transactional
     public EmailMessageDTO moveMessage(UUID messageId, UUID targetFolderId) {
-        EmailMessage msg = messageRepository.findById(messageId)
-                .orElseThrow(() -> new IllegalArgumentException("Mensagem não encontrada"));
+        EmailMessage msg = findMessageScoped(messageId);
         EmailFolder target = folderRepository.findById(targetFolderId)
                 .orElseThrow(() -> new IllegalArgumentException("Pasta de destino não encontrada"));
+        validateTenant(target.getCompanyId());
 
         if (!msg.getAccount().getId().equals(target.getAccount().getId())) {
             throw new IllegalArgumentException("A pasta de destino pertence a outra conta");
@@ -193,8 +208,10 @@ public class EmailMessageService {
     // ==================== ANEXOS ====================
 
     public EmailMessageAttachment getAttachment(UUID attachmentId) {
-        return attachmentRepository.findById(attachmentId)
+        EmailMessageAttachment att = attachmentRepository.findById(attachmentId)
                 .orElseThrow(() -> new IllegalArgumentException("Anexo não encontrado"));
+        validateTenant(att.getCompanyId());
+        return att;
     }
 
     public byte[] readAttachmentBytes(EmailMessageAttachment att) {

@@ -4,9 +4,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.z7design.fleet_manager.dto.EmailAccountDTO;
 import com.z7design.fleet_manager.dto.EmailAccountRequest;
 import com.z7design.fleet_manager.dto.EmailSendRequest;
+import com.z7design.fleet_manager.model.Company;
 import com.z7design.fleet_manager.model.User;
 import com.z7design.fleet_manager.model.email.EmailAccount;
 import com.z7design.fleet_manager.model.email.EmailMessageAttachment;
+import com.z7design.fleet_manager.repository.CompanyRepository;
+import com.z7design.fleet_manager.repository.UserConsentRepository;
 import com.z7design.fleet_manager.repository.email.EmailAccountRepository;
 import com.z7design.fleet_manager.repository.email.EmailFolderRepository;
 import com.z7design.fleet_manager.repository.email.EmailMessageRepository;
@@ -45,6 +48,8 @@ public class EmailAccountService {
     private final EmailMessageAttachmentRepository attachmentRepository;
     private final AuthenticationService authenticationService;
     private final ObjectMapper objectMapper;
+    private final CompanyRepository companyRepository;
+    private final UserConsentRepository userConsentRepository;
 
     @Value("${app.file.storage-path:data/files}")
     private String storagePath;
@@ -81,8 +86,31 @@ public class EmailAccountService {
             throw new IllegalArgumentException("Senha é obrigatória");
         }
 
+        // LGPD: criação de caixa profissional exige aceite específico.
+        if (currentUser != null && !isSuperAdmin(currentUser)
+                && !userConsentRepository.hasAcceptedProfessionalEmail(currentUser.getId())) {
+            throw new IllegalStateException(
+                    "É necessário aceitar o termo de uso profissional de e-mail (LGPD) antes de criar uma caixa.");
+        }
+
+        // O e-mail deve pertencer ao domínio cadastrado na empresa do usuário.
+        String email = request.getEmailAddress().trim().toLowerCase();
+        String domain = email.contains("@") ? email.substring(email.lastIndexOf('@') + 1) : "";
+        Company company = companyId != null ? companyRepository.findById(companyId).orElse(null) : null;
+        String allowedDomain = company != null && StringUtils.hasText(company.getEmailDomain())
+                ? company.getEmailDomain().trim().toLowerCase().replaceFirst("^@", "")
+                : null;
+        if (!StringUtils.hasText(allowedDomain)) {
+            throw new IllegalArgumentException(
+                    "A empresa não possui domínio de e-mail cadastrado. Solicite ao administrador.");
+        }
+        if (!allowedDomain.equalsIgnoreCase(domain)) {
+            throw new IllegalArgumentException(
+                    "O e-mail deve usar o domínio da empresa: @" + allowedDomain);
+        }
+
         // Impede duplicidade por empresa
-        accountRepository.findByCompanyIdAndEmailAddressIgnoreCase(companyId, request.getEmailAddress().trim())
+        accountRepository.findByCompanyIdAndEmailAddressIgnoreCase(companyId, email)
                 .ifPresent(a -> {
                     throw new IllegalArgumentException("Conta de e-mail já cadastrada: " + a.getEmailAddress());
                 });
@@ -109,6 +137,14 @@ public class EmailAccountService {
         EmailAccount saved = accountRepository.save(account);
         log.info("📧 Conta de e-mail criada: {} (empresa {})", saved.getEmailAddress(), companyId);
         return toDTO(saved);
+    }
+
+    private boolean isSuperAdmin(User user) {
+        if (user == null || user.getRoles() == null)
+            return false;
+        return user.getRoles().stream()
+                .filter(Objects::nonNull)
+                .anyMatch(r -> r.getName() != null && "SUPER_ADMIN".equalsIgnoreCase(r.getName().trim()));
     }
 
     @Transactional

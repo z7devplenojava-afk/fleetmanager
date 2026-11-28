@@ -59,6 +59,9 @@ import {
 } from '@/services/emailAccountService';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useAuth } from '@/contexts/AuthContext';
+import api from '@/lib/axios';
+import { ProfessionalEmailConsentModal } from '@/components/email/ProfessionalEmailConsentModal';
 
 // ==================== UTILS ====================
 
@@ -818,6 +821,8 @@ export default function EmailModule() {
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [accountModalOpen, setAccountModalOpen] = useState(false);
+  const [consentModalOpen, setConsentModalOpen] = useState(false);
+  const { user } = useAuth();
   const [editingAccount, setEditingAccount] = useState<EmailAccount | null>(null);
   const [composeOpen, setComposeOpen] = useState(false);
   const [composeMode, setComposeMode] = useState<ComposeMode>('new');
@@ -829,6 +834,27 @@ export default function EmailModule() {
   const showNotice = (msg: string) => {
     setNotice(msg);
     setTimeout(() => setNotice(''), 5000);
+  };
+
+  /** LGPD: exige aceite específico antes de criar uma caixa profissional. */
+  const handleOpenNewAccount = async () => {
+    setEditingAccount(null);
+    if (!user?.id) {
+      setAccountModalOpen(true);
+      return;
+    }
+    try {
+      const res = await api.get(`/lgpd/consents/${user.id}`);
+      const list: Array<{ consentType?: string; accepted?: boolean; revoked?: boolean }> =
+        Array.isArray(res.data) ? res.data : [];
+      const accepted = list.some(c =>
+        c.consentType === 'PROFESSIONAL_EMAIL' && c.accepted === true && c.revoked !== true);
+      if (accepted) setAccountModalOpen(true);
+      else setConsentModalOpen(true);
+    } catch {
+      // Se não for possível consultar, deixa o backend validar no cadastro.
+      setAccountModalOpen(true);
+    }
   };
 
   const loadAccounts = useCallback(async () => {
@@ -1161,7 +1187,7 @@ export default function EmailModule() {
           <Button
             variant="outline"
             className="border-border text-primary"
-            onClick={() => { setEditingAccount(null); setAccountModalOpen(true); }}
+            onClick={handleOpenNewAccount}
           >
             <Plus className="h-4 w-4 mr-2" />
             Nova conta
@@ -1224,7 +1250,7 @@ export default function EmailModule() {
               Conecte uma conta de e-mail informando as credenciais IMAP/SMTP. O sistema
               importará pastas e mensagens e permitirá enviar pelo SMTP.
             </p>
-            <Button onClick={() => { setEditingAccount(null); setAccountModalOpen(true); }}>
+            <Button onClick={handleOpenNewAccount}>
               <Plus className="h-4 w-4 mr-2" />
               Conectar primeira conta
             </Button>
@@ -1582,6 +1608,11 @@ export default function EmailModule() {
         </div>
       )}
 
+      <ProfessionalEmailConsentModal
+        open={consentModalOpen}
+        onClose={() => setConsentModalOpen(false)}
+        onAccepted={() => setAccountModalOpen(true)}
+      />
       <AccountFormModal
         open={accountModalOpen}
         onClose={() => setAccountModalOpen(false)}

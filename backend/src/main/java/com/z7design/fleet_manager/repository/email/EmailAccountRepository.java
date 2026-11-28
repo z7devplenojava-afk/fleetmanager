@@ -18,4 +18,6 @@ public interface EmailAccountRepository extends JpaRepository<EmailAccount, UUID
     Optional<EmailAccount> findByEmailAddressIgnoreCase(String emailAddress);
 
     long countByCompanyId(UUID companyId);
+
+    List<EmailAccount> findByStatus(String status);
 }

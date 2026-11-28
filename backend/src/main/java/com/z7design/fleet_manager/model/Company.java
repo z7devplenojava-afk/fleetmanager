@@ -102,6 +102,11 @@ public class Company {
     @Column(name = "icon_url", length = 500)
     private String iconUrl;
 
+    /** Domínio obrigatório para criação de e-mails profissionais da empresa. */
+    @Size(max = 120, message = "Domínio de e-mail must not exceed 120 characters")
+    @Column(name = "email_domain", length = 120)
+    private String emailDomain;
+
     // ===================== Dados fiscais =====================
 
     @Size(max = 20, message = "Inscrição estadual must not exceed 20 characters")

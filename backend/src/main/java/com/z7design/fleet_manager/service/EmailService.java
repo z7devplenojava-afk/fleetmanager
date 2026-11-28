@@ -19,7 +19,7 @@ public class EmailService {
 
     private final JavaMailSender mailSender;
 
-    @Value("${spring.mail.username:securedguard@z7design.com.br}")
+    @Value("${spring.mail.username:noreply@fluxbus.com.br}")
     private String fromEmail;
 
     @Value("${spring.mail.properties.mail.smtp.auth:true}")

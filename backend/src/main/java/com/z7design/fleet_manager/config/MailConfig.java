@@ -24,7 +24,7 @@ public class MailConfig {
     @Value("${spring.mail.port:465}")
     private int port;
 
-    @Value("${spring.mail.username:securedguard@z7design.com.br}")
+    @Value("${spring.mail.username:noreply@fluxbus.com.br}")
     private String username;
 
     @Value("${spring.mail.password:}")

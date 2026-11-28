@@ -51,11 +51,22 @@ class EmailAccountServiceIntegrationTest {
         attachmentRepository = mock(EmailMessageAttachmentRepository.class);
         AuthenticationService authenticationService = mock(AuthenticationService.class);
 
+        com.z7design.fleet_manager.repository.CompanyRepository companyRepository =
+                mock(com.z7design.fleet_manager.repository.CompanyRepository.class);
+        com.z7design.fleet_manager.repository.UserConsentRepository consentRepository =
+                mock(com.z7design.fleet_manager.repository.UserConsentRepository.class);
+
         emailAccountService = new EmailAccountService(
                 accountRepository, folderRepository, messageRepository,
-                attachmentRepository, authenticationService, new ObjectMapper());
+                attachmentRepository, authenticationService, new ObjectMapper(),
+                companyRepository, consentRepository);
 
         companyId = UUID.randomUUID();
+        com.z7design.fleet_manager.model.Company company = new com.z7design.fleet_manager.model.Company();
+        company.setId(companyId);
+        company.setEmailDomain("test.com");
+        when(companyRepository.findById(any(UUID.class))).thenReturn(Optional.of(company));
+        when(consentRepository.hasAcceptedProfessionalEmail(any(UUID.class))).thenReturn(true);
         TenantContext.clear(); // isola o ThreadLocal entre execuções
     }
 

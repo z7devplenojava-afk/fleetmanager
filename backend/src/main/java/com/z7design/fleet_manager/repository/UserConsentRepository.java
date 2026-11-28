@@ -82,6 +82,15 @@ public interface UserConsentRepository extends JpaRepository<UserConsent, UUID> 
     default Optional<UserConsent> findLatestConsentByType(UUID userId, ConsentType consentType) {
         return findFirstByUserIdAndConsentTypeOrderByCreatedAtDesc(userId, consentType);
     }
+
+    /** LGPD: o usuário precisa aceitar o termo de uso profissional de e-mail. */
+    default boolean hasAcceptedProfessionalEmail(UUID userId) {
+        if (userId == null)
+            return false;
+        return findLatestConsentByType(userId, ConsentType.PROFESSIONAL_EMAIL)
+                .map(c -> Boolean.TRUE.equals(c.getAccepted()) && !Boolean.TRUE.equals(c.getRevoked()))
+                .orElse(false);
+    }
 }
 
 

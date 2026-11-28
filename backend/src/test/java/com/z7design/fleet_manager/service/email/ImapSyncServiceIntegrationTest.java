@@ -117,12 +117,15 @@ class ImapSyncServiceIntegrationTest {
 
         emailAccountService = new EmailAccountService(
                 accountRepository, folderRepository, messageRepository,
-                attachmentRepository, authenticationService, new ObjectMapper());
+                attachmentRepository, authenticationService, new ObjectMapper(),
+                mock(com.z7design.fleet_manager.repository.CompanyRepository.class),
+                mock(com.z7design.fleet_manager.repository.UserConsentRepository.class));
         ReflectionTestUtils.setField(emailAccountService, "storagePath", tempDir.toString());
 
         imapSyncService = new ImapSyncService(
                 accountRepository, folderRepository, messageRepository,
-                attachmentRepository, emailAccountService);
+                attachmentRepository, emailAccountService,
+                mock(com.z7design.fleet_manager.repository.email.EmailMailboxQuotaRepository.class));
         ReflectionTestUtils.setField(imapSyncService, "storagePath", tempDir.toString());
         ReflectionTestUtils.setField(imapSyncService, "syncBatchSize", 50);
         ReflectionTestUtils.setField(imapSyncService, "syncMaxMessages", 2000);

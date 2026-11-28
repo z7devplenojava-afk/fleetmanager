@@ -85,7 +85,8 @@ public class UserConsent {
     public enum ConsentType {
         TERMS_OF_USE,       // Termos de Uso
         PRIVACY_POLICY,     // PolÃ­tica de Privacidade
-        DATA_PROCESSING     // Processamento de Dados
+        DATA_PROCESSING,    // Processamento de Dados
+        PROFESSIONAL_EMAIL  // Uso profissional de e-mail corporativo (LGPD)
     }
 }
 
