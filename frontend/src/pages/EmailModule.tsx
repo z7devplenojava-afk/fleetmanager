@@ -177,6 +177,7 @@ function AccountFormModal({ open, onClose, onSaved, existing }: AccountFormProps
     signature: '',
   });
   const [showPassword, setShowPassword] = useState(false);
+  const [createNew, setCreateNew] = useState(false);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ imap?: boolean; smtp?: boolean; message?: string } | null>(null);
@@ -186,6 +187,7 @@ function AccountFormModal({ open, onClose, onSaved, existing }: AccountFormProps
     if (open) {
       setError('');
       setTestResult(null);
+      setCreateNew(false);
       if (existing) {
         setForm({
           emailAddress: existing.emailAddress,
@@ -242,8 +244,10 @@ function AccountFormModal({ open, onClose, onSaved, existing }: AccountFormProps
 
   const validate = (): string => {
     if (!form.emailAddress || !form.emailAddress.includes('@')) return 'Informe um e-mail válido';
-    if (!form.imapHost) return 'Informe o servidor IMAP';
-    if (!form.imapPort) return 'Informe a porta IMAP';
+    if (!createNew) {
+      if (!form.imapHost) return 'Informe o servidor IMAP';
+      if (!form.imapPort) return 'Informe a porta IMAP';
+    }
     if (!form.password && !existing) return 'Informe a senha';
     return '';
   };
@@ -284,6 +288,13 @@ function AccountFormModal({ open, onClose, onSaved, existing }: AccountFormProps
     try {
       if (existing) {
         await emailAccountService.updateAccount(existing.id, form);
+      } else if (createNew) {
+        const res = await api.post('/email/provisioning/mailboxes', {
+          emailAddress: form.emailAddress,
+          displayName: form.displayName,
+          password: form.password,
+        });
+        if (!res.data?.success) throw new Error(res.data?.error || 'Falha ao criar a caixa');
       } else {
         await emailAccountService.createAccount(form);
       }
@@ -304,12 +315,34 @@ function AccountFormModal({ open, onClose, onSaved, existing }: AccountFormProps
         <DialogHeader>
           <DialogTitle className="text-white flex items-center gap-2">
             <Mail className="h-5 w-5 text-primary" />
-            {existing ? 'Editar Conta de E-mail' : 'Conectar Conta de E-mail'}
+            {existing ? 'Editar Conta de E-mail'
+              : createNew ? 'Criar Caixa Corporativa' : 'Conectar Conta de E-mail'}
           </DialogTitle>
           <DialogDescription className="text-muted-foreground">
-            Informe as credenciais IMAP/SMTP. As senhas são armazenadas criptografadas.
+            {createNew
+              ? 'A caixa é criada no Mailcow com o domínio da empresa e o DNS é configurado automaticamente.'
+              : 'Informe as credenciais IMAP/SMTP. As senhas são armazenadas criptografadas.'}
           </DialogDescription>
         </DialogHeader>
+
+        {!existing && (
+          <div className="flex gap-2 rounded-lg border border-border p-1">
+            <button
+              type="button"
+              onClick={() => setCreateNew(false)}
+              className={`flex-1 rounded-md px-3 py-1.5 text-xs font-semibold ${!createNew ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              Conectar conta existente
+            </button>
+            <button
+              type="button"
+              onClick={() => setCreateNew(true)}
+              className={`flex-1 rounded-md px-3 py-1.5 text-xs font-semibold ${createNew ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              Criar nova caixa @empresa
+            </button>
+          </div>
+        )}
 
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
