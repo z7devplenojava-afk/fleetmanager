@@ -155,6 +155,14 @@ public class FuelPumpController {
         return dto;
     }
 
+    @GetMapping("/tank-alerts")
+    public ResponseEntity<List<FuelTankAlertLog>> getTankAlerts(
+            @RequestParam(required = false) UUID tankId,
+            Authentication authentication) {
+        UUID companyId = getCompanyId(authentication);
+        return ResponseEntity.ok(fuelPumpService.getTankAlertLogs(companyId, tankId));
+    }
+
     private FuelDeliveryDTO convertToDTO(FuelDelivery delivery) {
         FuelDeliveryDTO dto = new FuelDeliveryDTO();
         dto.setId(delivery.getId());

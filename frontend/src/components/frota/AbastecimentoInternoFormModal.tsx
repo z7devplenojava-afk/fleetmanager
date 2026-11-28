@@ -34,6 +34,7 @@ import {
   MapPin,
   Briefcase,
   FileText,
+  DollarSign,
 } from 'lucide-react';
 import fleetService from '@/services/fleetService';
 import { employeeService } from '@/services/employeeService';
@@ -46,6 +47,7 @@ import { VehicleCombobox } from '@/components/ui/vehicle-combobox';
 import { workPostService, WorkPost } from '@/services/workPostService';
 import { clientService, Client } from '@/services/clientService';
 import arlaService from '@/services/arlaService';
+import InternalFuelReceiptModal, { InternalFuelReceiptData } from './InternalFuelReceiptModal';
 
 interface InternalFuelFormData {
   // Localização
@@ -74,10 +76,13 @@ interface InternalFuelFormData {
   initialMileage: number;
   mileage: number;
   liters: number;
+  dieselPricePerLiter?: number;
+  dieselCost?: number;
 
   // ARLA 32 Conjugado
   hasArla: boolean;
   arlaLiters: number;
+  arlaPricePerLiter?: number;
   arlaCost: number;
 
   notes: string;
@@ -124,8 +129,11 @@ const DEFAULT_FORM: InternalFuelFormData = {
   initialMileage: 0,
   mileage: 0,
   liters: 0,
+  dieselPricePerLiter: 0,
+  dieselCost: 0,
   hasArla: false,
   arlaLiters: 0,
+  arlaPricePerLiter: 0,
   arlaCost: 0,
   notes: '',
 };
@@ -152,6 +160,8 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
   const [mileageError, setMileageError] = useState<string | null>(null);
   const [mileageWarning, setMileageWarning] = useState<string | null>(null);
   const [selectedVehicleObj, setSelectedVehicleObj] = useState<any>(null);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [receiptData, setReceiptData] = useState<InternalFuelReceiptData | null>(null);
 
   // Reset form when modal opens
   useEffect(() => {
@@ -403,7 +413,7 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
       }
       return record;
     },
-    onSuccess: () => {
+    onSuccess: (savedRecord: any) => {
       toast({
         title: 'Sucesso!',
         description: formData.hasArla && formData.arlaLiters > 0
@@ -413,8 +423,37 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
       queryClient.invalidateQueries({ queryKey: ['fuelRecords'] });
       queryClient.invalidateQueries({ queryKey: ['vehicles'] });
       queryClient.invalidateQueries({ queryKey: ['arlaRecords'] });
+      queryClient.invalidateQueries({ queryKey: ['fuelTanks'] });
       onSuccess();
-      onClose();
+
+      // Abrir modal de comprovante de abastecimento interno automaticamente com opções A4 e 80mm
+      setReceiptData({
+        fuelRecordId: savedRecord?.id,
+        fuelCode: formData.fuelCode,
+        date: formData.date,
+        garageName: formData.garageName,
+        pumpName: formData.pumpName,
+        tankName: formData.tankName,
+        responsibleName: formData.responsibleName,
+        vehiclePlate: formData.vehiclePlate,
+        vehicleBrand: selectedVehicle?.brand,
+        vehicleModel: selectedVehicle?.model,
+        clientName: formData.clientName,
+        obraName: formData.obraName,
+        fuelType: formData.fuelType,
+        initialMileage: formData.initialMileage,
+        mileage: formData.mileage,
+        liters: formData.liters,
+        dieselPricePerLiter: formData.dieselPricePerLiter,
+        dieselCost: formData.dieselCost,
+        hasArla: formData.hasArla,
+        arlaLiters: formData.arlaLiters,
+        arlaPricePerLiter: formData.arlaPricePerLiter,
+        arlaCost: formData.arlaCost,
+        totalCost: ((formData.dieselCost || 0) + (formData.arlaCost || 0)) || undefined,
+        notes: formData.notes,
+      });
+      setShowReceiptModal(true);
     },
     onError: (err: any) => {
       toast({
@@ -431,12 +470,17 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
       return;
     }
 
+    const dieselTotal = formData.dieselCost || (formData.dieselPricePerLiter && formData.liters ? formData.liters * formData.dieselPricePerLiter : 0);
+    const arlaTotal = formData.arlaCost || (formData.arlaPricePerLiter && formData.arlaLiters ? formData.arlaLiters * formData.arlaPricePerLiter : 0);
+    const totalConsolidado = (dieselTotal || 0) + (arlaTotal || 0);
+
     const payload = {
       vehicleId: formData.vehicleId,
       date: formData.date,
       fuelType: formData.fuelType,
       quantity: formData.liters,
-      cost: 0, // Abastecimento interno — sem custo externo
+      cost: totalConsolidado,
+      pricePerLiter: formData.dieselPricePerLiter || null,
       mileage: formData.mileage,
       initialMileage: formData.initialMileage || null,
       station: formData.garageName || 'Abastecimento Interno',
@@ -446,9 +490,12 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
         `Garagem: ${formData.garageName || 'N/I'}`,
         `Bomba/Tanque: ${formData.pumpName || formData.tankName || 'N/I'}`,
         formData.responsibleName ? `Responsável: ${formData.responsibleName}` : null,
-        formData.hasArla && formData.arlaLiters > 0 ? `ARLA 32: ${formData.arlaLiters}L${formData.arlaCost ? ` (R$ ${formData.arlaCost})` : ''}` : null,
+        formData.hasArla && formData.arlaLiters > 0 ? `ARLA 32: ${formData.arlaLiters}L${formData.arlaPricePerLiter ? ` (R$ ${formData.arlaPricePerLiter.toFixed(2)}/L = R$ ${(formData.arlaCost || (formData.arlaLiters * formData.arlaPricePerLiter)).toFixed(2)})` : (formData.arlaCost ? ` (R$ ${formData.arlaCost})` : '')}` : null,
         formData.notes,
       ].filter(Boolean).join(' | '),
+      pumpId: formData.pumpId || null,
+      tankId: formData.tankId || null,
+      isInternal: true,
       costCenter: null,
       clientId: null,
       clientName: formData.clientName || null,
@@ -457,7 +504,6 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
       contractId: null,
       contractNumber: null,
       supplierId: null,
-      isInternal: true,
     };
 
     const fd = new FormData();
@@ -1046,37 +1092,138 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
                 </div>
 
                 {formData.hasArla && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2.5 border-t border-blue-900/40 animate-in fade-in-50">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-gray-300 font-medium">Litros de ARLA 32 *</Label>
-                      <div className="relative">
-                        <Input
-                          type="number"
-                          step="0.1"
-                          value={formData.arlaLiters || ''}
-                          onChange={(e) => setField('arlaLiters', Number(e.target.value))}
-                          placeholder="Ex: 10.0"
-                          className="bg-gray-900 border-blue-700/60 text-white h-10 text-sm font-semibold"
-                        />
-                        <span className="absolute right-3 top-2.5 text-xs text-blue-400 font-bold">L</span>
+                  <div className="space-y-3 pt-2.5 border-t border-blue-900/40 animate-in fade-in-50">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-gray-300 font-medium">Litros de ARLA 32 *</Label>
+                        <div className="relative">
+                          <Input
+                            type="number"
+                            step="0.1"
+                            value={formData.arlaLiters || ''}
+                            onChange={(e) => {
+                              const liters = Number(e.target.value);
+                              const price = formData.arlaPricePerLiter || 0;
+                              setFormData(prev => ({
+                                ...prev,
+                                arlaLiters: liters,
+                                arlaCost: price > 0 ? Number((liters * price).toFixed(2)) : prev.arlaCost,
+                              }));
+                            }}
+                            placeholder="Ex: 10.0"
+                            className="bg-gray-900 border-blue-700/60 text-white h-10 text-sm font-semibold"
+                          />
+                          <span className="absolute right-3 top-2.5 text-xs text-blue-400 font-bold">L</span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-gray-300 font-medium">Valor Total ARLA 32 (R$ opcional)</Label>
-                      <div className="relative">
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={formData.arlaCost || ''}
-                          onChange={(e) => setField('arlaCost', Number(e.target.value))}
-                          placeholder="0.00"
-                          className="bg-gray-900 border-gray-700 text-white h-10 text-sm"
-                        />
-                        <span className="absolute right-3 top-2.5 text-xs text-gray-500">R$</span>
+
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-gray-300 font-medium">Preço / Litro ARLA 32</Label>
+                        <div className="relative">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={formData.arlaPricePerLiter || ''}
+                            onChange={(e) => {
+                              const price = Number(e.target.value);
+                              const liters = formData.arlaLiters || 0;
+                              setFormData(prev => ({
+                                ...prev,
+                                arlaPricePerLiter: price,
+                                arlaCost: liters > 0 ? Number((liters * price).toFixed(2)) : prev.arlaCost,
+                              }));
+                            }}
+                            placeholder="Ex: 3.50"
+                            className="bg-gray-900 border-blue-700/60 text-white h-10 text-sm"
+                          />
+                          <span className="absolute right-3 top-2.5 text-xs text-blue-300 font-mono">R$/L</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs text-gray-300 font-medium">Valor Total ARLA 32</Label>
+                          <span className="text-[10px] text-emerald-400 font-medium">Soma Automática</span>
+                        </div>
+                        <div className="relative">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={formData.arlaCost || ''}
+                            onChange={(e) => {
+                              const cost = Number(e.target.value);
+                              const liters = formData.arlaLiters || 0;
+                              setFormData(prev => ({
+                                ...prev,
+                                arlaCost: cost,
+                                arlaPricePerLiter: liters > 0 ? Number((cost / liters).toFixed(2)) : prev.arlaPricePerLiter,
+                              }));
+                            }}
+                            placeholder="0.00"
+                            className="bg-gray-900 border-emerald-600/60 text-emerald-300 font-semibold h-10 text-sm"
+                          />
+                          <span className="absolute right-3 top-2.5 text-xs text-emerald-400 font-bold">R$</span>
+                        </div>
                       </div>
                     </div>
                   </div>
                 )}
+              </div>
+
+              {/* Resumo da Soma / Totalização do Abastecimento */}
+              <div className="p-3.5 rounded-xl border border-emerald-800/40 bg-emerald-950/20 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-emerald-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <DollarSign className="h-3.5 w-3.5 text-emerald-400" />
+                    Composição e Total do Abastecimento
+                  </span>
+                  <span className="text-xs font-bold text-emerald-400 font-mono">
+                    R$ {(((formData.dieselCost || 0) + (formData.hasArla ? (formData.arlaCost || 0) : 0))).toFixed(2)}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                  <div className="space-y-1">
+                    <label className="text-[11px] text-gray-400">Preço / Litro Diesel (R$ opcional)</label>
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={formData.dieselPricePerLiter || ''}
+                        onChange={(e) => {
+                          const price = Number(e.target.value);
+                          setFormData(prev => ({
+                            ...prev,
+                            dieselPricePerLiter: price,
+                            dieselCost: price > 0 ? Number((prev.liters * price).toFixed(2)) : 0,
+                          }));
+                        }}
+                        placeholder="Ex: 5.89"
+                        className="bg-gray-900 border-gray-700 text-white h-9 text-xs"
+                      />
+                      <span className="absolute right-3 top-2 text-[10px] text-gray-500 font-mono">R$/L</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-900/60 p-2.5 rounded border border-gray-800 flex flex-col justify-center space-y-1 text-[11px]">
+                    <div className="flex justify-between text-gray-300">
+                      <span>Diesel ({formData.liters || 0} L):</span>
+                      <span className="font-mono">{formData.dieselCost ? `R$ ${formData.dieselCost.toFixed(2)}` : 'R$ 0,00'}</span>
+                    </div>
+                    {formData.hasArla && formData.arlaLiters > 0 && (
+                      <div className="flex justify-between text-blue-300">
+                        <span>ARLA 32 ({formData.arlaLiters} L):</span>
+                        <span className="font-mono">{formData.arlaCost ? `+ R$ ${formData.arlaCost.toFixed(2)}` : 'R$ 0,00'}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between font-bold text-emerald-400 border-t border-gray-700 pt-1">
+                      <span>Valor Total:</span>
+                      <span className="font-mono">
+                        R$ {(((formData.dieselCost || 0) + (formData.hasArla ? (formData.arlaCost || 0) : 0))).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Observações */}
@@ -1119,11 +1266,11 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
                   { icon: <Fuel className="h-4 w-4 text-amber-400" />, label: 'Combustível', value: FUEL_TYPE_LABELS[formData.fuelType] },
                   { icon: <Gauge className="h-4 w-4 text-yellow-400" />, label: 'KM Anterior', value: `${formData.initialMileage?.toLocaleString('pt-BR') || '0'} km` },
                   { icon: <Gauge className="h-4 w-4 text-blue-400" />, label: 'KM Abastecimento', value: `${formData.mileage?.toLocaleString('pt-BR') || '0'} km` },
-                  { icon: <Droplets className="h-4 w-4 text-cyan-400" />, label: 'Litros Diesel', value: `${formData.liters?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} L` },
+                  { icon: <Droplets className="h-4 w-4 text-cyan-400" />, label: 'Litros Diesel', value: `${formData.liters?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} L${formData.dieselCost ? ` (R$ ${formData.dieselCost.toFixed(2)})` : ''}` },
                   ...(formData.hasArla && formData.arlaLiters > 0 ? [{
                     icon: <Droplets className="h-4 w-4 text-blue-400" />,
                     label: 'ARLA 32',
-                    value: `${formData.arlaLiters.toLocaleString('pt-BR', { minimumFractionDigits: 1 })} L${formData.arlaCost ? ` (R$ ${formData.arlaCost.toFixed(2)})` : ''}`
+                    value: `${formData.arlaLiters.toLocaleString('pt-BR', { minimumFractionDigits: 1 })} L${formData.arlaPricePerLiter ? ` (R$ ${formData.arlaPricePerLiter.toFixed(2)}/L)` : ''}${formData.arlaCost ? ` = R$ ${formData.arlaCost.toFixed(2)}` : ''}`
                   }] : []),
                 ].map((item, idx) => (
                   <div key={idx} className="flex items-center gap-3 p-3 rounded-lg bg-gray-900/60 border border-gray-800">
@@ -1134,6 +1281,24 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
                     </div>
                   </div>
                 ))}
+              </div>
+
+              {/* Card Destacado com Valor Total Consolidado */}
+              <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-950/60 to-gray-900 border border-emerald-500/40 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] text-emerald-400 font-semibold uppercase tracking-wider">
+                    Valor Total do Abastecimento
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    Diesel: {formData.dieselCost ? `R$ ${formData.dieselCost.toFixed(2)}` : 'R$ 0,00'}
+                    {formData.hasArla && formData.arlaLiters > 0 && ` + ARLA 32: R$ ${(formData.arlaCost || 0).toFixed(2)}`}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="text-2xl font-bold font-mono text-emerald-300">
+                    R$ {(((formData.dieselCost || 0) + (formData.hasArla ? (formData.arlaCost || 0) : 0))).toFixed(2)}
+                  </span>
+                </div>
               </div>
 
               {formData.notes && (
@@ -1204,6 +1369,16 @@ const AbastecimentoInternoFormModal: React.FC<AbastecimentoInternoFormModalProps
           </div>
         </div>
       </DialogContent>
+
+      {/* Modal de Comprovante de Abastecimento Interno (A4 e 80mm) */}
+      <InternalFuelReceiptModal
+        isOpen={showReceiptModal}
+        onClose={() => {
+          setShowReceiptModal(false);
+          onClose();
+        }}
+        data={receiptData}
+      />
     </Dialog>
   );
 };

@@ -54,6 +54,19 @@ public class EmployeeService {
     private com.z7design.fleet_manager.repository.DepartmentRepository departmentRepository;
     @Autowired
     private com.z7design.fleet_manager.repository.DriverRepository driverRepository;
+    @Autowired(required = false)
+    private com.z7design.fleet_manager.service.UserCompanyResolver userCompanyResolver;
+
+    private UUID resolveTenantCompanyId() {
+        UUID tenantId = com.z7design.fleet_manager.tenant.TenantContext.get();
+        if (tenantId == null && userCompanyResolver != null) {
+            try {
+                tenantId = userCompanyResolver.resolveCurrentCompanyId();
+            } catch (Exception ignored) {
+            }
+        }
+        return tenantId;
+    }
     
     @Transactional
     @CacheEvict(value = {"employees", "employees-by-company", "dashboard-summary"}, allEntries = true)
@@ -656,46 +669,49 @@ public class EmployeeService {
     
     public List<Employee> findByStatus(EmploymentStatus status) {
         try {
-            System.out.println("[DEBUG] EmployeeService.findByStatus - Status recebido: " + status);
-            List<Employee> employees = employeeRepository.findByStatus(status);
-            System.out.println("[DEBUG] EmployeeService.findByStatus - FuncionÃ¡rios encontrados: " + employees.size());
+            UUID tenantId = resolveTenantCompanyId();
+            List<Employee> employees = tenantId != null
+                    ? employeeRepository.findByCompanyIdAndStatus(tenantId, status)
+                    : employeeRepository.findByStatus(status);
             return employees;
         } catch (Exception e) {
-            System.err.println("[ERROR] EmployeeService.findByStatus - Erro ao buscar funcionÃ¡rios: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Erro ao buscar funcionários por status: {}", e.getMessage(), e);
             throw e;
         }
     }
     
     public List<Employee> findByNameContaining(String name) {
         try {
-            System.out.println("[DEBUG] EmployeeService.findByNameContaining - Nome recebido: " + name);
-            List<Employee> employees = employeeRepository.findByNameContainingIgnoreCase(name);
-            System.out.println("[DEBUG] EmployeeService.findByNameContaining - FuncionÃ¡rios encontrados: " + employees.size());
+            UUID tenantId = resolveTenantCompanyId();
+            List<Employee> employees = tenantId != null
+                    ? employeeRepository.findByCompanyIdAndNameContainingIgnoreCase(tenantId, name)
+                    : employeeRepository.findByNameContainingIgnoreCase(name);
             return employees;
         } catch (Exception e) {
-            System.err.println("[ERROR] EmployeeService.findByNameContaining - Erro ao buscar funcionÃ¡rios: " + e.getMessage());
-            throw new RuntimeException("Erro ao buscar funcionÃ¡rios por nome: " + e.getMessage());
+            log.error("Erro ao buscar funcionários por nome: {}", e.getMessage(), e);
+            throw new RuntimeException("Erro ao buscar funcionários por nome: " + e.getMessage());
         }
     }
     
     public List<Employee> findByNameOrDocumentContaining(String searchTerm) {
         try {
-            System.out.println("[DEBUG] EmployeeService.findByNameOrDocumentContaining - Termo recebido: " + searchTerm);
-            List<Employee> employees = employeeRepository.findByNameContainingIgnoreCaseOrDocumentContainingIgnoreCase(searchTerm, searchTerm);
-            System.out.println("[DEBUG] EmployeeService.findByNameOrDocumentContaining - FuncionÃ¡rios encontrados: " + employees.size());
+            UUID tenantId = resolveTenantCompanyId();
+            List<Employee> employees = tenantId != null
+                    ? employeeRepository.findByCompanyIdAndNameContainingIgnoreCaseOrCompanyIdAndDocumentContainingIgnoreCase(tenantId, searchTerm, tenantId, searchTerm)
+                    : employeeRepository.findByNameContainingIgnoreCaseOrDocumentContainingIgnoreCase(searchTerm, searchTerm);
             return employees;
         } catch (Exception e) {
-            System.err.println("[ERROR] EmployeeService.findByNameOrDocumentContaining - Erro ao buscar funcionÃ¡rios: " + e.getMessage());
-            throw new RuntimeException("Erro ao buscar funcionÃ¡rios por nome ou documento: " + e.getMessage());
+            log.error("Erro ao buscar funcionários por nome ou documento: {}", e.getMessage(), e);
+            throw new RuntimeException("Erro ao buscar funcionários por nome ou documento: " + e.getMessage());
         }
     }
     
     public List<SimpleEmployeeDTO> findSimpleEmployeesByNameOrDocument(String searchTerm) {
         try {
-            System.out.println("[DEBUG] EmployeeService.findSimpleEmployeesByNameOrDocument - Termo recebido: " + searchTerm);
-            List<Employee> employees = employeeRepository.findByNameContainingIgnoreCaseOrDocumentContainingIgnoreCase(searchTerm, searchTerm);
-            System.out.println("[DEBUG] EmployeeService.findSimpleEmployeesByNameOrDocument - FuncionÃ¡rios encontrados: " + employees.size());
+            UUID tenantId = resolveTenantCompanyId();
+            List<Employee> employees = tenantId != null
+                    ? employeeRepository.findByCompanyIdAndNameContainingIgnoreCaseOrCompanyIdAndDocumentContainingIgnoreCase(tenantId, searchTerm, tenantId, searchTerm)
+                    : employeeRepository.findByNameContainingIgnoreCaseOrDocumentContainingIgnoreCase(searchTerm, searchTerm);
             
             return employees.stream()
                 .map(emp -> SimpleEmployeeDTO.builder()
@@ -710,8 +726,8 @@ public class EmployeeService {
                     .build())
                 .collect(java.util.stream.Collectors.toList());
         } catch (Exception e) {
-            System.err.println("[ERROR] EmployeeService.findSimpleEmployeesByNameOrDocument - Erro ao buscar funcionÃ¡rios: " + e.getMessage());
-            throw new RuntimeException("Erro ao buscar funcionÃ¡rios por nome ou documento: " + e.getMessage());
+            log.error("Erro ao buscar funcionários simples: {}", e.getMessage(), e);
+            throw new RuntimeException("Erro ao buscar funcionários por nome ou documento: " + e.getMessage());
         }
     }
     
@@ -730,45 +746,27 @@ public class EmployeeService {
     @Transactional(readOnly = true)
     public List<Employee> findAll() {
         try {
-            System.out.println("ðŸ” EmployeeService.findAll - Iniciando busca no banco...");
-            
-            // Primeiro, vamos tentar buscar apenas os IDs
-            try {
-                List<Employee> employees = employeeRepository.findAll();
-                System.out.println("âœ… EmployeeService.findAll - Encontrados " + employees.size() + " funcionÃ¡rios no banco");
-                
-                // Log dos primeiros funcionÃ¡rios para debug
-                if (!employees.isEmpty()) {
-                    for (int i = 0; i < Math.min(3, employees.size()); i++) {
-                        Employee emp = employees.get(i);
-                        System.out.println("ðŸ“‹ FuncionÃ¡rio " + (i+1) + ": " + emp.getName() + " (ID: " + emp.getId() + ")");
-                    }
-                }
-                
-                return employees;
-            } catch (Exception repoError) {
-                System.err.println("âŒ EmployeeService.findAll - Erro no repository: " + repoError.getMessage());
-                repoError.printStackTrace();
-                throw repoError;
+            UUID tenantId = resolveTenantCompanyId();
+            if (tenantId != null) {
+                return employeeRepository.findByCompanyId(tenantId);
             }
-            
+            return employeeRepository.findAll();
         } catch (Exception e) {
-            System.err.println("âŒ EmployeeService.findAll - Erro ao buscar funcionÃ¡rios: " + e.getMessage());
-            e.printStackTrace();
-            throw new RuntimeException("Erro ao buscar funcionÃ¡rios: " + e.getMessage(), e);
+            log.error("Erro ao buscar funcionários: {}", e.getMessage(), e);
+            throw new RuntimeException("Erro ao buscar funcionários: " + e.getMessage(), e);
         }
     }
 
     @Transactional(readOnly = true)
     public List<UUID> findAllIds() {
         try {
-            System.out.println("ðŸ” EmployeeService.findAllIds - Buscando apenas IDs");
-            List<UUID> ids = employeeRepository.findAllIds();
-            System.out.println("âœ… EmployeeService.findAllIds - Encontrados " + ids.size() + " IDs");
-            return ids;
+            UUID tenantId = resolveTenantCompanyId();
+            if (tenantId != null) {
+                return employeeRepository.findAllIdsByCompanyId(tenantId);
+            }
+            return employeeRepository.findAllIds();
         } catch (Exception e) {
-            System.err.println("âŒ EmployeeService.findAllIds - Erro: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Erro ao buscar IDs de funcionários: {}", e.getMessage(), e);
             throw new RuntimeException("Erro ao buscar IDs: " + e.getMessage(), e);
         }
     }

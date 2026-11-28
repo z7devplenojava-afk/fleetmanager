@@ -31,6 +31,11 @@ public class DriverFuelConsumptionService {
     private final FuelRecordRepository fuelRecordRepository;
     private final DriverRepository driverRepository;
     private final VehicleRepository vehicleRepository;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    @org.springframework.context.annotation.Lazy
+    private DriverService driverService;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private UserCompanyResolver userCompanyResolver;
     
     /**
      * Buscar estatÃ­sticas de consumo por motorista
@@ -153,12 +158,23 @@ public class DriverFuelConsumptionService {
     }
     
     /**
-     * Listar todos os motoristas
+     * Listar todos os motoristas da empresa (isolamento multi-tenant)
      */
     public List<DriverDTO> getAllDrivers() {
-        log.info("ðŸ“‹ Listando todos os motoristas com registros de abastecimento");
+        if (driverService != null) {
+            return driverService.getAllDrivers();
+        }
+        UUID tenantId = com.z7design.fleet_manager.tenant.TenantContext.get();
+        if (tenantId == null && userCompanyResolver != null) {
+            try {
+                tenantId = userCompanyResolver.resolveCurrentCompanyId();
+            } catch (Exception ignored) {
+            }
+        }
+        if (tenantId != null) {
+            return driverRepository.findByCompanyId(tenantId).stream().map(DriverDTO::fromEntity).collect(Collectors.toList());
+        }
         List<Driver> drivers = fuelRecordRepository.findAllDrivers();
-        log.info("âœ… Encontrados {} motoristas", drivers.size());
         return drivers.stream().map(DriverDTO::fromEntity).collect(Collectors.toList());
     }
     

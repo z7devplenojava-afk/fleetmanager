@@ -4,9 +4,11 @@ import com.z7design.fleet_manager.model.FuelDelivery;
 import com.z7design.fleet_manager.model.FuelPump;
 import com.z7design.fleet_manager.model.FuelPumpReading;
 import com.z7design.fleet_manager.model.FuelTank;
+import com.z7design.fleet_manager.model.FuelTankAlertLog;
 import com.z7design.fleet_manager.repository.FuelDeliveryRepository;
 import com.z7design.fleet_manager.repository.FuelPumpReadingRepository;
 import com.z7design.fleet_manager.repository.FuelPumpRepository;
+import com.z7design.fleet_manager.repository.FuelTankAlertLogRepository;
 import com.z7design.fleet_manager.repository.FuelTankRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -24,6 +26,8 @@ public class FuelPumpService {
     private final FuelPumpRepository fuelPumpRepository;
     private final FuelDeliveryRepository fuelDeliveryRepository;
     private final FuelPumpReadingRepository fuelPumpReadingRepository;
+    private final FuelTankAlertService fuelTankAlertService;
+    private final FuelTankAlertLogRepository fuelTankAlertLogRepository;
 
     // --- Tank Management ---
 
@@ -73,6 +77,9 @@ public class FuelPumpService {
         tank.setCurrentLevel(tank.getCurrentLevel().add(delivery.getLiters()));
         fuelTankRepository.save(tank);
 
+        // Notificar reabastecimento para resetar patamares de alerta se nível subiu
+        fuelTankAlertService.onTankRefill(tank);
+
         return fuelDeliveryRepository.save(delivery);
     }
 
@@ -104,6 +111,40 @@ public class FuelPumpService {
         tank.setCurrentLevel(tank.getCurrentLevel().subtract(reading.getTotalLiters()));
         fuelTankRepository.save(tank);
 
+        // Verificar e disparar alerta de patamar de nível se atingido
+        fuelTankAlertService.checkAndTriggerTankAlert(tank);
+
         return fuelPumpReadingRepository.save(reading);
+    }
+
+    /**
+     * Deduz combustível do tanque no abastecimento interno e verifica patamar de alerta (5000, 3000, 2000 L).
+     */
+    @Transactional
+    public void deductFromTank(UUID tankId, BigDecimal liters, UUID companyId) {
+        if (tankId == null || liters == null || liters.compareTo(BigDecimal.ZERO) <= 0) {
+            return;
+        }
+        FuelTank tank = fuelTankRepository.findById(tankId).orElse(null);
+        if (tank == null) {
+            return;
+        }
+        BigDecimal current = tank.getCurrentLevel() != null ? tank.getCurrentLevel() : BigDecimal.ZERO;
+        tank.setCurrentLevel(current.subtract(liters));
+        fuelTankRepository.save(tank);
+
+        // Disparar verificação de alerta com envio WhatsApp aos responsáveis
+        fuelTankAlertService.checkAndTriggerTankAlert(tank);
+    }
+
+    @Transactional(readOnly = true)
+    public List<FuelTankAlertLog> getTankAlertLogs(UUID companyId, UUID tankId) {
+        if (tankId != null) {
+            return fuelTankAlertLogRepository.findByFuelTankIdOrderByAlertDateDesc(tankId);
+        }
+        if (companyId != null) {
+            return fuelTankAlertLogRepository.findByCompanyIdOrderByAlertDateDesc(companyId);
+        }
+        return fuelTankAlertLogRepository.findAll();
     }
 }

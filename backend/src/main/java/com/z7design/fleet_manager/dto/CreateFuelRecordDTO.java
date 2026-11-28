@@ -62,4 +62,7 @@ public class CreateFuelRecordDTO {
     private String contractNumber;
     private UUID supplierId;
     private Double pricePerLiter;
+    private UUID pumpId;
+    private UUID tankId;
+    private Boolean isInternal;
 } 

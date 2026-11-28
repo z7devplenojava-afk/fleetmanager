@@ -42,13 +42,15 @@ import {
   User,
   Hash,
   X,
-  FileText
+  FileText,
+  Printer
 } from 'lucide-react';
 import { FuelRecord, Vehicle } from '@/types/fleet';
 import { format } from 'date-fns';
 import AbastecimentoInternoFormModal from './AbastecimentoInternoFormModal';
 import AbastecimentoEditModal from './AbastecimentoEditModal';
 import AbastecimentoDeleteDialog from './AbastecimentoDeleteDialog';
+import InternalFuelReceiptModal, { InternalFuelReceiptData } from './InternalFuelReceiptModal';
 
 interface AbastecimentoInternoTabProps {
   fuelRecords: FuelRecord[];
@@ -71,6 +73,8 @@ export const AbastecimentoInternoTab: React.FC<AbastecimentoInternoTabProps> = (
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [viewingRecord, setViewingRecord] = useState<FuelRecord | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [isReceiptOpen, setIsReceiptOpen] = useState(false);
+  const [receiptData, setReceiptData] = useState<InternalFuelReceiptData | null>(null);
 
   // Filtros
   const [searchTerm, setSearchTerm] = useState('');
@@ -190,6 +194,52 @@ export const AbastecimentoInternoTab: React.FC<AbastecimentoInternoTabProps> = (
     setIsCreateModalOpen(false);
     setIsEditModalOpen(false);
     setIsDeleteDialogOpen(false);
+  };
+
+  const handlePrintReceipt = (record: FuelRecord) => {
+    const anyR = record as any;
+    const veh = vehicles.find((v) => v.id === record.vehicleId);
+
+    // Extrair dados de ARLA se presentes nas notas
+    const notes = record.notes || '';
+    const hasArla = notes.toUpperCase().includes('ARLA');
+    let arlaLiters = 0;
+    let arlaCost = 0;
+    const arlaMatch = notes.match(/ARLA\s*32:\s*([\d.,]+)\s*L/i);
+    if (arlaMatch) {
+      arlaLiters = parseFloat(arlaMatch[1].replace(',', '.'));
+    }
+    const arlaCostMatch = notes.match(/R\$\s*([\d.,]+)/i);
+    if (arlaCostMatch) {
+      arlaCost = parseFloat(arlaCostMatch[1].replace(',', '.'));
+    }
+
+    setReceiptData({
+      fuelRecordId: record.id,
+      fuelCode: anyR.fuelCode,
+      date: typeof record.date === 'string' ? record.date : format(new Date(record.date), 'yyyy-MM-dd'),
+      garageName: anyR.garageName || record.station || 'Garagem Moeda - MG',
+      pumpName: anyR.pumpName,
+      tankName: anyR.tankName,
+      responsibleName: record.driver?.name || anyR.responsibleName || 'Não Informado',
+      vehiclePlate: veh?.plate || (record as any).vehiclePlate || '—',
+      vehicleBrand: veh?.brand,
+      vehicleModel: veh?.model,
+      clientName: record.clientName || veh?.clientName,
+      obraName: record.obraName || veh?.obraName,
+      fuelType: record.fuelType || 'DIESEL',
+      initialMileage: record.initialMileage,
+      mileage: record.mileage || 0,
+      liters: record.quantity || 0,
+      dieselPricePerLiter: record.pricePerLiter,
+      dieselCost: record.cost,
+      hasArla,
+      arlaLiters,
+      arlaCost,
+      totalCost: record.cost,
+      notes: record.notes,
+    });
+    setIsReceiptOpen(true);
   };
 
   const getFuelBadgeColor = (fuelType?: string) => {
@@ -516,7 +566,7 @@ export const AbastecimentoInternoTab: React.FC<AbastecimentoInternoTabProps> = (
                           {Number(record.cost || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                         </TableCell>
 
-                        {/* Ações: Visualizar, Editar, Excluir */}
+                        {/* Ações: Visualizar, Imprimir Comprovante, Editar, Excluir */}
                         <TableCell className="text-center whitespace-nowrap">
                           <div className="flex items-center justify-center gap-1">
                             <Button
@@ -527,6 +577,16 @@ export const AbastecimentoInternoTab: React.FC<AbastecimentoInternoTabProps> = (
                               className="h-8 w-8 p-0 text-blue-400 hover:text-blue-300 hover:bg-blue-950/40"
                             >
                               <Eye size={15} />
+                            </Button>
+
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handlePrintReceipt(record)}
+                              title="Imprimir Comprovante (A4 / 80mm)"
+                              className="h-8 w-8 p-0 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-950/40"
+                            >
+                              <Printer size={15} />
                             </Button>
 
                             <Button
@@ -743,6 +803,18 @@ export const AbastecimentoInternoTab: React.FC<AbastecimentoInternoTabProps> = (
         }}
         onSuccess={handleSuccessAction}
         abastecimento={deletingRecord}
+      />
+
+      {/* ============================================================== */}
+      {/* MODAL DE COMPROVANTE DE ABASTECIMENTO INTERNO (A4 E 80MM)       */}
+      {/* ============================================================== */}
+      <InternalFuelReceiptModal
+        isOpen={isReceiptOpen}
+        onClose={() => {
+          setIsReceiptOpen(false);
+          setReceiptData(null);
+        }}
+        data={receiptData}
       />
     </div>
   );

@@ -62,6 +62,7 @@ public class FuelRecordController {
     private final ContractRepository contractRepository;
     private final SupplierRepository supplierRepository;
     private final EmployeeRepository employeeRepository;
+    private final com.z7design.fleet_manager.service.FuelPumpService fuelPumpService;
 
     @Qualifier("receiptStorageService")
     private final FileStorageService receiptStorageService;
@@ -439,6 +440,16 @@ public class FuelRecordController {
             if (createFuelRecordDTO.getMileage() != null && (vehicle.getCurrentMileage() == null || createFuelRecordDTO.getMileage() > vehicle.getCurrentMileage())) {
                 vehicle.setCurrentMileage(createFuelRecordDTO.getMileage());
                 vehicleRepository.save(vehicle);
+            }
+
+            // Se for abastecimento interno com tanque vinculado, debitar litros do tanque e verificar alerta
+            if (createFuelRecordDTO.getTankId() != null && createFuelRecordDTO.getQuantity() != null) {
+                try {
+                    UUID companyId = com.z7design.fleet_manager.tenant.TenantContext.get();
+                    fuelPumpService.deductFromTank(createFuelRecordDTO.getTankId(), BigDecimal.valueOf(createFuelRecordDTO.getQuantity()), companyId);
+                } catch (Exception tankErr) {
+                    log.warn("Aviso ao debitar do tanque {}: {}", createFuelRecordDTO.getTankId(), tankErr.getMessage());
+                }
             }
 
             log.info("Salvando registro de combustível...");

@@ -48,6 +48,10 @@ public class FuelTank implements TenantAware {
     @Column(name = "company_id")
     private UUID companyId;
 
+    /** Último patamar de alerta disparado (ex: 5000, 3000, 2000) */
+    @Column(name = "last_alert_threshold", precision = 12, scale = 2)
+    private BigDecimal lastAlertThreshold;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

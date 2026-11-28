@@ -19,6 +19,28 @@ import java.util.UUID;
 @Repository
 public interface EmployeeRepository extends JpaRepository<Employee, UUID>, JpaSpecificationExecutor<Employee> {
 
+        List<Employee> findByCompanyId(UUID companyId);
+
+        List<Employee> findByCompanyIdAndStatus(UUID companyId, EmploymentStatus status);
+
+        Page<Employee> findByCompanyIdAndStatus(UUID companyId, EmploymentStatus status, Pageable pageable);
+
+        List<Employee> findByCompanyIdAndNameContainingIgnoreCase(UUID companyId, String name);
+
+        List<Employee> findByCompanyIdAndNameContainingIgnoreCaseOrCompanyIdAndDocumentContainingIgnoreCase(
+                        UUID companyId1, String name, UUID companyId2, String document);
+
+        @Query("SELECT e.id FROM Employee e WHERE e.companyId = :companyId")
+        List<UUID> findAllIdsByCompanyId(@Param("companyId") UUID companyId);
+
+        @Query("SELECT e FROM Employee e LEFT JOIN e.position p WHERE e.companyId = :companyId AND e.status = 'ACTIVE' AND ("
+                        + "UPPER(COALESCE(p.name, '')) LIKE '%GESTOR%MANUTEN%' "
+                        + "OR UPPER(COALESCE(p.name, '')) LIKE '%GERENTE%MANUTEN%' "
+                        + "OR UPPER(COALESCE(p.name, '')) LIKE '%ENCARREGADO%MANUTEN%' "
+                        + "OR UPPER(COALESCE(p.name, '')) LIKE '%ALMOXARIF%' "
+                        + "OR UPPER(COALESCE(p.name, '')) LIKE '%AUXILIAR%ALMOXARIF%')")
+        List<Employee> findMaintenanceAndAlmoxarifadoLeaders(@Param("companyId") UUID companyId);
+
         Optional<Employee> findByUserId(UUID userId);
 
         @Query(value = "SELECT * FROM employees WHERE user_id = :userId LIMIT 1", nativeQuery = true)
