@@ -7,9 +7,11 @@ import com.z7design.fleet_manager.dto.DriverDTO;
 import com.z7design.fleet_manager.dto.VehicleFuelStatsDTO;
 import com.z7design.fleet_manager.exception.ResourceNotFoundException;
 import com.z7design.fleet_manager.model.Driver;
+import com.z7design.fleet_manager.model.Employee;
 import com.z7design.fleet_manager.model.FuelRecord;
 import com.z7design.fleet_manager.model.Vehicle;
 import com.z7design.fleet_manager.repository.DriverRepository;
+import com.z7design.fleet_manager.repository.EmployeeRepository;
 import com.z7design.fleet_manager.repository.FuelRecordRepository;
 import com.z7design.fleet_manager.repository.FuelStationRepository;
 import com.z7design.fleet_manager.model.FuelStation;
@@ -59,6 +61,7 @@ public class FuelRecordController {
     private final WorkPostRepository workPostRepository;
     private final ContractRepository contractRepository;
     private final SupplierRepository supplierRepository;
+    private final EmployeeRepository employeeRepository;
 
     @Qualifier("receiptStorageService")
     private final FileStorageService receiptStorageService;
@@ -363,9 +366,31 @@ public class FuelRecordController {
 
             Driver driver = null;
             if (createFuelRecordDTO.getDriverId() != null) {
-                driver = driverRepository.findById(createFuelRecordDTO.getDriverId())
-                        .orElseThrow(() -> new ResourceNotFoundException(
-                                "Motorista nÃ£o encontrado com ID: " + createFuelRecordDTO.getDriverId()));
+                UUID driverId = createFuelRecordDTO.getDriverId();
+                driver = driverRepository.findById(driverId).orElse(null);
+                if (driver == null) {
+                    // O formulário de abastecimento usa o ID do FUNCIONÁRIO (quem abasteceu).
+                    // Se não houver motorista com esse ID, cria um a partir do funcionário.
+                    Employee emp = employeeRepository.findById(driverId).orElse(null);
+                    if (emp == null) {
+                        throw new ResourceNotFoundException("Motorista não encontrado com ID: " + driverId);
+                    }
+                    String cleanCpf = emp.getDocument() != null ? emp.getDocument().replaceAll("\\D", "") : null;
+                    if (cleanCpf != null && !cleanCpf.isBlank()) {
+                        driver = driverRepository.findByCleanCpfGlobal(cleanCpf).orElse(null);
+                    }
+                    if (driver == null) {
+                        driver = Driver.builder()
+                                .name(emp.getName())
+                                .cpf(cleanCpf)
+                                .licenseNumber(emp.getCnhNumber())
+                                .status("ATIVO")
+                                .companyId(emp.getCompanyId())
+                                .build();
+                        driver = driverRepository.save(driver);
+                        log.info("Motorista criado a partir do funcionário {}: {}", emp.getId(), driver.getId());
+                    }
+                }
                 log.info("Motorista encontrado: {}", driver.getId());
             }
 
