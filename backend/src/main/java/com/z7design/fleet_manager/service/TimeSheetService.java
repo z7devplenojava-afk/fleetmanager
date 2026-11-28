@@ -12,6 +12,7 @@ import com.itextpdf.kernel.geom.PageSize;
 import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.layout.Document;
+import com.itextpdf.layout.element.Image;
 import com.itextpdf.layout.borders.Border;
 import com.itextpdf.layout.borders.SolidBorder;
 import com.itextpdf.layout.element.Cell;
@@ -20,6 +21,7 @@ import com.itextpdf.layout.element.Table;
 import com.itextpdf.layout.properties.TextAlignment;
 import com.itextpdf.layout.properties.UnitValue;
 import com.itextpdf.layout.properties.VerticalAlignment;
+import com.itextpdf.io.image.ImageDataFactory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.CellStyle;
@@ -60,6 +62,7 @@ public class TimeSheetService {
     private final EmployeeRepository employeeRepository;
     private final CompanyRepository companyRepository;
     private final ExcelReportLayoutService excelReportLayoutService;
+    private final StoredUploadService storedUploadService;
 
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
@@ -220,10 +223,23 @@ public class TimeSheetService {
                     .useAllAvailableWidth()
                     .setMarginBottom(10f);
 
-            // Dados da Empresa
+            // Dados da Empresa (com logomarca, quando disponível)
             Cell compCell = new Cell()
-                    .setBorder(Border.NO_BORDER)
-                    .add(new Paragraph(company.getName() != null ? company.getName().toUpperCase() : "FLUXBUS TRANSPORTES")
+                    .setBorder(Border.NO_BORDER);
+
+            byte[] logoBytes = loadCompanyLogoBytes(company);
+            if (logoBytes != null) {
+                try {
+                    Image logo = new Image(ImageDataFactory.create(logoBytes));
+                    logo.scaleToFit(70f, 30f);
+                    logo.setMarginBottom(4f);
+                    compCell.add(logo);
+                } catch (Exception e) {
+                    log.warn("Não foi possível renderizar a logo no espelho de ponto: {}", e.getMessage());
+                }
+            }
+
+            compCell.add(new Paragraph(company.getName() != null ? company.getName().toUpperCase() : "FLUXBUS TRANSPORTES")
                             .setBold().setFontSize(13).setFontColor(darkHeader))
                     .add(new Paragraph("CNPJ: " + (company.getCnpj() != null ? company.getCnpj() : "Não informado"))
                             .setFontSize(8).setFontColor(ColorConstants.GRAY))
@@ -235,7 +251,7 @@ public class TimeSheetService {
             Cell titleCell = new Cell()
                     .setBorder(Border.NO_BORDER)
                     .setTextAlignment(TextAlignment.RIGHT)
-                    .add(new Paragraph("ESPELHO DE PONTO ELETRÔNICO")
+                    .add(new Paragraph("ESPELHO DE PONTO")
                             .setBold().setFontSize(12).setFontColor(darkHeader))
                     .add(new Paragraph("Conforme Portaria MTP nº 671/2021 e CLT")
                             .setItalic().setFontSize(8).setFontColor(ColorConstants.GRAY))
@@ -488,6 +504,57 @@ public class TimeSheetService {
             return text;
         }
         return text.substring(0, 1).toUpperCase() + text.substring(1);
+    }
+
+    /**
+     * Carrega a logomarca da empresa para o PDF. Tenta logoUrl e, se o formato não
+     * for suportado pelo iText (ex.: WebP), usa o ícone da empresa.
+     */
+    private byte[] loadCompanyLogoBytes(Company company) {
+        if (company == null)
+            return null;
+        byte[] bytes = loadLogoBytes(company.getLogoUrl());
+        if (bytes == null && company.getIconUrl() != null
+                && !company.getIconUrl().equals(company.getLogoUrl())) {
+            bytes = loadLogoBytes(company.getIconUrl());
+        }
+        return bytes;
+    }
+
+    private byte[] loadLogoBytes(String logoUrl) {
+        if (logoUrl == null || logoUrl.isBlank())
+            return null;
+        String fileName = StoredUploadService.extractFileName(logoUrl);
+        if (fileName == null)
+            return null;
+
+        java.nio.file.Path[] logos = new java.nio.file.Path[]{
+                java.nio.file.Paths.get("uploads", "companies", "logos", fileName),
+                java.nio.file.Paths.get("..", "uploads", "companies", "logos", fileName),
+                java.nio.file.Paths.get("/var/www/fluxbus/uploads/companies/logos", fileName),
+                java.nio.file.Paths.get("/app/uploads/companies/logos", fileName)
+        };
+        java.nio.file.Path[] icons = new java.nio.file.Path[]{
+                java.nio.file.Paths.get("uploads", "companies", "icons", fileName),
+                java.nio.file.Paths.get("..", "uploads", "companies", "icons", fileName),
+                java.nio.file.Paths.get("/var/www/fluxbus/uploads/companies/icons", fileName),
+                java.nio.file.Paths.get("/app/uploads/companies/icons", fileName)
+        };
+
+        try {
+            byte[] bytes = storedUploadService.loadBytes("companies/logos", fileName, logos);
+            if (bytes == null || bytes.length == 0) {
+                bytes = storedUploadService.loadBytes("companies/icons", fileName, icons);
+            }
+            if (bytes == null || bytes.length == 0)
+                return null;
+            // Valida se o formato é renderizável pelo iText (WebP/SVG falham aqui).
+            ImageDataFactory.create(bytes);
+            return bytes;
+        } catch (Exception e) {
+            log.debug("Logo {} não renderizável no PDF do espelho de ponto: {}", logoUrl, e.getMessage());
+            return null;
+        }
     }
 
     private Company resolveCompany(Employee employee) {

@@ -270,7 +270,7 @@ class TimeSheetService {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
     doc.setTextColor(24, 30, 42);
-    doc.text('ESPELHO DE PONTO ELETRÔNICO', pageW - 12, 15, { align: 'right' });
+    doc.text('ESPELHO DE PONTO', pageW - 12, 15, { align: 'right' });
 
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(7.5);
@@ -446,7 +446,7 @@ class TimeSheetService {
     const sheetData: any[][] = [
       [ctx.companyName.toUpperCase()],
       [`CNPJ: ${ctx.companyCnpj}`],
-      [`ESPELHO DE PONTO ELETRÔNICO - PERÍODO: ${String(month).padStart(2, '0')}/${year}`],
+      [`ESPELHO DE PONTO - PERÍODO: ${String(month).padStart(2, '0')}/${year}`],
       [`Funcionário: ${ctx.employeeName}`, `CPF: ${ctx.employeeCpf}`, `Função: ${ctx.employeeRole}`],
       [],
       ['Data', 'Dia da Semana', 'Entrada', 'Saída Almoço', 'Retorno Almoço', 'Saída', 'Observações'],
