@@ -543,11 +543,18 @@
         </div>
       </td>
       <td class="header-right">
-        <div class="doc-title">ORDEM DE SERVIÇO &mdash; FROTA</div>
-        <div style="margin: 3px 0;">
-          <span class="type-badge" th:classappend="${maintenanceType == 'PREVENTIVA' ? 'preventiva' : ''}" th:text="${maintenanceType}">CORRETIVA</span>
+        <div class="doc-title" th:classappend="${maintenanceType == 'PREVENTIVA' ? 'preventiva' : ''}">
+          <span th:if="${maintenanceType == 'PREVENTIVA'}">ORDEM DE SERVIÇO PREVENTIVA</span>
+          <span th:unless="${maintenanceType == 'PREVENTIVA'}">ORDEM DE SERVIÇO &mdash; FROTA</span>
         </div>
-        <div class="numero-os-badge" th:if="${osNumber != null and osNumber != ''}">
+        <div style="font-size: 8px; color: #444; margin: 1px 0;" th:if="${maintenanceType == 'PREVENTIVA' and revisaoNumber != null}">
+          Data Elaboração: <span th:text="${dataElaboracao} ?: '08/2020'">08/2020</span> &bull; <b>Revisão: <span th:text="${revisaoNumber}">008</span></b>
+          <span th:if="${modeloLabel != null}" th:text="' (' + ${modeloLabel} + ')'" style="font-weight: bold; color: #2e7d32;"></span>
+        </div>
+        <div style="margin: 2px 0;" th:unless="${maintenanceType == 'PREVENTIVA'}">
+          <span class="type-badge" th:text="${maintenanceType}">CORRETIVA</span>
+        </div>
+        <div class="numero-os-badge" th:if="${osNumber != null and osNumber != ''}" th:classappend="${maintenanceType == 'PREVENTIVA' ? 'preventiva' : ''}">
           OS Nº <span th:text="${osNumber}">0000</span>
         </div>
         <div class="data-emissao-compact">
@@ -558,8 +565,8 @@
   </table>
 
   <!-- Local de Realização da Manutenção (Garagem / Unidade) -->
-  <div class="local-manutencao-bar" th:if="${manutencaoRealizadaEm != null and manutencaoRealizadaEm != ''}">
-    <b>MANUTENÇÃO REALIZADA EM:</b> <span th:text="${manutencaoRealizadaEm}">GARAGEM CENTRAL</span>
+  <div class="local-manutencao-bar">
+    <b>MANUTENÇÃO REALIZADA EM:</b> <span th:text="${manutencaoRealizadaEm} ?: 'GARAGEM PRÓPRIA LOCALIZADA NA RUA YURI, N° 365, BAIRRO JARDIM CANADÁ - NOVA LIMA - MG'">GARAGEM PRÓPRIA LOCALIZADA NA RUA YURI, N° 365, BAIRRO JARDIM CANADÁ - NOVA LIMA - MG</span>
   </div>
 
   <!-- Identificação e Parada -->
@@ -919,7 +926,7 @@
           <div class="assinatura-espaco-vazio" th:unless="${supervisorSignatureImg != null and supervisorSignatureImg != ''}"></div>
           <div class="linha-assinatura">
             <div class="assinatura-nome" th:if="${supervisorDisplayName != null and supervisorDisplayName != ''}" th:text="${supervisorDisplayName}">Nome do Supervisor</div>
-            <div class="assinatura-info">SUPERVISOR / GERENTE DE MANUTENÇÃO</div>
+            <div class="assinatura-info">GERENTE MANUTENÇÃO</div>
             <div class="assinatura-info" th:if="${supervisorSignatureDate != null and supervisorSignatureDate != ''}" th:text="'Assinado em: ' + ${supervisorSignatureDate}">Data: _____ / _____ / _____</div>
             <div class="assinatura-info" th:unless="${supervisorSignatureDate != null and supervisorSignatureDate != ''}">Data: _____ / _____ / _____</div>
           </div>
@@ -931,7 +938,7 @@
           <div class="assinatura-espaco-vazio" th:unless="${responsibleSignatureImg != null and responsibleSignatureImg != ''}"></div>
           <div class="linha-assinatura">
             <div class="assinatura-nome" th:if="${responsibleDisplayName != null and responsibleDisplayName != ''}" th:text="${responsibleDisplayName}">Nome do Responsável</div>
-            <div class="assinatura-info">RESPONSÁVEL TÉCNICO / MECÂNICO</div>
+            <div class="assinatura-info">ENGENHEIRO MECÂNICO / RESP. TÉCNICO</div>
             <div class="assinatura-info" th:if="${responsibleSignatureDate != null and responsibleSignatureDate != ''}" th:text="'Assinado em: ' + ${responsibleSignatureDate}">Data: _____ / _____ / _____</div>
             <div class="assinatura-info" th:unless="${responsibleSignatureDate != null and responsibleSignatureDate != ''}">Data: _____ / _____ / _____</div>
           </div>

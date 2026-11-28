@@ -1077,8 +1077,8 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
 
                 // Detecta se é VAN, MICRO-ÔNIBUS ou ÔNIBUS
                 let filterType = 'BUS';
-                const isVan = vType === 'VAN' || modelStr.includes('VAN') || modelStr.includes('SPRINTER') || modelStr.includes('DUCATO') || modelStr.includes('TRANSIT') || modelStr.includes('MASTER');
-                const isMicro = vType.includes('MINI') || modelStr.includes('MICRO') || modelStr.includes('VOLARE') || modelStr.includes('SENIOR') || modelStr.includes('FLY');
+                const isVan = targetTemplate === 'MODELO_VAN' || (targetTemplate !== 'MODELO_BUS' && targetTemplate !== 'MODELO_MICRO' && (vType === 'VAN' || modelStr.includes('VAN') || modelStr.includes('SPRINTER') || modelStr.includes('DUCATO') || modelStr.includes('TRANSIT') || modelStr.includes('MASTER')));
+                const isMicro = targetTemplate === 'MODELO_MICRO' || (targetTemplate !== 'MODELO_BUS' && targetTemplate !== 'MODELO_VAN' && (vType.includes('MINI') || modelStr.includes('MICRO') || modelStr.includes('VOLARE') || modelStr.includes('SENIOR') || modelStr.includes('FLY')));
 
                 if (isVan) {
                     filterType = 'VAN';
@@ -1106,7 +1106,14 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                     reparoRealizado: ''
                 }));
                 setFormData(p => ({ ...p, preventiveModel: targetTemplate, checklistItems: initialChecklist }));
-                const labelModelo = isResumido ? 'Modelo Resumido • Verificação Frota (41 itens)' : (filterType === 'VAN' ? 'Modelo Completo • Van' : (isMicro ? 'Modelo Completo • Micro-ônibus' : 'Modelo Completo • Ônibus'));
+                let labelModelo = 'Modelo Preventiva — Ônibus Pesado (180 itens)';
+                if (isResumido) {
+                    labelModelo = 'Modelo Resumido • Verificação Frota (41 itens)';
+                } else if (isVan || targetTemplate === 'MODELO_VAN') {
+                    labelModelo = 'Modelo Preventiva — Van (165 itens)';
+                } else if (isMicro || targetTemplate === 'MODELO_MICRO') {
+                    labelModelo = 'Modelo Preventiva — Micro-ônibus (180 itens)';
+                }
                 toast({
                     title: initialStatus === ChecklistStatus.OK ? `Todos os itens marcados como OK (${labelModelo})` : `Checklist Preventivo (${labelModelo})`,
                     description: initialStatus === ChecklistStatus.OK
@@ -1399,6 +1406,14 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
             const vehGarage = selectedVeh?.garageId
                 ? garagesForOS.find((g: Garage) => g.id === selectedVeh.garageId)
                 : undefined;
+            const vType = (selectedVeh?.vehicleType || '').toUpperCase();
+            const modelStr = ((selectedVeh?.model || '') + ' ' + (selectedVeh?.brand || '')).toUpperCase();
+            const isVanVeh = vType === 'VAN' || modelStr.includes('VAN') || modelStr.includes('SPRINTER') || modelStr.includes('DUCATO') || modelStr.includes('TRANSIT') || modelStr.includes('MASTER');
+            const isMicroVeh = vType.includes('MINI') || modelStr.includes('MICRO') || modelStr.includes('VOLARE') || modelStr.includes('SENIOR') || modelStr.includes('FLY');
+            let detectedModel = 'MODELO_BUS';
+            if (isVanVeh) detectedModel = 'MODELO_VAN';
+            else if (isMicroVeh) detectedModel = 'MODELO_MICRO';
+
             setFormData(p => {
                 const previousVehicle = vehicles.find(veh => veh.id === p.vehicleId);
                 const previousAggregateOwner = previousVehicle?.isAggregated
@@ -1407,6 +1422,7 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                 const currentAggregateInfo = p.aggregateInfo || '';
                 const shouldClearPreviousVehicleOwner = previousAggregateOwner
                     && currentAggregateInfo.trim() === previousAggregateOwner;
+                const nextPreventiveModel = (p.preventiveModel === 'MODELO_2') ? 'MODELO_2' : detectedModel;
                 return {
                     ...p,
                     vehicleId: v,
@@ -1423,11 +1439,12 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                         : p.odometerIn,
                     driverName: (p.driverName && p.driverName.trim()) ? p.driverName : (selectedVeh?.assignedDriver || ''),
                     aggregateInfo: selectedAggregateOwner || (shouldClearPreviousVehicleOwner ? '' : p.aggregateInfo),
-                    operationProfile: inferVehicleOperationProfile(selectedVeh)
+                    operationProfile: inferVehicleOperationProfile(selectedVeh),
+                    preventiveModel: nextPreventiveModel
                 };
             });
             if (formData.maintenanceType === MaintenanceType.PREVENTIVA && (!isEdit || !order?.checklistItems || order.checklistItems.length === 0)) {
-                handleLoadDefaultChecklist(v);
+                handleLoadDefaultChecklist(v, null, (formData.preventiveModel === 'MODELO_2') ? 'MODELO_2' : detectedModel);
             }
         };
 
@@ -2800,8 +2817,11 @@ const FleetWorkOrderForm: React.FC<Props> = ({ isOpen, onClose, onSuccess, order
                                                 >
                                                     <SelectTrigger className="bg-seguranca-black border-emerald-600/70 font-semibold text-emerald-200"><SelectValue /></SelectTrigger>
                                                     <SelectContent className="bg-seguranca-black border-gray-600 z-[10060]">
+                                                        <SelectItem value="MODELO_VAN">🚐 Modelo Preventiva — Van (Ficha Oficial VSS - 165 itens)</SelectItem>
+                                                        <SelectItem value="MODELO_MICRO">🚌 Modelo Preventiva — Micro-ônibus (Ficha Oficial VSS - 180 itens)</SelectItem>
+                                                        <SelectItem value="MODELO_BUS">🚍 Modelo Preventiva — Ônibus Pesado (Ficha Oficial VSS - 180 itens)</SelectItem>
                                                         <SelectItem value="MODELO_2">📋 Modelo Resumido (Check-List Verificação de Frota — 41 itens)</SelectItem>
-                                                        <SelectItem value="MODELO_1">⚙️ Modelo Completo / Padrão (Modelo Atual Oficina)</SelectItem>
+                                                        <SelectItem value="MODELO_1">⚙️ Modelo Completo / Geral (Oficina)</SelectItem>
                                                     </SelectContent>
                                                 </Select>
                                             </Field>

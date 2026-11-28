@@ -329,19 +329,43 @@ export const FleetWorkOrderViewModal: React.FC<FleetWorkOrderViewModalProps> = (
                                         }`}
                                     title="Check-List Verificação de Frota (Modelo Resumido — 41 itens)"
                                 >
-                                    Modelo Resumido
+                                    Resumido (41)
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => handleSwitchTemplate('MODELO_1')}
+                                    onClick={() => handleSwitchTemplate('MODELO_VAN')}
                                     disabled={isLoading}
-                                    className={`px-2 py-1 rounded text-[11px] font-bold transition-all ${selectedTemplateModel === 'MODELO_1'
+                                    className={`px-2 py-1 rounded text-[11px] font-bold transition-all ${selectedTemplateModel === 'MODELO_VAN'
                                         ? 'bg-blue-600 !text-white shadow-sm'
                                         : 'text-gray-400 hover:text-white'
                                         }`}
-                                    title="OS Completa / Oficina (Modelo Atual Padrão)"
+                                    title="Preventiva Van (Ficha Oficial VSS - 165 itens)"
                                 >
-                                    Modelo Atual
+                                    Van (165)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleSwitchTemplate('MODELO_MICRO')}
+                                    disabled={isLoading}
+                                    className={`px-2 py-1 rounded text-[11px] font-bold transition-all ${selectedTemplateModel === 'MODELO_MICRO'
+                                        ? 'bg-blue-600 !text-white shadow-sm'
+                                        : 'text-gray-400 hover:text-white'
+                                        }`}
+                                    title="Preventiva Micro-ônibus (Ficha Oficial VSS - 180 itens)"
+                                >
+                                    Micro (180)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleSwitchTemplate('MODELO_BUS')}
+                                    disabled={isLoading}
+                                    className={`px-2 py-1 rounded text-[11px] font-bold transition-all ${selectedTemplateModel === 'MODELO_BUS' || selectedTemplateModel === 'MODELO_1'
+                                        ? 'bg-blue-600 !text-white shadow-sm'
+                                        : 'text-gray-400 hover:text-white'
+                                        }`}
+                                    title="Preventiva Ônibus Pesado (Ficha Oficial VSS - 180 itens)"
+                                >
+                                    Ônibus (180)
                                 </button>
                             </div>
                         )}

@@ -3,10 +3,13 @@ package com.z7design.fleet_manager.service;
 import com.z7design.fleet_manager.model.FleetWorkOrder;
 import com.z7design.fleet_manager.model.Vehicle;
 import com.z7design.fleet_manager.repository.ChecklistItemRepository;
+import com.z7design.fleet_manager.repository.ClientRepository;
 import com.z7design.fleet_manager.repository.CompanyRepository;
 import com.z7design.fleet_manager.repository.EmployeeRepository;
 import com.z7design.fleet_manager.repository.FleetWorkOrderRepository;
+import com.z7design.fleet_manager.repository.GarageRepository;
 import com.z7design.fleet_manager.repository.UserRepository;
+import com.z7design.fleet_manager.repository.WorkPostRepository;
 import com.z7design.fleet_manager.repository.VehicleGateChecklistRepository;
 import com.z7design.fleet_manager.repository.VehicleInspectionRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -55,6 +58,15 @@ class FleetWorkOrderPdfServiceDriverTest {
     @Mock
     private StoredUploadService storedUploadService;
 
+    @Mock
+    private ClientRepository clientRepository;
+
+    @Mock
+    private WorkPostRepository workPostRepository;
+
+    @Mock
+    private GarageRepository garageRepository;
+
     private FleetWorkOrderPdfService service;
 
     @BeforeEach
@@ -77,7 +89,10 @@ class FleetWorkOrderPdfServiceDriverTest {
                 vehicleGateChecklistRepository,
                 vehicleInspectionRepository,
                 storedUploadService,
-                templateEngine);
+                templateEngine,
+                clientRepository,
+                workPostRepository,
+                garageRepository);
         ReflectionTestUtils.setField(service, "uploadDir", "uploads");
     }
 
